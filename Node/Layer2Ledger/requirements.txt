@@ -1,0 +1,9 @@
+Flask==1.1.2
+base58==2.0.0
+ecdsa==0.16.1
+bip-utils==1.6.0
+click==6.6
+protobuf==3.12.0
+requests==2.18.0
+google-cloud-ndb
+google-cloud-logging

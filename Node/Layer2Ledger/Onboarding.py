@@ -1,0 +1,177 @@
+from google.cloud import ndb
+import ErrorMessage
+import Address
+import signing_keys
+import Transaction
+import KeyVerification
+import logging
+import random
+import string
+import datetime
+#from bip_utils import Bip32, Bip32Conf
+from bip_utils import Bip32, Bip32Utils, Bip32Conf, BitcoinConf, Bip44BitcoinTestNet, WifEncoder, P2PKH
+
+import GlobalLogging
+
+ELECTRUM_MASTER_PUBLIC_KEY = '75e9e8821b64f6826d92abe6ed3104d5a72b921914e9be0d5778540a93d9c6db8fedf9339eb3d1fab69a2bb6fcc93d1360757872d5a7793b2d6f7d5f619dacd9'
+DEPOSIT_WALLET_MASTER_PUBKEY = 'tpubD6NzVbkrYhZ4Y6gVfZiXnkfT2bkPUKgAevufZ1UsmtNV6KzSZKsfMFCLshiRe9aAtD5arNAEtW5Td4YJzWGdpKp7DqdiwW8kXvu4PQeJFvp' #'tpubD6NzVbkrYhZ4XmdHMZZ51m1Tod4fShdNzGHXL1ZQLH74xoLYhp3CNzCALYGujfT2jbg87Dr8M3pSpU5ekTP4wPqBbEiGZg7G6Srf8TeaPkS' #'tpubDAGaHVErPqhGsvipFQuxEQyrd45cKYM4L2bLQtnBWnnH7HuL5q5U2ry4ZWHAZMZ2Pqu6Mm76VviRRD7z8KLkBdF5WJxqcUswjiqDjRzhEsW' 
+
+class MasterPublicKeyIndex(ndb.Model):
+    mpk_index = ndb.IntegerProperty()
+
+    @staticmethod
+    @ndb.transactional()
+    def getIndexAndAtomicallyIncrement():
+        _index = None
+        rows = MasterPublicKeyIndex.query().fetch(1) #returns a list of rows
+        row = None
+        if(not rows):
+            _index = 0
+            row = MasterPublicKeyIndex(mpk_index = _index)
+        else:
+            row = rows[0]
+            row.mpk_index += 1
+            _index = row.mpk_index
+        row.put()
+        return _index
+
+class WithdrawalRequests(ndb.Model):
+    layer1_address = ndb.StringProperty() # layer1 address to withdraw to
+    layer1_transaction_id = ndb.StringProperty() # transaction id of the confirmed layer1 transaction
+    status = ndb.IntegerProperty() # status of this withdrawal
+    amount = ndb.IntegerProperty() # amount withdrawing
+    guid = ndb.StringProperty()
+    server_signature = ndb.StringProperty() # signed with the onboarding key. Verified by the Onboarding helper
+    layer2_transaction_id = ndb.StringProperty() # transaction id that requested this withdrawal
+    withdrawal_requested_timestamp = ndb.IntegerProperty() #in unix time in seconds when this withdrawal was requested
+
+    WITHDRAWAL_STATUS_PENDING = 1 # the node has not queries this request
+    WITHDRAWAL_STATUS_IN_PROGRESS = 2 # the node has queried, but the transaction has not been broadcasted
+    WITHDRAWAL_STATUS_CONFIRMED = 3 # the transaction has been confirmed
+
+    def to_dict(self):
+        return super(WithdrawalRequests, self).to_dict()
+
+    def sign_withdrawal_request(self):
+        message = self.layer1_address + ' ' + self.guid + ' ' + self.layer2_transaction_id
+
+    @staticmethod
+    def addWithdrawalRequest(_layer1_address, _layer2_transaction_id, _amount):
+        w = WithdrawalRequests(layer1_address = _layer1_address, layer2_transaction_id = _layer2_transaction_id)
+        w.guid = ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(16))
+        w.status = WithdrawalRequests.WITHDRAWAL_STATUS_PENDING
+        w.amount = _amount
+        w.server_signature = w.sign_withdrawal_request()
+        w.withdrawal_requested_timestamp = int(datetime.datetime.now().timestamp())
+        id = w.put()
+        GlobalLogging.logger.log_text("WithdrawalRequest id " + str(id))
+        
+
+    @staticmethod
+    def getWithdrawalRequests(latest_timestamp):
+        requests = []
+        GlobalLogging.logger.log_text("WithdrawalRequest latest_timestamp " + str(latest_timestamp))
+        requests_query = WithdrawalRequests.query(WithdrawalRequests.withdrawal_requested_timestamp > latest_timestamp, WithdrawalRequests.status == WithdrawalRequests.WITHDRAWAL_STATUS_PENDING)
+        for request in requests_query.fetch():
+            requests.append(request)
+        return requests
+
+    @staticmethod
+    def ackWithdrawalRequests(guids):
+        for guid in guids:
+            g = WithdrawalRequests.query(WithdrawalRequests.guid == guid).fetch(1)
+            if(g):
+                g.status = WithdrawalRequests.WITHDRAWAL_STATUS_IN_PROGRESS
+                g.put()
+            else:
+                #log some warning message
+                pass
+
+
+
+
+class DepositAddresses(ndb.Model):
+    layer2_address = ndb.StringProperty() # public key whose deposits should be credit towards
+    nonce = ndb.StringProperty()
+    layer1_address = ndb.StringProperty() # btc address they deposit funds into
+    signature = ndb.StringProperty() # when they get a deposit address, they will sign to verify that it belongs to them
+    date_requested = ndb.DateTimeProperty(default = datetime.datetime.now())
+    mpk_index = ndb.IntegerProperty()
+
+    @staticmethod
+    def getAddressFromPubkey(pubkey):
+        return DepositAddresses.query(DepositAddresses.layer2_address == pubkey).get()
+
+    @staticmethod
+    def getPubkeyFromAddress(_layer1_address):
+        deposit = DepositAddresses.query(DepositAddresses.layer1_address == _layer1_address).get()
+        if(deposit):
+            return deposit.layer2_address
+        return None
+
+# Called by user
+def getDepositAddress(_layer2_address, nonce, signature):
+    #send request
+    #if success, add the address to the list
+    status = ErrorMessage.ERROR_SUCCESS
+    if (not KeyVerification.verifyGetDepositAddress(_layer2_address, nonce, signature)):
+        return ErrorMessage.ERROR_CANNOT_VERIFY_SIGNATURE, None
+
+    #if the address is already created through a previous request
+    deposit_adress = DepositAddresses.getAddressFromPubkey(_layer2_address)
+    if(deposit_adress):
+        return status, deposit_adress.layer1_address
+    #check to make sure nonce doesn't exist, though not nessesary
+    #user_addr = wallet.create_address(network="btctest", xpub=DEPOSIT_WALLET_MASTER_PUBKEY) #pywallet was not able to be installed
+    #deposit_layer1_address = '37XuVSEpWW4trkfmvWzegTHQt7BdktSKUs' #user_addr['address']
+
+    #mpk = electrum_mpk(HD_SEED)
+    bip32_ctx = Bip32.FromExtendedKey(DEPOSIT_WALLET_MASTER_PUBKEY, Bip32Conf.KEY_NET_VER.Test())
+    index = MasterPublicKeyIndex.getIndexAndAtomicallyIncrement()
+    GlobalLogging.logger.log_text("getDepositAddress index: " + str(index))
+    bip32_ctx = bip32_ctx.ChildKey(44).ChildKey(1).ChildKey(2).ChildKey(index)
+    pubkey_bytes = bip32_ctx.PublicKey().RawCompressed().ToBytes()
+    deposit_layer1_address = P2PKH.ToAddress(pubkey_bytes, BitcoinConf.P2PKH_NET_VER.Test())
+
+    #layer1_pubkey = electrum_pubkey(ELECTRUM_MASTER_PUBLIC_KEY, MasterPublicKeyIndex.getIndexAndAtomicallyIncrement())
+    #deposit_layer1_address = pubkey_to_address(layer1_pubkey)
+    logging.info('deposit_layer1_address: ' + deposit_layer1_address)
+    #seed = random_electrum_seed()
+    #mpk = electrum_mpk()deposit_layer1_address = P2PKH.ToAddress(pubkey_bytes, BitcoinConf.P2PKH_NET_VER.Test())
+    #temp_address = 'bc1' + ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(40))#'37XuVSEpWW4trkfmvWzegTHQt7BdktSKUs'
+    d = DepositAddresses(layer2_address = _layer2_address, layer1_address = deposit_layer1_address, signature = '', mpk_index = index)
+    d.put()
+    return status, deposit_layer1_address
+
+# Called by full node
+# When a deposit is confirmed, the full node calls this function, to credit the layer2 address with the deposited funds
+def depositConfirmed(layer1_transaction_id, amount, layer1_address, nonce, signature):
+    destination_pubkey = DepositAddresses.getPubkeyFromAddress(layer1_address)
+    if (not destination_pubkey):
+        return ErrorMessage.ERROR_DEPOSIT_ADDRESS_NOT_FOUND
+
+    #check to see if this deposit comes from our btc full node
+    if(not KeyVerification.verifyDeposit(layer1_transaction_id, amount, nonce, signature)):
+        return ErrorMessage.ERROR_CANNOT_VERIFY_SIGNATURE
+
+    source = signing_keys.onboarding_signing_key_pubkey
+    destination_address = Address.Address(destination_pubkey)
+    destination_payable_address = destination_address.get_payable_address()
+    #TODO: use destination_pubkey, remove get_payable_address
+    fee = 0
+
+    onboarding_transaction_signing_address = Address.Address.fromPrivateKey(signing_keys.onboarding_signing_key_privkey)
+    message = str(Transaction.Transaction.TRX_DEPOSIT) + " " + source + " " + destination_pubkey + " " + str(amount) + " " + str(fee) + " " + nonce
+    signature = onboarding_transaction_signing_address.sign(message)
+    status = Transaction.Transaction.add_transaction(Transaction.Transaction.TRX_DEPOSIT, amount, fee, source, destination_pubkey, message, signature, nonce)
+
+    return status
+
+def getWithdrawalRequests(latest_timestamp):
+    return WithdrawalRequests.getWithdrawalRequests(latest_timestamp)
+
+def ackWithdrawalRequests(guids):
+    return WithdrawalRequests.ackWithdrawalRequests(guids)
+
+def withdrawalCanceled():
+    pass
