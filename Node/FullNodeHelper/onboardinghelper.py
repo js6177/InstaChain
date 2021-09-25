@@ -17,7 +17,7 @@ from bitcoinrpc.authproxy import AuthServiceProxy, JSONRPCException
 
 
 TESTNET = True
-WALLET_NAME = "testnet_wallet5"
+WALLET_NAME = "wallet"
 BITCOIN_CLI_PATH = 'C:\\Program Files\\Bitcoin\\daemon\\bitcoin-cli.exe '
 TESTNET_TARGETCONFIRMATIONS = 3
 MAINNET_TARGETCONFIRMATIONS = 6
@@ -97,7 +97,7 @@ class NodeHelperRPC:
         if(TESTNET):
             return " -testnet "
         return ""
-    
+
     def loadWallet(self, wallet = WALLET_NAME):
         try:
             satus = self.rpc_connection.loadwallet(wallet)
@@ -136,13 +136,13 @@ class NodeHelperRPC:
                                 .ChildKey(1) \
                                 .ChildKey(j)                         \
                                 .ChildKey(i)
-    
+
             #print("Extended pubkey: " + bip32_ctx.PublicKey().ToExtended())
             descriptor = "pkh(" + master_pubkey + "/44/1/" + str(j) + "/" + str(i) + ")"
-            descriptor_checksum = checksum.AddChecksum(descriptor) #see getdescriptorinfo 
+            descriptor_checksum = checksum.AddChecksum(descriptor) #see getdescriptorinfo
             #print(descriptor_checksum)
             pubkey_bytes = bip32_ctx.PublicKey().RawCompressed().ToBytes()
-            address = P2PKH.ToAddress(pubkey_bytes, BitcoinConf.P2PKH_NET_VER.Test()) 
+            address = P2PKH.ToAddress(pubkey_bytes, BitcoinConf.P2PKH_NET_VER.Test())
             #print(address)
             #importmultiCmd = '[{ "desc" : "' + descriptor_checksum + '","timestamp": "now", "keys": [ "' + wif + '" ] } ]' '{"rescan": false}'
             importmultiCmd = {'desc': descriptor_checksum, "timestamp": "now", "keys": [wif] }
@@ -154,7 +154,7 @@ class NodeHelperRPC:
         print("command: " + command)
         #importMultiStatusJSON = os.popen(command).read()
         #print(importMultiStatusJSON)
-        
+
     def broadcastTransaction(self, pendingWithdrawals):
         sendmanyCmd = {}
         for pendingWithdrawal in pendingWithdrawals:
@@ -223,7 +223,7 @@ def main():
     for withdrawal in pendingWithdrawals:
         withdrawalsDict[withdrawal.withdrawal_id] = withdrawal
 
-    
+
     while(True):
         confirmedTransactions = []
         lastblockhash, confirmedTransactions = nh.getConfirmedTransactions(lastblockhash)
