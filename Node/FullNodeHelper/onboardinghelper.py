@@ -13,6 +13,8 @@ import binascii
 import checksum
 from bip_utils import Bip32, Bip32Utils, Bip32Conf, BitcoinConf, Bip44BitcoinTestNet, WifEncoder
 from bip_utils import P2PKH, P2SH, P2WPKH
+from bitcoinrpc.authproxy import AuthServiceProxy, JSONRPCException
+
 
 TESTNET = True
 WALLET_NAME = "testnet_wallet5"
@@ -73,7 +75,18 @@ class Communication:
         return self.confirmDeposit(nonce, transaction.transaction_id, transaction.amount, transaction.address, signature)
 
 
-class NodeHelper:
+class NodeHelperRPC:
+    rpc_ip = "127.0.0.1"
+    rpc_user = "bitcoin"
+    rpc_password = "R4tB_*5cJK!7p9"
+    rpc_port = "8332"
+
+    rpc_connection : AuthServiceProxy = None
+
+    def __init__(self, *args, **kwargs):
+        self.rpc_connection = AuthServiceProxy("http://%s:%s@%s:%s"%(self.rpc_user, self.rpc_password, self.rpc_ip, self.rpc_port))
+        return super().__init__(*args, **kwargs)
+
     def getTargetConfirmations(self):
         if(TESTNET):
             return TESTNET_TARGETCONFIRMATIONS
@@ -86,6 +99,11 @@ class NodeHelper:
         return ""
     
     def loadWallet(self, wallet = WALLET_NAME):
+        try:
+            satus = self.rpc_connection.loadwallet(wallet)
+        except Exception as e:
+            print(e)
+        return
         command = '"' + BITCOIN_CLI_PATH + '"' + self.getTestnetCommandParam() + " loadwallet " + wallet
         loadWalletJSON = os.popen(command).read()
 
@@ -177,13 +195,14 @@ def main():
     db = DatabaseInterface.DB()
     db.openOrCreateDB()
     # start bitcoin full node, or attach if it already started
-    nh = NodeHelper()
+    nh = NodeHelperRPC()
     comm = Communication()
 
     #nh.importMultiplePrivkeys()
     #return
 
     nh.loadWallet()
+    return
     lastblockhash = db.getLastBlockHash()
     confirmedTransactionsDict = {}
     withdrawalsDict = {}
