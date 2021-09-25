@@ -198,11 +198,10 @@ def main():
     nh = NodeHelperRPC()
     comm = Communication()
 
-    #nh.importMultiplePrivkeys()
-    #return
+    nh.importMultiplePrivkeys()
+    return
 
     nh.loadWallet()
-    return
     lastblockhash = db.getLastBlockHash()
     confirmedTransactionsDict = {}
     withdrawalsDict = {}
