@@ -29,7 +29,7 @@ HOSTNAME = 'https://blitz-v1.appspot.com/'
 
 @dataclass
 class TransactionOutput:
-    toAddress: string
+    destination_address: string
     amount: int
 
 class Communication:
@@ -118,7 +118,7 @@ class NodeHelperRPC:
         descriptors = []
         master_pubkey = master_bip32_ctx.PublicKey().ToExtended()
         print("Master Public key: " + master_pubkey)
-        j = 6
+        j = 2
         for i in range(0,10):
             #print("\n")
             bip32_ctx = master_bip32_ctx.ChildKey(44) \
@@ -152,6 +152,12 @@ class NodeHelperRPC:
         #print(json.dumps(descriptors))
         command = 'bitcoin-cli.exe ' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME + " importmulti '" + json.dumps(descriptors) + "' " + '\'{"rescan": false}\''
         print("command: " + command)
+        return
+        try:
+            status = self.rpc_connection.importmulti(descriptors)
+            print(status)
+        except Exception as e:
+            print(e)
         #importMultiStatusJSON = os.popen(command).read()
         #print(importMultiStatusJSON)
 
@@ -164,28 +170,45 @@ class NodeHelperRPC:
         subtractfeefromamount = True #user pays fees
 
         #command = '"' + BITCOIN_CLI_PATH + '"' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME  + " sendmany " + "\"\"" + " '" + json.dumps(sendmanyCmd) + "' " #+ " " + comment + " " + comment_to + " " + str(subtractfeefromamount)
-        command = '"' + BITCOIN_CLI_PATH + '"' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME  + " sendmany \"\" {'tb1q0a8r8dtsq6shsndg8jjzdu7dxtu0w6p2kuxx4p': 0.00001} " #+ " " + comment + " " + comment_to + " " + str(subtractfeefromamount)
+        #command = '"' + BITCOIN_CLI_PATH + '"' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME  + " sendmany \"\" {'tb1q0a8r8dtsq6shsndg8jjzdu7dxtu0w6p2kuxx4p': 0.00001} " #+ " " + comment + " " + comment_to + " " + str(subtractfeefromamount)
 
-        broadcastTransactionsJSON = os.popen(command).read()
-        print(command)
-        print("broadcastTransaction: " + broadcastTransactionsJSON)
+        #broadcastTransactionsJSON = os.popen(command).read()
+        #print(command)
+        #print("broadcastTransaction: " + broadcastTransactionsJSON)
+        try:
+            status = self.rpc_connection.sendmany("", sendmanyCmd)
+            print(status)
+        except Exception as e:
+            print(e)
         #broadcastTransactionsResponse = json.loads(broadcastTransactionsJSON)
         #transactionsID = broadcastTransactionsResponse["trxid"]
         #print("broadcastTransaction: " + broadcastTransactionsJSON)
 
-    def getConfirmedTransactions(self, lastblockhash = ""):
-        targetConfirmations = ""
+    def getConfirmedTransactions(self, lastblockhash = ''):
+        targetConfirmations = 0
         if(lastblockhash):
             targetConfirmations = str(self.getTargetConfirmations())
-        command = '"' + BITCOIN_CLI_PATH + '"' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME + " listsinceblock " + lastblockhash + " " + targetConfirmations
-        print(command)
-        listsinceblockJSON = os.popen(command).read()
-        print(listsinceblockJSON)
+        #command = '"' + BITCOIN_CLI_PATH + '"' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME + " listsinceblock " + lastblockhash + " " + targetConfirmations
+        #print(command)
+        #listsinceblockJSON = os.popen(command).read()
+        print('lastblockhash: ' + lastblockhash)
+        print('targetConfirmations: ' + str(targetConfirmations))
+        listsinceblockJSON = ''
+        try:
+            if (not lastblockhash):
+                listsinceblockJSON = self.rpc_connection.listsinceblock()
+            else:
+                listsinceblockJSON = self.rpc_connection.listsinceblock(lastblockhash, int(targetConfirmations))
+            print(listsinceblockJSON)
+        except Exception as e:
+            print(e)
 
-        listsinceblockResponse = json.loads(listsinceblockJSON)
-        newlastblock = listsinceblockResponse["lastblock"]
+        #print(listsinceblockJSON)
+
+        #listsinceblockResponse = json.load(listsinceblockJSON)
+        newlastblock = listsinceblockJSON["lastblock"]
         confirmedTransactions = []
-        transactions = listsinceblockResponse["transactions"]
+        transactions = listsinceblockJSON["transactions"]
         for transaction in transactions:
             confirmedTransactions.append(transaction)
         return newlastblock, confirmedTransactions
@@ -261,7 +284,7 @@ def main():
                 print('Deposit confirmed. transaction_id:' + trx.transaction_id + ' address: ' + trx.address)
 
 
-        nh.broadcastTransaction([TransactionOutput("tb1q0a8r8dtsq6shsndg8jjzdu7dxtu0w6p2kuxx4p", 0.000001)])
+        #nh.broadcastTransaction([TransactionOutput("tb1q0a8r8dtsq6shsndg8jjzdu7dxtu0w6p2kuxx4p", 0.0000546)])
         # get all withdrawals from DB that needs to be broadcasted, and broadcast them
         # check the full node for any recieved transactions (using listtransactions)
         # if there are any recieved transactions, call the confirmDeposit backend API
