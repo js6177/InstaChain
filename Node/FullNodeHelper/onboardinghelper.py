@@ -119,7 +119,7 @@ class NodeHelperRPC:
         master_pubkey = master_bip32_ctx.PublicKey().ToExtended()
         print("Master Public key: " + master_pubkey)
         j = 2
-        for i in range(0,10):
+        for i in range(0,100):
             #print("\n")
             bip32_ctx = master_bip32_ctx.ChildKey(44) \
                                 .ChildKey(1) \
@@ -152,7 +152,6 @@ class NodeHelperRPC:
         #print(json.dumps(descriptors))
         command = 'bitcoin-cli.exe ' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME + " importmulti '" + json.dumps(descriptors) + "' " + '\'{"rescan": false}\''
         print("command: " + command)
-        return
         try:
             status = self.rpc_connection.importmulti(descriptors)
             print(status)
@@ -221,10 +220,11 @@ def main():
     nh = NodeHelperRPC()
     comm = Communication()
 
-    nh.importMultiplePrivkeys()
-    return
-
     nh.loadWallet()
+
+    #nh.importMultiplePrivkeys()
+    #return
+
     lastblockhash = db.getLastBlockHash()
     confirmedTransactionsDict = {}
     withdrawalsDict = {}
@@ -268,8 +268,10 @@ def main():
             for pendingWithdrawalJSON in pendingWithdrawalsJSON['withdrawal_requests']:
                 withdrawal = DatabaseInterface.PendingWithdrawal().fromWithdrawalRequestAPIJson(pendingWithdrawalJSON)
                 pendingWithdrawals.append(withdrawal)
+        withdrawalTransactionOutputs = []
         for pendingWithdrawal in pendingWithdrawals:
             db.insertPendingWithdrawal(pendingWithdrawal)
+            withdrawalTransactionOutputs.append(TransactionOutput(pendingWithdrawal.destination_address, (pendingWithdrawal.amount)/SATOSHI_PER_BITCOIN))
             if(pendingWithdrawal.withdrawal_requested_timestamp > lastwithdrawalTimestamp):
                 lastwithdrawalTimestamp = pendingWithdrawal.withdrawal_requested_timestamp
             print('New withdrawal recieved. address: ' + pendingWithdrawal.destination_address + ' amount: ' + str(pendingWithdrawal.amount))
@@ -283,8 +285,9 @@ def main():
                 db.updateConfirmedTransaction(trx.transaction_id, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
                 print('Deposit confirmed. transaction_id:' + trx.transaction_id + ' address: ' + trx.address)
 
-
-        #nh.broadcastTransaction([TransactionOutput("tb1q0a8r8dtsq6shsndg8jjzdu7dxtu0w6p2kuxx4p", 0.0000546)])
+        if(len(withdrawalTransactionOutputs)):
+            print("Broadcasting " +  str(len(withdrawalTransactionOutputs)) + " withdrawal outputs")
+            nh.broadcastTransaction(withdrawalTransactionOutputs)
         # get all withdrawals from DB that needs to be broadcasted, and broadcast them
         # check the full node for any recieved transactions (using listtransactions)
         # if there are any recieved transactions, call the confirmDeposit backend API

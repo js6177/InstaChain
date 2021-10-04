@@ -33,7 +33,7 @@ class ConfirmedTransaction():
         self.timestamp = timestamp
 
     def __init__(self, transaction_id = '', layer2_status = None, amount = 0, fee = 0, address = '', category = '', confirmations = 0, timestamp = 0):
-        self.setValues(transaction_id, layer2_status, int(amount*SATOSHI_PER_BITCOIN), fee, address, category, confirmations, timestamp)
+        self.setValues(transaction_id, layer2_status, amount, fee, address, category, confirmations, timestamp)
 
     def fromListSinceBlockRpcJson(self, transactionJSON):
         print(str(transactionJSON))
@@ -84,7 +84,7 @@ class DB():
         self.cursor = self.conn.cursor()
         return super().__init__(*args, **kwargs)
 
-    def openOrCreateDB(self):     
+    def openOrCreateDB(self):
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS ConfirmedTransactions
              (transaction_id TEXT PRIMARY KEY, layer2_status INTEGER, amount INTEGER, fee INTEGER, address TEXT, category TEXT, confirmations INTEGER, timestamp INTEGER )''')
         self.cursor.execute('''CREATE INDEX IF NOT EXISTS UIX_ConfirmedTransactions_layer2_status
@@ -202,8 +202,3 @@ class DB():
 
     def setLastWithdrawalTimestamp(self, lastwithdrawalTimestamp, defaultValue = 0):
         self.setKeyValue('lastwithdrawalTimestamp', str(lastwithdrawalTimestamp), str(defaultValue))
-
-        
-    
-
-    
