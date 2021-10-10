@@ -19,7 +19,7 @@ class withdrawalRequest(BlitzRequestHandler):
 
     def processRequest(self):
         message = NODE_ID + " " + str(Transaction.TRX_WITHDRAWAL_INITIATED) + " " + self.public_key + " " + self.withdrawal_address + ' ' + self.nonce + ' ' + str(self.amount)
-        status = Transaction.add_transaction(Transaction.TRX_WITHDRAWAL_INITIATED, self.amount, 0, self.public_key, self.withdrawal_address, message, self.signature, self.nonce)
+        status = Transaction.process_transaction(Transaction.TRX_WITHDRAWAL_INITIATED, self.amount, 0, self.public_key, self.withdrawal_address, message, self.signature, self.nonce)
 
         self.result = ErrorMessage.build_error_message(status)
 
