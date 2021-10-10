@@ -27,7 +27,7 @@ class pushTransaction(BlitzRequestHandler):
         t = time.time()
 
         message = NODE_ID + " " + "1 " + self.source + " " + self.destination + " " + str(self.amount) + " " + str(self.fee) + " " + self.nonce
-        status = Transaction.add_transaction(Transaction.TRX_TRANSFER, self.amount, self.fee, self.source, self.destination, message, self.signature, self.nonce)
+        status = Transaction.process_transaction(Transaction.TRX_TRANSFER, self.amount, self.fee, self.source, self.destination, message, self.signature, self.nonce)
         self.result = ErrorMessage.build_error_message(status)
 
         GlobalLogging.logger.log_text("response: " + json.dumps(self.result))

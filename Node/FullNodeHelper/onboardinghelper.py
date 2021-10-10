@@ -13,9 +13,11 @@ import binascii
 import checksum
 from bip_utils import Bip32, Bip32Utils, Bip32Conf, BitcoinConf, Bip44BitcoinTestNet, WifEncoder
 from bip_utils import P2PKH, P2SH, P2WPKH
+from bitcoinrpc.authproxy import AuthServiceProxy, JSONRPCException
+
 
 TESTNET = True
-WALLET_NAME = "testnet_wallet5"
+WALLET_NAME = "wallet"
 BITCOIN_CLI_PATH = 'C:\\Program Files\\Bitcoin\\daemon\\bitcoin-cli.exe '
 TESTNET_TARGETCONFIRMATIONS = 3
 MAINNET_TARGETCONFIRMATIONS = 6
@@ -27,7 +29,7 @@ HOSTNAME = 'https://blitz-v1.appspot.com/'
 
 @dataclass
 class TransactionOutput:
-    toAddress: string
+    destination_address: string
     amount: int
 
 class Communication:
@@ -73,7 +75,18 @@ class Communication:
         return self.confirmDeposit(nonce, transaction.transaction_id, transaction.amount, transaction.address, signature)
 
 
-class NodeHelper:
+class NodeHelperRPC:
+    rpc_ip = "127.0.0.1"
+    rpc_user = "bitcoin"
+    rpc_password = "R4tB_*5cJK!7p9"
+    rpc_port = "8332"
+
+    rpc_connection : AuthServiceProxy = None
+
+    def __init__(self, *args, **kwargs):
+        self.rpc_connection = AuthServiceProxy("http://%s:%s@%s:%s"%(self.rpc_user, self.rpc_password, self.rpc_ip, self.rpc_port))
+        return super().__init__(*args, **kwargs)
+
     def getTargetConfirmations(self):
         if(TESTNET):
             return TESTNET_TARGETCONFIRMATIONS
@@ -84,8 +97,13 @@ class NodeHelper:
         if(TESTNET):
             return " -testnet "
         return ""
-    
+
     def loadWallet(self, wallet = WALLET_NAME):
+        try:
+            satus = self.rpc_connection.loadwallet(wallet)
+        except Exception as e:
+            print(e)
+        return
         command = '"' + BITCOIN_CLI_PATH + '"' + self.getTestnetCommandParam() + " loadwallet " + wallet
         loadWalletJSON = os.popen(command).read()
 
@@ -100,7 +118,7 @@ class NodeHelper:
         descriptors = []
         master_pubkey = master_bip32_ctx.PublicKey().ToExtended()
         print("Master Public key: " + master_pubkey)
-        j = 6
+        j = 2
         for i in range(0,10):
             #print("\n")
             bip32_ctx = master_bip32_ctx.ChildKey(44) \
@@ -118,13 +136,13 @@ class NodeHelper:
                                 .ChildKey(1) \
                                 .ChildKey(j)                         \
                                 .ChildKey(i)
-    
+
             #print("Extended pubkey: " + bip32_ctx.PublicKey().ToExtended())
             descriptor = "pkh(" + master_pubkey + "/44/1/" + str(j) + "/" + str(i) + ")"
-            descriptor_checksum = checksum.AddChecksum(descriptor) #see getdescriptorinfo 
+            descriptor_checksum = checksum.AddChecksum(descriptor) #see getdescriptorinfo
             #print(descriptor_checksum)
             pubkey_bytes = bip32_ctx.PublicKey().RawCompressed().ToBytes()
-            address = P2PKH.ToAddress(pubkey_bytes, BitcoinConf.P2PKH_NET_VER.Test()) 
+            address = P2PKH.ToAddress(pubkey_bytes, BitcoinConf.P2PKH_NET_VER.Test())
             #print(address)
             #importmultiCmd = '[{ "desc" : "' + descriptor_checksum + '","timestamp": "now", "keys": [ "' + wif + '" ] } ]' '{"rescan": false}'
             importmultiCmd = {'desc': descriptor_checksum, "timestamp": "now", "keys": [wif] }
@@ -134,9 +152,15 @@ class NodeHelper:
         #print(json.dumps(descriptors))
         command = 'bitcoin-cli.exe ' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME + " importmulti '" + json.dumps(descriptors) + "' " + '\'{"rescan": false}\''
         print("command: " + command)
+        return
+        try:
+            status = self.rpc_connection.importmulti(descriptors)
+            print(status)
+        except Exception as e:
+            print(e)
         #importMultiStatusJSON = os.popen(command).read()
         #print(importMultiStatusJSON)
-        
+
     def broadcastTransaction(self, pendingWithdrawals):
         sendmanyCmd = {}
         for pendingWithdrawal in pendingWithdrawals:
@@ -146,28 +170,45 @@ class NodeHelper:
         subtractfeefromamount = True #user pays fees
 
         #command = '"' + BITCOIN_CLI_PATH + '"' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME  + " sendmany " + "\"\"" + " '" + json.dumps(sendmanyCmd) + "' " #+ " " + comment + " " + comment_to + " " + str(subtractfeefromamount)
-        command = '"' + BITCOIN_CLI_PATH + '"' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME  + " sendmany \"\" {'tb1q0a8r8dtsq6shsndg8jjzdu7dxtu0w6p2kuxx4p': 0.00001} " #+ " " + comment + " " + comment_to + " " + str(subtractfeefromamount)
+        #command = '"' + BITCOIN_CLI_PATH + '"' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME  + " sendmany \"\" {'tb1q0a8r8dtsq6shsndg8jjzdu7dxtu0w6p2kuxx4p': 0.00001} " #+ " " + comment + " " + comment_to + " " + str(subtractfeefromamount)
 
-        broadcastTransactionsJSON = os.popen(command).read()
-        print(command)
-        print("broadcastTransaction: " + broadcastTransactionsJSON)
+        #broadcastTransactionsJSON = os.popen(command).read()
+        #print(command)
+        #print("broadcastTransaction: " + broadcastTransactionsJSON)
+        try:
+            status = self.rpc_connection.sendmany("", sendmanyCmd)
+            print(status)
+        except Exception as e:
+            print(e)
         #broadcastTransactionsResponse = json.loads(broadcastTransactionsJSON)
         #transactionsID = broadcastTransactionsResponse["trxid"]
         #print("broadcastTransaction: " + broadcastTransactionsJSON)
 
-    def getConfirmedTransactions(self, lastblockhash = ""):
-        targetConfirmations = ""
+    def getConfirmedTransactions(self, lastblockhash = ''):
+        targetConfirmations = 0
         if(lastblockhash):
             targetConfirmations = str(self.getTargetConfirmations())
-        command = '"' + BITCOIN_CLI_PATH + '"' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME + " listsinceblock " + lastblockhash + " " + targetConfirmations
-        print(command)
-        listsinceblockJSON = os.popen(command).read()
-        print(listsinceblockJSON)
+        #command = '"' + BITCOIN_CLI_PATH + '"' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME + " listsinceblock " + lastblockhash + " " + targetConfirmations
+        #print(command)
+        #listsinceblockJSON = os.popen(command).read()
+        print('lastblockhash: ' + lastblockhash)
+        print('targetConfirmations: ' + str(targetConfirmations))
+        listsinceblockJSON = ''
+        try:
+            if (not lastblockhash):
+                listsinceblockJSON = self.rpc_connection.listsinceblock()
+            else:
+                listsinceblockJSON = self.rpc_connection.listsinceblock(lastblockhash, int(targetConfirmations))
+            print(listsinceblockJSON)
+        except Exception as e:
+            print(e)
 
-        listsinceblockResponse = json.loads(listsinceblockJSON)
-        newlastblock = listsinceblockResponse["lastblock"]
+        #print(listsinceblockJSON)
+
+        #listsinceblockResponse = json.load(listsinceblockJSON)
+        newlastblock = listsinceblockJSON["lastblock"]
         confirmedTransactions = []
-        transactions = listsinceblockResponse["transactions"]
+        transactions = listsinceblockJSON["transactions"]
         for transaction in transactions:
             confirmedTransactions.append(transaction)
         return newlastblock, confirmedTransactions
@@ -177,11 +218,11 @@ def main():
     db = DatabaseInterface.DB()
     db.openOrCreateDB()
     # start bitcoin full node, or attach if it already started
-    nh = NodeHelper()
+    nh = NodeHelperRPC()
     comm = Communication()
 
-    #nh.importMultiplePrivkeys()
-    #return
+    nh.importMultiplePrivkeys()
+    return
 
     nh.loadWallet()
     lastblockhash = db.getLastBlockHash()
@@ -204,7 +245,7 @@ def main():
     for withdrawal in pendingWithdrawals:
         withdrawalsDict[withdrawal.withdrawal_id] = withdrawal
 
-    
+
     while(True):
         confirmedTransactions = []
         lastblockhash, confirmedTransactions = nh.getConfirmedTransactions(lastblockhash)
@@ -243,7 +284,7 @@ def main():
                 print('Deposit confirmed. transaction_id:' + trx.transaction_id + ' address: ' + trx.address)
 
 
-        nh.broadcastTransaction([TransactionOutput("tb1q0a8r8dtsq6shsndg8jjzdu7dxtu0w6p2kuxx4p", 0.000001)])
+        #nh.broadcastTransaction([TransactionOutput("tb1q0a8r8dtsq6shsndg8jjzdu7dxtu0w6p2kuxx4p", 0.0000546)])
         # get all withdrawals from DB that needs to be broadcasted, and broadcast them
         # check the full node for any recieved transactions (using listtransactions)
         # if there are any recieved transactions, call the confirmDeposit backend API
