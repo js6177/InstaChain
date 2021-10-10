@@ -17,7 +17,7 @@ genesis_pubkey = '2rFKHwbfXho74Ggw7nRMp1qVa3YgDizXVL6Y3rJ15TJoQGXqwwK9bhfmsdZ82r
 #trusted public key of the sever that is used to manage deposit/withdrawals
 onboarding_pubkey = ''
 
-ADDRESS_BALANCE_CACHE_ENABLED = False
+ADDRESS_BALANCE_CACHE_ENABLED = True
 
 def _dropTable():
     ndb.delete_multi(
@@ -34,13 +34,16 @@ class AddressBalanceCache(ndb.Model):
     timestamp = ndb.DateTimeProperty(auto_now_add=True)
 
     @staticmethod
+    def get(_address):
+        return AddressBalanceCache.query(AddressBalanceCache.address == _address).get()
+
+    @staticmethod
     def updateBalance(_address, _balance):
         t1 = datetime.datetime.now()
-        hit = AddressBalanceCache.query(AddressBalanceCache.address == _address).get()
+        hit = AddressBalanceCache.get(_address)
         if(not hit):
             hit = AddressBalanceCache(address = _address, balance = Transaction.get_balance(_address, False))
-        else:
-            hit.balance += _balance
+        hit.balance += _balance
         hit.put()
         DebugLogger.TransactionDuration.logDuration(t1, _address, 'updateBalance')
         #add or updates balance
@@ -71,7 +74,7 @@ class Transaction(ndb.Model):
         return result
 
     @staticmethod
-    def add_transaction(_transaction_type, _amount, _fee, _source, _destination, _message, _signature, _nonce, _layer1_transaction_id = None):
+    def process_transaction(_transaction_type, _amount, _fee, _source, _destination, _message, _signature, _nonce, _layer1_transaction_id = None):
         status = ErrorMessage.ERROR_UNKNOWN
 
         source = Address(_source)
@@ -87,7 +90,6 @@ class Transaction(ndb.Model):
             return ErrorMessage.ERROR_CANNOT_VERIFY_SIGNATURE
 
         #onboarding checking
-        #TODO: move to transactional
         if(_layer1_transaction_id):
             trx_exists = Transaction.query(Transaction.layer1_transaction_id == _layer1_transaction_id).get()
             if(trx_exists and (_transaction_type not in [Transaction.TRX_WITHDRAWAL_CONFIRMED, Transaction.TRX_WITHDRAWAL_CANCELED])):
@@ -101,8 +103,6 @@ class Transaction(ndb.Model):
                     if(trx.transaction_type == Transaction.TRX_WITHDRAWAL_CANCELED):
                         return ErrorMessage.ERROR_CANNOT_CANCEL_WITHDRAWAL_MULTIPLE_TIMES #make sure TRX_WITHDRAWAL_CANCELED doesn't get saved twice
 
-
-        #TODO: put in try catch block, as a transactional operation might fail with TransactionFailedError
         try:
             status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _nonce, _layer1_transaction_id)
         except Exception as ex:
@@ -124,14 +124,16 @@ class Transaction(ndb.Model):
         if(nonce_exists):
             status = ErrorMessage.ERROR_DUPLICATE_TRANSACTION_ID
         else:
-            balance = Transaction.get_balance(source.pubkey)
+            balance = Transaction.get_balance(source.pubkey, ADDRESS_BALANCE_CACHE_ENABLED)
             if (balance >= _amount or (_transaction_type == Transaction.TRX_DEPOSIT)):
                 trx = Transaction(amount=_amount, fee=_fee, source_address_pubkey=source.pubkey,
                                   destination_address_pubkey=_destination, transaction_type=_transaction_type,
                                   signature=_signature, transaction_id=_transaction_id, layer1_transaction_id = _layer1_transaction_id)
                 trx.put()  # save it to the DB
+                GlobalLogging.logger.log_text("ADDRESS_BALANCE_CACHE_ENABLED: " + str(ADDRESS_BALANCE_CACHE_ENABLED))
                 #in the balance cache, update the cache
                 if (ADDRESS_BALANCE_CACHE_ENABLED and _transaction_type != Transaction.TRX_WITHDRAWAL_CONFIRMED):
+                    GlobalLogging.logger.log_text("updating AddressBalanceCache")
                     AddressBalanceCache.updateBalance(source.pubkey, -_amount)
                     AddressBalanceCache.updateBalance(_destination, _amount-_fee)
                 status = ErrorMessage.ERROR_SUCCESS
@@ -142,7 +144,7 @@ class Transaction(ndb.Model):
         return status
 
     @staticmethod
-    def get_balance(pubkey, useCache = ADDRESS_BALANCE_CACHE_ENABLED):
+    def get_balance(pubkey, useCache = True):
         address = Address(pubkey)
         t1 = datetime.datetime.now()
         trx_count = 0 #for logging, use to hold the count of transactions. Do lot use Query.count() method, as it will recalculate
@@ -150,7 +152,7 @@ class Transaction(ndb.Model):
         balance = 0
         balance_found_from_cache = False
         if(useCache):
-            hit = AddressBalanceCache.query(AddressBalanceCache.address == address.pubkey).get()
+            hit = AddressBalanceCache.get(address.pubkey)
             if(hit):
                 balance = hit.balance
                 balance_found_from_cache = True

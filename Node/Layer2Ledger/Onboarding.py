@@ -14,7 +14,7 @@ from bip_utils import Bip32, Bip32Utils, Bip32Conf, BitcoinConf, Bip44BitcoinTes
 import GlobalLogging
 
 ELECTRUM_MASTER_PUBLIC_KEY = '75e9e8821b64f6826d92abe6ed3104d5a72b921914e9be0d5778540a93d9c6db8fedf9339eb3d1fab69a2bb6fcc93d1360757872d5a7793b2d6f7d5f619dacd9'
-DEPOSIT_WALLET_MASTER_PUBKEY = 'tpubD6NzVbkrYhZ4Y6gVfZiXnkfT2bkPUKgAevufZ1UsmtNV6KzSZKsfMFCLshiRe9aAtD5arNAEtW5Td4YJzWGdpKp7DqdiwW8kXvu4PQeJFvp' #'tpubD6NzVbkrYhZ4XmdHMZZ51m1Tod4fShdNzGHXL1ZQLH74xoLYhp3CNzCALYGujfT2jbg87Dr8M3pSpU5ekTP4wPqBbEiGZg7G6Srf8TeaPkS' #'tpubDAGaHVErPqhGsvipFQuxEQyrd45cKYM4L2bLQtnBWnnH7HuL5q5U2ry4ZWHAZMZ2Pqu6Mm76VviRRD7z8KLkBdF5WJxqcUswjiqDjRzhEsW' 
+DEPOSIT_WALLET_MASTER_PUBKEY = 'tpubD6NzVbkrYhZ4WtcvYt8xNHvLsGvGoe5V9WmJUvQ5cWKgoqkf1PTSrqYGU1ziCFNj58MToJsaFUqTTUBjnS1MNWSRsujpCWX9bmv5U4Pt532' #'tpubD6NzVbkrYhZ4XmdHMZZ51m1Tod4fShdNzGHXL1ZQLH74xoLYhp3CNzCALYGujfT2jbg87Dr8M3pSpU5ekTP4wPqBbEiGZg7G6Srf8TeaPkS' #'tpubDAGaHVErPqhGsvipFQuxEQyrd45cKYM4L2bLQtnBWnnH7HuL5q5U2ry4ZWHAZMZ2Pqu6Mm76VviRRD7z8KLkBdF5WJxqcUswjiqDjRzhEsW' 
 
 class MasterPublicKeyIndex(ndb.Model):
     mpk_index = ndb.IntegerProperty()
@@ -163,7 +163,7 @@ def depositConfirmed(layer1_transaction_id, amount, layer1_address, nonce, signa
     onboarding_transaction_signing_address = Address.Address.fromPrivateKey(signing_keys.onboarding_signing_key_privkey)
     message = str(Transaction.Transaction.TRX_DEPOSIT) + " " + source + " " + destination_pubkey + " " + str(amount) + " " + str(fee) + " " + nonce
     signature = onboarding_transaction_signing_address.sign(message)
-    status = Transaction.Transaction.add_transaction(Transaction.Transaction.TRX_DEPOSIT, amount, fee, source, destination_pubkey, message, signature, nonce)
+    status = Transaction.Transaction.process_transaction(Transaction.Transaction.TRX_DEPOSIT, amount, fee, source, destination_pubkey, message, signature, nonce, layer1_transaction_id)
 
     return status
 

@@ -289,6 +289,7 @@ class Wallet:
         #self.addresses[address_pubkey][node_url].deposit_address = response.deposit_address
         layer2_pubkey = response.deposit_address
         self.deposit_addresses.append(DepositAddress(node_url, layer2_pubkey, address.pubkey))
+        self.save_wallet()
         return layer2_pubkey #todo: return status and value
 
     #REMOVE, this is only for functional tests to emulate full node
@@ -320,7 +321,7 @@ class Wallet:
         #message = self.trusted_nodes[_node_url].node_id + ' ' + str(TRX_WITHDRAWAL_REQUESTED) + ' ' + address.pubkey + ' ' + withdrawal_address + ' ' + nonce + ' ' + str(amount)
         #print('message: ' + message)
         #signature = Wallet.sign_string(address.privkey, message)
-        connection.sendWithdrawalRequest(_node_url, address.pubkey, layer1_withdrawal_address, amount, trx.transaction_id, trx.signature)
+        connection.sendWithdrawalRequest(_node_url, source_address_pubkey, layer1_withdrawal_address, amount, trx.transaction_id, trx.signature)
 
     async def withdrawRequestAsync(self, session, source_address_pubkey: string, layer1_withdrawal_address: string, amount: int, _node_url):
         trx = self.createWithdrawTransactionRequest(source_address_pubkey, layer1_withdrawal_address, amount, _node_url)

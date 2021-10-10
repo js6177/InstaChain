@@ -7,7 +7,11 @@ import TransactionAPI
 import OnboardingAPI
 import GlobalLogging
 
+import SuperUser #delete this in production
+
 GlobalLogging.logging_client = logging.Client()
+GlobalLogging.logging_client.get_default_handler()
+GlobalLogging.logging_client.setup_logging()
 GlobalLogging.logger = GlobalLogging.logging_client.logger('log')
 
 
@@ -29,3 +33,5 @@ app.add_url_rule(r'/getWithdrawalRequests', 'getWithdrawalRequests', OnboardingA
 app.add_url_rule(r'/ackWithdrawalRequests', 'ackWithdrawalRequests', OnboardingAPI.ackWithdrawalRequests.initializeRequest, methods=['POST'])
 app.add_url_rule(r'/getNewDepositAddress', 'getNewDepositAddress', OnboardingAPI.getNewDepositAddress.initializeRequest) # get a new address to deposit mainnet coins into
 app.add_url_rule(r'/depositFunds', 'depositFunds', OnboardingAPI.depositConfirmed.initializeRequest, methods=['POST']) #this transaction will be signed by the deposited addresses public key. This API will only be called by the full node
+
+app.add_url_rule(r'/delete', 'delete', SuperUser.Delete.initializeRequest)
