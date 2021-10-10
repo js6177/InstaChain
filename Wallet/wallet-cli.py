@@ -3,12 +3,15 @@ import json
 import shlex
 import traceback
 
+DEFAULT_NODE_HOSTNAME = 'https://blitz-v1.appspot.com/'
+
 CONFIG_FILENAME = 'config.json'
 
 COMMANDS_NOT_REQUIRING_WALLET = ['help', 'open_wallet']
 
 COMMANDS_HELP = {
     'help': ['[command]', 'Displays a help of a command. If no command is given, lists all the commands'],
+    'exit': ['', 'Saves and closes any open wallets and exists'],
     'new_wallet': ['<wallet path> [node url]', 'Creates a new wallet file, with 1 address, and connects to the node'],
     'open_wallet': ['<wallet path>', 'Loads a wallet. This wallet is needed for almost all functionality'],
     'close_wallet': ['', 'Safely saves and closes the wallet.'],
@@ -28,7 +31,7 @@ COMMANDS_HELP = {
 'list_address_balance': ['<address> [node]', 'Displays the balance of a specific address. If [node] is not specified, it will list the balance of the address from all nodes in your wallet'],
 
     'get_deposit_address': ['<address> [node]', 'Gets a layer 1 deposit address, whose funds are deposited to your blitz address'],
-    'withdraw': ['<address> <layer1 address>', 'Withdraws funds from your blitz address to the given layer1 bitcoin address'],
+    'withdraw': ['<address> <layer1 address> <amount> [node url]', 'Withdraws funds from your layer2 address to the given layer1 address'],
 
 'view_transaction': ['<transaction id> <node>', 'Displays the transaction information of a transaction id of a node'],
 
@@ -82,18 +85,19 @@ class WalletCLI():
         while(True):
             print(self.getPromptPrefix() + ' >', end =" ")
             args = shlex.split(str(input()))
-            cmd = args[0]
-            if(self.wallet == None and cmd not in COMMANDS_NOT_REQUIRING_WALLET):
-                print("Error need to load wallet for this command. Call 'open_wallet' command")
-                continue
-            try:
-                f = getattr(self, cmd)
-                f(args[1:])
-            except AttributeError as e:
-                print(traceback.format_exc())
-                #print("command '" + cmd + "' not found. Type 'help' for list of commands")
-            except Exception as e:
-                print(traceback.format_exc())
+            if(len(args) > 0):
+                cmd = args[0]
+                if(self.wallet == None and cmd not in COMMANDS_NOT_REQUIRING_WALLET):
+                    print("Error need to load wallet for this command. Call 'open_wallet' command")
+                    continue
+                try:
+                    f = getattr(self, cmd)
+                    f(args[1:])
+                except AttributeError as e:
+                    print(traceback.format_exc())
+                    #print("command '" + cmd + "' not found. Type 'help' for list of commands")
+                except Exception as e:
+                    print(traceback.format_exc())
 
     def displayCommandHelp(self, command):
         command_info = COMMANDS_HELP[command]
@@ -107,8 +111,13 @@ class WalletCLI():
             for key in COMMANDS_HELP:
                 self.displayCommandHelp(key)
 
+    def exit(self, args):
+        self.close_wallet()
+        exit(0)
+
     def open_wallet(self, args):
         if(len(args)):
+            self.close_wallet()
             if(not self.wallet):
                 self.wallet = wallet.Wallet()
             self.wallet.open_wallet(args[0])
@@ -117,7 +126,9 @@ class WalletCLI():
 
     def new_wallet(self, args):
         wallet_path = args[0]
-        node_url = self.getArgument(args, 1)
+        node_url = self.getArgument(args, 1) or DEFAULT_NODE_HOSTNAME
+        self.close_wallet()
+        self.wallet = wallet.Wallet()
         self.wallet.generate_new_wallet(wallet_path, node_url)
 
     def create_transaction(self, args):
@@ -152,20 +163,23 @@ class WalletCLI():
         node_hostname = args[0]
         self.wallet.add_trusted_node(node_hostname)
 
-    def close_wallet(self, args):
+    def close_wallet(self, args = None):
         self.wallet.save_wallet()
         self.wallet = None
+        self.wallet_name = None
 
     def get_deposit_address(self, args):
         address = args[0]
         node_url = self.getArgument(args, 1) or self.wallet.current_node
-        self.wallet.getDepositAddress(address, node_url)
+        depositAddress = self.wallet.getDepositAddress(address, node_url)
+        print(depositAddress)
 
     def withdraw(self, args):
         address = args[0]
         layer1_withdrawal_address = args[1]
         amount = args[2]
-        self.wallet.withdrawRequest(address, layer1_withdrawal_address, amount)
+        node_url = self.getArgument(args, 3) or self.wallet.current_node
+        self.wallet.withdrawRequest(address, layer1_withdrawal_address, amount, node_url)
 
     def list_wallet_transactions(self, args):
         print('list_wallet_transactions called')
@@ -193,7 +207,7 @@ class WalletCLI():
 
 
 
-#commands = [help, open_wallet, close_wallet, new_address, list_addresses, add_node, list_nodes, create_transaction, push_transaction, push_signed_transaction, list_wallet_transactions, list_wallet_balance, list_address_transactions, list_address_balance]
+#commands = [help, exit, open_wallet, close_wallet, new_address, list_addresses, add_node, list_nodes, create_transaction, push_transaction, push_signed_transaction, list_wallet_transactions, list_wallet_balance, list_address_transactions, list_address_balance]
 
 command_map = {
 }

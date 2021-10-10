@@ -84,18 +84,17 @@ def create_n_trx(w, trx_count = 10):
         print(trx)
         transactions.append(trx)
 
-def withdrawFromAddress(w):
-    withdrawal_address = '3BcQuMXhCb9Nh1v6ickhuy7oBA5Vsb7szh'
-    withdraw_from = 'BeX78KTvMJ2b8UVj6CHmaZ3JEg3yjPov1f3HMbDqAhhp'
-    w.update_balance(withdraw_from)
-    print(w.addresses[withdraw_from].balance)
+def withdrawFromAddress(w, layer1_withdrawal_address = 'tb1qfleu7fchf8c762fezw80f4vzuxm5xryq5u0j95', layer2_withdraw_from_address = 'BeX78KTvMJ2b8UVj6CHmaZ3JEg3yjPov1f3HMbDqAhhp'):
+    
+    w.update_address_balance(layer2_withdraw_from_address)
+    print(w.get_address_balance(layer2_withdraw_from_address))
     #source_address = ''
     #get_wallet_balance(w)
     #w.withdrawRequest(withdraw_from, withdrawal_address, 10)
-    w.withdrawRequest(withdraw_from, withdrawal_address, 12)
+    w.withdrawRequest(layer2_withdraw_from_address, layer1_withdrawal_address, 12, w.current_node)
 
-    w.update_balance(withdraw_from)
-    print(w.addresses[withdraw_from].balance)
+    w.update_address_balance(layer2_withdraw_from_address)
+    print(w.get_address_balance(layer2_withdraw_from_address))
     #for i in range(20):
     #    Wallet.withdrawRequest(w, w.addresses[i], withdrawal_address, 10)
 
@@ -290,7 +289,18 @@ def DepositWithdrawalCheckBalanceAsync():
 
     
 
+w = Wallet()
+w.open_wallet('nodeapi_test5.json')
+layer2_address = w.generate_new_address('address1')
+layer1_address = get_deposit_address(w, layer2_address)
+print(layer1_address)
+quit()
 
+full_node_wallet = Wallet()
+full_node_wallet.open_wallet('functional_tests_wallet.json')
+depositFunds(w, layer2_address, 1000)
+withdrawFromAddress(w, 'tb1qfleu7fchf8c762fezw80f4vzuxm5xryq5u0j95', layer2_address)
+quit()
 
 #DepositCheckBalance()
 #DepositTransferCheckBalance()
