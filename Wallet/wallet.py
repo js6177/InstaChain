@@ -248,6 +248,11 @@ class Wallet:
 
             if(not self.current_node):
                 self.current_node = node_url
+    
+    def clear_cache(self):
+        self.address_balance = dict()
+        self.confirmed_transactions = set()
+        self.save_wallet()
 
     @staticmethod
     def sign_string(signing_key, message):
