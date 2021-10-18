@@ -14,6 +14,7 @@ import checksum
 from bip_utils import Bip32, Bip32Utils, Bip32Conf, BitcoinConf, Bip44BitcoinTestNet, WifEncoder
 from bip_utils import P2PKH, P2SH, P2WPKH
 from bitcoinrpc.authproxy import AuthServiceProxy, JSONRPCException
+import traceback
 
 
 TESTNET = True
@@ -31,19 +32,21 @@ HOSTNAME = 'https://blitz-v1.appspot.com/'
 class TransactionOutput:
     destination_address: string
     amount: int
+    withdrawal_id: string
 
 class Communication:
+    header = {'user-agent': 'requests/0.0.1'}
     def getWithdrawalRequests(self, lastwithdrawalTimestamp):
         url = HOSTNAME + 'getWithdrawalRequests'
         data = {'latest_timestamp': lastwithdrawalTimestamp}
-        r = requests.get(url, params=data)
+        r = requests.get(url, params=data, headers=self.header)
         print(r.text)
         return r.text
 
     def ackWithdrawalRequests(self, guids):
         url = HOSTNAME + 'ackWithdrawalRequests'
         data = {'guids': guids}
-        r = requests.post(url, params=data)
+        r = requests.post(url, params=data, headers=self.header)
         print(r.text)
         return r.text
 
@@ -54,7 +57,8 @@ class Communication:
                 'amount': amount,
                 'layer1_address': layer1_address,
                 'signature': signature}
-        r = requests.post(url, params=data)
+        r = requests.post(url, params=data, headers=self.header)
+        print('/confirmDeposit ' + layer1_transaction_id)
         print(r.text)
         return r.text
 
@@ -65,14 +69,15 @@ class Communication:
         data = {'public_key': public_key,
                 'withdrawal_id': withdrawal_id,
                 'signature': signature}
-        r = requests.post(url, params=data)
+        r = requests.post(url, params=data, headers=self.header)
         print(r.text)
         return r.text
 
     def sendConfirmDeposit(self, transaction: DatabaseInterface.ConfirmedTransaction):
         nonce = ''.join(random.choice(string.ascii_letters) for i in range(16)) #layer2_transaction_id
-        signature = SigningAddress.signDepositConfirmedMessage(transaction.transaction_id, nonce, transaction.amount)
-        return self.confirmDeposit(nonce, transaction.transaction_id, transaction.amount, transaction.address, signature)
+        full_transaction_id = transaction.transaction_id + '-' + str(transaction.transaction_vout)
+        signature = SigningAddress.signDepositConfirmedMessage(full_transaction_id, nonce, transaction.amount)
+        return self.confirmDeposit(nonce, full_transaction_id, transaction.amount, transaction.address, signature)
 
 
 class NodeHelperRPC:
@@ -108,7 +113,7 @@ class NodeHelperRPC:
         loadWalletJSON = os.popen(command).read()
 
     def importMultiplePrivkeys(self):
-        seed_bytes = binascii.unhexlify(b"6eb00bbddcf069084889a8ab4155569165f5c453ccb85e70811aaed6f6da5fc19a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4")
+        seed_bytes = binascii.unhexlify(b"1eb00bbddcf069084889a8ab4155569165f5c453ccb85e70811aaed6f6da5fc19a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4")
         pubkey_version = Bip32Conf.KEY_NET_VER.Test()
         privkey_version = BitcoinConf.WIF_NET_VER.Test()
         master_bip32_ctx = Bip32.FromSeed(seed_bytes, pubkey_version)
@@ -119,7 +124,7 @@ class NodeHelperRPC:
         master_pubkey = master_bip32_ctx.PublicKey().ToExtended()
         print("Master Public key: " + master_pubkey)
         j = 2
-        for i in range(0,100):
+        for i in range(0,1000):
             #print("\n")
             bip32_ctx = master_bip32_ctx.ChildKey(44) \
                                 .ChildKey(1) \
@@ -157,16 +162,21 @@ class NodeHelperRPC:
             print(status)
         except Exception as e:
             print(e)
+        print("Master Public key: " + master_pubkey)
         #importMultiStatusJSON = os.popen(command).read()
         #print(importMultiStatusJSON)
 
     def broadcastTransaction(self, pendingWithdrawals):
         sendmanyCmd = {}
-        for pendingWithdrawal in pendingWithdrawals:
-            sendmanyCmd[pendingWithdrawal.destination_address] = pendingWithdrawal.amount #'{0:f}'.format(transactionOutput.amount)
+        for key, pendingWithdrawal in pendingWithdrawals.items():
+            existingAmount = sendmanyCmd.get(pendingWithdrawal.destination_address, 0)
+            sendmanyCmd[pendingWithdrawal.destination_address] = pendingWithdrawal.amount + existingAmount #'{0:f}'.format(transactionOutput.amount)
+        for key, value in sendmanyCmd.items():
+            sendmanyCmd[key] = sendmanyCmd.get(key)/SATOSHI_PER_BITCOIN #note: must add the values together while they are integers, and then convert them at the end
         comment = 'N/A' #maybe have the guid here
         comment_to = 'N/A' #maybe have the layer2 pubkey here
         subtractfeefromamount = True #user pays fees
+        print("broadcastTransaction: " + str(sendmanyCmd))
 
         #command = '"' + BITCOIN_CLI_PATH + '"' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME  + " sendmany " + "\"\"" + " '" + json.dumps(sendmanyCmd) + "' " #+ " " + comment + " " + comment_to + " " + str(subtractfeefromamount)
         #command = '"' + BITCOIN_CLI_PATH + '"' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME  + " sendmany \"\" {'tb1q0a8r8dtsq6shsndg8jjzdu7dxtu0w6p2kuxx4p': 0.00001} " #+ " " + comment + " " + comment_to + " " + str(subtractfeefromamount)
@@ -174,11 +184,13 @@ class NodeHelperRPC:
         #broadcastTransactionsJSON = os.popen(command).read()
         #print(command)
         #print("broadcastTransaction: " + broadcastTransactionsJSON)
+        status = ''
         try:
             status = self.rpc_connection.sendmany("", sendmanyCmd)
-            print(status)
+            print('/broadcastTransaction: ' + status)
         except Exception as e:
             print(e)
+        return status
         #broadcastTransactionsResponse = json.loads(broadcastTransactionsJSON)
         #transactionsID = broadcastTransactionsResponse["trxid"]
         #print("broadcastTransaction: " + broadcastTransactionsJSON)
@@ -210,12 +222,25 @@ class NodeHelperRPC:
         transactions = listsinceblockJSON["transactions"]
         for transaction in transactions:
             confirmedTransactions.append(transaction)
-        return newlastblock, confirmedTransactions
+        return newlastblock,confirmedTransactions
 
+    def getBlockHeader(self, blockhash):
+        blockHeaderDict = self.rpc_connection.getblockheader(blockhash, True)
+        return blockHeaderDict
 
 def main():
+    #while (True):
+        try:
+            run()
+        except Exception as e:
+            print(e)
+            print(traceback.print_stack())
+            print('Restarting...')
+
+def run():
     db = DatabaseInterface.DB()
     db.openOrCreateDB()
+
     # start bitcoin full node, or attach if it already started
     nh = NodeHelperRPC()
     comm = Communication()
@@ -249,12 +274,16 @@ def main():
     while(True):
         confirmedTransactions = []
         lastblockhash, confirmedTransactions = nh.getConfirmedTransactions(lastblockhash)
+
+        blockheight = nh.getBlockHeader(lastblockhash)["height"]
+        print('Latest blockheight: ' +  str(blockheight))
         for confirmedTransactionJSON in confirmedTransactions:
             if(int(confirmedTransactionJSON["confirmations"]) >= nh.getTargetConfirmations()):
                 trxid = confirmedTransactionJSON["txid"]
-                if(trxid not in confirmedTransactionsDict):
+                vout = confirmedTransactionJSON["vout"]
+                if((trxid, vout) not in confirmedTransactionsDict):
                     confirmedTransaction = DatabaseInterface.ConfirmedTransaction().fromListSinceBlockRpcJson(confirmedTransactionJSON)
-                    confirmedTransactionsDict[trxid] = confirmedTransaction #add in memory
+                    confirmedTransactionsDict[(trxid, vout)] = confirmedTransaction #add in memory
                     db.insertConfirmedTransaction(confirmedTransaction)
                     #print("New confirmed transaction (" + confirmedTransactionJSON["category"] + "). transaction_id: " + trxid + ' address: ' + confirmedTransaction.address)
         print("lastblockhash: " + lastblockhash)
@@ -268,26 +297,49 @@ def main():
             for pendingWithdrawalJSON in pendingWithdrawalsJSON['withdrawal_requests']:
                 withdrawal = DatabaseInterface.PendingWithdrawal().fromWithdrawalRequestAPIJson(pendingWithdrawalJSON)
                 pendingWithdrawals.append(withdrawal)
-        withdrawalTransactionOutputs = []
+
         for pendingWithdrawal in pendingWithdrawals:
             db.insertPendingWithdrawal(pendingWithdrawal)
-            withdrawalTransactionOutputs.append(TransactionOutput(pendingWithdrawal.destination_address, (pendingWithdrawal.amount)/SATOSHI_PER_BITCOIN))
+
+            #withdrawalTransactionOutputs.append(TransactionOutput(pendingWithdrawal.destination_address, (pendingWithdrawal.amount)/SATOSHI_PER_BITCOIN))
             if(pendingWithdrawal.withdrawal_requested_timestamp > lastwithdrawalTimestamp):
                 lastwithdrawalTimestamp = pendingWithdrawal.withdrawal_requested_timestamp
             print('New withdrawal recieved. address: ' + pendingWithdrawal.destination_address + ' amount: ' + str(pendingWithdrawal.amount))
         db.setLastWithdrawalTimestamp(lastwithdrawalTimestamp)
+
+        withdrawalTransactionOutputs = {}
+        pendingWithdrawals = db.getPendingWithdrawals()
+        print('Fetched ' + str(len(pendingWithdrawals)) + ' pending withdrawals from db')
+        for pendingWithdrawal in pendingWithdrawals:
+            withdrawalTransactionOutputs[pendingWithdrawal.withdrawal_id] = pendingWithdrawal
 
 
         pendingConfirmedTransactions = db.getPendingConfirmedDepositTransactions()
         for trx in pendingConfirmedTransactions:
             depositResponseJSON = json.loads(comm.sendConfirmDeposit(trx))
             if(depositResponseJSON['error_code'] == 0):
-                db.updateConfirmedTransaction(trx.transaction_id, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
-                print('Deposit confirmed. transaction_id:' + trx.transaction_id + ' address: ' + trx.address)
+                db.updateConfirmedTransaction(trx.transaction_id, trx.transaction_vout, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
+                print('Deposit confirmed. transaction_id:' + trx.transaction_id + ' ' + str(trx.transaction_vout) + ' address: ' + trx.address)
 
+        lastBroadcastBlockHeight = db.getLastBroadcastBlockHeight()
+        broadcastTransactionBlockDelay = db.getBroadcastTransactionBlockDelay()
+        targetBroadcastBlockheight = lastBroadcastBlockHeight + broadcastTransactionBlockDelay
+        print("lastBroadcastBlockHeight: " + str(lastBroadcastBlockHeight))
+        print("broadcastTransactionBlockDelay: " + str(broadcastTransactionBlockDelay))
+        print("targetBroadcastBlockheight: " + str(targetBroadcastBlockheight))
         if(len(withdrawalTransactionOutputs)):
-            print("Broadcasting " +  str(len(withdrawalTransactionOutputs)) + " withdrawal outputs")
-            nh.broadcastTransaction(withdrawalTransactionOutputs)
+            if(blockheight >= (targetBroadcastBlockheight)):
+                print("Broadcasting " +  str(len(withdrawalTransactionOutputs)) + " withdrawal outputs")
+                withdrawalTrxId = nh.broadcastTransaction(withdrawalTransactionOutputs)
+                if(withdrawalTrxId):
+                    for key, withdrawalOutput in withdrawalTransactionOutputs.items():
+                        withdrawalOutput.status = DatabaseInterface.PendingWithdrawal.LAYER1_STATUS_BROADCASTED
+                        db.updatePendingWithdrawal(withdrawalOutput.withdrawal_id, withdrawalOutput.status, withdrawalTrxId, 0)
+                db.setLastBroadcastBlockHeight(blockheight)
+            else:
+                print('Batching: waiting for blockheight ' + str(targetBroadcastBlockheight) + ' to broadcast batched transaction. Current blockheight: ' + str(blockheight))
+        else:
+            print("No withdrawals to broadcast")
         # get all withdrawals from DB that needs to be broadcasted, and broadcast them
         # check the full node for any recieved transactions (using listtransactions)
         # if there are any recieved transactions, call the confirmDeposit backend API
