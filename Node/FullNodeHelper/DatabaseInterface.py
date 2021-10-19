@@ -222,3 +222,9 @@ class DB():
 
     def setBroadcastTransactionBlockDelay(self, broadcastTransactionDelay):
         self.setKeyValue('broadcastTransactionBlockDelay', str(broadcastTransactionBlockDelay), True)
+
+    def getImportPrivkeyBip32Index(self, defaultValue = 0):
+        return int(self.getKeyValue('importPrivkeyBip32Index', defaultValue))
+
+    def setImportPrivkeyBip32Index(self, importPrivkeyBip32Index):
+        self.setKeyValue('importPrivkeyBip32Index', str(importPrivkeyBip32Index), True)

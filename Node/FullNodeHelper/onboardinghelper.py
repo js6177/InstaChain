@@ -15,6 +15,7 @@ from bip_utils import Bip32, Bip32Utils, Bip32Conf, BitcoinConf, Bip44BitcoinTes
 from bip_utils import P2PKH, P2SH, P2WPKH
 from bitcoinrpc.authproxy import AuthServiceProxy, JSONRPCException
 import traceback
+import argparse
 
 
 TESTNET = True
@@ -112,10 +113,11 @@ class NodeHelperRPC:
         command = '"' + BITCOIN_CLI_PATH + '"' + self.getTestnetCommandParam() + " loadwallet " + wallet
         loadWalletJSON = os.popen(command).read()
 
-    def importMultiplePrivkeys(self):
+    def importMultiplePrivkeys(self, seed, startingIndex, numberOfKeysToGenerate, testnet):
         seed_bytes = binascii.unhexlify(b"1eb00bbddcf069084889a8ab4155569165f5c453ccb85e70811aaed6f6da5fc19a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4")
-        pubkey_version = Bip32Conf.KEY_NET_VER.Test()
-        privkey_version = BitcoinConf.WIF_NET_VER.Test()
+        pubkey_version = Bip32Conf.KEY_NET_VER.Test() if testnet else Bip32Conf.KEY_NET_VER.Main()
+        privkey_version = BitcoinConf.WIF_NET_VER.Test() if testnet else BitcoinConf.WIF_NET_VER.Main()
+
         master_bip32_ctx = Bip32.FromSeed(seed_bytes, pubkey_version)
         print("Master Private key: " + master_bip32_ctx.PrivateKey().ToExtended())
         wif = WifEncoder.Encode(master_bip32_ctx.PrivateKey().Raw().ToBytes(), True, privkey_version)
@@ -124,7 +126,7 @@ class NodeHelperRPC:
         master_pubkey = master_bip32_ctx.PublicKey().ToExtended()
         print("Master Public key: " + master_pubkey)
         j = 2
-        for i in range(0,1000):
+        for i in range(startingIndex, startingIndex+numberOfKeysToGenerate):
             #print("\n")
             bip32_ctx = master_bip32_ctx.ChildKey(44) \
                                 .ChildKey(1) \
@@ -152,11 +154,11 @@ class NodeHelperRPC:
             #importmultiCmd = '[{ "desc" : "' + descriptor_checksum + '","timestamp": "now", "keys": [ "' + wif + '" ] } ]' '{"rescan": false}'
             importmultiCmd = {'desc': descriptor_checksum, "timestamp": "now", "keys": [wif] }
             descriptors.append(importmultiCmd)
-            print("address: " + address)
+            #print("address: " + address)
 
         #print(json.dumps(descriptors))
-        command = 'bitcoin-cli.exe ' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME + " importmulti '" + json.dumps(descriptors) + "' " + '\'{"rescan": false}\''
-        print("command: " + command)
+        #command = 'bitcoin-cli.exe ' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME + " importmulti '" + json.dumps(descriptors) + "' " + '\'{"rescan": false}\''
+        #print("command: " + command)
         try:
             status = self.rpc_connection.importmulti(descriptors)
             print(status)
@@ -238,6 +240,10 @@ def main():
             print('Restarting...')
 
 def run():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--importprivkeys', dest='importprivkeys', action='store_true', help='Pass this parameter if you need to import private keys to the wallet instead of running the onboarding helper.')
+    args = parser.parse_args()
+
     db = DatabaseInterface.DB()
     db.openOrCreateDB()
 
@@ -247,7 +253,15 @@ def run():
 
     nh.loadWallet()
 
-    #nh.importMultiplePrivkeys()
+    if(args.importprivkeys):
+        print("Importing private keys...")
+        privkeyBip32Index = db.getImportPrivkeyBip32Index()
+        numberOfKeysToImport = 100000
+        nh.importMultiplePrivkeys('', privkeyBip32Index, numberOfKeysToImport, True)
+        db.setImportPrivkeyBip32Index(privkeyBip32Index + numberOfKeysToImport)
+        print("Done importing private keys. Imported " + str(numberOfKeysToImport) + " keys from index " + str(privkeyBip32Index))
+        return
+
     #return
 
     lastblockhash = db.getLastBlockHash()
