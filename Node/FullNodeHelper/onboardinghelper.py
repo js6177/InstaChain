@@ -170,14 +170,16 @@ class NodeHelperRPC:
 
     def broadcastTransaction(self, pendingWithdrawals):
         sendmanyCmd = {}
+        subtractfeefrom = set()
         for key, pendingWithdrawal in pendingWithdrawals.items():
+            subtractfeefrom.add(pendingWithdrawal.destination_address)
             existingAmount = sendmanyCmd.get(pendingWithdrawal.destination_address, 0)
             sendmanyCmd[pendingWithdrawal.destination_address] = pendingWithdrawal.amount + existingAmount #'{0:f}'.format(transactionOutput.amount)
         for key, value in sendmanyCmd.items():
             sendmanyCmd[key] = sendmanyCmd.get(key)/SATOSHI_PER_BITCOIN #note: must add the values together while they are integers, and then convert them at the end
         comment = 'N/A' #maybe have the guid here
         comment_to = 'N/A' #maybe have the layer2 pubkey here
-        subtractfeefromamount = True #user pays fees
+        minconf = 1 #default minconf value
         print("broadcastTransaction: " + str(sendmanyCmd))
 
         #command = '"' + BITCOIN_CLI_PATH + '"' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME  + " sendmany " + "\"\"" + " '" + json.dumps(sendmanyCmd) + "' " #+ " " + comment + " " + comment_to + " " + str(subtractfeefromamount)
@@ -188,7 +190,7 @@ class NodeHelperRPC:
         #print("broadcastTransaction: " + broadcastTransactionsJSON)
         status = ''
         try:
-            status = self.rpc_connection.sendmany("", sendmanyCmd)
+            status = self.rpc_connection.sendmany("", sendmanyCmd, str(minconf), "", list(subtractfeefrom))
             print('/broadcastTransaction: ' + status)
         except Exception as e:
             print(e)
