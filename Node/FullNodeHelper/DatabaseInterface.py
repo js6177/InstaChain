@@ -191,6 +191,7 @@ class DB():
     def getPendingConfirmedWithdrawalTransactions(self):
         return self.getPendingConfirmedTransactions(ConfirmedTransaction.CATEGORY_SEND)
 
+
     def updateConfirmedTransaction(self, transaction_id, transaction_vout, layer2_status):
         params = (layer2_status, transaction_id, transaction_vout)
         self.cursor.execute('''

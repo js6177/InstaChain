@@ -259,6 +259,9 @@ class NodeHelperRPC:
             outputs[output.address] = output
         return outputs
 
+    def getBlockHeader(self, blockhash):
+        blockHeaderDict = self.rpc_connection.getblockheader(blockhash, True)
+        return blockHeaderDict
 
     def getBlockHeader(self, blockhash):
         blockHeaderDict = self.rpc_connection.getblockheader(blockhash, True)
