@@ -1,9 +1,10 @@
 import sqlite3
 import string
+from pprint import pprint
 
 from constants import *
 
-DATABASE_NAME = "sampleDB.db"
+DATABASE_NAME = "bitcoin.db"
 
 class ConfirmedTransaction():
     #values for layer2 status (deposits)
@@ -14,6 +15,7 @@ class ConfirmedTransaction():
     CATEGORY_RECIEVE = 'receive'
 
     transaction_id = ''
+    transaction_vout = 0
     layer2_status = None
     amount = 0
     fee = 0
@@ -21,9 +23,11 @@ class ConfirmedTransaction():
     category = ''
     confirmations = 0
     timestamp = 0
+    blockheight = 0
 
-    def setValues(self, transaction_id, layer2_status, amount, fee, address, category, confirmations, timestamp):
+    def setValues(self, transaction_id, layer2_status, transaction_vout, amount, fee, address, category, confirmations, timestamp, blockheight):
         self.transaction_id = transaction_id
+        self.transaction_vout = transaction_vout
         self.layer2_status =  layer2_status
         self.amount = amount
         self.fee = fee
@@ -31,14 +35,29 @@ class ConfirmedTransaction():
         self.category = category
         self.confirmations = confirmations
         self.timestamp = timestamp
+        self.blockheight = blockheight
 
-    def __init__(self, transaction_id = '', layer2_status = None, amount = 0, fee = 0, address = '', category = '', confirmations = 0, timestamp = 0):
-        self.setValues(transaction_id, layer2_status, amount, fee, address, category, confirmations, timestamp)
+    def __init__(self, transaction_id = '', layer2_status = None, transaction_vout = 0, amount = 0, fee = 0, address = '', category = '', confirmations = 0, timestamp = 0, blockheight = 0):
+        self.setValues(transaction_id, layer2_status, transaction_vout, amount, fee, address, category, confirmations, timestamp, blockheight)
 
     def fromListSinceBlockRpcJson(self, transactionJSON):
         print(str(transactionJSON))
-        self.setValues(transactionJSON["txid"], ConfirmedTransaction.LAYER2_STATUS_PENDING, int(transactionJSON["amount"]*SATOSHI_PER_BITCOIN), 0, transactionJSON["address"], transactionJSON["category"], transactionJSON["confirmations"], transactionJSON["time"])
+        self.setValues(transactionJSON["txid"], ConfirmedTransaction.LAYER2_STATUS_PENDING, transactionJSON["vout"], int(transactionJSON["amount"]*SATOSHI_PER_BITCOIN), 0, transactionJSON["address"], transactionJSON["category"], transactionJSON["confirmations"], transactionJSON["time"], transactionJSON["blockheight"])
         return self
+
+    def fromGetTransactionDetails(self, transactionDetailJSON, transaction_id, blockheight, timestamp):
+        #output = DatabaseInterface.ConfirmedTransaction(transaction_id = transaction_id, layer2_status=None, transaction_vout=transaction["vout"], amount = transaction["amount"], fee=transaction["fee"], address=transaction["address"], category = transaction["category"], confirmations=0, timestamp=0, blockheight=0 )
+        self.setValues(transaction_id, ConfirmedTransaction.LAYER2_STATUS_PENDING, transactionDetailJSON["vout"], transactionDetailJSON["amount"], transactionDetailJSON["fee"], transactionDetailJSON["address"], transactionDetailJSON["category"], 0, timestamp, blockheight)
+        return self
+
+    @staticmethod
+    def fromGetTransaction(getTransactionJSON):
+        outputs = {}
+        transactionDetails = getTransactionJSON["details"]
+        for transactionDetail in transactionDetails:
+            output = ConfirmedTransaction().fromGetTransactionDetails(transactionDetail, getTransactionJSON["txid"], 0, getTransactionJSON["time"])
+            outputs[output.address] = output
+        return outputs
 
 class PendingWithdrawal():
     #values for layer1 status (withdrawal requests)
@@ -86,7 +105,7 @@ class DB():
 
     def openOrCreateDB(self):
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS ConfirmedTransactions
-             (transaction_id TEXT PRIMARY KEY, layer2_status INTEGER, amount INTEGER, fee INTEGER, address TEXT, category TEXT, confirmations INTEGER, timestamp INTEGER )''')
+             (transaction_id, layer2_status INTEGER, transaction_vout INTEGER, amount INTEGER, fee INTEGER, address TEXT, category TEXT, confirmations INTEGER, timestamp INTEGER, CONSTRAINT PK_Output PRIMARY KEY (transaction_id, transaction_vout) )''')
         self.cursor.execute('''CREATE INDEX IF NOT EXISTS UIX_ConfirmedTransactions_layer2_status
              ON ConfirmedTransactions (layer2_status)''')
         self.conn.commit()
@@ -142,13 +161,13 @@ class DB():
         self.conn.commit()
 
     def insertConfirmedTransaction(self, confirmedTransaction: ConfirmedTransaction):
-        print("Inserting ConfirmedTransaction: " + confirmedTransaction.transaction_id)
-        transaction = (confirmedTransaction.transaction_id, confirmedTransaction.layer2_status, confirmedTransaction.amount, confirmedTransaction.fee, confirmedTransaction.address, confirmedTransaction.category, confirmedTransaction.confirmations, confirmedTransaction.timestamp)
-        self.cursor.execute('''INSERT INTO ConfirmedTransactions (transaction_id, layer2_status, amount, fee, address, category, confirmations, timestamp)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', transaction)
+        print("Inserting ConfirmedTransaction: " + confirmedTransaction.transaction_id + '-' + str(confirmedTransaction.transaction_vout))
+        transaction = (confirmedTransaction.transaction_id, confirmedTransaction.transaction_vout, confirmedTransaction.layer2_status, confirmedTransaction.amount, confirmedTransaction.fee, confirmedTransaction.address, confirmedTransaction.category, confirmedTransaction.confirmations, confirmedTransaction.timestamp)
+        self.cursor.execute('''INSERT INTO ConfirmedTransactions (transaction_id, transaction_vout, layer2_status, amount, fee, address, category, confirmations, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', transaction)
         self.conn.commit()
 
-    def getPendingConfirmedTransactions(self):
+    def getAllPendingConfirmedTransactions(self):
         transactions = []
         status = (ConfirmedTransaction.LAYER2_STATUS_PENDING,)
         transactionRows = self.cursor.execute('SELECT * FROM ConfirmedTransactions WHERE layer2_status=?', status).fetchall()
@@ -156,21 +175,29 @@ class DB():
             transactions.append(ConfirmedTransaction(*row))
         return transactions
 
-    def getPendingConfirmedDepositTransactions(self):
+    def getPendingConfirmedTransactions(self, category):
         transactions = []
-        status = (ConfirmedTransaction.LAYER2_STATUS_PENDING, ConfirmedTransaction.CATEGORY_RECIEVE)
+        status = (ConfirmedTransaction.LAYER2_STATUS_PENDING, category)
         transactionRows = self.cursor.execute('SELECT * FROM ConfirmedTransactions WHERE layer2_status=? AND category=?', status).fetchall()
         for row in transactionRows:
             transactions.append(ConfirmedTransaction(*row))
+            print(vars(ConfirmedTransaction(*row)))
+
         return transactions
 
-    def updateConfirmedTransaction(self, transaction_id, layer2_status):
-        params = (layer2_status, transaction_id)
+    def getPendingConfirmedDepositTransactions(self):
+        return self.getPendingConfirmedTransactions(ConfirmedTransaction.CATEGORY_RECIEVE)
+
+    def getPendingConfirmedWithdrawalTransactions(self):
+        return self.getPendingConfirmedTransactions(ConfirmedTransaction.CATEGORY_SEND)
+
+    def updateConfirmedTransaction(self, transaction_id, transaction_vout, layer2_status):
+        params = (layer2_status, transaction_id, transaction_vout)
         self.cursor.execute('''
         UPDATE ConfirmedTransactions
             SET layer2_status = ?
         WHERE
-            transaction_id == ?''', params)
+            transaction_id == ? AND transaction_vout == ?''', params)
         self.conn.commit()
         pass
 
@@ -182,11 +209,11 @@ class DB():
             value = valueRow[0]
         return value
 
-    def setKeyValue(self, key, value, valueToInsertIfKeyDoesNotExist = None):
+    def setKeyValue(self, key, value, insertValueIfKeyDoesNotExist = False):
         if(self.getKeyValue(key)):
             params = (value, key)
             self.cursor.execute('UPDATE KeyValue SET value = ? WHERE _key = ?', params)
-        elif(valueToInsertIfKeyDoesNotExist):
+        elif(insertValueIfKeyDoesNotExist):
             params = (key, value)
             self.cursor.execute('INSERT INTO KeyValue (_key, value) VALUES (?, ?)', params)
         self.conn.commit()
@@ -202,3 +229,22 @@ class DB():
 
     def setLastWithdrawalTimestamp(self, lastwithdrawalTimestamp, defaultValue = 0):
         self.setKeyValue('lastwithdrawalTimestamp', str(lastwithdrawalTimestamp), str(defaultValue))
+
+    def getLastBroadcastBlockHeight(self, defaultValue = 0):
+        return int(self.getKeyValue('lastBroadcastBlockHeight', defaultValue))
+
+    def setLastBroadcastBlockHeight(self, lastBroadcastBlockHeight):
+        print('Setting setLastBroadcastBlockHeight: ' + str(lastBroadcastBlockHeight))
+        self.setKeyValue('lastBroadcastBlockHeight', str(lastBroadcastBlockHeight), True)
+
+    def getBroadcastTransactionBlockDelay(self, defaultValue = 6):
+        return int(self.getKeyValue('broadcastTransactionBlockDelay', defaultValue))
+
+    def setBroadcastTransactionBlockDelay(self, broadcastTransactionDelay):
+        self.setKeyValue('broadcastTransactionBlockDelay', str(broadcastTransactionBlockDelay), True)
+
+    def getImportPrivkeyBip32Index(self, defaultValue = 0):
+        return int(self.getKeyValue('importPrivkeyBip32Index', defaultValue))
+
+    def setImportPrivkeyBip32Index(self, importPrivkeyBip32Index):
+        self.setKeyValue('importPrivkeyBip32Index', str(importPrivkeyBip32Index), True)

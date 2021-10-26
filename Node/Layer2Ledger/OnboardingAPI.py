@@ -42,17 +42,29 @@ class ackWithdrawalRequests(BlitzRequestHandler):
         #self.result['withdrawal_requests'] = requests.dict()
 
 #called from the node
+class withdrawalBroadcasted(BlitzRequestHandler):
+    def getParameters(self):
+        self.layer1_transaction_id = self.getRequestParams('layer1_transaction_id')
+        self.layer1_transaction_vout = self.getRequestParams('layer1_transaction_vout')
+        self.layer1_address = self.getRequestParams('layer1_address')
+        self.amount = int(self.getRequestParams('amount'))
+        self.layer2_withdrawal_id = self.getRequestParams('layer2_withdrawal_id')
+        self.signature = self.getRequestParams('signature')
+    def processRequest(self):
+        rslt = Onboarding.withdrawalBroadcasted(self.layer1_transaction_id, self.layer1_transaction_vout, self.layer1_address, self.amount, self.layer2_withdrawal_id, self.signature)
+        self.result = ErrorMessage.build_error_message(rslt)
+
+#called from the node
 class withdrawalConfirmed(BlitzRequestHandler):
     def getParameters(self):
-        self.public_key = self.getRequestParams('public_key')
-        self.withdrawal_address = self.getRequestParams('transaction_id')
         self.layer1_transaction_id = self.getRequestParams('layer1_transaction_id')
+        self.layer1_transaction_vout = self.getRequestParams('layer1_transaction_vout')
+        self.layer1_address = self.getRequestParams('layer1_address')
         self.amount = int(self.getRequestParams('amount'))
         self.signature = self.getRequestParams('signature')
     def processRequest(self):
-        rslt, transaction_id = Onboarding.withdrawalConfirmed(self.public_key, self.withdrawal_address, self.amount, self.signature)
+        rslt = Onboarding.withdrawalConfirmed(self.layer1_transaction_id, self.layer1_transaction_vout, self.layer1_address, self.amount, self.signature)
         self.result = ErrorMessage.build_error_message(rslt)
-        self.result['transaction_id'] = transaction_id
 
 #called from the node
 class withdrawalCanceled(BlitzRequestHandler):

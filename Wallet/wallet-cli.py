@@ -34,7 +34,7 @@ COMMANDS_HELP = {
     'withdraw': ['<address> <layer1 address> <amount> [node url]', 'Withdraws funds from your layer2 address to the given layer1 address'],
 
 'view_transaction': ['<transaction id> <node>', 'Displays the transaction information of a transaction id of a node'],
-
+'clear_cache': ['', 'Clears the local address balances and transactions, so subsequent calls will fetch it from the nodes. Does not clear any existing public or private keys'],
 }
 #commands = [help, open_wallet, close_wallet, new_address, list_addresses, add_node, list_nodes, create_transaction, push_transaction, push_signed_transaction, list_wallet_transactions, list_wallet_balance, list_address_transactions, list_address_balance]
 
@@ -203,6 +203,10 @@ class WalletCLI():
         node_url = self.getArgument(args, 1)
         self.wallet.update_address_balance(address, node_url)
         self.wallet.print_address_balance(address)
+
+    def clear_cache(self, args):
+        print('Clearing cache...')
+        self.wallet.clear_cache()
 
 
 
