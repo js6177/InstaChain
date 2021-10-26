@@ -65,8 +65,9 @@ class Transaction(ndb.Model):
     TRX_TRANSFER = 1  # regular 2nd layer transfer
     TRX_DEPOSIT = 2  # when a user deposits btc to a deposit address, then funds get credited to his pubkey
     TRX_WITHDRAWAL_INITIATED = 3  # when the user wants to withdraw to a btc address (locks that amount)
-    TRX_WITHDRAWAL_CANCELED = 4  # when the transaction gets removed from the layer1 mempool for any reason
-    TRX_WITHDRAWAL_CONFIRMED = 5  # when the withdrawal gets confirmed in the layer1 chain
+    TRX_WITHDRAWAL_BROADCASTED = 4 # when the transaction is broadcasted and in the mempool
+    TRX_WITHDRAWAL_CANCELED = 5  # when the transaction gets removed from the layer1 mempool for any reason
+    TRX_WITHDRAWAL_CONFIRMED = 6  # when the withdrawal gets confirmed in the layer1 chain
 
     def to_dict(self):
         result = super(Transaction, self).to_dict(exclude={'date'})

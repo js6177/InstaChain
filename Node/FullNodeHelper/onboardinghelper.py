@@ -64,11 +64,24 @@ class Communication:
         return r.text
 
     #TODO: do later
-    def confirmWithdrawal(self, withdrawal_id, public_key, signature):
-        return
+    def broadcastWithdrawal(self, layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, layer2_withdrawal_id, signature):
+        url = HOSTNAME + 'withdrawalBroadcasted'
+        data = {'layer1_transaction_id': layer1_transaction_id,
+                'layer1_transaction_vout': layer1_transaction_vout,
+                'layer1_address': layer1_address,
+                'amount': amount,
+                'layer2_withdrawal_id': layer2_withdrawal_id,
+                'signature': signature}
+        r = requests.post(url, params=data, headers=self.header)
+        print(r.text)
+        return r.text
+
+    def confirmWithdrawal(self, layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, signature):
         url = HOSTNAME + 'withdrawalConfirmed'
-        data = {'public_key': public_key,
-                'withdrawal_id': withdrawal_id,
+        data = {'layer1_transaction_id': layer1_transaction_id,
+                'layer1_transaction_vout': layer1_transaction_vout,
+                'layer1_address': layer1_address,
+                'amount': amount,
                 'signature': signature}
         r = requests.post(url, params=data, headers=self.header)
         print(r.text)
@@ -79,6 +92,14 @@ class Communication:
         full_transaction_id = transaction.transaction_id + '-' + str(transaction.transaction_vout)
         signature = SigningAddress.signDepositConfirmedMessage(full_transaction_id, nonce, transaction.amount)
         return self.confirmDeposit(nonce, full_transaction_id, transaction.amount, transaction.address, signature)
+
+    def sendWithdrawalBroadcasted(self, layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, layer2_withdrawal_id):
+        signature = SigningAddress.signWithdrawalBroadcastedMessage(layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, layer2_withdrawal_id)
+        return self.broadcastWithdrawal(layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, layer2_withdrawal_id, signature)
+
+    def sendConfirmWithdrawal(self, transaction: DatabaseInterface.ConfirmedTransaction):
+        signature = SigningAddress.signWithdrawalConfirmedMessage(transaction.transaction_id, transaction.transaction_vout, transaction.address, transaction.amount)
+        return self.confirmWithdrawal(transaction.transaction_id, transaction.transaction_vout, transaction.address, transaction.amount, signature)
 
 
 class NodeHelperRPC:
@@ -228,6 +249,20 @@ class NodeHelperRPC:
             confirmedTransactions.append(transaction)
         return newlastblock,confirmedTransactions
 
+    def getTransaction(self, transaction_id):
+        outputs = {}
+        gettransactionJSON = self.rpc_connection.gettransaction(transaction_id)
+        return DatabaseInterface.ConfirmedTransaction.fromGetTransaction(gettransactionJSON)
+        transactionDetails = gettransactionJSON["details"]
+        for transaction in transactionDetails:
+            output = DatabaseInterface.ConfirmedTransaction(transaction_id = transaction_id, layer2_status=None, transaction_vout=transaction["vout"], amount = transaction["amount"], fee=transaction["fee"], address=transaction["address"], category = transaction["category"], confirmations=0, timestamp=0, blockheight=0 )
+            outputs[output.address] = output
+        return outputs
+
+    def getBlockHeader(self, blockhash):
+        blockHeaderDict = self.rpc_connection.getblockheader(blockhash, True)
+        return blockHeaderDict
+
     def getBlockHeader(self, blockhash):
         blockHeaderDict = self.rpc_connection.getblockheader(blockhash, True)
         return blockHeaderDict
@@ -238,7 +273,7 @@ def main():
             run()
         except Exception as e:
             print(e)
-            print(traceback.print_stack())
+            print(traceback.format_exc())
             print('Restarting...')
 
 def run():
@@ -275,7 +310,7 @@ def run():
     #load pending confirmed transactions from the DB
     #q = Query()
     #pendingConfirmedTransactions = confirmedTransactionsDB.search(q.layer2_status == LAYER2_STATUS_PENDING)
-    pendingConfirmedTransactions = db.getPendingConfirmedTransactions()
+    pendingConfirmedTransactions = db.getAllPendingConfirmedTransactions()
     for trx in pendingConfirmedTransactions:
         confirmedTransactionsDict[trx.transaction_id] = trx
 
@@ -337,6 +372,14 @@ def run():
                 db.updateConfirmedTransaction(trx.transaction_id, trx.transaction_vout, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
                 print('Deposit confirmed. transaction_id:' + trx.transaction_id + ' ' + str(trx.transaction_vout) + ' address: ' + trx.address)
 
+        pendingConfirmedWithdrawalTransactions = db.getPendingConfirmedWithdrawalTransactions()
+        for trx in pendingConfirmedWithdrawalTransactions:
+            withdrawalConfirmedResponseJSON = json.loads(comm.sendConfirmWithdrawal(trx))
+            if(withdrawalConfirmedResponseJSON['error_code'] == 0):
+                db.updateConfirmedTransaction(trx.transaction_id, trx.transaction_vout, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED) # withdrawals have vout set to 0 (for now)
+
+
+
         lastBroadcastBlockHeight = db.getLastBroadcastBlockHeight()
         broadcastTransactionBlockDelay = db.getBroadcastTransactionBlockDelay()
         targetBroadcastBlockheight = lastBroadcastBlockHeight + broadcastTransactionBlockDelay
@@ -351,6 +394,10 @@ def run():
                     for key, withdrawalOutput in withdrawalTransactionOutputs.items():
                         withdrawalOutput.status = DatabaseInterface.PendingWithdrawal.LAYER1_STATUS_BROADCASTED
                         db.updatePendingWithdrawal(withdrawalOutput.withdrawal_id, withdrawalOutput.status, withdrawalTrxId, 0)
+                    withdrawalOutputs = nh.getTransaction(withdrawalTrxId)
+                    for key, withdrawalOutput in withdrawalTransactionOutputs.items(): # do db writes and layer2 updates in seperate loops
+                        output = withdrawalOutputs[withdrawalOutput.destination_address]
+                        comm.sendWithdrawalBroadcasted(withdrawalTrxId, output.transaction_vout ,withdrawalOutput.destination_address, int(output.amount*SATOSHI_PER_BITCOIN), withdrawalOutput.withdrawal_id)
                 db.setLastBroadcastBlockHeight(blockheight)
             else:
                 print('Batching: waiting for blockheight ' + str(targetBroadcastBlockheight) + ' to broadcast batched transaction. Current blockheight: ' + str(blockheight))

@@ -87,8 +87,20 @@ class WithdrawalRequests(ndb.Model):
                 #log some warning message
                 pass
 
+class ConfirmedWithdrawals(ndb.Model):
+    layer1_transaction_id = ndb.StringProperty()
+    layer1_transaction_vout = ndb.StringProperty()
+    layer1_address = ndb.StringProperty()
+    amount = ndb.IntegerProperty()
+    layer2_withdrawal_id = ndb.StringProperty()
+    broadcasted_signature = ndb.StringProperty()
+    confirmed_signature = ndb.StringProperty()
+    confirmed = ndb.BooleanProperty(default=False)
 
 
+    @staticmethod
+    def getWithdrawals(layer1_transaction_id, layer1_transaction_vout):
+        return ConfirmedWithdrawals.query(ConfirmedWithdrawals.layer1_transaction_id == layer1_transaction_id, ConfirmedWithdrawals.layer1_transaction_vout == layer1_transaction_vout)
 
 class DepositAddresses(ndb.Model):
     layer2_address = ndb.StringProperty() # public key whose deposits should be credit towards
@@ -165,6 +177,26 @@ def depositConfirmed(layer1_transaction_id, amount, layer1_address, nonce, signa
     signature = onboarding_transaction_signing_address.sign(message)
     status = Transaction.Transaction.process_transaction(Transaction.Transaction.TRX_DEPOSIT, amount, fee, source, destination_pubkey, message, signature, nonce, layer1_transaction_id)
 
+    return status
+
+def withdrawalBroadcasted(_layer1_transaction_id, _layer1_transaction_vout, _layer1_address,  _amount, _layer2_withdrawal_id, _signature):
+    if(not KeyVerification.verifyWithdrawalBroadcasted(_layer1_transaction_id, _layer1_transaction_vout, _layer1_address, _amount, _layer2_withdrawal_id, _signature)):
+        return ErrorMessage.ERROR_CANNOT_VERIFY_SIGNATURE
+
+    withdrawalConfirmation = ConfirmedWithdrawals(layer1_transaction_id = _layer1_transaction_id, layer1_transaction_vout =_layer1_transaction_vout, layer1_address = _layer1_address, amount = _amount, layer2_withdrawal_id = _layer2_withdrawal_id, broadcasted_signature = _signature)
+    withdrawalConfirmation.put()
+    return ErrorMessage.ERROR_SUCCESS
+
+def withdrawalConfirmed(_layer1_transaction_id, _layer1_transaction_vout,  _layer1_address, _amount, _signature):
+    status = ErrorMessage.ERROR_SUCCESS
+    if(not KeyVerification.verifyWithdrawalConfirmed(_layer1_transaction_id, _layer1_transaction_vout, _layer1_address, _amount, _signature)):
+        return ErrorMessage.ERROR_CANNOT_VERIFY_SIGNATURE
+
+    withdrawals = ConfirmedWithdrawals.getWithdrawals(_layer1_transaction_id, _layer1_transaction_vout)
+    for withdrawal in withdrawals.fetch():
+        withdrawal.confirmed = True
+        withdrawal.confirmed_signature = _signature
+        withdrawal.put() 
     return status
 
 def getWithdrawalRequests(latest_timestamp):

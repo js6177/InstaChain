@@ -45,6 +45,20 @@ class ConfirmedTransaction():
         self.setValues(transactionJSON["txid"], ConfirmedTransaction.LAYER2_STATUS_PENDING, transactionJSON["vout"], int(transactionJSON["amount"]*SATOSHI_PER_BITCOIN), 0, transactionJSON["address"], transactionJSON["category"], transactionJSON["confirmations"], transactionJSON["time"], transactionJSON["blockheight"])
         return self
 
+    def fromGetTransactionDetails(self, transactionDetailJSON, transaction_id, blockheight, timestamp):
+        #output = DatabaseInterface.ConfirmedTransaction(transaction_id = transaction_id, layer2_status=None, transaction_vout=transaction["vout"], amount = transaction["amount"], fee=transaction["fee"], address=transaction["address"], category = transaction["category"], confirmations=0, timestamp=0, blockheight=0 )
+        self.setValues(transaction_id, ConfirmedTransaction.LAYER2_STATUS_PENDING, transactionDetailJSON["vout"], transactionDetailJSON["amount"], transactionDetailJSON["fee"], transactionDetailJSON["address"], transactionDetailJSON["category"], 0, timestamp, blockheight)
+        return self
+
+    @staticmethod
+    def fromGetTransaction(getTransactionJSON):
+        outputs = {}
+        transactionDetails = getTransactionJSON["details"]
+        for transactionDetail in transactionDetails:
+            output = ConfirmedTransaction().fromGetTransactionDetails(transactionDetail, getTransactionJSON["txid"], 0, getTransactionJSON["time"])
+            outputs[output.address] = output
+        return outputs
+
 class PendingWithdrawal():
     #values for layer1 status (withdrawal requests)
     LAYER1_STATUS_PENDING = 1 #the withdrawal has not been broadcasted
@@ -153,7 +167,7 @@ class DB():
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', transaction)
         self.conn.commit()
 
-    def getPendingConfirmedTransactions(self):
+    def getAllPendingConfirmedTransactions(self):
         transactions = []
         status = (ConfirmedTransaction.LAYER2_STATUS_PENDING,)
         transactionRows = self.cursor.execute('SELECT * FROM ConfirmedTransactions WHERE layer2_status=?', status).fetchall()
@@ -161,15 +175,22 @@ class DB():
             transactions.append(ConfirmedTransaction(*row))
         return transactions
 
-    def getPendingConfirmedDepositTransactions(self):
+    def getPendingConfirmedTransactions(self, category):
         transactions = []
-        status = (ConfirmedTransaction.LAYER2_STATUS_PENDING, ConfirmedTransaction.CATEGORY_RECIEVE)
+        status = (ConfirmedTransaction.LAYER2_STATUS_PENDING, category)
         transactionRows = self.cursor.execute('SELECT * FROM ConfirmedTransactions WHERE layer2_status=? AND category=?', status).fetchall()
         for row in transactionRows:
             transactions.append(ConfirmedTransaction(*row))
             print(vars(ConfirmedTransaction(*row)))
 
         return transactions
+
+    def getPendingConfirmedDepositTransactions(self):
+        return self.getPendingConfirmedTransactions(ConfirmedTransaction.CATEGORY_RECIEVE)
+
+    def getPendingConfirmedWithdrawalTransactions(self):
+        return self.getPendingConfirmedTransactions(ConfirmedTransaction.CATEGORY_SEND)
+
 
     def updateConfirmedTransaction(self, transaction_id, transaction_vout, layer2_status):
         params = (layer2_status, transaction_id, transaction_vout)
