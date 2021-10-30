@@ -78,6 +78,12 @@ class Transaction(ndb.Model):
     def process_transaction(_transaction_type, _amount, _fee, _source, _destination, _message, _signature, _nonce, _layer1_transaction_id = None):
         status = ErrorMessage.ERROR_UNKNOWN
 
+        if(_amount < 0 or _fee < 0):
+            return ErrorMessage.ERROR_NEGATIVE_AMOUNT
+
+        if(_amount <= _fee):
+            return ErrorMessage.ERROR_AMOUNT_LESS_THAN_FEE
+
         source = Address(_source)
 
         #do not check for Transaction.TRX_WITHDRAWAL_INITIATED as they are signed by server and user respectively
