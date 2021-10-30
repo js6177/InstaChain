@@ -336,11 +336,11 @@ class Wallet:
         connection.pushTransaction(hostname, trx.amount, trx.fee, trx.source_address, trx.destination_address_sha256,
                                    trx.signature, trx.transaction_id)
 
-    def push_transaction(self, destination_address_pubkey, source_address_pubkey, amount, _node_hostname = None):
+    def transfer(self, destination_address_pubkey, source_address_pubkey, amount, _node_hostname = None):
         node_hostname = _node_hostname or self.current_node
 
         node = self.trusted_nodes[node_hostname]
-        print('push_transaction node_hostname: ' + node_hostname)
+        print('transfer node_hostname: ' + node_hostname)
         trx = self.create_transaction(destination_address_pubkey, source_address_pubkey, amount, node)
         self.push_built_transaction(node_hostname, trx)
 

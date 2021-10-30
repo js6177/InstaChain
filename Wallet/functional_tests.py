@@ -66,7 +66,7 @@ def push_n_trx(w, trx_count = 10):
         amount = random.randint(10, 1000)
         #trx = w.create_transaction(w.addresses[destination_address].get_payable_address(), w.addresses[source_address], amount)
         #asyncio.run(w.create_transaction(payable_address, address, amount))
-        trx = w.push_transaction(payable_address, SAMPLE_DEPOSIT_ADDRESS, amount)
+        trx = w.transfer(payable_address, SAMPLE_DEPOSIT_ADDRESS, amount)
         transactions.append(trx)
 
 def create_n_trx(w, trx_count = 10):
@@ -187,7 +187,7 @@ def DepositTransferCheckBalance():
 
     addressB = w.generate_new_address('DepositTransferCheckBalance AddressB' + str(random.randint(10, 1000)))
 
-    w.push_transaction(addressB, addressA, transfer_amount, None)
+    w.transfer(addressB, addressA, transfer_amount, None)
     addressA_balance = w.get_address_balance(addressA, w.current_node, True)
     addressB_balance = w.get_address_balance(addressB, w.current_node, True)
 
@@ -223,7 +223,7 @@ def DepositTransferCheckBalanceMultithreaded():
     future = asyncio.ensure_future(push_n_trx_async(w, addressA, addressB, transfer_amount, 10, w.current_node))
     loop.run_until_complete(future)
 
-    w.push_transaction(addressB, addressA, transfer_amount, None)
+    w.transfer(addressB, addressA, transfer_amount, None)
     addressA_balance = w.get_address_balance(addressA, w.current_node, True)
     addressB_balance = w.get_address_balance(addressB, w.current_node, True)
 
