@@ -12,6 +12,8 @@ class FlaskRequestHandler():
         return request.args.get(param_name)
     def getPostRequestParams(self, param_name):
         return request.form.get(param_name)
+    def getPostJsonParams(self):
+        return request.get_json() 
 
 class BlitzRequestHandler(FlaskRequestHandler):
     parameters = []

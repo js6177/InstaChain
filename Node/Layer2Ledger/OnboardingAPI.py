@@ -6,8 +6,11 @@ import Address
 import time
 import logging
 import json
+from types import SimpleNamespace
 from NodeInfoAPI import NODE_ID
 from BlitzAPI import BlitzRequestHandler
+import GlobalLogging
+
 
 class withdrawalRequest(BlitzRequestHandler):
     def getParameters(self):
@@ -44,27 +47,32 @@ class ackWithdrawalRequests(BlitzRequestHandler):
 #called from the node
 class withdrawalBroadcasted(BlitzRequestHandler):
     def getParameters(self):
-        self.layer1_transaction_id = self.getRequestParams('layer1_transaction_id')
-        self.layer1_transaction_vout = self.getRequestParams('layer1_transaction_vout')
-        self.layer1_address = self.getRequestParams('layer1_address')
-        self.amount = int(self.getRequestParams('amount'))
-        self.layer2_withdrawal_id = self.getRequestParams('layer2_withdrawal_id')
-        self.signature = self.getRequestParams('signature')
+        self.jsonParam = self.getPostJsonParams()
+        GlobalLogging.logger.log_text("Request: " + json.dumps(self.jsonParam))
     def processRequest(self):
-        rslt = Onboarding.withdrawalBroadcasted(self.layer1_transaction_id, self.layer1_transaction_vout, self.layer1_address, self.amount, self.layer2_withdrawal_id, self.signature)
-        self.result = ErrorMessage.build_error_message(rslt)
+        transactionResults = []
+        request = json.loads(json.dumps(self.jsonParam), object_hook=lambda d: SimpleNamespace(**d))
+        for trx in request.transactions:
+            error =  ErrorMessage.build_error_message(Onboarding.withdrawalBroadcasted(trx.layer1_transaction_id, trx.layer1_transaction_vout, trx.layer1_address, trx.amount, trx.layer2_withdrawal_id, trx.signature))
+            error["layer2_withdrawal_id"] = trx.layer2_withdrawal_id
+            transactionResults.append(error)
+        self.result = ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS)
+        self.result["transactions"] = transactionResults
 
 #called from the node
 class withdrawalConfirmed(BlitzRequestHandler):
     def getParameters(self):
-        self.layer1_transaction_id = self.getRequestParams('layer1_transaction_id')
-        self.layer1_transaction_vout = self.getRequestParams('layer1_transaction_vout')
-        self.layer1_address = self.getRequestParams('layer1_address')
-        self.amount = int(self.getRequestParams('amount'))
-        self.signature = self.getRequestParams('signature')
+        self.jsonParam = self.getPostJsonParams() 
     def processRequest(self):
-        rslt = Onboarding.withdrawalConfirmed(self.layer1_transaction_id, self.layer1_transaction_vout, self.layer1_address, self.amount, self.signature)
-        self.result = ErrorMessage.build_error_message(rslt)
+        transactionResults = []
+        request = json.loads(json.dumps(self.jsonParam), object_hook=lambda d: SimpleNamespace(**d))
+        for trx in request.transactions:     
+            error = ErrorMessage.build_error_message(Onboarding.withdrawalConfirmed(trx.layer1_transaction_id, trx.layer1_transaction_vout, trx.layer1_address, trx.amount, trx.signature))
+            error["layer1_transaction_id"] = trx.layer1_transaction_id
+            error["layer1_transaction_vout"] = str(trx.layer1_transaction_vout)
+            transactionResults.append(error)
+        self.result = ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS)
+        self.result["transactions"] = transactionResults
 
 #called from the node
 class withdrawalCanceled(BlitzRequestHandler):
@@ -90,9 +98,6 @@ class getNewDepositAddress(BlitzRequestHandler):
             self.result['deposit_address'] = address
         else:
             self.result['deposit_address'] = ''
-        #rslt, transaction = Transaction.get_transaction(self.transaction_id)
-        #self.result = ErrorMessage.build_error_message(rslt)
-        #self.result['transaction'] = transaction.to_dict()
 
 class verifyDepositAddress(BlitzRequestHandler):
     def getParameters(self):
@@ -100,22 +105,30 @@ class verifyDepositAddress(BlitzRequestHandler):
         self.transaction_id = self.getRequestParams('deposit_address')
     def processRequest(self):
         pass
-        #rslt, transaction = Transaction.get_transaction(self.transaction_id)
-        #self.result = ErrorMessage.build_error_message(rslt)
-        #self.result['transaction'] = transaction.to_dict()
 
 #called from the btc node
 class depositConfirmed(BlitzRequestHandler):
     def getParameters(self):
-        self.nonce = self.getRequestParams('nonce')
-        self.layer1_transaction_id = self.getRequestParams('layer1_transaction_id')
-        self.amount = int(self.getRequestParams('amount'))
-        self.layer1_address = self.getRequestParams('layer1_address')
-        self.signature = self.getRequestParams('signature')
+        self.jsonParam = self.getPostJsonParams()
     def processRequest(self):
+        transactionResults = []
+        request = json.loads(json.dumps(self.jsonParam), object_hook=lambda d: SimpleNamespace(**d))
+        for trx in request.transactions:
+            error =  ErrorMessage.build_error_message(Onboarding.depositConfirmed(trx.layer1_transaction_id, trx.layer1_transaction_vout, trx.layer1_address, trx.amount, trx.signature))
+            error["layer1_transaction_id"] = trx.layer1_transaction_id
+            error["layer1_transaction_vout"] = str(trx.layer1_transaction_vout)
+            transactionResults.append(error)
+        #Onboarding.withdrawalBroadcasted(self.layer1_transaction_id, self.layer1_transaction_vout, self.layer1_address, self.amount, self.layer2_withdrawal_id, self.signature)
+        self.result = ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS)
+        self.result["transactions"] = transactionResults
 
-        #verify that is it is signed correctly
-        #message = Transaction.TRX_DEPOSIT  + " " + signing_keys.deposit_signing_key_pubkey + " " + destination + " " + str(amount) + " " + str(fee) + " " + nonce
-        rslt = Onboarding.depositConfirmed(self.layer1_transaction_id, self.amount, self.layer1_address, self.nonce, self.signature)
-        self.result = ErrorMessage.build_error_message(rslt)
-
+class jsonTest(BlitzRequestHandler):
+    def getParameters(self):
+        self.jsonParam = self.getPostJsonParams()
+    def processRequest(self):
+        x = json.loads(json.dumps(self.jsonParam), object_hook=lambda d: SimpleNamespace(**d))
+        val = 0
+        for trx in x.transactions:
+            val += trx.value
+        self.result = ErrorMessage.build_error_message(0)
+        self.result["value"] = val
