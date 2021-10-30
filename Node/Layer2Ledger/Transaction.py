@@ -97,6 +97,7 @@ class Transaction(ndb.Model):
                 return ErrorMessage.ERROR_CANNOT_DUPLICATE_TRANSACTION #make sure DEPOSIT doesn't get saved twice
 
             if(trx_exists and _transaction_type == Transaction.TRX_WITHDRAWAL_CANCELED):
+                return ERROR_FEATURE_NOT_SUPPORTED
                 original_withdrawal_request = Transaction.query(Transaction.layer1_transaction_id == _layer1_transaction_id, Transaction.transaction_type == Transaction.TRX_WITHDRAWAL_INITIATED).get()
                 if(not original_withdrawal_request):
                     return ErrorMessage.ERROR_COULD_NOT_FIND_WITHDRAWAL_REQUEST #make sure we don't cancel withdraw if the withdrawal request isn't there

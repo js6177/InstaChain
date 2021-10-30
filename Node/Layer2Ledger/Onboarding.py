@@ -89,7 +89,7 @@ class WithdrawalRequests(ndb.Model):
 
 class ConfirmedWithdrawals(ndb.Model):
     layer1_transaction_id = ndb.StringProperty()
-    layer1_transaction_vout = ndb.StringProperty()
+    layer1_transaction_vout = ndb.IntegerProperty()
     layer1_address = ndb.StringProperty()
     amount = ndb.IntegerProperty()
     layer2_withdrawal_id = ndb.StringProperty()
@@ -157,13 +157,13 @@ def getDepositAddress(_layer2_address, nonce, signature):
 
 # Called by full node
 # When a deposit is confirmed, the full node calls this function, to credit the layer2 address with the deposited funds
-def depositConfirmed(layer1_transaction_id, amount, layer1_address, nonce, signature):
+def depositConfirmed(layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, signature):
     destination_pubkey = DepositAddresses.getPubkeyFromAddress(layer1_address)
     if (not destination_pubkey):
         return ErrorMessage.ERROR_DEPOSIT_ADDRESS_NOT_FOUND
 
     #check to see if this deposit comes from our btc full node
-    if(not KeyVerification.verifyDeposit(layer1_transaction_id, amount, nonce, signature)):
+    if(not KeyVerification.verifyDeposit(layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, signature)):
         return ErrorMessage.ERROR_CANNOT_VERIFY_SIGNATURE
 
     source = signing_keys.onboarding_signing_key_pubkey
@@ -172,6 +172,7 @@ def depositConfirmed(layer1_transaction_id, amount, layer1_address, nonce, signa
     #TODO: use destination_pubkey, remove get_payable_address
     fee = 0
 
+    nonce = ''.join(random.choice(string.ascii_letters) for i in range(16))
     onboarding_transaction_signing_address = Address.Address.fromPrivateKey(signing_keys.onboarding_signing_key_privkey)
     message = str(Transaction.Transaction.TRX_DEPOSIT) + " " + source + " " + destination_pubkey + " " + str(amount) + " " + str(fee) + " " + nonce
     signature = onboarding_transaction_signing_address.sign(message)
@@ -206,4 +207,4 @@ def ackWithdrawalRequests(guids):
     return WithdrawalRequests.ackWithdrawalRequests(guids)
 
 def withdrawalCanceled():
-    pass
+    return  ErrorMessage.ERROR_FEATURE_NOT_SUPPORTED #for now we are not supporting canceling withdrawals

@@ -26,6 +26,7 @@ app.add_url_rule(r'/getTransaction', 'getTransaction', TransactionAPI.getTransac
 app.add_url_rule(r'/getAllTransactionsOfPublicKey', 'getAllTransactionsOfPublicKey', TransactionAPI.getAllTransactionsOfPublicKey.initializeRequest)
 app.add_url_rule(r'/getFee', 'getFee', TransactionAPI.getFee.initializeRequest)
 
+app.add_url_rule(r'/jsonTest', 'jsonTest', OnboardingAPI.jsonTest.initializeRequest, methods=['POST'])
 app.add_url_rule(r'/withdrawalRequest', 'withdrawalRequest', OnboardingAPI.withdrawalRequest.initializeRequest, methods=['POST'])
 app.add_url_rule(r'/withdrawalCanceled', 'withdrawalCanceled', OnboardingAPI.withdrawalCanceled.initializeRequest)
 app.add_url_rule(r'/withdrawalBroadcasted', 'withdrawalBroadcasted', OnboardingAPI.withdrawalBroadcasted.initializeRequest, methods=['POST'])
