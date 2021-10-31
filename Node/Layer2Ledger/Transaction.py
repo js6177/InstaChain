@@ -138,10 +138,10 @@ class Transaction(ndb.Model):
                                   destination_address_pubkey=_destination, transaction_type=_transaction_type,
                                   signature=_signature, transaction_id=_transaction_id, layer1_transaction_id = _layer1_transaction_id)
                 trx.put()  # save it to the DB
-                GlobalLogging.logger.log_text("ADDRESS_BALANCE_CACHE_ENABLED: " + str(ADDRESS_BALANCE_CACHE_ENABLED))
+                #GlobalLogging.logger.log_text("ADDRESS_BALANCE_CACHE_ENABLED: " + str(ADDRESS_BALANCE_CACHE_ENABLED))
                 #in the balance cache, update the cache
                 if (ADDRESS_BALANCE_CACHE_ENABLED and _transaction_type != Transaction.TRX_WITHDRAWAL_CONFIRMED):
-                    GlobalLogging.logger.log_text("updating AddressBalanceCache")
+                    #GlobalLogging.logger.log_text("updating AddressBalanceCache")
                     AddressBalanceCache.updateBalance(source.pubkey, -_amount)
                     AddressBalanceCache.updateBalance(_destination, _amount-_fee)
                 status = ErrorMessage.ERROR_SUCCESS
