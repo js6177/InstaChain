@@ -25,7 +25,7 @@ class TransactionMode(Enum):
     TRANSACTION_PUTTRANSACTION = auto() # the entire put_transaction is made @ndb.transactional
     NONE = auto() # if in the future, concurrency is handled by an outside program
 
-TRANSACTION_MODE = TransactionMode.ADDRESSLOCK
+TRANSACTION_MODE = TransactionMode.TRANSACTION_PUTTRANSACTION
 ADDRESS_BALANCE_CACHE_ENABLED = True
 
 def _dropTable():
@@ -165,25 +165,36 @@ class Transaction(ndb.Model):
                         return ErrorMessage.ERROR_CANNOT_CANCEL_WITHDRAWAL_MULTIPLE_TIMES #make sure TRX_WITHDRAWAL_CANCELED doesn't get saved twice
 
         if(TRANSACTION_MODE == TransactionMode.ADDRESSLOCK):
-            if(AddressLock.lock(_source, _destination)):
-                try:
-                    status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _nonce, _layer1_transaction_id)
-                except Exception as ex:
-                    GlobalLogging.logger.log_text(traceback.format_exc())
-                finally:
-                    AddressLock.unlock(_source, _destination) # always unlock addresses, success or exception
-            else:
+            try:
+                if(AddressLock.lock(_source, _destination)):
+                    try:
+                        status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _nonce, _layer1_transaction_id)
+                    except Exception as ex:
+                        GlobalLogging.logger.log_text(traceback.format_exc())
+                    finally:
+                        AddressLock.unlock(_source, _destination) # always unlock addresses, success or exception
+                else:
+                    return ErrorMessage.ERROR_ADDRESS_LOCKED
+            except Exception as ex:
                 return ErrorMessage.ERROR_DATABASE_TRANSACTIONAL_ERROR
         elif(TRANSACTION_MODE == TransactionMode.TRANSACTION_PUTTRANSACTION):
             try:
-                status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _nonce, _layer1_transaction_id)
+                status = Transaction.transactional_put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _nonce, _layer1_transaction_id)
             except Exception as ex:
                 GlobalLogging.logger.log_text(traceback.format_exc())
                 return ErrorMessage.ERROR_DATABASE_TRANSACTIONAL_ERROR
+        elif(TRANSACTION_MODE == TransactionMode.TRANSACTION_PUTTRANSACTION):
+            status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _nonce, _layer1_transaction_id)
 
         if((_transaction_type == Transaction.TRX_WITHDRAWAL_INITIATED) and (status == ErrorMessage.ERROR_SUCCESS)):
             Onboarding.WithdrawalRequests.addWithdrawalRequest(_destination, _nonce, _amount)
         return status
+
+    
+    @staticmethod
+    @ndb.transactional(retries=100)
+    def transactional_put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _transaction_id, _layer1_transaction_id = None):
+        return Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _transaction_id, _layer1_transaction_id)
 
     #once a trx's signature and nonce have been verified, time to get the balanace and write to it the database
     @staticmethod
