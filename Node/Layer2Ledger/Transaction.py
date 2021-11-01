@@ -4,6 +4,8 @@ import logging
 from User import User
 from Address import Address
 import ErrorMessage
+from typing import List
+import string
 import datetime
 import traceback
 import DebugLogger
@@ -26,6 +28,36 @@ def _dropTable():
     ndb.delete_multi(
         AddressBalanceCache.query().fetch(keys_only=True)
     )
+
+class AddressLock(ndb.Model):
+    address1 = ndb.StringProperty() # the two addresses are inserting in alphabetical order, to get a row with only 1 query
+    address2 = ndb.StringProperty() # instead of indexing both addresses seperately, it's better to use a single composite index
+    locked = ndb.BooleanProperty(indexed=False)
+
+    @staticmethod
+    @ndb.transactional(retries=10)
+    def lock(addresses: List[str]):
+        t1 = datetime.datetime.now()
+        lockAcquired = False
+        addresses.sort()
+        row = AddressLock.query(AddressLock.address1 == addresses[0], AddressLock.address2 == addresses[1]).get()
+        if(not row):
+            row = AddressLock(address1 = addresses[0], address2 = addresses[1], locked = False)
+        if(not row.locked):
+            row.locked = True
+            row.put()
+            lockAcquired = True
+        DebugLogger.TransactionDuration.logDuration(t1, addresses[0] + '-' + addresses[1], 'AddressLock.lock()')
+        return lockAcquired
+
+    # This does not need to be transactional, because it will be the only instance accessing the addresses untill row.put()
+    @staticmethod
+    def unlock(addresses: List[str]):
+        addresses.sort()
+        row = AddressLock.query(AddressLock.address1 == addresses[0], AddressLock.address2 == addresses[1]).get()
+        if(row):
+            row.locked = False
+            row.put()
 
 class AddressBalanceCache(ndb.Model):
     address = ndb.StringProperty()
@@ -108,6 +140,19 @@ class Transaction(ndb.Model):
                     if(trx.transaction_type == Transaction.TRX_WITHDRAWAL_CANCELED):
                         return ErrorMessage.ERROR_CANNOT_CANCEL_WITHDRAWAL_MULTIPLE_TIMES #make sure TRX_WITHDRAWAL_CANCELED doesn't get saved twice
 
+        if(AddressLock.lock([_source, _destination])):
+            #do some stuff
+            AddressLock.unlock([_source, _destination])
+            return ErrorMessage.ERROR_SUCCESS
+        else:
+            try:
+                status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _nonce, _layer1_transaction_id)
+            except Exception as ex:
+                GlobalLogging.logger.log_text(traceback.format_exc())
+            finally:
+                AddressLock.unlock([_source, _destination]) # always unlock addresses, success or exception
+            return ErrorMessage.ERROR_DATABASE_TRANSACTIONAL_ERROR
+
         try:
             status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _nonce, _layer1_transaction_id)
         except Exception as ex:
@@ -120,7 +165,7 @@ class Transaction(ndb.Model):
 
     #once a trx's signature and nonce have been verified, time to get the balanace and write to it the database
     @staticmethod
-    @ndb.transactional(retries=100)
+    #@ndb.transactional(retries=100)
     def put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _transaction_id, _layer1_transaction_id = None):
         t1 = datetime.datetime.now()
         # begin transactional
@@ -131,15 +176,17 @@ class Transaction(ndb.Model):
         else:
             balance = Transaction.get_balance(source.pubkey, ADDRESS_BALANCE_CACHE_ENABLED)
             if (balance >= _amount or (_transaction_type == Transaction.TRX_DEPOSIT)):
+                updateAdressBalanceCache = (ADDRESS_BALANCE_CACHE_ENABLED and _transaction_type != Transaction.TRX_WITHDRAWAL_CONFIRMED)
+                if (updateAdressBalanceCache):
+                    AddressBalanceCache.updateBalance(source.pubkey, -_amount)
                 trx = Transaction(amount=_amount, fee=_fee, source_address_pubkey=source.pubkey,
                                   destination_address_pubkey=_destination, transaction_type=_transaction_type,
                                   signature=_signature, transaction_id=_transaction_id, layer1_transaction_id = _layer1_transaction_id)
                 trx.put()  # save it to the DB
                 #GlobalLogging.logger.log_text("ADDRESS_BALANCE_CACHE_ENABLED: " + str(ADDRESS_BALANCE_CACHE_ENABLED))
                 #in the balance cache, update the cache
-                if (ADDRESS_BALANCE_CACHE_ENABLED and _transaction_type != Transaction.TRX_WITHDRAWAL_CONFIRMED):
+                if (updateAdressBalanceCache):
                     #GlobalLogging.logger.log_text("updating AddressBalanceCache")
-                    AddressBalanceCache.updateBalance(source.pubkey, -_amount)
                     AddressBalanceCache.updateBalance(_destination, _amount-_fee)
                 status = ErrorMessage.ERROR_SUCCESS
             else:
