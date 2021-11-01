@@ -5,6 +5,7 @@ from User import User
 from Address import Address
 import ErrorMessage
 from typing import List
+from enum import Enum, auto
 import string
 import datetime
 import traceback
@@ -19,6 +20,12 @@ genesis_pubkey = '2rFKHwbfXho74Ggw7nRMp1qVa3YgDizXVL6Y3rJ15TJoQGXqwwK9bhfmsdZ82r
 #trusted public key of the sever that is used to manage deposit/withdrawals
 onboarding_pubkey = ''
 
+class TransactionMode(Enum):
+    ADDRESSLOCK = auto() # source and destination addresses are locked, preventing duplicates
+    TRANSACTION_PUTTRANSACTION = auto() # the entire put_transaction is made @ndb.transactional
+    NONE = auto() # if in the future, concurrency is handled by an outside program
+
+TRANSACTION_MODE = TransactionMode.ADDRESSLOCK
 ADDRESS_BALANCE_CACHE_ENABLED = True
 
 def _dropTable():
@@ -30,34 +37,51 @@ def _dropTable():
     )
 
 class AddressLock(ndb.Model):
-    address1 = ndb.StringProperty() # the two addresses are inserting in alphabetical order, to get a row with only 1 query
-    address2 = ndb.StringProperty() # instead of indexing both addresses seperately, it's better to use a single composite index
+    address = ndb.StringProperty()
     locked = ndb.BooleanProperty(indexed=False)
 
     @staticmethod
-    @ndb.transactional(retries=10)
-    def lock(addresses: List[str]):
+    @ndb.transactional(retries=100)
+    def lock(address1: str, address2: str):
         t1 = datetime.datetime.now()
         lockAcquired = False
-        addresses.sort()
-        row = AddressLock.query(AddressLock.address1 == addresses[0], AddressLock.address2 == addresses[1]).get()
-        if(not row):
-            row = AddressLock(address1 = addresses[0], address2 = addresses[1], locked = False)
-        if(not row.locked):
-            row.locked = True
-            row.put()
+        address1Hit = AddressLock.query(AddressLock.address == address1).get()
+        address2Hit = AddressLock.query(AddressLock.address == address2).get()
+
+        address1Free = False
+        address2Free = False
+
+        if(not address1Hit or address1Hit.locked==False):
+            address1Free = True
+        if(not address2Hit or address2Hit.locked==False):
+            address2Free = True
+
+        if(address1Free and address2Free):
+            if(not address1Hit):
+                address1Hit = AddressLock(address = address1)
+            if(not address2Hit):
+                address2Hit = AddressLock(address = address2)
+            address1Hit.locked = True
+            address2Hit.locked = True
+
+            address1Hit.put()
+            address2Hit.put()
             lockAcquired = True
-        DebugLogger.TransactionDuration.logDuration(t1, addresses[0] + '-' + addresses[1], 'AddressLock.lock()')
+
+        DebugLogger.TransactionDuration.logDuration(t1, address1 + '-' + address2, 'AddressLock.lock()')
         return lockAcquired
 
     # This does not need to be transactional, because it will be the only instance accessing the addresses untill row.put()
     @staticmethod
-    def unlock(addresses: List[str]):
-        addresses.sort()
-        row = AddressLock.query(AddressLock.address1 == addresses[0], AddressLock.address2 == addresses[1]).get()
-        if(row):
-            row.locked = False
-            row.put()
+    def unlock(address1: str, address2: str):
+        address1Hit = AddressLock.query(AddressLock.address == address1).get()
+        if(address1Hit):
+            address1Hit.locked = False
+            address1Hit.put()
+        address2Hit = AddressLock.query(AddressLock.address == address2).get()
+        if(address2Hit):
+            address2Hit.locked = False
+            address2Hit.put()
 
 class AddressBalanceCache(ndb.Model):
     address = ndb.StringProperty()
@@ -140,24 +164,22 @@ class Transaction(ndb.Model):
                     if(trx.transaction_type == Transaction.TRX_WITHDRAWAL_CANCELED):
                         return ErrorMessage.ERROR_CANNOT_CANCEL_WITHDRAWAL_MULTIPLE_TIMES #make sure TRX_WITHDRAWAL_CANCELED doesn't get saved twice
 
-        if(AddressLock.lock([_source, _destination])):
-            #do some stuff
-            AddressLock.unlock([_source, _destination])
-            return ErrorMessage.ERROR_SUCCESS
-        else:
+        if(TRANSACTION_MODE == TransactionMode.ADDRESSLOCK):
+            if(AddressLock.lock(_source, _destination)):
+                try:
+                    status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _nonce, _layer1_transaction_id)
+                except Exception as ex:
+                    GlobalLogging.logger.log_text(traceback.format_exc())
+                finally:
+                    AddressLock.unlock(_source, _destination) # always unlock addresses, success or exception
+            else:
+                return ErrorMessage.ERROR_DATABASE_TRANSACTIONAL_ERROR
+        elif(TRANSACTION_MODE == TransactionMode.TRANSACTION_PUTTRANSACTION):
             try:
                 status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _nonce, _layer1_transaction_id)
             except Exception as ex:
                 GlobalLogging.logger.log_text(traceback.format_exc())
-            finally:
-                AddressLock.unlock([_source, _destination]) # always unlock addresses, success or exception
-            return ErrorMessage.ERROR_DATABASE_TRANSACTIONAL_ERROR
-
-        try:
-            status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _nonce, _layer1_transaction_id)
-        except Exception as ex:
-            GlobalLogging.logger.log_text(traceback.format_exc())
-            return ErrorMessage.ERROR_DATABASE_TRANSACTIONAL_ERROR
+                return ErrorMessage.ERROR_DATABASE_TRANSACTIONAL_ERROR
 
         if((_transaction_type == Transaction.TRX_WITHDRAWAL_INITIATED) and (status == ErrorMessage.ERROR_SUCCESS)):
             Onboarding.WithdrawalRequests.addWithdrawalRequest(_destination, _nonce, _amount)
