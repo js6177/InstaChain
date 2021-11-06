@@ -25,7 +25,7 @@ class TransactionMode(Enum):
     TRANSACTION_PUTTRANSACTION = auto() # the entire put_transaction is made @ndb.transactional
     NONE = auto() # if in the future, concurrency is handled by an outside program
 
-TRANSACTION_MODE = TransactionMode.TRANSACTION_PUTTRANSACTION
+TRANSACTION_MODE = TransactionMode.ADDRESSLOCK
 ADDRESS_BALANCE_CACHE_ENABLED = True
 
 def _dropTable():
@@ -35,6 +35,19 @@ def _dropTable():
     ndb.delete_multi(
         AddressBalanceCache.query().fetch(keys_only=True)
     )
+
+class TotalFees(ndb.Model):
+    amount = ndb.IntegerProperty(default = 0, indexed=False)
+
+    @staticmethod
+    def add_fee(fee: int):
+        row = TotalFees.query().get()
+        if(not row):
+            row = TotalFees()
+        row.amount += fee
+        row.put()
+
+
 
 class AddressLock(ndb.Model):
     address = ndb.StringProperty()
@@ -221,6 +234,7 @@ class Transaction(ndb.Model):
                 if (updateAdressBalanceCache):
                     #GlobalLogging.logger.log_text("updating AddressBalanceCache")
                     AddressBalanceCache.updateBalance(_destination, _amount-_fee)
+                TotalFees.add_fee(_fee)
                 status = ErrorMessage.ERROR_SUCCESS
             else:
                 status = ErrorMessage.ERROR_INSUFFICIENT_FUNDS

@@ -11,6 +11,7 @@ import math
 import connection
 import asyncio
 import copy
+from typing import List
 from collections import namedtuple
 
 origin_pubkey = ''
@@ -379,13 +380,13 @@ class Wallet:
         #connection.pushTransaction(trx.amount, trx.fee, trx.source_address, trx.destination_address_sha256, trx.signature, trx.transaction_id)
         #print("Message verified: ", verified)
 
-    async def create_transaction_async(self, session, destination_address, source_address: Address, amount, _node_hostname = None):
+    async def create_transaction_async(self, session, destination_address_pubkey, source_address_pubkey, amount, _node_hostname = None):
         node_hostname = _node_hostname or self.current_node
 
         node = self.trusted_nodes[node_hostname]
-        trx = self.create_transaction(destination_address, source_address, amount, node)
-        await connection.pushTransactionAsync(session, node_hostname, trx.amount, trx.fee, trx.source_address, trx.destination_address_sha256, trx.signature, trx.transaction_id)
-        return
+        trx = self.create_transaction(destination_address_pubkey, source_address_pubkey, amount, node)
+        return await connection.pushTransactionAsync(session, node_hostname, trx.amount, trx.fee, trx.source_address, trx.destination_address_sha256, trx.signature, trx.transaction_id)
+        
 
         trx = Transaction()
         privkey = ecdsa.SigningKey.from_string(base58.b58decode(source_address.privkey), curve=ecdsa.SECP256k1)
@@ -418,13 +419,11 @@ class Wallet:
         #print("Message verified: ", verified)
 
     def update_wallet_balance(self, node_url = None):
-        address_list = ''
-        for key, address in self.addresses.items():
-            address_list += address.pubkey + ','
+        address_list = list(self.addresses.keys())
         self.update_address_balance(address_list, node_url)
         #address.balance = json.loads(connection.getAddressBalance(node_url or self.current_node, address.pubkey))['balance']
 
-    def update_address_balance(self, address: string, node_url = None):
+    def update_address_balance(self, address: List[str], node_url = None):
         if(node_url):
             #TODO: error checking
             balance_map = json.loads(connection.getAddressBalance(node_url, address))['balance']
@@ -481,7 +480,7 @@ class Wallet:
 
     def get_address_balance(self, address, node_url = None, update_balance = False):
         if(update_balance):
-            self.update_address_balance(address, node_url)
+            self.update_address_balance([address], node_url)
         balance = 0
         if(node_url):
             balance = self.address_balance.get((address,node_url),0)
