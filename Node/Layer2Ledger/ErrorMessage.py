@@ -13,6 +13,7 @@ ERROR_DATABASE_TRANSACTIONAL_ERROR = 19
 ERROR_FEATURE_NOT_SUPPORTED = 20
 ERROR_NEGATIVE_AMOUNT = 21
 ERROR_AMOUNT_LESS_THAN_FEE = 22
+ERROR_ADDRESS_LOCKED = 23
 
 error_mapping = {
 ERROR_SUCCESS: "Success",
@@ -29,7 +30,8 @@ ERROR_COULD_NOT_FIND_WITHDRAWAL_REQUEST: "The withdraw request was not found",
 ERROR_DATABASE_TRANSACTIONAL_ERROR: "Transaction failed due to server side DB load. Please try again",
 ERROR_FEATURE_NOT_SUPPORTED: "This feature is not supported",
 ERROR_NEGATIVE_AMOUNT: "The transaction amount or fee cannot be negative",
-ERROR_AMOUNT_LESS_THAN_FEE: "The amount must be greater than the fee"
+ERROR_AMOUNT_LESS_THAN_FEE: "The amount must be greater than the fee",
+ERROR_ADDRESS_LOCKED: "The address is locked because it is being processed by another transaction. Please try again"
 }
 
 def build_error_message(error_code, error_message = ''):

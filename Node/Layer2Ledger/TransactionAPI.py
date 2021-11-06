@@ -6,6 +6,7 @@ import logging
 import json
 import datetime
 import types
+from types import SimpleNamespace
 from BlitzAPI import BlitzRequestHandler
 from NodeInfoAPI import NODE_ID
 import GlobalLogging
@@ -64,10 +65,12 @@ class getFee(BlitzRequestHandler):
 
 class getBalance(BlitzRequestHandler):
     def getParameters(self):
-        self.public_keys = filter(None, self.getRequestParams('public_key').split(','))
+        #self.public_keys = filter(None, self.getRequestParams('public_key').split(','))
+        self.jsonParam = self.getPostJsonParams()
     def processRequest(self):
+        request = json.loads(json.dumps(self.jsonParam), object_hook=lambda d: SimpleNamespace(**d))
         balances = []
-        for public_key in self.public_keys:
+        for public_key in request.public_keys:
             balance = type('', (), {})()
             balance.public_key = public_key
             balance.balance = Transaction.get_balance(public_key)

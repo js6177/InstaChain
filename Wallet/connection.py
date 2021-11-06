@@ -4,6 +4,7 @@ import aiohttp
 import asyncio
 from aiohttp import ClientSession
 import json
+from typing import List
 from collections import namedtuple
 
 ERROR_SUCCESS = 0
@@ -23,11 +24,12 @@ DEFAULT_NODE_HOSTNAME = 'https://blitz-v1.appspot.com/' #if user has not added a
 
 #hostname = 'https://blitz-v1.appspot.com/'
 
+HEADERS = {'user-agent': 'requests ' + requests.__version__}
+
 async def pushTransactionAsync(session, hostname, amount, fee, source_pubkey, destination_address, signature, nonce):
     #print('pushTransactionAsync called!')
 
     url = hostname + 'pushTransaction'
-
     data = {'amount': amount,
             'source_pubkey': source_pubkey,
             'destination_address': destination_address,
@@ -35,10 +37,16 @@ async def pushTransactionAsync(session, hostname, amount, fee, source_pubkey, de
             'nonce': nonce,
             'fee': fee,
             }
-
-    async with session.post(url, params = data) as response:
-        resp = await response.read()
-        #print(resp)
+    async with session.post(url, data = data) as response:
+        resp = None
+        try:
+            resp = await response.json()
+        except Exception as ex:
+            print(resp)
+            resp = {'error_code': 1000}
+        #resp = await response.text
+        #print(".")
+        print(resp)
         return resp
     #r = requests.post(url, data=data)
     ##print(r.text)
@@ -81,11 +89,12 @@ def getDepositAddress(hostname, pubkey, nonce, signature):
     x = json.loads(r.text, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
     return x
 
-def getAddressBalance(hostname, pubkey):
+def getAddressBalance(hostname, pubkeys: List[str]):
+    print('calling getAddressBalance')
     url = hostname + 'getBalance'
-    data = { 'public_key': pubkey}
+    data = { 'public_keys': pubkeys}
 
-    r = requests.get(url, params=data)
+    r = requests.post(url, json=data, headers=HEADERS)
     #print(r.text)
     return r.text
 

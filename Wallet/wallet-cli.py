@@ -201,7 +201,7 @@ class WalletCLI():
     def list_address_balance(self, args):
         address = self.getArgument(args, 0)
         node_url = self.getArgument(args, 1)
-        self.wallet.update_address_balance(address, node_url)
+        self.wallet.update_address_balance([address], node_url)
         self.wallet.print_address_balance(address)
 
     def clear_cache(self, args):
