@@ -11,3 +11,11 @@ handlers:
   # the entire handlers section) when there are no static files defined.
 - url: /.*
   script: auto
+
+env_variables:
+  REDISHOST: '[IP]'
+  REDISPORT: '[PORT]'
+  REDISAUTH: '[AUTHKEY]'
+
+vpc_access_connector:
+  name: projects/[PROJECT-NAME]/locations/[LOCATION]/connectors/addressbalancecache

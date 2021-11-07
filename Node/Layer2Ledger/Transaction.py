@@ -13,6 +13,7 @@ import DebugLogger
 import signing_keys
 import GlobalLogging
 import Onboarding
+import RedisInterface
 
 #for testing, this key will always have an balance of 10000
 genesis_pubkey = '2rFKHwbfXho74Ggw7nRMp1qVa3YgDizXVL6Y3rJ15TJoQGXqwwK9bhfmsdZ82rFKp6Xy1KXZoVZ7shRYnp1SmTCd'
@@ -27,6 +28,7 @@ class TransactionMode(Enum):
 
 TRANSACTION_MODE = TransactionMode.ADDRESSLOCK
 ADDRESS_BALANCE_CACHE_ENABLED = True
+REDIS_ADDRESS_BALANCE_CACHE_ENABLED = True
 
 def _dropTable():
     ndb.delete_multi(
@@ -106,13 +108,15 @@ class AddressBalanceCache(ndb.Model):
         return AddressBalanceCache.query(AddressBalanceCache.address == _address).get()
 
     @staticmethod
-    def updateBalance(_address, _balance):
+    def updateBalance(_address, _balance, updateRedisAddressBalanceCache=REDIS_ADDRESS_BALANCE_CACHE_ENABLED):
         t1 = datetime.datetime.now()
         hit = AddressBalanceCache.get(_address)
         if(not hit):
             hit = AddressBalanceCache(address = _address, balance = Transaction.get_balance(_address, False))
         hit.balance += _balance
         hit.put()
+        if(updateRedisAddressBalanceCache):
+            RedisInterface.set(_address, hit.balance)
         DebugLogger.TransactionDuration.logDuration(t1, _address, 'updateBalance')
         #add or updates balance
 
@@ -243,11 +247,18 @@ class Transaction(ndb.Model):
         return status
 
     @staticmethod
-    def get_balance(pubkey, useCache = True):
-        address = Address(pubkey)
+    def get_balance(pubkey, useCache = True, useRedisAddressBalanceCache = False):
+        
         t1 = datetime.datetime.now()
         trx_count = 0 #for logging, use to hold the count of transactions. Do lot use Query.count() method, as it will recalculate
 
+        if(useRedisAddressBalanceCache):
+            balance = RedisInterface.get(pubkey)
+            if(balance != None):
+                DebugLogger.TransactionDuration.logDuration(t1, pubkey, 'get_balance (from RedisAddressBalanceCache)', trx_count)
+                return int(balance)
+
+        address = Address(pubkey)
         balance = 0
         balance_found_from_cache = False
         if(useCache):
