@@ -73,7 +73,7 @@ class getBalance(BlitzRequestHandler):
         for public_key in request.public_keys:
             balance = type('', (), {})()
             balance.public_key = public_key
-            balance.balance = Transaction.get_balance(public_key)
+            balance.balance = Transaction.get_balance(public_key, True, True)
             balances.append(balance)
         self.result['balance'] = [{'public_key': balance.public_key, 'balance': balance.balance} for balance in balances]
 
