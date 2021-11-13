@@ -42,6 +42,7 @@ class TotalFees(ndb.Model):
     amount = ndb.IntegerProperty(default = 0, indexed=False)
 
     @staticmethod
+    @ndb.transactional(retries=100)
     def add_fee(fee: int):
         row = TotalFees.query().get()
         if(not row):
@@ -153,6 +154,9 @@ class Transaction(ndb.Model):
 
         if(_amount <= _fee):
             return ErrorMessage.ERROR_AMOUNT_LESS_THAN_FEE
+
+        if(not _nonce.isalnum()):
+            return ErrorMessage.ERROR_NOT_ALPHANUMERIC
 
         source = Address(_source)
 
