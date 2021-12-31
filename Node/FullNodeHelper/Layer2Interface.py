@@ -18,7 +18,7 @@ import traceback
 import argparse
 from typing import List
 
-HOSTNAME = 'https://blitz-v1.appspot.com/'
+HOSTNAME = 'https://testnet.instachain.io/'
 
 ERROR_SUCCESS = 0
 ERROR_UNKNOWN = 1
