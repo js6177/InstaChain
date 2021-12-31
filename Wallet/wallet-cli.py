@@ -22,7 +22,7 @@ COMMANDS_HELP = {
     'list_nodes': ['', 'List all the nodes of the wallet.'],
 
     'create_transaction': ['<destination address> <amount> [source address]', 'Creates and signs a transactions. The source address is optional if your wallet only has 1 address. The signed transaction is not broadcasted, instead it is saved as a json and can be broadcasted later'],
-    'push_transaction': ['<destination address> <amount> [source address] [node url]', 'Signs a transaction than broadcasts it, and displayed the return code. The source address is optional if your wallet only has 1 address.'],
+    'transfer': ['<destination address> <amount> [source address] [node url]', 'Signs a transaction than broadcasts it, and displayed the return code. The source address is optional if your wallet only has 1 address.'],
 'push_signed_transaction': ['<signed transaction json>', 'Broadcasts a signed transaction'],
 
 'list_wallet_transactions': ['', 'List all transaction of addresses that belong to the wallet of all nodes'],
@@ -36,7 +36,7 @@ COMMANDS_HELP = {
 'view_transaction': ['<transaction id> <node>', 'Displays the transaction information of a transaction id of a node'],
 'clear_cache': ['', 'Clears the local address balances and transactions, so subsequent calls will fetch it from the nodes. Does not clear any existing public or private keys'],
 }
-#commands = [help, open_wallet, close_wallet, new_address, list_addresses, add_node, list_nodes, create_transaction, push_transaction, push_signed_transaction, list_wallet_transactions, list_wallet_balance, list_address_transactions, list_address_balance]
+#commands = [help, open_wallet, close_wallet, new_address, list_addresses, add_node, list_nodes, create_transaction, transfer, push_signed_transaction, list_wallet_transactions, list_wallet_balance, list_address_transactions, list_address_balance]
 
 
 class WalletCLI():
@@ -138,12 +138,12 @@ class WalletCLI():
         node_url = self.getArgument(args, 3)
         self.wallet.create_transaction(destination_address, source_address, amount, node_url)
 
-    def push_transaction(self, args):
+    def transfer(self, args):
         destination_address = args[0]
         amount = args[1]
         source_address = args[2]
         node_url = self.getArgument(args, 3) or self.wallet.current_node
-        self.wallet.push_transaction(destination_address, source_address, amount, node_url)
+        self.wallet.transfer(destination_address, source_address, amount, node_url)
 
     def list_addresses(self, args):
         for address in self.wallet.addresses:
@@ -201,7 +201,7 @@ class WalletCLI():
     def list_address_balance(self, args):
         address = self.getArgument(args, 0)
         node_url = self.getArgument(args, 1)
-        self.wallet.update_address_balance(address, node_url)
+        self.wallet.update_address_balance([address], node_url)
         self.wallet.print_address_balance(address)
 
     def clear_cache(self, args):
@@ -211,7 +211,7 @@ class WalletCLI():
 
 
 
-#commands = [help, exit, open_wallet, close_wallet, new_address, list_addresses, add_node, list_nodes, create_transaction, push_transaction, push_signed_transaction, list_wallet_transactions, list_wallet_balance, list_address_transactions, list_address_balance]
+#commands = [help, exit, open_wallet, close_wallet, new_address, list_addresses, add_node, list_nodes, create_transaction, transfer, push_signed_transaction, list_wallet_transactions, list_wallet_balance, list_address_transactions, list_address_balance]
 
 command_map = {
 }

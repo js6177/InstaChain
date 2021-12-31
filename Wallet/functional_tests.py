@@ -4,7 +4,6 @@ from wallet import Wallet, DEFAULT_FEE
 import random
 import threading
 import time
-
 import asyncio
 from aiohttp import ClientSession
 
@@ -66,7 +65,7 @@ def push_n_trx(w, trx_count = 10):
         amount = random.randint(10, 1000)
         #trx = w.create_transaction(w.addresses[destination_address].get_payable_address(), w.addresses[source_address], amount)
         #asyncio.run(w.create_transaction(payable_address, address, amount))
-        trx = w.push_transaction(payable_address, SAMPLE_DEPOSIT_ADDRESS, amount)
+        trx = w.transfer(payable_address, SAMPLE_DEPOSIT_ADDRESS, amount)
         transactions.append(trx)
 
 def create_n_trx(w, trx_count = 10):
@@ -108,21 +107,7 @@ def pushTrxMultithreaded(w):
     for index, thread in enumerate(threads):
         thread.join()
 
-async def push_n_trx_async(w: Wallet, source_address_pubkey, destination_address_pubkey, amount, trx_count, node_url):
-    t1 = datetime.datetime.now()
-    tasks = []
 
-    transactions = []
-    addresses_count = len(w.addresses)
-    async with ClientSession() as session:
-        for i in range(trx_count):
-            task = asyncio.ensure_future(w.create_transaction_async(session, destination_address_pubkey, source_address_pubkey, amount, node_url))
-            tasks.append(task)
-        responses = await asyncio.gather(*tasks)
-        t2 = datetime.datetime.now()
-        delta = t2 - t1
-        print(responses)
-        print('Total duration: ' + str(delta))
 
 async def withdraw_n_trx_async(w: Wallet, source_address_pubkey, layer1_withdrawal_address, amount, trx_count, node_url):
     t1 = datetime.datetime.now()
@@ -187,7 +172,7 @@ def DepositTransferCheckBalance():
 
     addressB = w.generate_new_address('DepositTransferCheckBalance AddressB' + str(random.randint(10, 1000)))
 
-    w.push_transaction(addressB, addressA, transfer_amount, None)
+    w.transfer(addressB, addressA, transfer_amount, None)
     addressA_balance = w.get_address_balance(addressA, w.current_node, True)
     addressB_balance = w.get_address_balance(addressB, w.current_node, True)
 
@@ -223,7 +208,7 @@ def DepositTransferCheckBalanceMultithreaded():
     future = asyncio.ensure_future(push_n_trx_async(w, addressA, addressB, transfer_amount, 10, w.current_node))
     loop.run_until_complete(future)
 
-    w.push_transaction(addressB, addressA, transfer_amount, None)
+    w.transfer(addressB, addressA, transfer_amount, None)
     addressA_balance = w.get_address_balance(addressA, w.current_node, True)
     addressB_balance = w.get_address_balance(addressB, w.current_node, True)
 
@@ -287,67 +272,169 @@ def DepositWithdrawalCheckBalanceAsync():
     print("addressA balance: " + str(addressA_balance))
     assert addressA_balance == deposit_amount - withdrawal_amount - withdrawal_fee
 
+
+
+
+def TestSendTransactionsToMany(walletName = 'w.json', transactionCount = 1, sourceAddress = 'T34PvmuSYujm1Xpx5hwyFJtR6MZyjCLoLkAP7Rnx7bJmtWZuJ8NXh4zsqmAqZYk6uVoagCXYtW2Y4uaRjbEPzyA'):
+    trxCount = 0
+    w = Wallet()
+    w.open_wallet('w.json')
+    w.update_wallet_balance()
+    addressCount = len(w.addresses)
+    addressList = list(w.addresses.items())
+    for i in range(transactionCount):
+        destinationAddress = sourceAddress
+        while(destinationAddress == sourceAddress):
+            destinationAddress, _ = random.choice(addressList)
+        w.transfer(destinationAddress, sourceAddress, random.randint(100,9999))
+        trxCount += 1
+    return trxCount
+
+def ConsolidateTransactionsToAddress(walletName = 'w.json', destinationAddress = 'T34PvmuSYujm1Xpx5hwyFJtR6MZyjCLoLkAP7Rnx7bJmtWZuJ8NXh4zsqmAqZYk6uVoagCXYtW2Y4uaRjbEPzyA'):
+    trxCount = 0
+    w = Wallet()
+    w.open_wallet('w.json')
+    w.update_wallet_balance()
+
+    for sourceAddress, _ in w.addresses.items():
+        amount = 0
+        if(sourceAddress != destinationAddress):
+            amount = w.get_address_balance(sourceAddress)
+
+        w.transfer(destinationAddress, sourceAddress, amount)
+        trxCount += 1
+    return trxCount
+
+async def TestSendTransactionsToManyAsync(walletName = 'w.json', transactionCount = 1, sourceAddress = 'T34PvmuSYujm1Xpx5hwyFJtR6MZyjCLoLkAP7Rnx7bJmtWZuJ8NXh4zsqmAqZYk6uVoagCXYtW2Y4uaRjbEPzyA'):
+    t1 = datetime.datetime.now()
+    trxCount = 0
+    w = Wallet()
+    w.open_wallet('w.json')
+    w.update_wallet_balance()
+    addressCount = len(w.addresses)
+    addressList = list(w.addresses.items())
+    resultsTable = dict()
+    error_codes = []
+    tasks = []
+    async with ClientSession() as session:
+        for i in range(transactionCount):
+            destinationAddress = sourceAddress
+            while(destinationAddress == sourceAddress):
+                destinationAddress, _ = random.choice(addressList)
+            task = asyncio.ensure_future(w.create_transaction_async(session, destinationAddress, sourceAddress, random.randint(100,9999)))
+            tasks.append(task)
+            trxCount += 1
+        responses = await asyncio.gather(*tasks)
+        t2 = datetime.datetime.now()
+        print('Total duration: ' + str(t2-t1))
+        #print(responses)
+        for response in responses:
+            error_code = response["error_code"]
+            resultsTable[error_code] = resultsTable.get(error_code,0)+1
+    print(resultsTable)
+    return trxCount
+
+async def TestSendTransactionToWalletAsync(sourceWalletName, destWalletName, count):
     
+    trxCount = 0
+    sourceWallet = Wallet()
+    sourceWallet.open_wallet(sourceWalletName)
+    sourceWallet.update_wallet_balance()
 
-w = Wallet()
-w.open_wallet('nodeapi_test5.json')
-layer2_address = w.generate_new_address('address1')
-layer1_address = get_deposit_address(w, layer2_address)
-print(layer1_address)
-quit()
+    destWallet = Wallet()
+    destWallet.open_wallet(destWalletName)
+    destWallet.update_wallet_balance()
 
-full_node_wallet = Wallet()
-full_node_wallet.open_wallet('functional_tests_wallet.json')
-depositFunds(w, layer2_address, 1000)
-withdrawFromAddress(w, 'tb1qfleu7fchf8c762fezw80f4vzuxm5xryq5u0j95', layer2_address)
+    sourceWalletAddressCount = len(sourceWallet.addresses)
+    destWalletAddressCount = len(destWallet.addresses)
+
+    sourceWalletAddressList = list(sourceWallet.addresses.keys())
+    destWalletAddressList = list(destWallet.addresses.keys())
+
+    resultsTable = dict()
+    error_codes = []
+    tasks = []
+    sendToSameAddressOnce = True
+    addressesSentTo = set()
+    t1 = datetime.datetime.now()
+    async with ClientSession() as session:
+        for sourceAddress in sourceWalletAddressList:
+            if(sourceWallet.get_address_balance(sourceAddress) > 0):
+                destinationAddress = random.choice(destWalletAddressList)
+                alreadySent = (destinationAddress in addressesSentTo)
+                addressesSentTo.add(destinationAddress)
+                if(not sendToSameAddressOnce or not alreadySent):      
+                    task = asyncio.ensure_future(sourceWallet.create_transaction_async(session, destinationAddress, sourceAddress, random.randint(100, 999)))
+                    tasks.append(task)
+                    trxCount += 1
+        responses = await asyncio.gather(*tasks)
+        t2 = datetime.datetime.now()
+        print('Total duration: ' + str(t2-t1))
+        print('Transaction/sec: ' +  str(trxCount/((t2-t1).total_seconds())))
+        #print(responses)
+        for response in responses:
+            error_code = response["error_code"]
+            resultsTable[error_code] = resultsTable.get(error_code,0)+1
+    print(resultsTable)
+    sourceWallet.save_wallet()
+    destWallet.save_wallet()
+    return trxCount
+
+async def push_n_trx_async(w: Wallet, source_address_pubkey, destination_address_pubkey, amount, trx_count, node_url = None):
+    t1 = datetime.datetime.now()
+    print("source_address_pubkey: " + source_address_pubkey)
+    print("destination_address_pubkey: " + destination_address_pubkey)
+    print("amount: " + str(amount))
+    tasks = []
+    if(not node_url):
+        node_url = w.current_node
+
+    transactions = []
+    addresses_count = len(w.addresses)
+    async with ClientSession() as session:
+        for i in range(trx_count):
+            task = asyncio.ensure_future(w.create_transaction_async(session, destination_address_pubkey, source_address_pubkey, amount))
+            tasks.append(task)
+        responses = await asyncio.gather(*tasks)
+        t2 = datetime.datetime.now()
+        delta = t2 - t1
+        print(responses)
+        print('Total duration: ' + str(delta))
+
+def createAddresses(walletName, addressCount):
+    w = Wallet()
+    w.open_wallet(walletName)
+    for i in range(addressCount):
+        w.generate_new_address()
+    w.save_wallet()
+
+if(False):
+    createAddresses('w.json', 500)
+    createAddresses('w2.json', 500)
+    quit()
+
+trxCount = 0
+sendingWallet = 'w.json'
+recievingWallet = 'w2.json'
+if(False):
+    trxCount += TestSendTransactionsToMany('w.json', 500)
+while(True):
+    #trxCount += ConsolidateTransactionsToAddress()
+    loop = asyncio.get_event_loop()
+    future = asyncio.ensure_future(TestSendTransactionToWalletAsync(sendingWallet, recievingWallet, 500))
+    loop.run_until_complete(future)
+    temp = sendingWallet
+    sendingWallet = recievingWallet
+    recievingWallet = temp 
+    
+    print("Total transaction count: " +  str(trxCount))
+#ConsolidateTransactionsToAddress()
 quit()
 
 #DepositCheckBalance()
 #DepositTransferCheckBalance()
 #DepositWithdrawalCheckBalance()
 #DepositTransferCheckBalanceMultithreaded()
-while(True):
-    DepositWithdrawalCheckBalanceAsync()
-    time.sleep(10)
-quit()
-#create_new_wallet('nodeapi_test6.json', 'https://blitz-v1.appspot.com/')
-w = Wallet()
-w.open_wallet('nodeapi_test5.json')
-addressA = w.generate_new_address('address1')
-#quit()
-
-
-
-#w = Wallet()
-#w.open_wallet('mywallet3.json')
-
-full_node_wallet = Wallet()
-full_node_wallet.open_wallet('functional_tests_wallet.json')
-#node_wallet.add_trusted_node('https://blitz-v1.appspot.com/')
-#node_wallet.save_wallet()
-#withdrawFromAddress(w)
-#create_new_wallet()
-
-layer1_address = get_deposit_address(w, addressA)
-#w.add_trusted_node('https://blitz-v1.appspot.com/')
-#w.save_wallet()
-print("new address: " + addressA + ' ' + layer1_address)
-depositFunds(w, full_node_wallet, addressA)
-for i in range(1):
-    #asyncio.run(push_100_trx(w))
-    push_n_trx(w)
-    #create_n_trx(w)
-    print(i)
-
-if(False):
-    loop = asyncio.get_event_loop()
-    future = asyncio.ensure_future(push_100_trx_async(w))
-    loop.run_until_complete(future)
-
-#get_wallet_balance(w)
-
-
-
 
 #TODO:
 '''

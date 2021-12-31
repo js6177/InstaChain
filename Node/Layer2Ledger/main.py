@@ -21,7 +21,7 @@ app.add_url_rule(r'/getNodeInfo', 'getNodeInfo', NodeInfoAPI.getNodeInfo.initial
 
 app.add_url_rule(r'/dropTable', 'dropTable', TransactionAPI.dropTable.initializeRequest)
 app.add_url_rule(r'/pushTransaction', 'pushTransaction', TransactionAPI.pushTransaction.initializeRequest, methods=['POST'])
-app.add_url_rule(r'/getBalance', 'getBalance', TransactionAPI.getBalance.initializeRequest)
+app.add_url_rule(r'/getBalance', 'getBalance', TransactionAPI.getBalance.initializeRequest, methods=['POST'])
 app.add_url_rule(r'/getTransaction', 'getTransaction', TransactionAPI.getTransaction.initializeRequest)
 app.add_url_rule(r'/getAllTransactionsOfPublicKey', 'getAllTransactionsOfPublicKey', TransactionAPI.getAllTransactionsOfPublicKey.initializeRequest)
 app.add_url_rule(r'/getFee', 'getFee', TransactionAPI.getFee.initializeRequest)

@@ -4,12 +4,16 @@ import logging
 from User import User
 from Address import Address
 import ErrorMessage
+from typing import List
+from enum import Enum, auto
+import string
 import datetime
 import traceback
 import DebugLogger
 import signing_keys
 import GlobalLogging
 import Onboarding
+import RedisInterface
 
 #for testing, this key will always have an balance of 10000
 genesis_pubkey = '2rFKHwbfXho74Ggw7nRMp1qVa3YgDizXVL6Y3rJ15TJoQGXqwwK9bhfmsdZ82rFKp6Xy1KXZoVZ7shRYnp1SmTCd'
@@ -17,7 +21,14 @@ genesis_pubkey = '2rFKHwbfXho74Ggw7nRMp1qVa3YgDizXVL6Y3rJ15TJoQGXqwwK9bhfmsdZ82r
 #trusted public key of the sever that is used to manage deposit/withdrawals
 onboarding_pubkey = ''
 
+class TransactionMode(Enum):
+    ADDRESSLOCK = auto() # source and destination addresses are locked, preventing duplicates
+    TRANSACTION_PUTTRANSACTION = auto() # the entire put_transaction is made @ndb.transactional
+    NONE = auto() # if in the future, concurrency is handled by an outside program
+
+TRANSACTION_MODE = TransactionMode.ADDRESSLOCK
 ADDRESS_BALANCE_CACHE_ENABLED = True
+REDIS_ADDRESS_BALANCE_CACHE_ENABLED = True
 
 def _dropTable():
     ndb.delete_multi(
@@ -27,40 +38,100 @@ def _dropTable():
         AddressBalanceCache.query().fetch(keys_only=True)
     )
 
+class TotalFees(ndb.Model):
+    amount = ndb.IntegerProperty(default = 0, indexed=False)
+
+    @staticmethod
+    @ndb.transactional(retries=100)
+    def add_fee(fee: int):
+        row = TotalFees.query().get()
+        if(not row):
+            row = TotalFees()
+        row.amount += fee
+        row.put()
+
+
+
+class AddressLock(ndb.Model):
+    address = ndb.StringProperty()
+    locked = ndb.BooleanProperty(indexed=False)
+
+    @staticmethod
+    @ndb.transactional(retries=100)
+    def lock(address1: str, address2: str):
+        t1 = datetime.datetime.now()
+        lockAcquired = False
+        address1Hit = AddressLock.query(AddressLock.address == address1).get()
+        address2Hit = AddressLock.query(AddressLock.address == address2).get()
+
+        address1Free = False
+        address2Free = False
+
+        if(not address1Hit or address1Hit.locked==False):
+            address1Free = True
+        if(not address2Hit or address2Hit.locked==False):
+            address2Free = True
+
+        if(address1Free and address2Free):
+            if(not address1Hit):
+                address1Hit = AddressLock(address = address1)
+            if(not address2Hit):
+                address2Hit = AddressLock(address = address2)
+            address1Hit.locked = True
+            address2Hit.locked = True
+
+            address1Hit.put()
+            address2Hit.put()
+            lockAcquired = True
+
+        DebugLogger.TransactionDuration.logDuration(t1, address1 + '-' + address2, 'AddressLock.lock()')
+        return lockAcquired
+
+    # This does not need to be transactional, because it will be the only instance accessing the addresses untill row.put()
+    @staticmethod
+    def unlock(address1: str, address2: str):
+        address1Hit = AddressLock.query(AddressLock.address == address1).get()
+        if(address1Hit):
+            address1Hit.locked = False
+            address1Hit.put()
+        address2Hit = AddressLock.query(AddressLock.address == address2).get()
+        if(address2Hit):
+            address2Hit.locked = False
+            address2Hit.put()
+
 class AddressBalanceCache(ndb.Model):
     address = ndb.StringProperty()
     balance = ndb.IntegerProperty(indexed = False)
-    dirty = ndb.BooleanProperty(default = False)
-    timestamp = ndb.DateTimeProperty(auto_now_add=True)
+    timestamp = ndb.DateTimeProperty(indexed = False, auto_now_add=True)
 
     @staticmethod
     def get(_address):
         return AddressBalanceCache.query(AddressBalanceCache.address == _address).get()
 
     @staticmethod
-    def updateBalance(_address, _balance):
+    def updateBalance(_address, _balance, updateRedisAddressBalanceCache=REDIS_ADDRESS_BALANCE_CACHE_ENABLED):
         t1 = datetime.datetime.now()
         hit = AddressBalanceCache.get(_address)
         if(not hit):
             hit = AddressBalanceCache(address = _address, balance = Transaction.get_balance(_address, False))
         hit.balance += _balance
         hit.put()
+        if(updateRedisAddressBalanceCache):
+            RedisInterface.set(_address, hit.balance)
         DebugLogger.TransactionDuration.logDuration(t1, _address, 'updateBalance')
         #add or updates balance
 
 class Transaction(ndb.Model):
-    timestamp = ndb.DateTimeProperty(auto_now_add=True) # date when the transaction was inserted
+    timestamp = ndb.DateTimeProperty(indexed = False, auto_now_add=True) # date when the transaction was inserted. This does not need to be indexed, so that the db does not update/insert the index at run time and slow a transaction down . If the admin needs to view transactions in chronological order, the can index the model on the fly. 
     amount = ndb.IntegerProperty(indexed = False)
     fee = ndb.IntegerProperty(indexed=False)
     source_address_pubkey = ndb.StringProperty() # pubkey of the source address, whose corresponding private key signed the message
-    destination_address_pubkey = ndb.StringProperty() # sha256(pubkey) of the destination address encoded in base58
-    transaction_type = ndb.IntegerProperty(indexed = False)  # can be pay2pubkey, withdrawal, or deposit
-    transaction_id = ndb.StringProperty() #also known as nonce, generated by the user
-    signature = ndb.StringProperty()  # the signature of the message (that was signed using the private key that corresponds to the source_address)
+    destination_address_pubkey = ndb.StringProperty() # pubkey of the destination address encoded in base58
+    transaction_type = ndb.IntegerProperty(indexed = False)  # can be transfer, withdrawal, or deposit
+    transaction_id = ndb.StringProperty() # nonce, generated by the user
+    signature = ndb.TextProperty(indexed = False)  # the signature of the message (that was signed using the private key that corresponds to the source_address)
     signature_date = ndb.IntegerProperty(indexed = False)  # date that the transaction was signed by the sender's private key, unix time
     layer1_transaction_id = ndb.StringProperty() #transaction id of layer 1 transactions, for onboarding purposes
-    #nonce = ndb.StringProperty() #generated by the user, to prevent relay attacks
-    #TODO: remove nonce (only have transaction_id), use transaction_id to check if nonce exists
 
     TRX_TRANSFER = 1  # regular 2nd layer transfer
     TRX_DEPOSIT = 2  # when a user deposits btc to a deposit address, then funds get credited to his pubkey
@@ -77,6 +148,15 @@ class Transaction(ndb.Model):
     @staticmethod
     def process_transaction(_transaction_type, _amount, _fee, _source, _destination, _message, _signature, _nonce, _layer1_transaction_id = None):
         status = ErrorMessage.ERROR_UNKNOWN
+
+        if(_amount < 0 or _fee < 0):
+            return ErrorMessage.ERROR_NEGATIVE_AMOUNT
+
+        if(_amount <= _fee):
+            return ErrorMessage.ERROR_AMOUNT_LESS_THAN_FEE
+
+        if(not _nonce.isalnum()):
+            return ErrorMessage.ERROR_NOT_ALPHANUMERIC
 
         source = Address(_source)
 
@@ -105,19 +185,41 @@ class Transaction(ndb.Model):
                     if(trx.transaction_type == Transaction.TRX_WITHDRAWAL_CANCELED):
                         return ErrorMessage.ERROR_CANNOT_CANCEL_WITHDRAWAL_MULTIPLE_TIMES #make sure TRX_WITHDRAWAL_CANCELED doesn't get saved twice
 
-        try:
+        if(TRANSACTION_MODE == TransactionMode.ADDRESSLOCK):
+            try:
+                if(AddressLock.lock(_source, _destination)):
+                    try:
+                        status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _nonce, _layer1_transaction_id)
+                    except Exception as ex:
+                        GlobalLogging.logger.log_text(traceback.format_exc())
+                    finally:
+                        AddressLock.unlock(_source, _destination) # always unlock addresses, success or exception
+                else:
+                    return ErrorMessage.ERROR_ADDRESS_LOCKED
+            except Exception as ex:
+                return ErrorMessage.ERROR_DATABASE_TRANSACTIONAL_ERROR
+        elif(TRANSACTION_MODE == TransactionMode.TRANSACTION_PUTTRANSACTION):
+            try:
+                status = Transaction.transactional_put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _nonce, _layer1_transaction_id)
+            except Exception as ex:
+                GlobalLogging.logger.log_text(traceback.format_exc())
+                return ErrorMessage.ERROR_DATABASE_TRANSACTIONAL_ERROR
+        elif(TRANSACTION_MODE == TransactionMode.TRANSACTION_PUTTRANSACTION):
             status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _nonce, _layer1_transaction_id)
-        except Exception as ex:
-            GlobalLogging.logger.log_text(traceback.format_exc())
-            return ErrorMessage.ERROR_DATABASE_TRANSACTIONAL_ERROR
 
         if((_transaction_type == Transaction.TRX_WITHDRAWAL_INITIATED) and (status == ErrorMessage.ERROR_SUCCESS)):
             Onboarding.WithdrawalRequests.addWithdrawalRequest(_destination, _nonce, _amount)
         return status
 
+    
+    @staticmethod
+    @ndb.transactional(retries=100)
+    def transactional_put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _transaction_id, _layer1_transaction_id = None):
+        return Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _transaction_id, _layer1_transaction_id)
+
     #once a trx's signature and nonce have been verified, time to get the balanace and write to it the database
     @staticmethod
-    @ndb.transactional(retries=10)
+    #@ndb.transactional(retries=100)
     def put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _transaction_id, _layer1_transaction_id = None):
         t1 = datetime.datetime.now()
         # begin transactional
@@ -128,16 +230,19 @@ class Transaction(ndb.Model):
         else:
             balance = Transaction.get_balance(source.pubkey, ADDRESS_BALANCE_CACHE_ENABLED)
             if (balance >= _amount or (_transaction_type == Transaction.TRX_DEPOSIT)):
+                updateAdressBalanceCache = (ADDRESS_BALANCE_CACHE_ENABLED and _transaction_type != Transaction.TRX_WITHDRAWAL_CONFIRMED)
+                if (updateAdressBalanceCache):
+                    AddressBalanceCache.updateBalance(source.pubkey, -_amount)
                 trx = Transaction(amount=_amount, fee=_fee, source_address_pubkey=source.pubkey,
                                   destination_address_pubkey=_destination, transaction_type=_transaction_type,
                                   signature=_signature, transaction_id=_transaction_id, layer1_transaction_id = _layer1_transaction_id)
                 trx.put()  # save it to the DB
-                GlobalLogging.logger.log_text("ADDRESS_BALANCE_CACHE_ENABLED: " + str(ADDRESS_BALANCE_CACHE_ENABLED))
+                #GlobalLogging.logger.log_text("ADDRESS_BALANCE_CACHE_ENABLED: " + str(ADDRESS_BALANCE_CACHE_ENABLED))
                 #in the balance cache, update the cache
-                if (ADDRESS_BALANCE_CACHE_ENABLED and _transaction_type != Transaction.TRX_WITHDRAWAL_CONFIRMED):
-                    GlobalLogging.logger.log_text("updating AddressBalanceCache")
-                    AddressBalanceCache.updateBalance(source.pubkey, -_amount)
+                if (updateAdressBalanceCache):
+                    #GlobalLogging.logger.log_text("updating AddressBalanceCache")
                     AddressBalanceCache.updateBalance(_destination, _amount-_fee)
+                TotalFees.add_fee(_fee)
                 status = ErrorMessage.ERROR_SUCCESS
             else:
                 status = ErrorMessage.ERROR_INSUFFICIENT_FUNDS
@@ -146,11 +251,18 @@ class Transaction(ndb.Model):
         return status
 
     @staticmethod
-    def get_balance(pubkey, useCache = True):
-        address = Address(pubkey)
+    def get_balance(pubkey, useCache = True, useRedisAddressBalanceCache = False):
+        
         t1 = datetime.datetime.now()
         trx_count = 0 #for logging, use to hold the count of transactions. Do lot use Query.count() method, as it will recalculate
 
+        if(useRedisAddressBalanceCache):
+            balance = RedisInterface.get(pubkey)
+            if(balance != None):
+                DebugLogger.TransactionDuration.logDuration(t1, pubkey, 'get_balance (from RedisAddressBalanceCache)', trx_count)
+                return int(balance)
+
+        address = Address(pubkey)
         balance = 0
         balance_found_from_cache = False
         if(useCache):
