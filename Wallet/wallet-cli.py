@@ -3,11 +3,11 @@ import json
 import shlex
 import traceback
 
-DEFAULT_NODE_HOSTNAME = 'https://blitz-v1.appspot.com/'
+DEFAULT_NODE_HOSTNAME = 'https://testnet.instachain.io/'
 
 CONFIG_FILENAME = 'config.json'
 
-COMMANDS_NOT_REQUIRING_WALLET = ['help', 'open_wallet']
+COMMANDS_NOT_REQUIRING_WALLET = ['help', 'new_wallet', 'open_wallet']
 
 COMMANDS_HELP = {
     'help': ['[command]', 'Displays a help of a command. If no command is given, lists all the commands'],
@@ -49,8 +49,8 @@ class WalletCLI():
         self.loadConfig()
         if(_wallet_name):
             self.wallet_name = _wallet_name
-        self.wallet = wallet.Wallet()
-        self.wallet.open_wallet(self.wallet_name)
+            self.wallet = wallet.Wallet()
+            self.wallet.open_wallet(self.wallet_name)
 
     def loadConfig(self):
         try:
@@ -164,9 +164,10 @@ class WalletCLI():
         self.wallet.add_trusted_node(node_hostname)
 
     def close_wallet(self, args = None):
-        self.wallet.save_wallet()
-        self.wallet = None
-        self.wallet_name = None
+        if(self.wallet):
+            self.wallet.save_wallet()
+            self.wallet = None
+            self.wallet_name = None
 
     def get_deposit_address(self, args):
         address = args[0]
