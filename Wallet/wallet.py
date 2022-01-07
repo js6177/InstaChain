@@ -429,7 +429,7 @@ class Wallet:
             balance_map = json.loads(connection.getAddressBalance(node_url, address))['balance']
             #print(balance_map)
             for balance in balance_map:
-                print(balance)
+                #print(balance)
                 #self.addresses[balance['public_key']].balance = balance['balance']
                 self.add_address_balance(node_url, balance['public_key'], balance['balance'])
         else:
