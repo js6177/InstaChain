@@ -1,7 +1,6 @@
 from google.cloud import ndb
 import logging
 
-from User import User
 from Address import Address
 import ErrorMessage
 from typing import List
@@ -14,12 +13,6 @@ import signing_keys
 import GlobalLogging
 import Onboarding
 import RedisInterface
-
-#for testing, this key will always have an balance of 10000
-genesis_pubkey = '2rFKHwbfXho74Ggw7nRMp1qVa3YgDizXVL6Y3rJ15TJoQGXqwwK9bhfmsdZ82rFKp6Xy1KXZoVZ7shRYnp1SmTCd'
-
-#trusted public key of the sever that is used to manage deposit/withdrawals
-onboarding_pubkey = ''
 
 class TransactionMode(Enum):
     ADDRESSLOCK = auto() # source and destination addresses are locked, preventing duplicates
