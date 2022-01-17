@@ -11,3 +11,6 @@ def set(key, val):
 
 def get(key, defaultValue=None):
 	return redis_client.get(key) or defaultValue
+
+def clearDatabase():
+	return redis_client.flushdb("SYNC")

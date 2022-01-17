@@ -1,7 +1,6 @@
 from google.cloud import ndb
 import logging
 
-from User import User
 from Address import Address
 import ErrorMessage
 from typing import List
@@ -14,12 +13,6 @@ import signing_keys
 import GlobalLogging
 import Onboarding
 import RedisInterface
-
-#for testing, this key will always have an balance of 10000
-genesis_pubkey = '2rFKHwbfXho74Ggw7nRMp1qVa3YgDizXVL6Y3rJ15TJoQGXqwwK9bhfmsdZ82rFKp6Xy1KXZoVZ7shRYnp1SmTCd'
-
-#trusted public key of the sever that is used to manage deposit/withdrawals
-onboarding_pubkey = ''
 
 class TransactionMode(Enum):
     ADDRESSLOCK = auto() # source and destination addresses are locked, preventing duplicates
@@ -37,6 +30,7 @@ def _dropTable():
     ndb.delete_multi(
         AddressBalanceCache.query().fetch(keys_only=True)
     )
+    RedisInterface.clearDatabase()
 
 class TotalFees(ndb.Model):
     amount = ndb.IntegerProperty(default = 0, indexed=False)
@@ -109,13 +103,16 @@ class AddressBalanceCache(ndb.Model):
         return AddressBalanceCache.query(AddressBalanceCache.address == _address).get()
 
     @staticmethod
-    def updateBalance(_address, _balance, updateRedisAddressBalanceCache=REDIS_ADDRESS_BALANCE_CACHE_ENABLED):
+    def updateBalance(_address, _balance, updateRedisAddressBalanceCache=REDIS_ADDRESS_BALANCE_CACHE_ENABLED, transactionIdToIgnore = None):
         t1 = datetime.datetime.now()
         hit = AddressBalanceCache.get(_address)
         if(not hit):
-            hit = AddressBalanceCache(address = _address, balance = Transaction.get_balance(_address, False))
+            hit = AddressBalanceCache(address = _address, balance = Transaction.get_balance(_address, False, False, transactionIdToIgnore))
         hit.balance += _balance
-        hit.put()
+        try:
+            hit.put()
+        except:
+            hit.key.delete()
         if(updateRedisAddressBalanceCache):
             RedisInterface.set(_address, hit.balance)
         DebugLogger.TransactionDuration.logDuration(t1, _address, 'updateBalance')
@@ -229,19 +226,18 @@ class Transaction(ndb.Model):
             status = ErrorMessage.ERROR_DUPLICATE_TRANSACTION_ID
         else:
             balance = Transaction.get_balance(source.pubkey, ADDRESS_BALANCE_CACHE_ENABLED)
-            if (balance >= _amount or (_transaction_type == Transaction.TRX_DEPOSIT)):
-                updateAdressBalanceCache = (ADDRESS_BALANCE_CACHE_ENABLED and _transaction_type != Transaction.TRX_WITHDRAWAL_CONFIRMED)
-                if (updateAdressBalanceCache):
-                    AddressBalanceCache.updateBalance(source.pubkey, -_amount)
+            if (balance >= _amount or (_transaction_type == Transaction.TRX_DEPOSIT)):                                 
                 trx = Transaction(amount=_amount, fee=_fee, source_address_pubkey=source.pubkey,
                                   destination_address_pubkey=_destination, transaction_type=_transaction_type,
                                   signature=_signature, transaction_id=_transaction_id, layer1_transaction_id = _layer1_transaction_id)
                 trx.put()  # save it to the DB
                 #GlobalLogging.logger.log_text("ADDRESS_BALANCE_CACHE_ENABLED: " + str(ADDRESS_BALANCE_CACHE_ENABLED))
                 #in the balance cache, update the cache
+                updateAdressBalanceCache = (ADDRESS_BALANCE_CACHE_ENABLED and _transaction_type != Transaction.TRX_WITHDRAWAL_CONFIRMED)
                 if (updateAdressBalanceCache):
                     #GlobalLogging.logger.log_text("updating AddressBalanceCache")
-                    AddressBalanceCache.updateBalance(_destination, _amount-_fee)
+                    AddressBalanceCache.updateBalance(source.pubkey, -_amount, REDIS_ADDRESS_BALANCE_CACHE_ENABLED, trx.key)
+                    AddressBalanceCache.updateBalance(_destination, _amount-_fee, REDIS_ADDRESS_BALANCE_CACHE_ENABLED, trx.key)
                 TotalFees.add_fee(_fee)
                 status = ErrorMessage.ERROR_SUCCESS
             else:
@@ -251,7 +247,7 @@ class Transaction(ndb.Model):
         return status
 
     @staticmethod
-    def get_balance(pubkey, useCache = True, useRedisAddressBalanceCache = False):
+    def get_balance(pubkey, useCache = True, useRedisAddressBalanceCache = False, transactionIdToIgnore = None):
         
         t1 = datetime.datetime.now()
         trx_count = 0 #for logging, use to hold the count of transactions. Do lot use Query.count() method, as it will recalculate
@@ -276,14 +272,16 @@ class Transaction(ndb.Model):
             input_transactions = Transaction.query(Transaction.destination_address_pubkey == address.pubkey)
 
             for output in output_transactions.fetch():
+                if(output.key != transactionIdToIgnore):
                 #ignore TRX_WITHDRAWAL_CONFIRMED for now, we don't want to subtract twice
-                balance -= output.amount
-                trx_count += 1
+                    balance -= output.amount
+                    trx_count += 1
 
             for input in input_transactions.fetch():
                 if(input.transaction_type != Transaction.TRX_WITHDRAWAL_CONFIRMED):
-                    balance += input.amount - input.fee
-                    trx_count += 1
+                    if(input.key != transactionIdToIgnore):
+                        balance += input.amount - input.fee
+                        trx_count += 1
 
         DebugLogger.TransactionDuration.logDuration(t1, address.pubkey, 'get_balance', trx_count)
         return balance
