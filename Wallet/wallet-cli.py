@@ -7,34 +7,34 @@ DEFAULT_NODE_HOSTNAME = 'https://testnet.instachain.io/'
 
 CONFIG_FILENAME = 'config.json'
 
-COMMANDS_NOT_REQUIRING_WALLET = ['help', 'new_wallet', 'open_wallet']
+COMMANDS_NOT_REQUIRING_WALLET = ['help', 'new_wallet', 'open_wallet', 'exit']
 
 COMMANDS_HELP = {
     'help': ['[command]', 'Displays a help of a command. If no command is given, lists all the commands'],
     'exit': ['', 'Saves and closes any open wallets and exists'],
-    'new_wallet': ['<wallet path> [node url]', 'Creates a new wallet file, with 1 address, and connects to the node'],
-    'open_wallet': ['<wallet path>', 'Loads a wallet. This wallet is needed for almost all functionality'],
-    'close_wallet': ['', 'Safely saves and closes the wallet.'],
+    'new-wallet': ['<wallet path> [node url]', 'Creates a new wallet file, with 1 address, and connects to the node'],
+    'open-wallet': ['<wallet path>', 'Loads a wallet. This wallet is needed for almost all functionality'],
+    'close-wallet': ['', 'Safely saves and closes the wallet.'],
 
-    'new_address': ['[label]', 'Generates a new address with an optional label and saves the wallet.'],
-    'list_addresses': ['', 'Lists all the pubkeys of addresses in the wallet.'],
-    'add_node': ['<node url>', 'Adds a node to the wallet.'],
-    'list_nodes': ['', 'List all the nodes of the wallet.'],
+    'new-address': ['[label]', 'Generates a new address with an optional label and saves the wallet.'],
+    'list-addresses': ['', 'Lists all the pubkeys of addresses in the wallet.'],
+    'add-node': ['<node url>', 'Adds a node to the wallet.'],
+    'list-nodes': ['', 'List all the nodes of the wallet.'],
 
-    'create_transaction': ['<destination address> <amount> [source address]', 'Creates and signs a transactions. The source address is optional if your wallet only has 1 address. The signed transaction is not broadcasted, instead it is saved as a json and can be broadcasted later'],
+    'create-transaction': ['<destination address> <amount> [source address]', 'Creates and signs a transactions. The source address is optional if your wallet only has 1 address. The signed transaction is not broadcasted, instead it is saved as a json and can be broadcasted later'],
     'transfer': ['<destination address> <amount> [source address] [node url]', 'Signs a transaction than broadcasts it, and displayed the return code. The source address is optional if your wallet only has 1 address.'],
-'push_signed_transaction': ['<signed transaction json>', 'Broadcasts a signed transaction'],
+'push-signed-transaction': ['<signed transaction json>', 'Broadcasts a signed transaction'],
 
-'list_wallet_transactions': ['', 'List all transaction of addresses that belong to the wallet of all nodes'],
-'list_wallet_balance': ['[node]', 'Displays the balance of the wallet (displays the balance of all addresses in your wallet)'],
-'list_address_transactions': ['<address> [node]', 'List all transaction of a specific address. The address does not need to belong to you. If [node] is not specified, it will list the balance of the address from all nodes in your wallet'],
-'list_address_balance': ['<address> [node]', 'Displays the balance of a specific address. If [node] is not specified, it will list the balance of the address from all nodes in your wallet'],
+'list-wallet-transactions': ['', 'List all transaction of addresses that belong to the wallet of all nodes'],
+'list-wallet-balance': ['[node]', 'Displays the balance of the wallet (displays the balance of all addresses in your wallet)'],
+'list-address-transactions': ['<address> [node]', 'List all transaction of a specific address. The address does not need to belong to you. If [node] is not specified, it will list the balance of the address from all nodes in your wallet'],
+'list-address-balance': ['<address> [node]', 'Displays the balance of a specific address. If [node] is not specified, it will list the balance of the address from all nodes in your wallet'],
 
-    'get_deposit_address': ['<address> [node]', 'Gets a layer 1 deposit address, whose funds are deposited to your blitz address'],
-    'withdraw': ['<address> <layer1 address> <amount> [node url]', 'Withdraws funds from your layer2 address to the given layer1 address'],
+    'get-deposit-address': ['<address> [node]', 'Gets a layer 1 deposit address, whose funds are deposited to your blitz address'],
+    'withdraw': ['<layer2 address> <layer1 address> <amount> [node url]', 'Withdraws funds from your layer2 address to the given layer1 address'],
 
-'view_transaction': ['<transaction id> <node>', 'Displays the transaction information of a transaction id of a node'],
-'clear_cache': ['', 'Clears the local address balances and transactions, so subsequent calls will fetch it from the nodes. Does not clear any existing public or private keys'],
+'view-transaction': ['<transaction id> <node>', 'Displays the transaction information of a transaction id of a node'],
+'clear-cache': ['', 'Clears the local address balances and transactions, so subsequent calls will fetch it from the nodes. Does not clear any existing public or private keys'],
 }
 #commands = [help, open_wallet, close_wallet, new_address, list_addresses, add_node, list_nodes, create_transaction, transfer, push_signed_transaction, list_wallet_transactions, list_wallet_balance, list_address_transactions, list_address_balance]
 
@@ -44,7 +44,7 @@ class WalletCLI():
     wallet = None
 
     def __init__(self, _wallet_name = None):
-        print('Blitz Wallet v1.0 - CLI')
+        print('InstaChain Wallet v0.1a - CLI')
         self.wallet = None
         self.loadConfig()
         if(_wallet_name):
@@ -60,7 +60,6 @@ class WalletCLI():
                 print(default_wallet_name)
                 if(default_wallet_name):
                     self.wallet_name = default_wallet_name
-                    #self.wallet.open_wallet(default_wallet_name)
                 
         except FileNotFoundError as e:
             print('Warning: ' + CONFIG_FILENAME + ' not found')
@@ -81,23 +80,26 @@ class WalletCLI():
             return default
 
     def runCLI(self):
-
         while(True):
             print(self.getPromptPrefix() + ' >', end =" ")
             args = shlex.split(str(input()))
             if(len(args) > 0):
                 cmd = args[0]
+                if(cmd not in COMMANDS_HELP):
+                    print("command '" + cmd + "' not found. Type 'help' for list of commands")
+                    continue
+                cmd = cmd.replace('-', '_') #python function names cannot have '-' character
                 if(self.wallet == None and cmd not in COMMANDS_NOT_REQUIRING_WALLET):
                     print("Error need to load wallet for this command. Call 'open_wallet' command")
-                    continue
+                    continue               
                 try:
                     f = getattr(self, cmd)
                     f(args[1:])
                 except AttributeError as e:
                     print(traceback.format_exc())
-                    #print("command '" + cmd + "' not found. Type 'help' for list of commands")
                 except Exception as e:
                     print(traceback.format_exc())
+        print("\n")
 
     def displayCommandHelp(self, command):
         command_info = COMMANDS_HELP[command]
@@ -112,7 +114,8 @@ class WalletCLI():
                 self.displayCommandHelp(key)
 
     def exit(self, args):
-        self.close_wallet()
+        if(self.wallet != None):
+            self.close_wallet()
         exit(0)
 
     def open_wallet(self, args):
@@ -145,6 +148,12 @@ class WalletCLI():
         node_url = self.getArgument(args, 3) or self.wallet.current_node
         self.wallet.transfer(destination_address, source_address, amount, node_url)
 
+    def view_transaction(self, args):
+        transaction_id = self.getArgument(args, 0)
+        node_url = self.getArgument(args, 1) or self.wallet.current_node
+        transaction = self.wallet.getTransaction(transaction_id, node_url)
+        print(transaction)
+
     def list_addresses(self, args):
         for address in self.wallet.addresses:
             print(address)
@@ -165,7 +174,7 @@ class WalletCLI():
 
     def close_wallet(self, args = None):
         if(self.wallet):
-            self.wallet.save_wallet()
+            self.wallet.save_wallet(True)
             self.wallet = None
             self.wallet_name = None
 
@@ -183,17 +192,14 @@ class WalletCLI():
         self.wallet.withdrawRequest(address, layer1_withdrawal_address, amount, node_url)
 
     def list_wallet_transactions(self, args):
-        print('list_wallet_transactions called')
         self.wallet.update_wallet_transactions()
         self.wallet.print_wallet_transactions()
 
     def list_wallet_balance(self, args):
-        print('list_wallet_balance called')
         self.wallet.update_wallet_balance()
         self.wallet.print_wallet_balance()
 
     def list_address_transactions(self, args):
-        print('list_address_transactions called')
         address = self.getArgument(args,0)
         node_url = self.getArgument(args, 1)
         self.wallet.update_confirmed_transactions(address, node_url or self.wallet.current_node)
@@ -208,15 +214,6 @@ class WalletCLI():
     def clear_cache(self, args):
         print('Clearing cache...')
         self.wallet.clear_cache()
-
-
-
-
-#commands = [help, exit, open_wallet, close_wallet, new_address, list_addresses, add_node, list_nodes, create_transaction, transfer, push_signed_transaction, list_wallet_transactions, list_wallet_balance, list_address_transactions, list_address_balance]
-
-command_map = {
-}
-
 
 w = WalletCLI()
 w.runCLI()

@@ -1,6 +1,5 @@
 import requests
 import aiohttp
-#import grequests
 import asyncio
 from aiohttp import ClientSession
 import json
@@ -20,15 +19,17 @@ ERROR_DUPLICATE_NONCE = 17
 ERROR_COULD_NOT_FIND_WITHDRAWAL_REQUEST = 18
 ERROR_DATABASE_TRANSACTIONAL_ERROR = 19
 
-DEFAULT_NODE_HOSTNAME = 'https://blitz-v1.appspot.com/' #if user has not added any nodes, get the default one
-
-#hostname = 'https://blitz-v1.appspot.com/'
+DEFAULT_NODE_HOSTNAME = 'https://testnet.instachain.io/' #if user has not added any nodes, get the default one
 
 HEADERS = {'user-agent': 'requests ' + requests.__version__}
 
-async def pushTransactionAsync(session, hostname, amount, fee, source_pubkey, destination_address, signature, nonce):
-    #print('pushTransactionAsync called!')
+PRINT_OUTPUT = True
 
+def printResponse(resonseJSON):
+    if(PRINT_OUTPUT):
+        print(resonseJSON)
+
+async def pushTransactionAsync(session, hostname, amount, fee, source_pubkey, destination_address, signature, nonce):
     url = hostname + 'pushTransaction'
     data = {'amount': amount,
             'source_pubkey': source_pubkey,
@@ -44,17 +45,10 @@ async def pushTransactionAsync(session, hostname, amount, fee, source_pubkey, de
         except Exception as ex:
             print(resp)
             resp = {'error_code': 1000}
-        #resp = await response.text
-        #print(".")
-        print(resp)
+        printResponse(resp)
         return resp
-    #r = requests.post(url, data=data)
-    ##print(r.text)
-    #return r.text
 
 def pushTransaction(hostname, amount, fee, source_pubkey, destination_address, signature, nonce):
-    #print('pushTransaction called!')
-
     url = hostname + 'pushTransaction'
 
     data = {'amount': amount,
@@ -66,36 +60,39 @@ def pushTransaction(hostname, amount, fee, source_pubkey, destination_address, s
             }
 
     r = requests.post(url, data=data)
-    print(r.text)
+    printResponse(r.text)
     return r.text
 
 def getNodeInfo(hostname):
     if(hostname[-1] != '/'):
         hostname += '/'
     url = hostname + 'getNodeInfo'
-    #data = {'public_key': pubkey, 'nonce': nonce, 'signature': signature}
 
     r = requests.get(url)
-    #print(r.text)
     x = json.loads(r.text, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
     return x
+
+def getTransaction(hostname, transaction_id):
+    url = hostname + 'getTransaction'
+
+    data = {'transaction_id': transaction_id}
+
+    r = requests.get(url, params=data)
+    return r.text
 
 def getDepositAddress(hostname, pubkey, nonce, signature):
     url = hostname + 'getNewDepositAddress'
     data = {'public_key': pubkey, 'nonce': nonce, 'signature': signature}
 
     r = requests.get(url, params=data)
-    #print(r.text)
     x = json.loads(r.text, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
     return x
 
 def getAddressBalance(hostname, pubkeys: List[str]):
-    print('calling getAddressBalance')
     url = hostname + 'getBalance'
     data = { 'public_keys': pubkeys}
 
     r = requests.post(url, json=data, headers=HEADERS)
-    #print(r.text)
     return r.text
 
 def getAddressTransactions(hostname, pubkey):
@@ -103,7 +100,6 @@ def getAddressTransactions(hostname, pubkey):
     data = { 'public_key': pubkey}
 
     r = requests.get(url, params=data)
-    ##print(r.text)
     return r.text
 
 def sendWithdrawalRequest(hostname, pubkey, withdrawal_address, amount, nonce, signature):
@@ -114,7 +110,7 @@ def sendWithdrawalRequest(hostname, pubkey, withdrawal_address, amount, nonce, s
             'nonce': nonce,
             'signature': signature}
     r = requests.post(url, params=data)
-    #print(r.text)
+    printResponse(r.text)
     return r.text
 
 async def sendWithdrawalRequestAsync(session, hostname, pubkey, withdrawal_address, amount, nonce, signature):
@@ -126,21 +122,5 @@ async def sendWithdrawalRequestAsync(session, hostname, pubkey, withdrawal_addre
             'signature': signature}
     async with session.post(url, params = data) as response:
         resp = await response.read()
-        print(resp)
+        printResponse(r.text)
         return resp
-
-#to be only used for unit tests, these are supposed to be called from full node for onboarding
-def depositApproval(hostname, transaction_id, layer1_address, amount, nonce, signature):
-    url = hostname + 'depositFunds'
-    data = {'layer1_transaction_id': transaction_id,
-            'layer1_address': layer1_address,
-            'amount': amount,
-            'nonce': nonce,
-            'signature': signature}
-    r = requests.post(url, params=data)
-    #print(r.text)
-    return r.text
-
-def sendWithdrawalApproval():
-    pass
-
