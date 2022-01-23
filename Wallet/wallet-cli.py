@@ -85,6 +85,9 @@ class WalletCLI():
             args = shlex.split(str(input()))
             if(len(args) > 0):
                 cmd = args[0]
+                if(cmd not in COMMANDS_HELP):
+                    print("command '" + cmd + "' not found. Type 'help' for list of commands")
+                    continue
                 cmd = cmd.replace('-', '_') #python function names cannot have '-' character
                 if(self.wallet == None and cmd not in COMMANDS_NOT_REQUIRING_WALLET):
                     print("Error need to load wallet for this command. Call 'open_wallet' command")
@@ -94,9 +97,9 @@ class WalletCLI():
                     f(args[1:])
                 except AttributeError as e:
                     print(traceback.format_exc())
-                    #print("command '" + cmd + "' not found. Type 'help' for list of commands")
                 except Exception as e:
                     print(traceback.format_exc())
+        print("\n")
 
     def displayCommandHelp(self, command):
         command_info = COMMANDS_HELP[command]
@@ -144,6 +147,12 @@ class WalletCLI():
         source_address = args[2]
         node_url = self.getArgument(args, 3) or self.wallet.current_node
         self.wallet.transfer(destination_address, source_address, amount, node_url)
+
+    def view_transaction(self, args):
+        transaction_id = self.getArgument(args, 0)
+        node_url = self.getArgument(args, 1) or self.wallet.current_node
+        transaction = self.wallet.getTransaction(transaction_id, node_url)
+        print(transaction)
 
     def list_addresses(self, args):
         for address in self.wallet.addresses:

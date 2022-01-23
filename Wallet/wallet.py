@@ -87,9 +87,6 @@ class Transaction:
     def __str__(self):
         return json.dumps(self, default= lambda o: o.__dict__)
 
-    def to_short_string(self):
-        return str(self.source_address) + " -> " + str(self.amount) + " -> " + str(self.destination_address) + " " + str(self.node.hostname)
-
 class Address:
     privkey = ''
     pubkey = ''
@@ -251,7 +248,6 @@ class Wallet:
         signature = base58.b58encode(privkey.sign(message.encode("utf-8")))
         return signature
 
-
     def verify_signature(self, message, pubkey, signature, elliptical_curve = DEFAULT_ELLIPTICAL_CURVE):
         print('---verify_signature---')
         print('pubkey', pubkey)
@@ -273,6 +269,10 @@ class Wallet:
             if(deposit_address.layer2_address == address and deposit_address.node_url == node_url):
                 return deposit_address
         return None
+
+    def getTransaction(self, transaction_id, _node_url):
+        transactionJSON = connection.getTransaction(_node_url, transaction_id)
+        return transactionJSON
 
     def getDepositAddress(self, address_pubkey, _node_url): #todo: need to save address, also create a GET_DEPOSIT_ADDRESS + add node_id
         address = self.addresses[address_pubkey]
@@ -296,6 +296,7 @@ class Wallet:
         address = self.addresses[source_address_pubkey]
         message = self.trusted_nodes[_node_url].node_id + ' ' + str(TRX_WITHDRAWAL_REQUESTED) + ' ' + source_address_pubkey + ' ' + layer1_withdrawal_address + ' ' + trx.transaction_id + ' ' + str(amount)
         trx.signature = Wallet.sign_string(address.privkey, message)
+        print('Transaction id: ' + trx.transaction_id)
         return trx
 
     def withdrawRequest(self, source_address_pubkey: string, layer1_withdrawal_address: string, amount: int, _node_url):
@@ -333,7 +334,7 @@ class Wallet:
 
         transaction_str = trx.to_spendable_string() # this will return the transaction in flattened spendable string that the sender will sign
         trx.signature = base58.b58encode(privkey.sign(transaction_str.encode("utf-8")))
-
+        print('Transaction id: ' + trx.transaction_id)
         return trx
 
     async def create_transaction_async(self, session, destination_address_pubkey, source_address_pubkey, amount, _node_hostname = None):
@@ -406,7 +407,20 @@ class Wallet:
             self.print_address_transactions(address.pubkey)
 
     def print_address_transactions(self, address):
-        print('Transaction count: ' + str(len(self.confirmed_transactions)))
+        print('\nAddress: ' + address)
+        data = []
+        data.append(["Transaction ID", "Source", "Amount", "Destination"])
+        transaction: Transaction
         for transaction in self.confirmed_transactions:
             if(transaction.source_address == address or transaction.destination_address == address):
-                print(transaction.to_short_string())
+                source_address = transaction.source_address
+                if(transaction.transaction_type == TRX_DEPOSIT):
+                    source_address = "DEPOSIT"
+                destination_address = transaction.destination_address
+                if(transaction.transaction_type == TRX_WITHDRAWAL_REQUESTED):
+                    destination_address += " (WITHDRAWAL)"
+
+                amount_sign = "-" if (transaction.source_address == address) else "+"
+                data.append([transaction.transaction_id, source_address, amount_sign + str(transaction.amount), destination_address])
+        for row in data:
+            print("{: <50} {: <90} {: <10} {: <50}".format(*row))

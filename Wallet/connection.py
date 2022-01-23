@@ -72,6 +72,14 @@ def getNodeInfo(hostname):
     x = json.loads(r.text, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
     return x
 
+def getTransaction(hostname, transaction_id):
+    url = hostname + 'getTransaction'
+
+    data = {'transaction_id': transaction_id}
+
+    r = requests.get(url, params=data)
+    return r.text
+
 def getDepositAddress(hostname, pubkey, nonce, signature):
     url = hostname + 'getNewDepositAddress'
     data = {'public_key': pubkey, 'nonce': nonce, 'signature': signature}
