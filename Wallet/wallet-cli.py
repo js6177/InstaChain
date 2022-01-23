@@ -25,16 +25,16 @@ COMMANDS_HELP = {
     'transfer': ['<destination address> <amount> [source address] [node url]', 'Signs a transaction than broadcasts it, and displayed the return code. The source address is optional if your wallet only has 1 address.'],
 'push-signed-transaction': ['<signed transaction json>', 'Broadcasts a signed transaction'],
 
-'list-wallet-transactions': ['', 'List all transaction of addresses that belong to the wallet of all nodes'],
-'list-wallet-balance': ['[node]', 'Displays the balance of the wallet (displays the balance of all addresses in your wallet)'],
-'list-address-transactions': ['<address> [node]', 'List all transaction of a specific address. The address does not need to belong to you. If [node] is not specified, it will list the balance of the address from all nodes in your wallet'],
-'list-address-balance': ['<address> [node]', 'Displays the balance of a specific address. If [node] is not specified, it will list the balance of the address from all nodes in your wallet'],
+    'list-wallet-transactions': ['', 'List all transaction of addresses that belong to the wallet of all nodes'],
+    'list-wallet-balance': ['[node]', 'Displays the balance of the wallet (displays the balance of all addresses in your wallet)'],
+    'list-address-transactions': ['<address> [node]', 'List all transaction of a specific address. The address does not need to belong to you. If [node] is not specified, it will list the balance of the address from all nodes in your wallet'],
+    'list-address-balance': ['<address> [node]', 'Displays the balance of a specific address. If [node] is not specified, it will list the balance of the address from all nodes in your wallet'],
 
     'get-deposit-address': ['<address> [node]', 'Gets a layer 1 deposit address, whose funds are deposited to your blitz address'],
     'withdraw': ['<layer2 address> <layer1 address> <amount> [node url]', 'Withdraws funds from your layer2 address to the given layer1 address'],
 
-'view-transaction': ['<transaction id> <node>', 'Displays the transaction information of a transaction id of a node'],
-'clear-cache': ['', 'Clears the local address balances and transactions, so subsequent calls will fetch it from the nodes. Does not clear any existing public or private keys'],
+    'view-transaction': ['<transaction id> <node>', 'Displays the transaction information of a transaction id of a node'],
+    'clear-cache': ['', 'Clears the local address balances and transactions, so subsequent calls will fetch it from the nodes. Does not clear any existing public or private keys'],
 }
 #commands = [help, open_wallet, close_wallet, new_address, list_addresses, add_node, list_nodes, create_transaction, transfer, push_signed_transaction, list_wallet_transactions, list_wallet_balance, list_address_transactions, list_address_balance]
 
@@ -99,7 +99,7 @@ class WalletCLI():
                     print(traceback.format_exc())
                 except Exception as e:
                     print(traceback.format_exc())
-        print("\n")
+            print("")
 
     def displayCommandHelp(self, command):
         command_info = COMMANDS_HELP[command]
