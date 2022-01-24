@@ -65,7 +65,6 @@ class getFee(BlitzRequestHandler):
 
 class getBalance(BlitzRequestHandler):
     def getParameters(self):
-        #self.public_keys = filter(None, self.getRequestParams('public_key').split(','))
         self.jsonParam = self.getPostJsonParams()
     def processRequest(self):
         request = json.loads(json.dumps(self.jsonParam), object_hook=lambda d: SimpleNamespace(**d))
