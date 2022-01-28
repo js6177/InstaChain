@@ -216,7 +216,6 @@ class Transaction(ndb.Model):
 
     #once a trx's signature and nonce have been verified, time to get the balanace and write to it the database
     @staticmethod
-    #@ndb.transactional(retries=100)
     def put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _transaction_id, _layer1_transaction_id = None):
         t1 = datetime.datetime.now()
         # begin transactional
@@ -230,8 +229,11 @@ class Transaction(ndb.Model):
                 trx = Transaction(amount=_amount, fee=_fee, source_address_pubkey=source.pubkey,
                                   destination_address_pubkey=_destination, transaction_type=_transaction_type,
                                   signature=_signature, transaction_id=_transaction_id, layer1_transaction_id = _layer1_transaction_id)
-                trx.put()  # save it to the DB
-                #GlobalLogging.logger.log_text("ADDRESS_BALANCE_CACHE_ENABLED: " + str(ADDRESS_BALANCE_CACHE_ENABLED))
+                try:
+                    trx.put()  # save it to the DB
+                except:
+                    GlobalLogging.logger.log_text("put_transaction: Failed to insert transaction")
+                    return ErrorMessage.ERROR_FAILED_TO_WRITE_TO_DATABASE
                 #in the balance cache, update the cache
                 updateAdressBalanceCache = (ADDRESS_BALANCE_CACHE_ENABLED and _transaction_type != Transaction.TRX_WITHDRAWAL_CONFIRMED)
                 if (updateAdressBalanceCache):

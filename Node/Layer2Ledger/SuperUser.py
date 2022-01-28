@@ -1,9 +1,9 @@
 from Transaction import Transaction, AddressBalanceCache
 from Onboarding import WithdrawalRequests, DepositAddresses, MasterPublicKeyIndex
 from google.cloud import ndb
-from BlitzAPI import BlitzRequestHandler
+from InstaChainAPI import InstachainRequestHandler
 
-class Delete(BlitzRequestHandler):
+class Delete(InstachainRequestHandler):
     def getParameters(self):
         ndb.delete_multi(Transaction.query().fetch(keys_only=True))
         ndb.delete_multi(AddressBalanceCache.query().fetch(keys_only=True))

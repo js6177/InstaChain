@@ -8,11 +8,11 @@ import logging
 import json
 from types import SimpleNamespace
 from NodeInfoAPI import NODE_ID
-from BlitzAPI import BlitzRequestHandler
+from InstaChainAPI import InstachainRequestHandler
 import GlobalLogging
 
 
-class withdrawalRequest(BlitzRequestHandler):
+class withdrawalRequest(InstachainRequestHandler):
     def getParameters(self):
         self.public_key = self.getRequestParams('public_key')
         self.nonce = self.getRequestParams('nonce') #nonce
@@ -26,7 +26,7 @@ class withdrawalRequest(BlitzRequestHandler):
 
         self.result = ErrorMessage.build_error_message(status)
 
-class getWithdrawalRequests(BlitzRequestHandler):
+class getWithdrawalRequests(InstachainRequestHandler):
     def getParameters(self):
         self.latest_timestamp = int(self.getRequestParams('latest_timestamp') or 0)
 
@@ -35,7 +35,7 @@ class getWithdrawalRequests(BlitzRequestHandler):
         self.result = ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS)
         self.result['withdrawal_requests'] = [withdrawalRequest.to_dict() for withdrawalRequest in withdrawalRequests]
 
-class ackWithdrawalRequests(BlitzRequestHandler):
+class ackWithdrawalRequests(InstachainRequestHandler):
     def getParameters(self):
         self.guids = self.getRequestParams('guids')
 
@@ -45,7 +45,7 @@ class ackWithdrawalRequests(BlitzRequestHandler):
         #self.result['withdrawal_requests'] = requests.dict()
 
 #called from the node
-class withdrawalBroadcasted(BlitzRequestHandler):
+class withdrawalBroadcasted(InstachainRequestHandler):
     def getParameters(self):
         self.jsonParam = self.getPostJsonParams()
         GlobalLogging.logger.log_text("Request: " + json.dumps(self.jsonParam))
@@ -60,9 +60,9 @@ class withdrawalBroadcasted(BlitzRequestHandler):
         self.result["transactions"] = transactionResults
 
 #called from the node
-class withdrawalConfirmed(BlitzRequestHandler):
+class withdrawalConfirmed(InstachainRequestHandler):
     def getParameters(self):
-        self.jsonParam = self.getPostJsonParams() 
+        self.jsonParam = self.getPostJsonParams()
     def processRequest(self):
         transactionResults = []
         request = json.loads(json.dumps(self.jsonParam), object_hook=lambda d: SimpleNamespace(**d))
@@ -75,7 +75,7 @@ class withdrawalConfirmed(BlitzRequestHandler):
         self.result["transactions"] = transactionResults
 
 #called from the node
-class withdrawalCanceled(BlitzRequestHandler):
+class withdrawalCanceled(InstachainRequestHandler):
     def getParameters(self):
         self.public_key = self.getRequestParams('public_key')
         self.withdrawal_address = self.getRequestParams('transaction_id')
@@ -86,7 +86,7 @@ class withdrawalCanceled(BlitzRequestHandler):
         self.result = ErrorMessage.build_error_message(rslt)
         self.result['transaction_id'] = transaction_id
 
-class getNewDepositAddress(BlitzRequestHandler):
+class getNewDepositAddress(InstachainRequestHandler):
     def getParameters(self):
         self.public_key = self.getRequestParams('public_key')
         self.nonce = self.getRequestParams('nonce')
@@ -99,7 +99,7 @@ class getNewDepositAddress(BlitzRequestHandler):
         else:
             self.result['deposit_address'] = ''
 
-class verifyDepositAddress(BlitzRequestHandler):
+class verifyDepositAddress(InstachainRequestHandler):
     def getParameters(self):
         self.transaction_id = self.getRequestParams('public_key')
         self.transaction_id = self.getRequestParams('deposit_address')
@@ -107,7 +107,7 @@ class verifyDepositAddress(BlitzRequestHandler):
         pass
 
 #called from the btc node
-class depositConfirmed(BlitzRequestHandler):
+class depositConfirmed(InstachainRequestHandler):
     def getParameters(self):
         self.jsonParam = self.getPostJsonParams()
     def processRequest(self):
@@ -122,7 +122,7 @@ class depositConfirmed(BlitzRequestHandler):
         self.result = ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS)
         self.result["transactions"] = transactionResults
 
-class jsonTest(BlitzRequestHandler):
+class jsonTest(InstachainRequestHandler):
     def getParameters(self):
         self.jsonParam = self.getPostJsonParams()
     def processRequest(self):
