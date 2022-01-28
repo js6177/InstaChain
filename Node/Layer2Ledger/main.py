@@ -1,7 +1,7 @@
 from google.cloud import ndb
 from google.cloud import logging
 from flask import Flask
-import BlitzAPI
+import InstaChainAPI
 import NodeInfoAPI
 import TransactionAPI
 import OnboardingAPI

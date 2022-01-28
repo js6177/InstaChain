@@ -15,7 +15,7 @@ class FlaskRequestHandler():
     def getPostJsonParams(self):
         return request.get_json() 
 
-class BlitzRequestHandler(FlaskRequestHandler):
+class InstachainRequestHandler(FlaskRequestHandler):
     parameters = []
 
     result = ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS)
@@ -34,9 +34,9 @@ class BlitzRequestHandler(FlaskRequestHandler):
         self.postProcessRequest() #to do anything after processing the request, such as logging error codes
     def post(self):
         self.handleRequest()
-        logging.info("BlitzRequestHandler POST called")
+        logging.info("InstachainRequestHandler POST called")
     def get(self):
-        logging.info("BlitzRequestHandler GET called")
+        logging.info("InstachainRequestHandler GET called")
         self.handleRequest()
     def preProcessRequest(self):
         pass

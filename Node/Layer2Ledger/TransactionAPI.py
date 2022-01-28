@@ -7,12 +7,12 @@ import json
 import datetime
 import types
 from types import SimpleNamespace
-from BlitzAPI import BlitzRequestHandler
+from InstaChainAPI import InstachainRequestHandler
 from NodeInfoAPI import NODE_ID
 import GlobalLogging
 
 #TODO make this a blitz request handler
-class pushTransaction(BlitzRequestHandler):
+class pushTransaction(InstachainRequestHandler):
     def getParameters(self):
         GlobalLogging.logger.log_text("getParameters() called")
         self.amount = int(self.getPostRequestParams('amount') or 0)
@@ -35,7 +35,7 @@ class pushTransaction(BlitzRequestHandler):
         elapsed_time = time.time() - t
         logging.info('Time elapsed: ' + str(elapsed_time))
 
-class getTransaction(BlitzRequestHandler):
+class getTransaction(InstachainRequestHandler):
     def getParameters(self):
         self.transaction_id = self.getRequestParams('transaction_id')
     def processRequest(self):
@@ -43,7 +43,7 @@ class getTransaction(BlitzRequestHandler):
         self.result = ErrorMessage.build_error_message(rslt)
         self.result['transaction'] = transaction.to_dict()
 
-class getAllTransactionsOfPublicKey(BlitzRequestHandler):
+class getAllTransactionsOfPublicKey(InstachainRequestHandler):
     def getParameters(self):
         self.public_keys = self.getRequestParams('public_key').split(',')
 
@@ -57,13 +57,13 @@ class getAllTransactionsOfPublicKey(BlitzRequestHandler):
             transactions_list.append(transaction_dict)
         self.result['transactions'] = transactions_list
 
-class getFee(BlitzRequestHandler):
+class getFee(InstachainRequestHandler):
     def getParameters(self):
         return
     def processRequest(self):
         self.result['fee'] = 1
 
-class getBalance(BlitzRequestHandler):
+class getBalance(InstachainRequestHandler):
     def getParameters(self):
         self.jsonParam = self.getPostJsonParams()
     def processRequest(self):
@@ -77,7 +77,7 @@ class getBalance(BlitzRequestHandler):
         self.result['balance'] = [{'public_key': balance.public_key, 'balance': balance.balance} for balance in balances]
 
 #TODO: remove
-class dropTable(BlitzRequestHandler):
+class dropTable(InstachainRequestHandler):
     def postProcessRequest(self):
         _dropTable()
 

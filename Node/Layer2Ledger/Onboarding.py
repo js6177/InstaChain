@@ -167,8 +167,6 @@ def depositConfirmed(layer1_transaction_id, layer1_transaction_vout, layer1_addr
 
     source = signing_keys.onboarding_signing_key_pubkey
     destination_address = Address.Address(destination_pubkey)
-    destination_payable_address = destination_address.get_payable_address()
-    #TODO: use destination_pubkey, remove get_payable_address
     fee = 0
 
     nonce = ''.join(random.choice(string.ascii_letters) for i in range(16))
@@ -182,7 +180,7 @@ def depositConfirmed(layer1_transaction_id, layer1_transaction_vout, layer1_addr
 def withdrawalBroadcasted(_layer1_transaction_id, _layer1_transaction_vout, _layer1_address,  _amount, _layer2_withdrawal_id, _signature):
     if(not KeyVerification.verifyWithdrawalBroadcasted(_layer1_transaction_id, _layer1_transaction_vout, _layer1_address, _amount, _layer2_withdrawal_id, _signature)):
         return ErrorMessage.ERROR_CANNOT_VERIFY_SIGNATURE
-
+     
     withdrawalConfirmation = ConfirmedWithdrawals(layer1_transaction_id = _layer1_transaction_id, layer1_transaction_vout =_layer1_transaction_vout, layer1_address = _layer1_address, amount = _amount, layer2_withdrawal_id = _layer2_withdrawal_id, broadcasted_signature = _signature)
     withdrawalConfirmation.put()
     return ErrorMessage.ERROR_SUCCESS
