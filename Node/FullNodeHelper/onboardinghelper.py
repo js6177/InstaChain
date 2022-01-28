@@ -177,7 +177,7 @@ def run():
                         output = withdrawalOutputs[withdrawalOutput.destination_address]
                         withdrawalBroadcastedTransactions.append(Layer2Interface.Layer2Interface.WithdrawalBroadcastedTransaction(layer1_transaction_id = withdrawalTrxId, layer1_transaction_vout = output.transaction_vout, layer1_address=withdrawalOutput.destination_address, amount = int(output.amount*SATOSHI_PER_BITCOIN), layer2_withdrawal_id = withdrawalOutput.withdrawal_id, signature = ''))
                         #comm.sendWithdrawalBroadcasted(withdrawalTrxId, output.transaction_vout, withdrawalOutput.destination_address, int(output.amount*SATOSHI_PER_BITCOIN), withdrawalOutput.withdrawal_id)
-                        comm.sendWithdrawalBroadcasted(withdrawalBroadcastedTransactions)
+                    comm.sendWithdrawalBroadcasted(withdrawalBroadcastedTransactions)
                 db.setLastBroadcastBlockHeight(blockheight)
             else:
                 print('Batching: waiting for blockheight ' + str(targetBroadcastBlockheight) + ' to broadcast batched transaction. Current blockheight: ' + str(blockheight))
