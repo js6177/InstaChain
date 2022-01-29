@@ -66,7 +66,7 @@ class PendingWithdrawal():
     LAYER1_STATUS_BROADCASTED_REMOVED_FROM_MEMPOOL = 3 #the transation had been previously prodcasted and was in the mempool, but was then removed form the mempool (bumped out)
     LAYER1_STATUS_CONFIRMED = 4 #the withdrawal has been confirmed with target confirmations
 
-    withdrawal_id = ''
+    layer2_withdrawal_id = ''
     status = None
     transaction_id = ''
     amount = 0
@@ -91,7 +91,7 @@ class PendingWithdrawal():
         self.setValues(withdrawal_id, status, transaction_id, amount, fee, destination_address, confirmations, withdrawal_requested_timestamp, date_broadcasted)
 
     def fromWithdrawalRequestAPIJson(self, withdrawalJSON: string):
-        self.setValues(withdrawalJSON['guid'], withdrawalJSON['status'], '', withdrawalJSON['amount'], 0, withdrawalJSON['layer1_address'], 0, withdrawalJSON['withdrawal_requested_timestamp'], 0)
+        self.setValues(withdrawalJSON['layer2_withdrawal_id'], withdrawalJSON['status'], '', withdrawalJSON['amount'], 0, withdrawalJSON['layer1_address'], 0, withdrawalJSON['withdrawal_requested_timestamp'], 0)
         return self
 
 
@@ -141,7 +141,7 @@ class DB():
 
     def insertPendingWithdrawal(self, pendingWithdrawal: PendingWithdrawal):
         try:
-            withdrawal = (pendingWithdrawal.withdrawal_id, pendingWithdrawal.status, pendingWithdrawal.transaction_id, pendingWithdrawal.amount, pendingWithdrawal.fee, pendingWithdrawal.destination_address, pendingWithdrawal.confirmations, pendingWithdrawal.withdrawal_requested_timestamp, pendingWithdrawal.date_broadcasted)
+            withdrawal = (pendingWithdrawal.layer2_withdrawal_id, pendingWithdrawal.status, pendingWithdrawal.transaction_id, pendingWithdrawal.amount, pendingWithdrawal.fee, pendingWithdrawal.destination_address, pendingWithdrawal.confirmations, pendingWithdrawal.withdrawal_requested_timestamp, pendingWithdrawal.date_broadcasted)
             self.cursor.execute('''INSERT INTO PendingWithdrawals (withdrawal_id, status, transaction_id, amount, fee, destination_address, confirmations, withdrawal_requested_timestamp, date_broadcasted)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', withdrawal)
             self.conn.commit()

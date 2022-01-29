@@ -54,9 +54,9 @@ class Layer2Interface:
         print(r.text)
         return r.text
 
-    def ackWithdrawalRequests(self, guids):
+    def ackWithdrawalRequests(self, layer2_withdrawal_ids):
         url = HOSTNAME + 'ackWithdrawalRequests'
-        data = {'guids': guids}
+        data = {'layer2_withdrawal_ids': layer2_withdrawal_ids}
         r = requests.post(url, params=data, headers=self.header)
         print(r.text)
         return r.text
