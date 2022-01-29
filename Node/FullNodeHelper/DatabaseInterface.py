@@ -41,7 +41,6 @@ class ConfirmedTransaction():
         self.setValues(transaction_id, layer2_status, transaction_vout, amount, fee, address, category, confirmations, timestamp, blockheight)
 
     def fromListSinceBlockRpcJson(self, transactionJSON):
-        print(str(transactionJSON))
         self.setValues(transactionJSON["txid"], ConfirmedTransaction.LAYER2_STATUS_PENDING, transactionJSON["vout"], int(transactionJSON["amount"]*SATOSHI_PER_BITCOIN), 0, transactionJSON["address"], transactionJSON["category"], transactionJSON["confirmations"], transactionJSON["time"], transactionJSON["blockheight"])
         return self
 
@@ -76,8 +75,8 @@ class PendingWithdrawal():
     withdrawal_requested_timestamp = 0
     date_broadcasted = 0
 
-    def setValues(self, withdrawal_id, status, transaction_id, amount, fee, destination_address, confirmations, withdrawal_requested_timestamp, date_broadcasted):
-        self.withdrawal_id = withdrawal_id
+    def setValues(self, layer2_withdrawal_id, status, transaction_id, amount, fee, destination_address, confirmations, withdrawal_requested_timestamp, date_broadcasted):
+        self.layer2_withdrawal_id = layer2_withdrawal_id
         self.status =  status
         self.transaction_id = transaction_id
         self.amount = amount
@@ -87,8 +86,8 @@ class PendingWithdrawal():
         self.withdrawal_requested_timestamp = withdrawal_requested_timestamp
         self.date_broadcasted = date_broadcasted
 
-    def __init__(self, withdrawal_id = '', status = None, transaction_id = '', amount = 0, fee = 0, destination_address = '', confirmations = 0, withdrawal_requested_timestamp = 0, date_broadcasted = 0):
-        self.setValues(withdrawal_id, status, transaction_id, amount, fee, destination_address, confirmations, withdrawal_requested_timestamp, date_broadcasted)
+    def __init__(self, layer2_withdrawal_id = '', status = None, transaction_id = '', amount = 0, fee = 0, destination_address = '', confirmations = 0, withdrawal_requested_timestamp = 0, date_broadcasted = 0):
+        self.setValues(layer2_withdrawal_id, status, transaction_id, amount, fee, destination_address, confirmations, withdrawal_requested_timestamp, date_broadcasted)
 
     def fromWithdrawalRequestAPIJson(self, withdrawalJSON: string):
         self.setValues(withdrawalJSON['layer2_withdrawal_id'], withdrawalJSON['status'], '', withdrawalJSON['amount'], 0, withdrawalJSON['layer1_address'], 0, withdrawalJSON['withdrawal_requested_timestamp'], 0)
@@ -111,9 +110,9 @@ class DB():
         self.conn.commit()
 
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS PendingWithdrawals
-             (withdrawal_id TEXT PRIMARY KEY, status INTEGER, transaction_id TEXT, amount INTEGER, fee INTEGER, destination_address TEXT, confirmations INTEGER, withdrawal_requested_timestamp INTEGER, date_broadcasted INTEGER)''')
-        self.cursor.execute('''CREATE INDEX IF NOT EXISTS UIX_PendingWithdrawals_withdrawal_id
-             ON PendingWithdrawals (withdrawal_id)''')
+             (layer2_withdrawal_id TEXT PRIMARY KEY, status INTEGER, transaction_id TEXT, amount INTEGER, fee INTEGER, destination_address TEXT, confirmations INTEGER, withdrawal_requested_timestamp INTEGER, date_broadcasted INTEGER)''')
+        self.cursor.execute('''CREATE INDEX IF NOT EXISTS UIX_PendingWithdrawals_layer2_withdrawal_id
+             ON PendingWithdrawals (layer2_withdrawal_id)''')
         self.cursor.execute('''CREATE INDEX IF NOT EXISTS NIX_PendingWithdrawals_status
              ON PendingWithdrawals (status)''')
 
@@ -131,10 +130,10 @@ class DB():
             withdrawals.append(PendingWithdrawal(*row))
         return withdrawals
 
-    def getPendingWithdrawal(self, _withdrawal_id):
+    def getPendingWithdrawal(self, _layer2_withdrawal_id):
         withdrawal = None
-        withdrawal_id = (_withdrawal_id,)
-        withdrawalRow = self.cursor.execute('SELECT * FROM PendingWithdrawals WHERE withdrawal_id=?', withdrawal_id).fetchone()
+        layer2_withdrawal_id = (_layer2_withdrawal_id,)
+        withdrawalRow = self.cursor.execute('SELECT * FROM PendingWithdrawals WHERE layer2_withdrawal_id=?', layer2_withdrawal_id).fetchone()
         if(withdrawalRow):
             withdrawal = PendingWithdrawal(*withdrawalRow)
         return withdrawal
@@ -142,22 +141,22 @@ class DB():
     def insertPendingWithdrawal(self, pendingWithdrawal: PendingWithdrawal):
         try:
             withdrawal = (pendingWithdrawal.layer2_withdrawal_id, pendingWithdrawal.status, pendingWithdrawal.transaction_id, pendingWithdrawal.amount, pendingWithdrawal.fee, pendingWithdrawal.destination_address, pendingWithdrawal.confirmations, pendingWithdrawal.withdrawal_requested_timestamp, pendingWithdrawal.date_broadcasted)
-            self.cursor.execute('''INSERT INTO PendingWithdrawals (withdrawal_id, status, transaction_id, amount, fee, destination_address, confirmations, withdrawal_requested_timestamp, date_broadcasted)
+            self.cursor.execute('''INSERT INTO PendingWithdrawals (layer2_withdrawal_id, status, transaction_id, amount, fee, destination_address, confirmations, withdrawal_requested_timestamp, date_broadcasted)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', withdrawal)
             self.conn.commit()
         except Exception as e:
             print(str(e))
 
 
-    def updatePendingWithdrawal(self, withdrawal_id, status, transaction_id, fee):
-        params = (status, transaction_id, fee, withdrawal_id)
+    def updatePendingWithdrawal(self, layer2_withdrawal_id, status, transaction_id, fee):
+        params = (status, transaction_id, fee, layer2_withdrawal_id)
         self.cursor.execute('''
         UPDATE PendingWithdrawals
             SET status = ?,
             transaction_id = ?,
             fee = ?
         WHERE
-            withdrawal_id == ?''', params)
+            layer2_withdrawal_id == ?''', params)
         self.conn.commit()
 
     def insertConfirmedTransaction(self, confirmedTransaction: ConfirmedTransaction):
