@@ -37,10 +37,10 @@ class getWithdrawalRequests(InstachainRequestHandler):
 
 class ackWithdrawalRequests(InstachainRequestHandler):
     def getParameters(self):
-        self.guids = self.getRequestParams('guids')
+        self.layer2_withdrawal_ids = self.getRequestParams('layer2_withdrawal_ids')
 
     def processRequest(self):
-        Onboarding.ackWithdrawalRequests(self.guids)
+        Onboarding.ackWithdrawalRequests(self.layer2_withdrawal_ids)
         self.result = ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS)
         #self.result['withdrawal_requests'] = requests.dict()
 

@@ -6,7 +6,6 @@ import random
 import string
 import datetime
 from dataclasses import dataclass
-#from tinydb import TinyDB, Query
 import DatabaseInterface
 import SigningAddress
 import binascii
@@ -74,7 +73,7 @@ def run():
     #pendingWithdrawals = pendingWithdrawalsDB.search(q.layer1_status == LAYER1_STATUS_PENDING)
     pendingWithdrawals = db.getPendingWithdrawals()
     for withdrawal in pendingWithdrawals:
-        withdrawalsDict[withdrawal.withdrawal_id] = withdrawal
+        withdrawalsDict[withdrawal.layer2_withdrawal_id] = withdrawal
 
 
     while(True):
@@ -117,7 +116,7 @@ def run():
         pendingWithdrawals = db.getPendingWithdrawals()
         print('Fetched ' + str(len(pendingWithdrawals)) + ' pending withdrawals from db')
         for pendingWithdrawal in pendingWithdrawals:
-            withdrawalTransactionOutputs[pendingWithdrawal.withdrawal_id] = pendingWithdrawal
+            withdrawalTransactionOutputs[pendingWithdrawal.layer2_withdrawal_id] = pendingWithdrawal
 
 
         pendingConfirmedDepositTransactions = db.getPendingConfirmedDepositTransactions()
@@ -170,12 +169,12 @@ def run():
                 if(withdrawalTrxId):
                     for key, withdrawalOutput in withdrawalTransactionOutputs.items():
                         withdrawalOutput.status = DatabaseInterface.PendingWithdrawal.LAYER1_STATUS_BROADCASTED
-                        db.updatePendingWithdrawal(withdrawalOutput.withdrawal_id, withdrawalOutput.status, withdrawalTrxId, 0)
+                        db.updatePendingWithdrawal(withdrawalOutput.layer2_withdrawal_id, withdrawalOutput.status, withdrawalTrxId, 0)
                     withdrawalOutputs = nh.getTransaction(withdrawalTrxId)
                     withdrawalBroadcastedTransactions = []
                     for key, withdrawalOutput in withdrawalTransactionOutputs.items(): # do db writes and layer2 updates in seperate loops
                         output = withdrawalOutputs[withdrawalOutput.destination_address]
-                        withdrawalBroadcastedTransactions.append(Layer2Interface.Layer2Interface.WithdrawalBroadcastedTransaction(layer1_transaction_id = withdrawalTrxId, layer1_transaction_vout = output.transaction_vout, layer1_address=withdrawalOutput.destination_address, amount = int(output.amount*SATOSHI_PER_BITCOIN), layer2_withdrawal_id = withdrawalOutput.withdrawal_id, signature = ''))
+                        withdrawalBroadcastedTransactions.append(Layer2Interface.Layer2Interface.WithdrawalBroadcastedTransaction(layer1_transaction_id = withdrawalTrxId, layer1_transaction_vout = output.transaction_vout, layer1_address=withdrawalOutput.destination_address, amount = int(output.amount*SATOSHI_PER_BITCOIN), layer2_withdrawal_id = withdrawalOutput.layer2_withdrawal_id, signature = ''))
                         #comm.sendWithdrawalBroadcasted(withdrawalTrxId, output.transaction_vout, withdrawalOutput.destination_address, int(output.amount*SATOSHI_PER_BITCOIN), withdrawalOutput.withdrawal_id)
                     comm.sendWithdrawalBroadcasted(withdrawalBroadcastedTransactions)
                 db.setLastBroadcastBlockHeight(blockheight)
