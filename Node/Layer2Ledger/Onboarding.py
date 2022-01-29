@@ -39,7 +39,7 @@ class WithdrawalRequests(ndb.Model):
     layer1_transaction_id = ndb.StringProperty() # transaction id of the confirmed layer1 transaction
     status = ndb.IntegerProperty() # status of this withdrawal
     amount = ndb.IntegerProperty() # amount withdrawing
-    layer2_withdrawal_id = ndb.StringProperty(default = ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(16)))
+    layer2_withdrawal_id = ndb.StringProperty()
     server_signature = ndb.StringProperty() # signed with the onboarding key. Verified by the Onboarding helper
     layer2_transaction_id = ndb.StringProperty() # transaction id that requested this withdrawal
     withdrawal_requested_timestamp = ndb.IntegerProperty() #in unix time in seconds when this withdrawal was requested
@@ -56,19 +56,25 @@ class WithdrawalRequests(ndb.Model):
 
     @staticmethod
     def addWithdrawalRequest(_layer1_address, _layer2_transaction_id, _amount):
-        w = WithdrawalRequests(layer1_address = _layer1_address, layer2_transaction_id = _layer2_transaction_id, status = WithdrawalRequests.WITHDRAWAL_STATUS_PENDING, amount = _amount, server_signature = w.sign_withdrawal_request(), withdrawal_requested_timestamp = int(datetime.datetime.now().timestamp()))
+        w = WithdrawalRequests(layer1_address = _layer1_address, layer2_transaction_id = _layer2_transaction_id, status = WithdrawalRequests.WITHDRAWAL_STATUS_PENDING, amount = _amount, withdrawal_requested_timestamp = int(datetime.datetime.now().timestamp()))
+        w.layer2_withdrawal_id = ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(16))
+        w.server_signature = w.sign_withdrawal_request()
         id = w.put()
         GlobalLogging.logger.log_text("WithdrawalRequest id " + str(id))
         
 
     @staticmethod
-    def getWithdrawalRequests(latest_timestamp):
+    def getWithdrawalRequests(latest_timestamp: int):
         requests = []
         GlobalLogging.logger.log_text("WithdrawalRequest latest_timestamp " + str(latest_timestamp))
         requests_query = WithdrawalRequests.query(WithdrawalRequests.withdrawal_requested_timestamp > latest_timestamp, WithdrawalRequests.status == WithdrawalRequests.WITHDRAWAL_STATUS_PENDING)
         for request in requests_query.fetch():
             requests.append(request)
         return requests
+
+    @staticmethod
+    def getWithdrawalRequest(_layer2_withdrawal_id: string):
+        return WithdrawalRequests.query(WithdrawalRequests.layer2_withdrawal_id == _layer2_withdrawal_id).get()
 
     @staticmethod
     def ackWithdrawalRequests(layer2_withdrawal_ids):
@@ -186,10 +192,17 @@ def withdrawalConfirmed(_layer1_transaction_id, _layer1_transaction_vout,  _laye
         return ErrorMessage.ERROR_CANNOT_VERIFY_SIGNATURE
 
     withdrawals = ConfirmedWithdrawals.getWithdrawals(_layer1_transaction_id, _layer1_transaction_vout)
+    layer2_withdrawal_ids = set()
     for withdrawal in withdrawals.fetch():
         withdrawal.confirmed = True
         withdrawal.confirmed_signature = _signature
-        withdrawal.put() 
+        withdrawal.put()
+        layer2_withdrawal_ids.add(withdrawal.layer2_withdrawal_id)
+    for layer2_withdrawal_id in layer2_withdrawal_ids:
+        withdrawalRequest = WithdrawalRequests.getWithdrawalRequest(layer2_withdrawal_id)
+        if(withdrawalRequest):
+            withdrawalRequest.layer1_transaction_id
+            withdrawalRequest.put()
     return status
 
 def getWithdrawalRequests(latest_timestamp):
