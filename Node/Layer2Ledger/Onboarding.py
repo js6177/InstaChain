@@ -60,6 +60,11 @@ class WithdrawalRequests(ndb.Model):
         w.layer2_withdrawal_id = ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(16))
         w.server_signature = w.sign_withdrawal_request()
         id = w.put()
+        if(id):
+            result, trx = Transaction.Transaction.get_transaction(_layer2_transaction_id)
+            if(trx):
+                trx.layer2_withdrawal_id = w.layer2_withdrawal_id
+                trx.put()
         GlobalLogging.logger.log_text("WithdrawalRequest id " + str(id))
         
 
@@ -201,8 +206,12 @@ def withdrawalConfirmed(_layer1_transaction_id, _layer1_transaction_vout,  _laye
     for layer2_withdrawal_id in layer2_withdrawal_ids:
         withdrawalRequest = WithdrawalRequests.getWithdrawalRequest(layer2_withdrawal_id)
         if(withdrawalRequest):
-            withdrawalRequest.layer1_transaction_id
+            withdrawalRequest.layer1_transaction_id = _layer1_transaction_id
             withdrawalRequest.put()
+            result, trx = Transaction.Transaction.get_transaction(withdrawalRequest.layer2_transaction_id)
+            if(trx):
+                trx.layer1_transaction_id = _layer1_transaction_id
+                trx.put()
     return status
 
 def getWithdrawalRequests(latest_timestamp):
