@@ -129,6 +129,7 @@ class Transaction(ndb.Model):
     signature = ndb.TextProperty(indexed = False)  # the signature of the message (that was signed using the private key that corresponds to the source_address)
     signature_date = ndb.IntegerProperty(indexed = False)  # date that the transaction was signed by the sender's private key, unix time
     layer1_transaction_id = ndb.StringProperty() #transaction id of layer 1 transactions, for onboarding purposes
+    layer2_withdrawal_id = ndb.StringProperty()
 
     TRX_TRANSFER = 1  # regular 2nd layer transfer
     TRX_DEPOSIT = 2  # when a user deposits btc to a deposit address, then funds get credited to his pubkey
