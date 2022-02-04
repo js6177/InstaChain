@@ -4,7 +4,7 @@ from pprint import pprint
 
 from constants import *
 
-DATABASE_NAME = "bitcoin.db"
+DEFAULT_DATABASE_NAME = "bitcoin.db"
 
 class ConfirmedTransaction():
     #values for layer2 status (deposits)
@@ -97,8 +97,8 @@ class PendingWithdrawal():
 class DB():
     conn = None
     cursor = None
-    def __init__(self, *args, **kwargs):
-        self.conn = sqlite3.connect(DATABASE_NAME)
+    def __init__(self, wallet_name, *args, **kwargs):
+        self.conn = sqlite3.connect(wallet_name or DEFAULT_DATABASE_NAME)
         self.cursor = self.conn.cursor()
         return super().__init__(*args, **kwargs)
 

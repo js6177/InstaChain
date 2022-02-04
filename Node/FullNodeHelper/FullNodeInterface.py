@@ -17,7 +17,7 @@ from bitcoinrpc.authproxy import AuthServiceProxy, JSONRPCException
 import traceback
 import argparse
 
-TESTNET = True
+DEFAULT_TESTNET = True
 WALLET_NAME = "wallet"
 TESTNET_TARGETCONFIRMATIONS = 3
 MAINNET_TARGETCONFIRMATIONS = 6
@@ -25,39 +25,44 @@ SATOSHI_PER_BITCOIN = 100000000
 
 
 class BitcoinRPC:
-    rpc_ip = "127.0.0.1"
-    rpc_user = "bitcoin"
-    rpc_password = "R4tB_*5cJK!7p9"
-    rpc_port = "8332"
-
+    rpc_ip: string  = None
+    rpc_user: string  = None
+    rpc_password: string  = None
+    rpc_port: string  = None
+    wallet_name: string = None
+    testnet: bool = None
     rpc_connection : AuthServiceProxy = None
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, rpc_ip, rpc_port, rpc_user, rpc_password, wallet_name, testnet = DEFAULT_TESTNET):
+        self.rpc_ip = rpc_ip
+        self.rpc_port = rpc_port
+        self.rpc_user = rpc_user
+        self.rpc_password = rpc_password
+        self.wallet_name = wallet_name
+        self.testnet = testnet
+        print("rpc_port: " + rpc_port)
         self.rpc_connection = AuthServiceProxy("http://%s:%s@%s:%s"%(self.rpc_user, self.rpc_password, self.rpc_ip, self.rpc_port))
-        return super().__init__(*args, **kwargs)
 
     def getTargetConfirmations(self):
-        if(TESTNET):
+        if(self.testnet):
             return TESTNET_TARGETCONFIRMATIONS
         else:
             return MAINNET_TARGETCONFIRMATIONS
 
     def getTestnetCommandParam(self):
-        if(TESTNET):
+        if(self.testnet):
             return " -testnet "
         return ""
 
-    def loadWallet(self, wallet = WALLET_NAME):
+    def loadWallet(self):
         try:
-            satus = self.rpc_connection.loadwallet(wallet)
+            satus = self.rpc_connection.loadwallet(self.wallet_name)
         except Exception as e:
             print(e)
-        return
-        command = '"' + BITCOIN_CLI_PATH + '"' + self.getTestnetCommandParam() + " loadwallet " + wallet
-        loadWalletJSON = os.popen(command).read()
 
     def importMultiplePrivkeys(self, seed, startingIndex, numberOfKeysToGenerate, testnet):
-        seed_bytes = binascii.unhexlify(b"1eb00bbddcf069084889a8ab4155569165f5c453ccb85e70811aaed6f6da5fc19a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4")
+        seed_bytes = binascii.unhexlify(seed)
+        #seed_bytes = binascii.unhexlify(b"1eb00bbddcf098084229a8ab4177768165f5c453ccb85e70811bbed6f6da5fc19a5de40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4")
         pubkey_version = Bip32Conf.KEY_NET_VER.Test() if testnet else Bip32Conf.KEY_NET_VER.Main()
         privkey_version = BitcoinConf.WIF_NET_VER.Test() if testnet else BitcoinConf.WIF_NET_VER.Main()
 
@@ -160,8 +165,6 @@ class BitcoinRPC:
             print(listsinceblockJSON)
         except Exception as e:
             print(e)
-
-        #print(listsinceblockJSON)
 
         #listsinceblockResponse = json.load(listsinceblockJSON)
         newlastblock = listsinceblockJSON["lastblock"]

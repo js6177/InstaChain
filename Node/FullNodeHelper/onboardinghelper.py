@@ -21,173 +21,232 @@ from types import SimpleNamespace
 
 SATOSHI_PER_BITCOIN = 100000000
 
+CONFIG_FILE_NAME = "config.json"
+
 def main():
     #while (True):
         try:
-            run()
+            oh = OnboardingHelper()
+            oh.run()
         except Exception as e:
             print(e)
             print(traceback.format_exc())
             print('Restarting...')
 
-def run():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--importprivkeys', dest='importprivkeys', action='store_true', help='Pass this parameter if you need to import private keys to the wallet instead of running the onboarding helper.')
-    args = parser.parse_args()
 
-    db = DatabaseInterface.DB()
-    db.openOrCreateDB()
 
-    # start bitcoin full node, or attach if it already started
-    nh = BitcoinRPC()
-    comm = Layer2Interface.Layer2Interface()
+class OnboardingHelper():
+    #required_config_variables
+    database_name: string = None
+    rpc_ip: string = None
+    rpc_port: string = None
+    rpc_user: string = None
+    rpc_password: string = None
+    wallet_name: string = None
 
-    nh.loadWallet()
+    #optional config variables
+    wallet_private_key_seed: string = None
+    testnet: bool = True
+    layer2_node_url: string = None
 
-    if(args.importprivkeys):
-        print("Importing private keys...")
+    #variables for importing private keys
+    import_wallet_privkey_at_startup: bool = False
+    wallet_private_key_seed: string = None
+    import_wallet_privkey_while_looping: bool = False
+    import_wallet_privkey_startup_count: int = 0
+    import_wallet_privkey_loop_count: int = 0
+
+    def loadConfig(self):
+        requiredConfigKeysLoaded = False
+        try:
+            with open(CONFIG_FILE_NAME) as config_file:
+                data = json.load(config_file)
+                #these throw exceptions if key is not found
+                self.database_name = data["database_name"]
+                self.rpc_ip = data["rpc_ip"]
+                self.rpc_port = data["rpc_port"]
+                self.rpc_user = data["rpc_user"]
+                self.rpc_password = data["rpc_password"]
+                self.wallet_name = data["wallet_name"]
+                self.layer2_node_url = data["layer2_node_url"]
+
+                #thse don't throw exceptions if key is notfound, instead they assign null
+                self.import_wallet_privkey_at_startup = data.get("import_wallet_privkey_at_startup")
+                self.wallet_private_key_seed = data.get("wallet_private_key_seed")
+                self.import_wallet_privkey_while_looping = data.get("import_wallet_privkey_while_looping")
+                self.import_wallet_privkey_startup_count = data.get("import_wallet_privkey_startup_count")
+                self.import_wallet_privkey_loop_count = data.get("import_wallet_privkey_loop_count")
+
+        except FileNotFoundError as e:
+            print("Fatal Error: " + CONFIG_FILE_NAME + " not found. Exiting.")
+        except KeyError as e:
+            print("Error: Cound not find key " + str(e) + " in " + CONFIG_FILE_NAME + " , Exiting.")
+
+    def import_private_keys(self, count: int, db, nh):
+        t1 = time.time()
         privkeyBip32Index = db.getImportPrivkeyBip32Index()
-        numberOfKeysToImport = 100000
-        nh.importMultiplePrivkeys('', privkeyBip32Index, numberOfKeysToImport, True)
-        db.setImportPrivkeyBip32Index(privkeyBip32Index + numberOfKeysToImport)
-        print("Done importing private keys. Imported " + str(numberOfKeysToImport) + " keys from index " + str(privkeyBip32Index))
-        return
+        print("Importing " + str(count) +" private keys starting at index " + str(privkeyBip32Index))
+        nh.importMultiplePrivkeys(self.wallet_private_key_seed, privkeyBip32Index, count, True)
+        db.setImportPrivkeyBip32Index(privkeyBip32Index + count)
+        elapsed_time = time.time() - t1
 
-    #return
+        print("Done importing private keys. Imported " + str(count) + " keys from index " + str(privkeyBip32Index))
+        print("Time elapsed: " + str(elapsed_time))
 
-    lastblockhash = db.getLastBlockHash()
-    confirmedTransactionsDict = {}
-    withdrawalsDict = {}
-    #confirmedTransactionsDB = TinyDB('confirmedTransactions.json')
-    #pendingWithdrawalsDB = TinyDB('pendingWithdrawals.json')
+    def run(self):
+        self.loadConfig()
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--importprivkeys', dest='importprivkeys', action='store_true', help='Pass this parameter if you need to import private keys to the wallet instead of running the onboarding helper.')
+        args = parser.parse_args()
 
-    #load pending confirmed transactions from the DB
-    #q = Query()
-    #pendingConfirmedTransactions = confirmedTransactionsDB.search(q.layer2_status == LAYER2_STATUS_PENDING)
-    pendingConfirmedDepositTransactions = db.getAllPendingConfirmedTransactions()
-    for trx in pendingConfirmedDepositTransactions:
-        confirmedTransactionsDict[trx.transaction_id] = trx
+        db = DatabaseInterface.DB(self.database_name)
+        db.openOrCreateDB()
 
-    #load pending withdrawal transactions from the DB
-    #q = Query()
-    #pendingWithdrawals = pendingWithdrawalsDB.search(q.layer1_status == LAYER1_STATUS_PENDING)
-    pendingWithdrawals = db.getPendingWithdrawals()
-    for withdrawal in pendingWithdrawals:
-        withdrawalsDict[withdrawal.layer2_withdrawal_id] = withdrawal
+        # start bitcoin full node, or attach if it already started
+        nh = BitcoinRPC(self.rpc_ip, self.rpc_port, self.rpc_user, self.rpc_password, self.wallet_name, self.testnet)
+        comm = Layer2Interface.Layer2Interface(self.layer2_node_url)
 
+        nh.loadWallet()
 
-    while(True):
-        confirmedTransactions = []
-        lastblockhash, confirmedTransactions = nh.getConfirmedTransactions(lastblockhash)
+        if(self.import_wallet_privkey_at_startup):
+            self.import_private_keys(self.import_wallet_privkey_startup_count, db, nh)
 
-        blockheight = nh.getBlockHeader(lastblockhash)["height"]
-        print('Latest blockheight: ' +  str(blockheight))
-        for confirmedTransactionJSON in confirmedTransactions:
-            if(int(confirmedTransactionJSON["confirmations"]) >= nh.getTargetConfirmations()):
-                trxid = confirmedTransactionJSON["txid"]
-                vout = confirmedTransactionJSON["vout"]
-                if((trxid, vout) not in confirmedTransactionsDict):
-                    confirmedTransaction = DatabaseInterface.ConfirmedTransaction().fromListSinceBlockRpcJson(confirmedTransactionJSON)
-                    confirmedTransactionsDict[(trxid, vout)] = confirmedTransaction #add in memory
-                    db.insertConfirmedTransaction(confirmedTransaction)
-                    #print("New confirmed transaction (" + confirmedTransactionJSON["category"] + "). transaction_id: " + trxid + ' address: ' + confirmedTransaction.address)
-        print("lastblockhash: " + lastblockhash)
-        db.setLastBlockHash(lastblockhash)
+        lastblockhash = db.getLastBlockHash()
+        confirmedTransactionsDict = {}
+        withdrawalsDict = {}
+        #confirmedTransactionsDB = TinyDB('confirmedTransactions.json')
+        #pendingWithdrawalsDB = TinyDB('pendingWithdrawals.json')
 
-        #get pending withdrawals from the backend, and save it to the db
-        lastwithdrawalTimestamp = int(db.getLastWithdrawalRequestTimestamp())
-        pendingWithdrawals = []
-        pendingWithdrawalsJSON = json.loads(comm.getWithdrawalRequests(lastwithdrawalTimestamp))
-        if(int(pendingWithdrawalsJSON['error_code']) == 0):
-            for pendingWithdrawalJSON in pendingWithdrawalsJSON['withdrawal_requests']:
-                withdrawal = DatabaseInterface.PendingWithdrawal().fromWithdrawalRequestAPIJson(pendingWithdrawalJSON)
-                pendingWithdrawals.append(withdrawal)
+        #load pending confirmed transactions from the DB
+        #q = Query()
+        #pendingConfirmedTransactions = confirmedTransactionsDB.search(q.layer2_status == LAYER2_STATUS_PENDING)
+        pendingConfirmedDepositTransactions = db.getAllPendingConfirmedTransactions()
+        for trx in pendingConfirmedDepositTransactions:
+            confirmedTransactionsDict[trx.transaction_id] = trx
 
-        for pendingWithdrawal in pendingWithdrawals:
-            db.insertPendingWithdrawal(pendingWithdrawal)
-
-            #withdrawalTransactionOutputs.append(TransactionOutput(pendingWithdrawal.destination_address, (pendingWithdrawal.amount)/SATOSHI_PER_BITCOIN))
-            if(pendingWithdrawal.withdrawal_requested_timestamp > lastwithdrawalTimestamp):
-                lastwithdrawalTimestamp = pendingWithdrawal.withdrawal_requested_timestamp
-            print('New withdrawal recieved. address: ' + pendingWithdrawal.destination_address + ' amount: ' + str(pendingWithdrawal.amount))
-        db.setLastWithdrawalTimestamp(lastwithdrawalTimestamp)
-
-        withdrawalTransactionOutputs = {}
+        #load pending withdrawal transactions from the DB
+        #q = Query()
+        #pendingWithdrawals = pendingWithdrawalsDB.search(q.layer1_status == LAYER1_STATUS_PENDING)
         pendingWithdrawals = db.getPendingWithdrawals()
-        print('Fetched ' + str(len(pendingWithdrawals)) + ' pending withdrawals from db')
-        for pendingWithdrawal in pendingWithdrawals:
-            withdrawalTransactionOutputs[pendingWithdrawal.layer2_withdrawal_id] = pendingWithdrawal
+        for withdrawal in pendingWithdrawals:
+            withdrawalsDict[withdrawal.layer2_withdrawal_id] = withdrawal
 
 
-        pendingConfirmedDepositTransactions = db.getPendingConfirmedDepositTransactions()
-        for trx in []:#pendingConfirmedTransactions:
-            depositResponseJSON = json.loads(comm.sendConfirmDeposit(trx))
-            if(depositResponseJSON['error_code'] == 0):
-                db.updateConfirmedTransaction(trx.transaction_id, trx.transaction_vout, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
-                print('Deposit confirmed. transaction_id:' + trx.transaction_id + ' ' + str(trx.transaction_vout) + ' address: ' + trx.address)
+        while(True):
+            if(self.import_wallet_privkey_while_looping):
+                self.import_private_keys(self.import_wallet_privkey_loop_count, db, nh)
 
-        if(len(pendingConfirmedDepositTransactions)):
-            pendingConfirmedDepositResponseJSON = json.loads(comm.sendConfirmDeposit(pendingConfirmedDepositTransactions))
-            response = json.loads(json.dumps(pendingConfirmedDepositResponseJSON), object_hook=lambda d: SimpleNamespace(**d))
-            if(response.error_code == 0):
-                for trx in response.transactions:
-                    error_code = trx.error_code
-                    layer1_transaction_id = trx.layer1_transaction_id
-                    layer1_transaction_vout = trx.layer1_transaction_vout
-                    if(Layer2Interface.SuccessOrDuplicateErrorCode(error_code)):
-                        db.updateConfirmedTransaction(layer1_transaction_id, layer1_transaction_vout, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
-                        print('Deposit confirmed. transaction_id:' + layer1_transaction_id + ' ' + str(layer1_transaction_vout))
+            confirmedTransactions = []
+            lastblockhash, confirmedTransactions = nh.getConfirmedTransactions(lastblockhash)
 
-        pendingConfirmedWithdrawalTransactions = db.getPendingConfirmedWithdrawalTransactions()
-        for trx in []:#pendingConfirmedWithdrawalTransactions:
-            withdrawalConfirmedResponseJSON = json.loads(comm.sendConfirmWithdrawal(pendingConfirmedWithdrawalTransactions))
-            if(withdrawalConfirmedResponseJSON['error_code'] == 0):
-                db.updateConfirmedTransaction(trx.transaction_id, trx.transaction_vout, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED) # withdrawals have vout set to 0 (for now)
+            blockheight = nh.getBlockHeader(lastblockhash)["height"]
+            print('Latest blockheight: ' +  str(blockheight))
+            for confirmedTransactionJSON in confirmedTransactions:
+                if(int(confirmedTransactionJSON["confirmations"]) >= nh.getTargetConfirmations()):
+                    trxid = confirmedTransactionJSON["txid"]
+                    vout = confirmedTransactionJSON["vout"]
+                    if((trxid, vout) not in confirmedTransactionsDict):
+                        confirmedTransaction = DatabaseInterface.ConfirmedTransaction().fromListSinceBlockRpcJson(confirmedTransactionJSON)
+                        confirmedTransactionsDict[(trxid, vout)] = confirmedTransaction #add in memory
+                        db.insertConfirmedTransaction(confirmedTransaction)
+                        #print("New confirmed transaction (" + confirmedTransactionJSON["category"] + "). transaction_id: " + trxid + ' address: ' + confirmedTransaction.address)
+            print("lastblockhash: " + lastblockhash)
+            db.setLastBlockHash(lastblockhash)
 
-        if(len(pendingConfirmedWithdrawalTransactions)):
-            withdrawalConfirmedResponseJSON = json.loads(comm.sendConfirmWithdrawal(pendingConfirmedWithdrawalTransactions))
-            response = json.loads(json.dumps(withdrawalConfirmedResponseJSON), object_hook=lambda d: SimpleNamespace(**d))
-            if(response.error_code == 0):
-                for trx in response.transactions:
-                    error_code = trx.error_code
-                    layer1_transaction_id = trx.layer1_transaction_id
-                    layer1_transaction_vout = trx.layer1_transaction_vout
-                    if(Layer2Interface.SuccessOrDuplicateErrorCode(error_code)):
-                        db.updateConfirmedTransaction(layer1_transaction_id, layer1_transaction_vout, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
+            #get pending withdrawals from the backend, and save it to the db
+            lastwithdrawalTimestamp = int(db.getLastWithdrawalRequestTimestamp())
+            pendingWithdrawals = []
+            pendingWithdrawalsJSON = json.loads(comm.getWithdrawalRequests(lastwithdrawalTimestamp))
+            if(int(pendingWithdrawalsJSON['error_code']) == 0):
+                for pendingWithdrawalJSON in pendingWithdrawalsJSON['withdrawal_requests']:
+                    withdrawal = DatabaseInterface.PendingWithdrawal().fromWithdrawalRequestAPIJson(pendingWithdrawalJSON)
+                    pendingWithdrawals.append(withdrawal)
+
+            for pendingWithdrawal in pendingWithdrawals:
+                db.insertPendingWithdrawal(pendingWithdrawal)
+
+                #withdrawalTransactionOutputs.append(TransactionOutput(pendingWithdrawal.destination_address, (pendingWithdrawal.amount)/SATOSHI_PER_BITCOIN))
+                if(pendingWithdrawal.withdrawal_requested_timestamp > lastwithdrawalTimestamp):
+                    lastwithdrawalTimestamp = pendingWithdrawal.withdrawal_requested_timestamp
+                print('New withdrawal recieved. address: ' + pendingWithdrawal.destination_address + ' amount: ' + str(pendingWithdrawal.amount))
+            db.setLastWithdrawalTimestamp(lastwithdrawalTimestamp)
+
+            withdrawalTransactionOutputs = {}
+            pendingWithdrawals = db.getPendingWithdrawals()
+            print('Fetched ' + str(len(pendingWithdrawals)) + ' pending withdrawals from db')
+            for pendingWithdrawal in pendingWithdrawals:
+                withdrawalTransactionOutputs[pendingWithdrawal.layer2_withdrawal_id] = pendingWithdrawal
 
 
-        lastBroadcastBlockHeight = db.getLastBroadcastBlockHeight()
-        broadcastTransactionBlockDelay = db.getBroadcastTransactionBlockDelay()
-        targetBroadcastBlockheight = lastBroadcastBlockHeight + broadcastTransactionBlockDelay
-        print("lastBroadcastBlockHeight: " + str(lastBroadcastBlockHeight))
-        print("broadcastTransactionBlockDelay: " + str(broadcastTransactionBlockDelay))
-        print("targetBroadcastBlockheight: " + str(targetBroadcastBlockheight))
-        if(len(withdrawalTransactionOutputs)):
-            if(blockheight >= (targetBroadcastBlockheight)):
-                print("Broadcasting " +  str(len(withdrawalTransactionOutputs)) + " withdrawal outputs")
-                withdrawalTrxId = nh.broadcastTransaction(withdrawalTransactionOutputs)
-                if(withdrawalTrxId):
-                    for key, withdrawalOutput in withdrawalTransactionOutputs.items():
-                        withdrawalOutput.status = DatabaseInterface.PendingWithdrawal.LAYER1_STATUS_BROADCASTED
-                        db.updatePendingWithdrawal(withdrawalOutput.layer2_withdrawal_id, withdrawalOutput.status, withdrawalTrxId, 0)
-                    withdrawalOutputs = nh.getTransaction(withdrawalTrxId)
-                    withdrawalBroadcastedTransactions = []
-                    for key, withdrawalOutput in withdrawalTransactionOutputs.items(): # do db writes and layer2 updates in seperate loops
-                        output = withdrawalOutputs[withdrawalOutput.destination_address]
-                        withdrawalBroadcastedTransactions.append(Layer2Interface.Layer2Interface.WithdrawalBroadcastedTransaction(layer1_transaction_id = withdrawalTrxId, layer1_transaction_vout = output.transaction_vout, layer1_address=withdrawalOutput.destination_address, amount = int(output.amount*SATOSHI_PER_BITCOIN), layer2_withdrawal_id = withdrawalOutput.layer2_withdrawal_id, signature = ''))
-                        #comm.sendWithdrawalBroadcasted(withdrawalTrxId, output.transaction_vout, withdrawalOutput.destination_address, int(output.amount*SATOSHI_PER_BITCOIN), withdrawalOutput.withdrawal_id)
-                    comm.sendWithdrawalBroadcasted(withdrawalBroadcastedTransactions)
-                db.setLastBroadcastBlockHeight(blockheight)
+            pendingConfirmedDepositTransactions = db.getPendingConfirmedDepositTransactions()
+            for trx in []:#pendingConfirmedTransactions:
+                depositResponseJSON = json.loads(comm.sendConfirmDeposit(trx))
+                if(depositResponseJSON['error_code'] == 0):
+                    db.updateConfirmedTransaction(trx.transaction_id, trx.transaction_vout, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
+                    print('Deposit confirmed. transaction_id:' + trx.transaction_id + ' ' + str(trx.transaction_vout) + ' address: ' + trx.address)
+
+            if(len(pendingConfirmedDepositTransactions)):
+                pendingConfirmedDepositResponseJSON = json.loads(comm.sendConfirmDeposit(pendingConfirmedDepositTransactions))
+                response = json.loads(json.dumps(pendingConfirmedDepositResponseJSON), object_hook=lambda d: SimpleNamespace(**d))
+                if(response.error_code == 0):
+                    for trx in response.transactions:
+                        error_code = trx.error_code
+                        layer1_transaction_id = trx.layer1_transaction_id
+                        layer1_transaction_vout = trx.layer1_transaction_vout
+                        if(Layer2Interface.SuccessOrDuplicateErrorCode(error_code)):
+                            db.updateConfirmedTransaction(layer1_transaction_id, layer1_transaction_vout, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
+                            print('Deposit confirmed. transaction_id:' + layer1_transaction_id + ' ' + str(layer1_transaction_vout))
+
+            pendingConfirmedWithdrawalTransactions = db.getPendingConfirmedWithdrawalTransactions()
+            for trx in []:#pendingConfirmedWithdrawalTransactions:
+                withdrawalConfirmedResponseJSON = json.loads(comm.sendConfirmWithdrawal(pendingConfirmedWithdrawalTransactions))
+                if(withdrawalConfirmedResponseJSON['error_code'] == 0):
+                    db.updateConfirmedTransaction(trx.transaction_id, trx.transaction_vout, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED) # withdrawals have vout set to 0 (for now)
+
+            if(len(pendingConfirmedWithdrawalTransactions)):
+                withdrawalConfirmedResponseJSON = json.loads(comm.sendConfirmWithdrawal(pendingConfirmedWithdrawalTransactions))
+                response = json.loads(json.dumps(withdrawalConfirmedResponseJSON), object_hook=lambda d: SimpleNamespace(**d))
+                if(response.error_code == 0):
+                    for trx in response.transactions:
+                        error_code = trx.error_code
+                        layer1_transaction_id = trx.layer1_transaction_id
+                        layer1_transaction_vout = trx.layer1_transaction_vout
+                        if(Layer2Interface.SuccessOrDuplicateErrorCode(error_code)):
+                            db.updateConfirmedTransaction(layer1_transaction_id, layer1_transaction_vout, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
+
+
+            lastBroadcastBlockHeight = db.getLastBroadcastBlockHeight()
+            broadcastTransactionBlockDelay = db.getBroadcastTransactionBlockDelay()
+            targetBroadcastBlockheight = lastBroadcastBlockHeight + broadcastTransactionBlockDelay
+            print("lastBroadcastBlockHeight: " + str(lastBroadcastBlockHeight))
+            print("broadcastTransactionBlockDelay: " + str(broadcastTransactionBlockDelay))
+            print("targetBroadcastBlockheight: " + str(targetBroadcastBlockheight))
+            if(len(withdrawalTransactionOutputs)):
+                if(blockheight >= (targetBroadcastBlockheight)):
+                    print("Broadcasting " +  str(len(withdrawalTransactionOutputs)) + " withdrawal outputs")
+                    withdrawalTrxId = nh.broadcastTransaction(withdrawalTransactionOutputs)
+                    if(withdrawalTrxId):
+                        for key, withdrawalOutput in withdrawalTransactionOutputs.items():
+                            withdrawalOutput.status = DatabaseInterface.PendingWithdrawal.LAYER1_STATUS_BROADCASTED
+                            db.updatePendingWithdrawal(withdrawalOutput.layer2_withdrawal_id, withdrawalOutput.status, withdrawalTrxId, 0)
+                        withdrawalOutputs = nh.getTransaction(withdrawalTrxId)
+                        withdrawalBroadcastedTransactions = []
+                        for key, withdrawalOutput in withdrawalTransactionOutputs.items(): # do db writes and layer2 updates in seperate loops
+                            output = withdrawalOutputs[withdrawalOutput.destination_address]
+                            withdrawalBroadcastedTransactions.append(Layer2Interface.Layer2Interface.WithdrawalBroadcastedTransaction(layer1_transaction_id = withdrawalTrxId, layer1_transaction_vout = output.transaction_vout, layer1_address=withdrawalOutput.destination_address, amount = int(output.amount*SATOSHI_PER_BITCOIN), layer2_withdrawal_id = withdrawalOutput.layer2_withdrawal_id, signature = ''))
+                            #comm.sendWithdrawalBroadcasted(withdrawalTrxId, output.transaction_vout, withdrawalOutput.destination_address, int(output.amount*SATOSHI_PER_BITCOIN), withdrawalOutput.withdrawal_id)
+                        comm.sendWithdrawalBroadcasted(withdrawalBroadcastedTransactions)
+                    db.setLastBroadcastBlockHeight(blockheight)
+                else:
+                    print('Batching: waiting for blockheight ' + str(targetBroadcastBlockheight) + ' to broadcast batched transaction. Current blockheight: ' + str(blockheight))
             else:
-                print('Batching: waiting for blockheight ' + str(targetBroadcastBlockheight) + ' to broadcast batched transaction. Current blockheight: ' + str(blockheight))
-        else:
-            print("No withdrawals to broadcast")
-        # get all withdrawals from DB that needs to be broadcasted, and broadcast them
-        # check the full node for any recieved transactions (using listtransactions)
-        # if there are any recieved transactions, call the confirmDeposit backend API
+                print("No withdrawals to broadcast")
+            # get all withdrawals from DB that needs to be broadcasted, and broadcast them
+            # check the full node for any recieved transactions (using listtransactions)
+            # if there are any recieved transactions, call the confirmDeposit backend API
 
-        time.sleep(60*1) #sleep 1 mins
-    pass
+            time.sleep(60*1) #sleep 1 mins
+        pass
 
 if __name__ == "__main__":
     main()

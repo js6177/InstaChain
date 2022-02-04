@@ -18,7 +18,7 @@ import traceback
 import argparse
 from typing import List
 
-HOSTNAME = 'https://testnet.instachain.io/'
+DEFAULT_LAYER2_URL = 'https://testnet.instachain.io/'
 
 ERROR_SUCCESS = 0
 ERROR_UNKNOWN = 1
@@ -37,6 +37,8 @@ def SuccessOrDuplicateErrorCode(error: int):
     return error in (ERROR_SUCCESS, ERROR_CANNOT_DUPLICATE_TRANSACTION, ERROR_DUPLICATE_TRANSACTION_ID)
 
 class Layer2Interface:
+    layer2_node_url: string = None
+
     @dataclass
     class WithdrawalBroadcastedTransaction:
         layer1_transaction_id: string
@@ -46,23 +48,26 @@ class Layer2Interface:
         layer2_withdrawal_id: string
         signature: string
 
+    def __init__(self, layer2_node_url):
+        self.layer2_node_url = layer2_node_url or DEFAULT_LAYER2_URL
+
     header = {'user-agent': 'requests/0.0.1'}
     def getWithdrawalRequests(self, lastwithdrawalTimestamp):
-        url = HOSTNAME + 'getWithdrawalRequests'
+        url = self.layer2_node_url + 'getWithdrawalRequests'
         data = {'latest_timestamp': lastwithdrawalTimestamp}
         r = requests.get(url, params=data, headers=self.header)
         print(r.text)
         return r.text
 
     def ackWithdrawalRequests(self, layer2_withdrawal_ids):
-        url = HOSTNAME + 'ackWithdrawalRequests'
+        url = self.layer2_node_url + 'ackWithdrawalRequests'
         data = {'layer2_withdrawal_ids': layer2_withdrawal_ids}
         r = requests.post(url, params=data, headers=self.header)
         print(r.text)
         return r.text
 
     def confirmDeposit(self, nonce, layer1_transaction_id, amount, layer1_address, signature):
-        url = HOSTNAME + 'depositFunds'
+        url = self.layer2_node_url + 'depositFunds'
         data = {'nonce': nonce,
                 'layer1_transaction_id': layer1_transaction_id,
                 'amount': amount,
@@ -74,7 +79,7 @@ class Layer2Interface:
         return r.text
 
     def confirmDepositMulti(self, depositTransactions: List[DatabaseInterface.ConfirmedTransaction]):
-        url = HOSTNAME + 'depositFunds'
+        url = self.layer2_node_url + 'depositFunds'
         transactions = []
         for depositTransaction in depositTransactions:
             transaction = {'layer1_transaction_id': depositTransaction.transaction_id,
@@ -90,7 +95,7 @@ class Layer2Interface:
 
     #TODO: do later
     def broadcastWithdrawalMulti(self, withdrawalBroadcastedTramsactions: List[WithdrawalBroadcastedTransaction]):
-        url = HOSTNAME + 'withdrawalBroadcasted'
+        url = self.layer2_node_url + 'withdrawalBroadcasted'
         transactions = []
         for withdrawalBroadcastedTramsaction in withdrawalBroadcastedTramsactions:
             transaction = {"layer1_transaction_id": withdrawalBroadcastedTramsaction.layer1_transaction_id,
@@ -109,7 +114,7 @@ class Layer2Interface:
         return r.text
 
     def broadcastWithdrawal(self, layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, layer2_withdrawal_id, signature):
-        url = HOSTNAME + 'withdrawalBroadcasted'
+        url = self.layer2_node_url + 'withdrawalBroadcasted'
         data = {'layer1_transaction_id': layer1_transaction_id,
                 'layer1_transaction_vout': layer1_transaction_vout,
                 'layer1_address': layer1_address,
@@ -121,7 +126,7 @@ class Layer2Interface:
         return r.text
 
     def confirmWithdrawal(self, layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, signature):
-        url = HOSTNAME + 'withdrawalConfirmed'
+        url = self.layer2_node_url + 'withdrawalConfirmed'
         data = {'layer1_transaction_id': layer1_transaction_id,
                 'layer1_transaction_vout': layer1_transaction_vout,
                 'layer1_address': layer1_address,
@@ -132,7 +137,7 @@ class Layer2Interface:
         return r.text
 
     def confirmWithdrawalMulti(self, confirmedWithdrawals: List[DatabaseInterface.ConfirmedTransaction]):
-        url = HOSTNAME + 'withdrawalConfirmed'
+        url = self.layer2_node_url + 'withdrawalConfirmed'
         transactions = []
         for confirmedWithdrawal in confirmedWithdrawals:
             transaction = {'layer1_transaction_id': confirmedWithdrawal.transaction_id,
