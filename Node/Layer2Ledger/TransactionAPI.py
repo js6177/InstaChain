@@ -11,17 +11,14 @@ from InstaChainAPI import InstachainRequestHandler
 from NodeInfoAPI import NODE_ID
 import GlobalLogging
 
-#TODO make this a blitz request handler
 class pushTransaction(InstachainRequestHandler):
     def getParameters(self):
         GlobalLogging.logger.log_text("getParameters() called")
         self.amount = int(self.getPostRequestParams('amount') or 0)
         self.fee = int(self.getPostRequestParams('fee') or 0)
         self.source = self.getPostRequestParams('source_pubkey')
-        #self.source = "test"
         self.destination = self.getPostRequestParams('destination_address')
         self.signature = self.getPostRequestParams('signature')
-        #message = self.getRequestParams('message')
         self.nonce = self.getPostRequestParams('nonce')
         
     def processRequest(self):

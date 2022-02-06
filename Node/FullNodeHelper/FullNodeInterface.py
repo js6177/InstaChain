@@ -62,29 +62,22 @@ class BitcoinRPC:
 
     def importMultiplePrivkeys(self, seed, startingIndex, numberOfKeysToGenerate, testnet):
         seed_bytes = binascii.unhexlify(seed)
-        #seed_bytes = binascii.unhexlify(b"1eb00bbddcf098084229a8ab4177768165f5c453ccb85e70811bbed6f6da5fc19a5de40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4")
         pubkey_version = Bip32Conf.KEY_NET_VER.Test() if testnet else Bip32Conf.KEY_NET_VER.Main()
         privkey_version = BitcoinConf.WIF_NET_VER.Test() if testnet else BitcoinConf.WIF_NET_VER.Main()
 
         master_bip32_ctx = Bip32.FromSeed(seed_bytes, pubkey_version)
         print("Master Private key: " + master_bip32_ctx.PrivateKey().ToExtended())
         wif = WifEncoder.Encode(master_bip32_ctx.PrivateKey().Raw().ToBytes(), True, privkey_version)
-        #print("Master Private key WIF: " + wif)
         descriptors = []
         master_pubkey = master_bip32_ctx.PublicKey().ToExtended()
         print("Master Public key: " + master_pubkey)
         j = 2
         for i in range(startingIndex, startingIndex+numberOfKeysToGenerate):
-            #print("\n")
             bip32_ctx = master_bip32_ctx.ChildKey(44) \
                                 .ChildKey(1) \
                                 .ChildKey(j)                         \
                                 .ChildKey(i)
-            # Print keys in extended format
-            #print("Extended privkey: " + bip32_ctx.PrivateKey().ToExtended())
-            #print("Extended pubkey: " + bip32_ctx.PublicKey().ToExtended())
             wif = WifEncoder.Encode(bip32_ctx.PrivateKey().Raw().ToBytes(), True, privkey_version)
-            #print("WIF: " + wif)
 
             bip32_ctx = Bip32.FromExtendedKey(master_pubkey, pubkey_version)
             bip32_ctx = bip32_ctx.ChildKey(44) \
@@ -92,29 +85,18 @@ class BitcoinRPC:
                                 .ChildKey(j)                         \
                                 .ChildKey(i)
 
-            #print("Extended pubkey: " + bip32_ctx.PublicKey().ToExtended())
             descriptor = "pkh(" + master_pubkey + "/44/1/" + str(j) + "/" + str(i) + ")"
             descriptor_checksum = checksum.AddChecksum(descriptor) #see getdescriptorinfo
-            #print(descriptor_checksum)
             pubkey_bytes = bip32_ctx.PublicKey().RawCompressed().ToBytes()
             address = P2PKH.ToAddress(pubkey_bytes, BitcoinConf.P2PKH_NET_VER.Test())
-            #print(address)
-            #importmultiCmd = '[{ "desc" : "' + descriptor_checksum + '","timestamp": "now", "keys": [ "' + wif + '" ] } ]' '{"rescan": false}'
             importmultiCmd = {'desc': descriptor_checksum, "timestamp": "now", "keys": [wif] }
             descriptors.append(importmultiCmd)
-            #print("address: " + address)
-
-        #print(json.dumps(descriptors))
-        #command = 'bitcoin-cli.exe ' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME + " importmulti '" + json.dumps(descriptors) + "' " + '\'{"rescan": false}\''
-        #print("command: " + command)
         try:
             status = self.rpc_connection.importmulti(descriptors)
             print(status)
         except Exception as e:
             print(e)
         print("Master Public key: " + master_pubkey)
-        #importMultiStatusJSON = os.popen(command).read()
-        #print(importMultiStatusJSON)
 
     def broadcastTransaction(self, pendingWithdrawals):
         sendmanyCmd = {}
@@ -122,7 +104,7 @@ class BitcoinRPC:
         for key, pendingWithdrawal in pendingWithdrawals.items():
             subtractfeefrom.add(pendingWithdrawal.destination_address)
             existingAmount = sendmanyCmd.get(pendingWithdrawal.destination_address, 0)
-            sendmanyCmd[pendingWithdrawal.destination_address] = pendingWithdrawal.amount + existingAmount #'{0:f}'.format(transactionOutput.amount)
+            sendmanyCmd[pendingWithdrawal.destination_address] = pendingWithdrawal.amount + existingAmount 
         for key, value in sendmanyCmd.items():
             sendmanyCmd[key] = sendmanyCmd.get(key)/SATOSHI_PER_BITCOIN #note: must add the values together while they are integers, and then convert them at the end
         comment = 'N/A' #maybe have the guid here
@@ -130,12 +112,6 @@ class BitcoinRPC:
         minconf = 1 #default minconf value
         print("broadcastTransaction: " + str(sendmanyCmd))
 
-        #command = '"' + BITCOIN_CLI_PATH + '"' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME  + " sendmany " + "\"\"" + " '" + json.dumps(sendmanyCmd) + "' " #+ " " + comment + " " + comment_to + " " + str(subtractfeefromamount)
-        #command = '"' + BITCOIN_CLI_PATH + '"' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME  + " sendmany \"\" {'tb1q0a8r8dtsq6shsndg8jjzdu7dxtu0w6p2kuxx4p': 0.00001} " #+ " " + comment + " " + comment_to + " " + str(subtractfeefromamount)
-
-        #broadcastTransactionsJSON = os.popen(command).read()
-        #print(command)
-        #print("broadcastTransaction: " + broadcastTransactionsJSON)
         status = ''
         try:
             status = self.rpc_connection.sendmany("", sendmanyCmd, str(minconf), "", list(subtractfeefrom))
@@ -143,17 +119,12 @@ class BitcoinRPC:
         except Exception as e:
             print(e)
         return status
-        #broadcastTransactionsResponse = json.loads(broadcastTransactionsJSON)
-        #transactionsID = broadcastTransactionsResponse["trxid"]
-        #print("broadcastTransaction: " + broadcastTransactionsJSON)
 
     def getConfirmedTransactions(self, lastblockhash = ''):
         targetConfirmations = 0
         if(lastblockhash):
             targetConfirmations = str(self.getTargetConfirmations())
-        #command = '"' + BITCOIN_CLI_PATH + '"' + self.getTestnetCommandParam() + " -rpcwallet=" + WALLET_NAME + " listsinceblock " + lastblockhash + " " + targetConfirmations
-        #print(command)
-        #listsinceblockJSON = os.popen(command).read()
+
         print('lastblockhash: ' + lastblockhash)
         print('targetConfirmations: ' + str(targetConfirmations))
         listsinceblockJSON = ''
@@ -166,7 +137,6 @@ class BitcoinRPC:
         except Exception as e:
             print(e)
 
-        #listsinceblockResponse = json.load(listsinceblockJSON)
         newlastblock = listsinceblockJSON["lastblock"]
         confirmedTransactions = []
         transactions = listsinceblockJSON["transactions"]

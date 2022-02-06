@@ -45,7 +45,6 @@ class ConfirmedTransaction():
         return self
 
     def fromGetTransactionDetails(self, transactionDetailJSON, transaction_id, blockheight, timestamp):
-        #output = DatabaseInterface.ConfirmedTransaction(transaction_id = transaction_id, layer2_status=None, transaction_vout=transaction["vout"], amount = transaction["amount"], fee=transaction["fee"], address=transaction["address"], category = transaction["category"], confirmations=0, timestamp=0, blockheight=0 )
         self.setValues(transaction_id, ConfirmedTransaction.LAYER2_STATUS_PENDING, transactionDetailJSON["vout"], transactionDetailJSON["amount"], transactionDetailJSON["fee"], transactionDetailJSON["address"], transactionDetailJSON["category"], 0, timestamp, blockheight)
         return self
 

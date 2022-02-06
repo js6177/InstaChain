@@ -8,7 +8,6 @@ import logging
 import random
 import string
 import datetime
-#from bip_utils import Bip32, Bip32Conf
 from bip_utils import Bip32, Bip32Utils, Bip32Conf, BitcoinConf, Bip44BitcoinTestNet, WifEncoder, P2PKH
 
 import GlobalLogging
@@ -128,8 +127,6 @@ class DepositAddresses(ndb.Model):
 
 # Called by user
 def getDepositAddress(_layer2_address, nonce, signature):
-    #send request
-    #if success, add the address to the list
     status = ErrorMessage.ERROR_SUCCESS
     if (not KeyVerification.verifyGetDepositAddress(_layer2_address, nonce, signature)):
         return ErrorMessage.ERROR_CANNOT_VERIFY_SIGNATURE, None
@@ -138,11 +135,7 @@ def getDepositAddress(_layer2_address, nonce, signature):
     deposit_adress = DepositAddresses.getAddressFromPubkey(_layer2_address)
     if(deposit_adress):
         return status, deposit_adress.layer1_address
-    #check to make sure nonce doesn't exist, though not nessesary
-    #user_addr = wallet.create_address(network="btctest", xpub=DEPOSIT_WALLET_MASTER_PUBKEY) #pywallet was not able to be installed
-    #deposit_layer1_address = '37XuVSEpWW4trkfmvWzegTHQt7BdktSKUs' #user_addr['address']
 
-    #mpk = electrum_mpk(HD_SEED)
     bip32_ctx = Bip32.FromExtendedKey(DEPOSIT_WALLET_MASTER_PUBKEY, Bip32Conf.KEY_NET_VER.Test())
     index = MasterPublicKeyIndex.getIndexAndAtomicallyIncrement()
     GlobalLogging.logger.log_text("getDepositAddress index: " + str(index))
@@ -150,12 +143,7 @@ def getDepositAddress(_layer2_address, nonce, signature):
     pubkey_bytes = bip32_ctx.PublicKey().RawCompressed().ToBytes()
     deposit_layer1_address = P2PKH.ToAddress(pubkey_bytes, BitcoinConf.P2PKH_NET_VER.Test())
 
-    #layer1_pubkey = electrum_pubkey(ELECTRUM_MASTER_PUBLIC_KEY, MasterPublicKeyIndex.getIndexAndAtomicallyIncrement())
-    #deposit_layer1_address = pubkey_to_address(layer1_pubkey)
     logging.info('deposit_layer1_address: ' + deposit_layer1_address)
-    #seed = random_electrum_seed()
-    #mpk = electrum_mpk()deposit_layer1_address = P2PKH.ToAddress(pubkey_bytes, BitcoinConf.P2PKH_NET_VER.Test())
-    #temp_address = 'bc1' + ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(40))#'37XuVSEpWW4trkfmvWzegTHQt7BdktSKUs'
     d = DepositAddresses(layer2_address = _layer2_address, layer1_address = deposit_layer1_address, signature = '', mpk_index = index)
     d.put()
     return status, deposit_layer1_address

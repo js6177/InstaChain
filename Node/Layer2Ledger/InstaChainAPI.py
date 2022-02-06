@@ -30,7 +30,6 @@ class InstachainRequestHandler(FlaskRequestHandler):
         self.getParameters()
 
         self.processRequest()
-        #self.response.write(json.dumps(self.result))
         self.postProcessRequest() #to do anything after processing the request, such as logging error codes
     def post(self):
         self.handleRequest()

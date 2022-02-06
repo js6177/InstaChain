@@ -118,7 +118,6 @@ class depositConfirmed(InstachainRequestHandler):
             error["layer1_transaction_id"] = trx.layer1_transaction_id
             error["layer1_transaction_vout"] = str(trx.layer1_transaction_vout)
             transactionResults.append(error)
-        #Onboarding.withdrawalBroadcasted(self.layer1_transaction_id, self.layer1_transaction_vout, self.layer1_address, self.amount, self.layer2_withdrawal_id, self.signature)
         self.result = ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS)
         self.result["transactions"] = transactionResults
 

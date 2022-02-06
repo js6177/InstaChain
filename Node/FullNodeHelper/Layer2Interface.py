@@ -6,7 +6,6 @@ import random
 import string
 import datetime
 from dataclasses import dataclass
-#from tinydb import TinyDB, Query
 import DatabaseInterface
 import SigningAddress
 import binascii
@@ -93,7 +92,6 @@ class Layer2Interface:
         print(r.text)
         return r.text
 
-    #TODO: do later
     def broadcastWithdrawalMulti(self, withdrawalBroadcastedTramsactions: List[WithdrawalBroadcastedTransaction]):
         url = self.layer2_node_url + 'withdrawalBroadcasted'
         transactions = []

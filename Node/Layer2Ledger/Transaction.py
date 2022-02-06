@@ -219,7 +219,6 @@ class Transaction(ndb.Model):
     @staticmethod
     def put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _transaction_id, _layer1_transaction_id = None):
         t1 = datetime.datetime.now()
-        # begin transactional
         status = ErrorMessage.ERROR_UNKNOWN
         nonce_exists = Transaction.query(Transaction.transaction_id == _transaction_id).get()
         if(nonce_exists):
@@ -245,7 +244,6 @@ class Transaction(ndb.Model):
                 status = ErrorMessage.ERROR_SUCCESS
             else:
                 status = ErrorMessage.ERROR_INSUFFICIENT_FUNDS
-        # end transactional
         DebugLogger.TransactionDuration.logDuration(t1, _transaction_id, 'put_transaction')
         return status
 
