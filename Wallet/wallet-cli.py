@@ -23,7 +23,7 @@ COMMANDS_HELP = {
 
     'create-transaction': ['<destination address> <amount> [source address]', 'Creates and signs a transactions. The source address is optional if your wallet only has 1 address. The signed transaction is not broadcasted, instead it is saved as a json and can be broadcasted later'],
     'transfer': ['<destination address> <amount> [source address] [node url]', 'Signs a transaction than broadcasts it, and displayed the return code. The source address is optional if your wallet only has 1 address.'],
-'push-signed-transaction': ['<signed transaction json>', 'Broadcasts a signed transaction'],
+    'push-signed-transaction': ['<signed transaction json>', 'Broadcasts a signed transaction'],
 
     'list-wallet-transactions': ['', 'List all transaction of addresses that belong to the wallet of all nodes'],
     'list-wallet-balance': ['[node]', 'Displays the balance of the wallet (displays the balance of all addresses in your wallet)'],

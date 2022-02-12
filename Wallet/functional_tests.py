@@ -58,6 +58,33 @@ class FunctionalTestHelper:
             print(responses)
             print('Total duration: ' + str(delta))
 
+    def TransferAddressToAddress(self):
+        sourceAddressPubkey = self.getRichestAddress()
+        destinationAddressPubkey = self.wallet.generate_new_address()
+
+        sourceAddress_balance_before = self.wallet.get_address_balance(sourceAddressPubkey, self.wallet.current_node, True)
+        transfer_amount = round(sourceAddress_balance_before * 0.30)
+
+        self.wallet.transfer(destinationAddressPubkey, sourceAddressPubkey, transfer_amount)
+        sourceAddress_balance_after = self.wallet.get_address_balance(sourceAddressPubkey, self.wallet.current_node, True)
+        destAddress_balance_after = self.wallet.get_address_balance(destinationAddressPubkey, self.wallet.current_node, True)
+        fee = DEFAULT_FEE
+
+        assert(sourceAddress_balance_after == sourceAddress_balance_before - transfer_amount)
+        assert(destAddress_balance_after == transfer_amount - fee)
+
+        # do the same transfer one more time to ensure it works corretly when the receiving address already has a balance
+        sourceAddress_balance_before = self.wallet.get_address_balance(sourceAddressPubkey, self.wallet.current_node, True)
+        destAddress_balance_before = self.wallet.get_address_balance(destinationAddressPubkey, self.wallet.current_node, True)
+
+        self.wallet.transfer(destinationAddressPubkey, sourceAddressPubkey, transfer_amount)
+
+        sourceAddress_balance_after = self.wallet.get_address_balance(sourceAddressPubkey, self.wallet.current_node, True)
+        destAddress_balance_after = self.wallet.get_address_balance(destinationAddressPubkey, self.wallet.current_node, True)
+
+        assert(sourceAddress_balance_after == sourceAddress_balance_before - transfer_amount)
+        assert(destAddress_balance_after == destAddress_balance_before + transfer_amount - fee)
+
     def TransferMultithreadedToSecondAddress(self):
         destinationAddressLabel = "TransferMultithreadedToSecondAddress destinationAddress"
         destinationAddressPubkey = self.wallet.generate_new_address(destinationAddressLabel)
@@ -121,7 +148,6 @@ class FunctionalTestHelper:
                 t2 = datetime.datetime.now()
                 print('Total duration: ' + str(t2-t1))
                 print('Transaction/sec: ' +  str(trxCount/((t2-t1).total_seconds())))
-                #print(responses)
                 for response in responses:
                     error_code = response["error_code"]
                     resultsTable[error_code] = resultsTable.get(error_code,0)+1
@@ -134,10 +160,11 @@ class FunctionalTestHelper:
 
 
 testHelper = FunctionalTestHelper("wallet.json")
+testHelper.TransferAddressToAddress()
 #testHelper.TransferMultithreadedToSecondAddress()
 #testHelper.consolidateBalances()
 #testHelper.TransferMultithreadedSingleAddressToManyAddresses()
-#quit()
+quit()
 
 loop = asyncio.get_event_loop()
 future = asyncio.ensure_future(testHelper.TransferMultithreadedManyAddressesToManyAddresses())
