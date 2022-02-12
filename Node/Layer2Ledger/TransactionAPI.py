@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from InstaChainAPI import InstachainRequestHandler
 from NodeInfoAPI import NODE_ID
 import GlobalLogging
+import KeyVerification
 
 class pushTransaction(InstachainRequestHandler):
     def getParameters(self):
@@ -24,7 +25,7 @@ class pushTransaction(InstachainRequestHandler):
     def processRequest(self):
         t = time.time()
 
-        message = NODE_ID + " " + "1 " + self.source + " " + self.destination + " " + str(self.amount) + " " + str(self.fee) + " " + self.nonce
+        message = KeyVerification.buildTransferMessage(self.source, self.destination, self.amount, self.fee, self.nonce)
         status = Transaction.process_transaction(Transaction.TRX_TRANSFER, self.amount, self.fee, self.source, self.destination, message, self.signature, self.nonce)
         self.result = ErrorMessage.build_error_message(status)
 

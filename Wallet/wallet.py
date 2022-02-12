@@ -30,6 +30,13 @@ TRX_WITHDRAWAL_CONFIRMED = 5  # when the withdrawal gets confirmed in the main b
 DIRECTION_SENDING = 0
 DIRECTION_RECIEVING = 1
 
+#lower 32 bits are used to specify the asset
+ASSET_BITCOIN = 1
+ASSET_ETHEREUM = 2
+
+ASSET_TESTNET_FLAG = (1 << 32) #bit 32 is the testnet flag
+ASSET_STABLECOIN_FLAG = (1 << 33)
+
 
 # Represents a node in the decentralized network. Each node has it's own ledger,
 # and all transactions must belong to a unique node
@@ -37,11 +44,13 @@ class Node:
     hostname = ''
     node_id = ''
     name = ''
+    asset_id = 0
 
-    def __init__(self, _hostname, _node_id, _name):
+    def __init__(self, _hostname, _node_id, _name, asset_id = ASSET_BITCOIN|ASSET_TESTNET_FLAG):
         self.hostname = _hostname
         self.node_id = _node_id
         self.name = _name
+        self.asset_id = asset_id
 
     def __dict___(self):
         return vars(self)
@@ -55,6 +64,7 @@ class Transaction:
     transaction_type = ''  # can be transfer, deposit, or withdrawal
     transaction_hash = ''  # empty, only used in server for chaining transactions
     transaction_id = ''  # also known as the nonce, a random 32 byte ascii string to prevent the same transaction being processed more than once
+    asset_id = 0    # represents the asset that is being transacted, i.e bitcoin
     signature = ''  # the signature of the message (that was signed using the private key that corresponds to the source_address)
     signature_date = ''  #date that the transaction was signed by the sender's private key
     layer1_transaction_id = '' # for deposit/withdrawal, this is the layer 1 transaction id
@@ -80,7 +90,7 @@ class Transaction:
 
     #returns a string representing a transaction that can be signed by the source public key to be considered a valid transaction
     def to_spendable_string(self):
-        message = self.node.node_id + " " + str(TRX_TRANSFER) + " " + self.source_address + " " + self.destination_address + " " + str(self.amount) + " " + str(self.fee) + " " + self.transaction_id  #+ " " + str(self.signature_date)
+        message = self.node.node_id + " " + str(self.node.asset_id) + " " + str(TRX_TRANSFER) + " " + self.source_address + " " + self.destination_address + " " + str(self.amount) + " " + str(self.fee) + " " + self.transaction_id  #+ " " + str(self.signature_date)
         return message
 
     #for printing
@@ -203,7 +213,6 @@ class Wallet:
 
         print('current_node: ' +  self.current_node)
 
-
         for trusted_node in trusted_nodes:
             self.trusted_nodes[trusted_node['hostname']] = Node(trusted_node['hostname'], trusted_node['node_id'], trusted_node['name'] )
 
@@ -231,7 +240,7 @@ class Wallet:
     def add_trusted_node(self, node_url):
         if(node_url):
             node_info_result = connection.getNodeInfo(node_url)
-            node = Node(node_url, node_info_result.node_info.node_id, node_info_result.node_info.node_name )
+            node = Node(node_url, node_info_result.node_info.node_id, node_info_result.node_info.node_name, node_info_result.asset_id )
             self.trusted_nodes[node_url] = node
 
             if(not self.current_node):
@@ -293,8 +302,10 @@ class Wallet:
         trx.amount = amount
         trx.source_address = source_address_pubkey
         trx.destination_address = layer1_withdrawal_address
+        trx.asset_id = self.trusted_nodes[_node_url].asset_id
+
         address = self.addresses[source_address_pubkey]
-        message = self.trusted_nodes[_node_url].node_id + ' ' + str(TRX_WITHDRAWAL_REQUESTED) + ' ' + source_address_pubkey + ' ' + layer1_withdrawal_address + ' ' + trx.transaction_id + ' ' + str(amount)
+        message = self.trusted_nodes[_node_url].node_id + ' ' + str(trx.asset_id) + ' ' + str(TRX_WITHDRAWAL_REQUESTED) + ' ' + source_address_pubkey + ' ' + layer1_withdrawal_address + ' ' + trx.transaction_id + ' ' + str(amount)
         trx.signature = Wallet.sign_string(address.privkey, message)
         print('Transaction id: ' + trx.transaction_id)
         return trx
@@ -329,12 +340,14 @@ class Wallet:
         trx.amount = amount
         trx.source_address = source_address.pubkey
         trx.node = node
+        trx.asset_id = node.asset_id
 
         trx.signature_date = round(time.time()) # date the trx was signed. You can sign a transaction, but push it later
 
         transaction_str = trx.to_spendable_string() # this will return the transaction in flattened spendable string that the sender will sign
         trx.signature = base58.b58encode(privkey.sign(transaction_str.encode("utf-8")))
         print('Transaction id: ' + trx.transaction_id)
+        print('Asset id: ' + hex(trx.asset_id))
         return trx
 
     async def create_transaction_async(self, session, destination_address_pubkey, source_address_pubkey, amount, _node_hostname = None):

@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from NodeInfoAPI import NODE_ID
 from InstaChainAPI import InstachainRequestHandler
 import GlobalLogging
-
+import KeyVerification
 
 class withdrawalRequest(InstachainRequestHandler):
     def getParameters(self):
@@ -21,7 +21,7 @@ class withdrawalRequest(InstachainRequestHandler):
         self.signature = self.getRequestParams('signature')
 
     def processRequest(self):
-        message = NODE_ID + " " + str(Transaction.TRX_WITHDRAWAL_INITIATED) + " " + self.public_key + " " + self.withdrawal_address + ' ' + self.nonce + ' ' + str(self.amount)
+        message = KeyVerification.buildWithdrawalRequestMessage(self.public_key, self.withdrawal_address, self.nonce, self.amount)
         status = Transaction.process_transaction(Transaction.TRX_WITHDRAWAL_INITIATED, self.amount, 0, self.public_key, self.withdrawal_address, message, self.signature, self.nonce)
 
         self.result = ErrorMessage.build_error_message(status)

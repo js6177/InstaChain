@@ -3,11 +3,7 @@ import Address
 import Transaction
 import logging
 import signing_keys
-from NodeInfoAPI import NODE_ID
-
-def verifyTransactionSignature(source_pubkey, destination_address, amount, fee, nonce, signature):
-    message = NODE_ID + " " + "1 " + source_pubkey + " " + destination_address + " " + str(amount) + " " + str(fee) + " " + nonce
-    pass
+from NodeInfoAPI import NODE_ID, NODE_ASSET_ID
 
 def verifyGetDepositAddress(source_pubkey, nonce, signature):
     message = NODE_ID + " " + source_pubkey + ' ' + nonce
@@ -28,3 +24,9 @@ def verifyWithdrawalConfirmed(layer1_transaction_id, layer1_transaction_vout, la
     message = NODE_ID + " " + str(Transaction.Transaction.TRX_WITHDRAWAL_CONFIRMED) + ' ' + layer1_transaction_id + ' ' + str(layer1_transaction_vout) + ' ' + layer1_address + ' ' + str(amount)
     verifyingAddress = Address.Address(signing_keys.deposit_signing_key_pubkey)
     return verifyingAddress.verify_signature(message, signature)
+
+def buildTransferMessage(source_pubkey, destination_address_pubkey, amount, fee, nonce):
+    return (NODE_ID + " " + str(NODE_ASSET_ID) + " " + str(Transaction.Transaction.TRX_TRANSFER) + " " + source_pubkey + " " + destination_address_pubkey + " " + str(amount) + " " + str(fee) + " " + nonce)
+
+def buildWithdrawalRequestMessage(source_pubkey, withdrawal_address, nonce, amount):
+    return (NODE_ID + " " + str(NODE_ASSET_ID) + " " + str(Transaction.Transaction.TRX_WITHDRAWAL_INITIATED) + " " + source_pubkey + " " + withdrawal_address + ' ' + nonce + ' ' + str(amount))
