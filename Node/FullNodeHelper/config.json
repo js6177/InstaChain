@@ -1,0 +1,15 @@
+{
+  "database_name": "bitcoin.db",
+  "rpc_ip": "127.0.0.1",
+  "rpc_port": "8332",
+  "rpc_user": "bitcoin",
+  "rpc_password": "[enter rpc password here (should be same as in bitcoin.conf)]",
+  "wallet_name": "wallet",
+  "layer2_node_url": "https://testnet.instachain.io/",
+  "import_wallet_privkey_at_startup": true,
+  "wallet_private_key_seed": "[enter private key seed here to generate and import deposit addresses to bitcoin core]",
+  "import_wallet_privkey_while_looping": false,
+  "import_wallet_privkey_startup_count": 1000,
+  "import_wallet_privkey_loop_count": 1000
+}
+
