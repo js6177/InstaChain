@@ -7,7 +7,7 @@
   "wallet_name": "wallet",
   "layer2_node_url": "https://testnet.instachain.io/",
   "import_wallet_privkey_at_startup": true,
-  "wallet_private_key_seed": "[enter private key seed here to generate and import deposit addresses to bitcoin core]",
+  "wallet_private_key_seed_mneumonic": "[enter random words here (they will be sha256'd) to generate and import deposit addresses to bitcoin core]",
   "import_wallet_privkey_while_looping": false,
   "import_wallet_privkey_startup_count": 1000,
   "import_wallet_privkey_loop_count": 1000
