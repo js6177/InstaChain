@@ -6,7 +6,6 @@ import random
 import string
 import datetime
 from dataclasses import dataclass
-#from tinydb import TinyDB, Query
 import DatabaseInterface
 import SigningAddress
 import binascii
