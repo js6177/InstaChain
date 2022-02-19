@@ -21,6 +21,7 @@ from types import SimpleNamespace
 import hashlib
 
 SATOSHI_PER_BITCOIN = 100000000
+MAX_NUMBER_OF_KEYS_TO_IMPORT_PER_RPC_REQUEST = 1000
 
 CONFIG_FILE_NAME = "config.json"
 
@@ -84,18 +85,23 @@ class OnboardingHelper():
             print("Error: Cound not find key " + str(e) + " in " + CONFIG_FILE_NAME + " , Exiting.")
 
     def import_private_keys(self, count: int, db, nh):
+        number_of_keys_left_to_import = count
         t1 = time.time()
-        privkeyBip32Index = db.getImportPrivkeyBip32Index()
-        print("Importing " + str(count) +" private keys starting at index " + str(privkeyBip32Index))
-        m = hashlib.sha256()
-        m.update(self.wallet_private_key_seed_mneumonic.encode("utf-8"))
-        wallet_private_key_seed = m.hexdigest()
-        nh.importMultiplePrivkeys(wallet_private_key_seed, privkeyBip32Index, count, True)
-        db.setImportPrivkeyBip32Index(privkeyBip32Index + count)
-        elapsed_time = time.time() - t1
+        while(number_of_keys_left_to_import > 0):
+            number_of_keys_to_import = min(number_of_keys_left_to_import, MAX_NUMBER_OF_KEYS_TO_IMPORT_PER_RPC_REQUEST)
+            privkeyBip32Index = db.getImportPrivkeyBip32Index()
+            print("Importing " + str(number_of_keys_to_import) +" private keys starting at index " + str(privkeyBip32Index))
+            m = hashlib.sha256()
+            m.update(self.wallet_private_key_seed_mneumonic.encode("utf-8"))
+            wallet_private_key_seed = m.hexdigest()
+            nh.importMultiplePrivkeys(wallet_private_key_seed, privkeyBip32Index, number_of_keys_to_import, True)
+            db.setImportPrivkeyBip32Index(privkeyBip32Index + number_of_keys_to_import)
+            number_of_keys_left_to_import -= number_of_keys_to_import
 
-        print("Done importing private keys. Imported " + str(count) + " keys from index " + str(privkeyBip32Index))
-        print("Time elapsed: " + str(elapsed_time))
+            elapsed_time = time.time() - t1
+
+            print("Done importing private keys. Imported " + str(number_of_keys_to_import) + " keys from index " + str(privkeyBip32Index))
+            print("Time elapsed: " + str(elapsed_time))
 
     def run(self):
         self.loadConfig()
