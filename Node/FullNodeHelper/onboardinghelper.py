@@ -88,19 +88,19 @@ class OnboardingHelper():
         number_of_keys_left_to_import = count
         t1 = time.time()
         while(number_of_keys_left_to_import > 0):
-            keys_to_import = max(count-number_of_keys_left_to_import, MAX_NUMBER_OF_KEYS_TO_IMPORT_PER_RPC_REQUEST)
+            number_of_keys_to_import = min(number_of_keys_left_to_import, MAX_NUMBER_OF_KEYS_TO_IMPORT_PER_RPC_REQUEST)
             privkeyBip32Index = db.getImportPrivkeyBip32Index()
-            print("Importing " + str(count) +" private keys starting at index " + str(privkeyBip32Index))
+            print("Importing " + str(number_of_keys_to_import) +" private keys starting at index " + str(privkeyBip32Index))
             m = hashlib.sha256()
             m.update(self.wallet_private_key_seed_mneumonic.encode("utf-8"))
             wallet_private_key_seed = m.hexdigest()
-            nh.importMultiplePrivkeys(wallet_private_key_seed, privkeyBip32Index, count, True)
-            db.setImportPrivkeyBip32Index(privkeyBip32Index + count)
-            number_of_keys_left_to_import -= keys_to_import
+            nh.importMultiplePrivkeys(wallet_private_key_seed, privkeyBip32Index, number_of_keys_to_import, True)
+            db.setImportPrivkeyBip32Index(privkeyBip32Index + number_of_keys_to_import)
+            number_of_keys_left_to_import -= number_of_keys_to_import
 
             elapsed_time = time.time() - t1
 
-            print("Done importing private keys. Imported " + str(count) + " keys from index " + str(privkeyBip32Index))
+            print("Done importing private keys. Imported " + str(number_of_keys_to_import) + " keys from index " + str(privkeyBip32Index))
             print("Time elapsed: " + str(elapsed_time))
 
     def run(self):
