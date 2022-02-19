@@ -114,6 +114,7 @@ class OnboardingHelper():
 
         if(self.import_wallet_privkey_at_startup):
             self.import_private_keys(self.import_wallet_privkey_startup_count, db, nh)
+            return
 
         lastblockhash = db.getLastBlockHash()
         confirmedTransactionsDict = {}
