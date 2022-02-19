@@ -18,6 +18,7 @@ import argparse
 import Layer2Interface
 from FullNodeInterface import BitcoinRPC
 from types import SimpleNamespace
+import hashlib
 
 SATOSHI_PER_BITCOIN = 100000000
 
@@ -45,13 +46,13 @@ class OnboardingHelper():
     wallet_name: string = None
 
     #optional config variables
-    wallet_private_key_seed: string = None
+    wallet_private_key_seed_mneumonic: string = None
     testnet: bool = True
     layer2_node_url: string = None
 
     #variables for importing private keys
     import_wallet_privkey_at_startup: bool = False
-    wallet_private_key_seed: string = None
+    wallet_private_key_seed_mneumonic: string = None
     import_wallet_privkey_while_looping: bool = False
     import_wallet_privkey_startup_count: int = 0
     import_wallet_privkey_loop_count: int = 0
@@ -72,7 +73,7 @@ class OnboardingHelper():
 
                 #thse don't throw exceptions if key is notfound, instead they assign null
                 self.import_wallet_privkey_at_startup = data.get("import_wallet_privkey_at_startup")
-                self.wallet_private_key_seed = data.get("wallet_private_key_seed")
+                self.wallet_private_key_seed_mneumonic = data.get("wallet_private_key_seed_mneumonic")
                 self.import_wallet_privkey_while_looping = data.get("import_wallet_privkey_while_looping")
                 self.import_wallet_privkey_startup_count = data.get("import_wallet_privkey_startup_count")
                 self.import_wallet_privkey_loop_count = data.get("import_wallet_privkey_loop_count")
@@ -86,7 +87,10 @@ class OnboardingHelper():
         t1 = time.time()
         privkeyBip32Index = db.getImportPrivkeyBip32Index()
         print("Importing " + str(count) +" private keys starting at index " + str(privkeyBip32Index))
-        nh.importMultiplePrivkeys(self.wallet_private_key_seed, privkeyBip32Index, count, True)
+        m = hashlib.sha256()
+        m.update(self.wallet_private_key_seed_mneumonic.encode("utf-8"))
+        wallet_private_key_seed = m.hexdigest()
+        nh.importMultiplePrivkeys(wallet_private_key_seed, privkeyBip32Index, count, True)
         db.setImportPrivkeyBip32Index(privkeyBip32Index + count)
         elapsed_time = time.time() - t1
 
@@ -110,6 +114,7 @@ class OnboardingHelper():
 
         if(self.import_wallet_privkey_at_startup):
             self.import_private_keys(self.import_wallet_privkey_startup_count, db, nh)
+            return
 
         lastblockhash = db.getLastBlockHash()
         confirmedTransactionsDict = {}
