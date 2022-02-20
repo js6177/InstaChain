@@ -36,4 +36,5 @@ app.add_url_rule(r'/ackWithdrawalRequests', 'ackWithdrawalRequests', OnboardingA
 app.add_url_rule(r'/getNewDepositAddress', 'getNewDepositAddress', OnboardingAPI.getNewDepositAddress.initializeRequest) # get a new address to deposit mainnet coins into
 app.add_url_rule(r'/depositFunds', 'depositFunds', OnboardingAPI.depositConfirmed.initializeRequest, methods=['POST']) #this transaction will be signed by the deposited addresses public key. This API will only be called by the full node
 
-app.add_url_rule(r'/delete', 'delete', SuperUser.Delete.initializeRequest)
+# Remove from production, the /delete is only for deleting all the tables when dev/testing
+#app.add_url_rule(r'/delete', 'delete', SuperUser.Delete.initializeRequest)
