@@ -18,8 +18,10 @@ import argparse
 import Layer2Interface
 from FullNodeInterface import BitcoinRPC
 from types import SimpleNamespace
+import hashlib
 
 SATOSHI_PER_BITCOIN = 100000000
+MAX_NUMBER_OF_KEYS_TO_IMPORT_PER_RPC_REQUEST = 1000
 
 CONFIG_FILE_NAME = "config.json"
 
@@ -45,13 +47,13 @@ class OnboardingHelper():
     wallet_name: string = None
 
     #optional config variables
-    wallet_private_key_seed: string = None
+    wallet_private_key_seed_mneumonic: string = None
     testnet: bool = True
     layer2_node_url: string = None
 
     #variables for importing private keys
     import_wallet_privkey_at_startup: bool = False
-    wallet_private_key_seed: string = None
+    wallet_private_key_seed_mneumonic: string = None
     import_wallet_privkey_while_looping: bool = False
     import_wallet_privkey_startup_count: int = 0
     import_wallet_privkey_loop_count: int = 0
@@ -72,7 +74,7 @@ class OnboardingHelper():
 
                 #thse don't throw exceptions if key is notfound, instead they assign null
                 self.import_wallet_privkey_at_startup = data.get("import_wallet_privkey_at_startup")
-                self.wallet_private_key_seed = data.get("wallet_private_key_seed")
+                self.wallet_private_key_seed_mneumonic = data.get("wallet_private_key_seed_mneumonic")
                 self.import_wallet_privkey_while_looping = data.get("import_wallet_privkey_while_looping")
                 self.import_wallet_privkey_startup_count = data.get("import_wallet_privkey_startup_count")
                 self.import_wallet_privkey_loop_count = data.get("import_wallet_privkey_loop_count")
@@ -83,15 +85,23 @@ class OnboardingHelper():
             print("Error: Cound not find key " + str(e) + " in " + CONFIG_FILE_NAME + " , Exiting.")
 
     def import_private_keys(self, count: int, db, nh):
+        number_of_keys_left_to_import = count
         t1 = time.time()
-        privkeyBip32Index = db.getImportPrivkeyBip32Index()
-        print("Importing " + str(count) +" private keys starting at index " + str(privkeyBip32Index))
-        nh.importMultiplePrivkeys(self.wallet_private_key_seed, privkeyBip32Index, count, True)
-        db.setImportPrivkeyBip32Index(privkeyBip32Index + count)
-        elapsed_time = time.time() - t1
+        while(number_of_keys_left_to_import > 0):
+            number_of_keys_to_import = min(number_of_keys_left_to_import, MAX_NUMBER_OF_KEYS_TO_IMPORT_PER_RPC_REQUEST)
+            privkeyBip32Index = db.getImportPrivkeyBip32Index()
+            print("Importing " + str(number_of_keys_to_import) +" private keys starting at index " + str(privkeyBip32Index))
+            m = hashlib.sha256()
+            m.update(self.wallet_private_key_seed_mneumonic.encode("utf-8"))
+            wallet_private_key_seed = m.hexdigest()
+            nh.importMultiplePrivkeys(wallet_private_key_seed, privkeyBip32Index, number_of_keys_to_import, True)
+            db.setImportPrivkeyBip32Index(privkeyBip32Index + number_of_keys_to_import)
+            number_of_keys_left_to_import -= number_of_keys_to_import
 
-        print("Done importing private keys. Imported " + str(count) + " keys from index " + str(privkeyBip32Index))
-        print("Time elapsed: " + str(elapsed_time))
+            elapsed_time = time.time() - t1
+
+            print("Done importing private keys. Imported " + str(number_of_keys_to_import) + " keys from index " + str(privkeyBip32Index))
+            print("Time elapsed: " + str(elapsed_time))
 
     def run(self):
         self.loadConfig()
@@ -110,6 +120,7 @@ class OnboardingHelper():
 
         if(self.import_wallet_privkey_at_startup):
             self.import_private_keys(self.import_wallet_privkey_startup_count, db, nh)
+            return
 
         lastblockhash = db.getLastBlockHash()
         confirmedTransactionsDict = {}
