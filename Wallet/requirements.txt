@@ -2,4 +2,3 @@ base58==2.0.0
 ecdsa==0.16.1
 aiohttp
 requests
-shlex
