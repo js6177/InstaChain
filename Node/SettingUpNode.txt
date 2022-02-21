@@ -1,0 +1,18 @@
+1) Download and run bitcoin core:
+dev@dev-OpenStack-Nova:~/Apps/bitcoin-0.21.1-x86_64-linux-gnu/bitcoin-0.21.1/bin$ ./bitcoind --testnet
+
+2) Create a wallet:
+dev@dev-OpenStack-Nova:~/Apps/bitcoin-0.21.1-x86_64-linux-gnu/bitcoin-0.21.1/bin$ ./bitcoin-cli -testnet createwallet wallet
+'wallet' is the name of the wallet, it can be anything though for safety use alphanumeric characters. Make sure you edit the 'wallet_name' key in config.json so the fullnodehelper passed the correct wallet name through RPC calls
+
+3) Import private keys.
+In the config file, set the "import_wallet_privkey_at_startup" to true, and the "import_wallet_privkey_startup_count" to how many keys you want to import (you can set this as high as you want, the keys will be imported 1000 at a time).
+Set the "wallet_private_key_seed_mneumonic" to a random mneumonic of 12 alphanumeric words. This will be sha256'd to generate the master private key and deterministically generate the private keys. Treat this mneumonic as a master private keys. if you lose this phrase, you will have no way of generating the private keys.
+Once the config is set, now run the onboardinghelper.py to import these keys.
+(btc-full-node-env) dev@dev-OpenStack-Nova:~/Desktop/FullNodeHelper/InstaChain/Node/FullNodeHelper$ python3 onboardinghelper.py
+-4: Wallet file verification failed. Refusing to load database. Data file '/home/dev/.bitcoin/testnet3/wallets/wallet/wallet.dat' is already loaded.
+Importing 1000 private keys starting at index 8000
+Master Private key: tprv8ZgxMBicQKsPf3idQscpYCPZ5ZQq5q1Jj5HjryTvHoWvhxjKzMXPXcmf9Rm6VJkWssFze8coiTPw5zfMrNvzm2ePxUtSeq3TN6EeytCYGCR
+Master Public key: tpubD6NzVbkrYhZ4YWkRJXHQwc3feavmFACDJNtX9VWDi5KKYSz6ckLyi7PXKa9F6qnPUHX8xyGEii44bmkvovGRVp68Q13yTd8wyrswZFDMFu8
+
+4) Take the master public key, and move it to the Layer2Ledger, so that the deposit address can be generated
