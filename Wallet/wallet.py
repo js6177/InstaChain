@@ -240,7 +240,7 @@ class Wallet:
     def add_trusted_node(self, node_url):
         if(node_url):
             node_info_result = connection.getNodeInfo(node_url)
-            node = Node(node_url, node_info_result.node_info.node_id, node_info_result.node_info.node_name, node_info_result.asset_id )
+            node = Node(node_url, node_info_result.node_info.node_id, node_info_result.node_info.node_name, node_info_result.node_info.asset_id )
             self.trusted_nodes[node_url] = node
 
             if(not self.current_node):

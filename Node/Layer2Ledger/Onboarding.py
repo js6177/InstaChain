@@ -12,7 +12,7 @@ from bip_utils import Bip32, Bip32Utils, Bip32Conf, BitcoinConf, Bip44BitcoinTes
 
 import GlobalLogging
 
-DEPOSIT_WALLET_MASTER_PUBKEY = 'tpubD6NzVbkrYhZ4WieamgdaEdpeYDpSMFQpybHWQ3bueX1vWz1A2rRJQ6F2iWSUny15d74x7afx8j3qpd8a56xbs77itWXtArGdQ83CY4vcFeX'
+DEPOSIT_WALLET_MASTER_PUBKEY = 'tpubD6NzVbkrYhZ4X3rbRcKs6p9AK2Ruazuq1bkrr3f5DpYBGc7meEqN7yf7ovCCXU3HfkNRHoLfmZjYwcrEPsyHArYd8KoJDEiAH8u6eYKaFHY'
 
 class MasterPublicKeyIndex(ndb.Model):
     mpk_index = ndb.IntegerProperty()
