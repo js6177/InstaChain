@@ -1,6 +1,5 @@
 #public/priv keys of btc node, used for verifying deposit and withdrawal events from btc node
-deposit_signing_key_privkey = '4JabS7wSHXuLrf3ZgxGristcyQh9QScnymVvpRYqmx6s'
-deposit_signing_key_pubkey = '3vwcEpbUqMTHBzFKeEtFsLZ5fei2P8XHzd1pAoSuoRs35pSAegKGLicSaFhTkjAJBtiqV9VxzGPf3nH8sxg4Jp4n'
+deposit_signing_key_pubkey = '3LS4zGsXykk4qZKQuasayaU49VdWsbk5jHa9ExVegntoqLgNE2pywwVTcK7UW9m33Mob3tXjHbYSbKh9A4LgWou6'
 
 #public/priv keys of the server, used for signing transactions when a deposit/withdrawal is send from
 onboarding_signing_key_privkey = '4SURUc4ZCXEiARy37YMpTfEt5nwqM4iFWbtVLtPu6DUw'

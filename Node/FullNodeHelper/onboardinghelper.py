@@ -116,7 +116,7 @@ class OnboardingHelper():
 
         # start bitcoin full node, or attach if it already started
         nh = BitcoinRPC(self.rpc_ip, self.rpc_port, self.rpc_user, self.rpc_password, self.wallet_name, self.testnet)
-        comm = Layer2Interface.Layer2Interface(self.layer2_node_url)
+        comm = Layer2Interface.Layer2Interface(self.layer2_node_url, self.onboarding_signing_private_key)
 
         nh.loadWallet()
 
