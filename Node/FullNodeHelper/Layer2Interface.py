@@ -37,6 +37,7 @@ def SuccessOrDuplicateErrorCode(error: int):
 
 class Layer2Interface:
     layer2_node_url: string = None
+    onboarding_signing_private_key: string = None
 
     @dataclass
     class WithdrawalBroadcastedTransaction:
@@ -47,8 +48,9 @@ class Layer2Interface:
         layer2_withdrawal_id: string
         signature: string
 
-    def __init__(self, layer2_node_url):
+    def __init__(self, layer2_node_url, onboarding_signing_private_key):
         self.layer2_node_url = layer2_node_url or DEFAULT_LAYER2_URL
+        self.onboarding_signing_private_key = onboarding_signing_private_key
 
     header = {'user-agent': 'requests/0.0.1'}
     def getWithdrawalRequests(self, lastwithdrawalTimestamp):
@@ -151,15 +153,15 @@ class Layer2Interface:
 
     def sendConfirmDeposit(self, transactions: List[DatabaseInterface.ConfirmedTransaction]):
         for transaction in transactions:
-            transaction.signature = SigningAddress.signDepositConfirmedMessage(transaction.transaction_id, transaction.transaction_vout, transaction.address, transaction.amount)
+            transaction.signature = SigningAddress.signDepositConfirmedMessage(self.onboarding_signing_private_key, transaction.transaction_id, transaction.transaction_vout, transaction.address, transaction.amount)
         return self.confirmDepositMulti(transactions)
 
     def sendWithdrawalBroadcasted(self, withdrawalBroadcastedTramsactions: List[WithdrawalBroadcastedTransaction]):
         for withdrawalBroadcastedTramsaction in withdrawalBroadcastedTramsactions:
-            withdrawalBroadcastedTramsaction.signature = SigningAddress.signWithdrawalBroadcastedMessage(withdrawalBroadcastedTramsaction.layer1_transaction_id, withdrawalBroadcastedTramsaction.layer1_transaction_vout, withdrawalBroadcastedTramsaction.layer1_address, withdrawalBroadcastedTramsaction.amount, withdrawalBroadcastedTramsaction.layer2_withdrawal_id)
+            withdrawalBroadcastedTramsaction.signature = SigningAddress.signWithdrawalBroadcastedMessage(self.onboarding_signing_private_key, withdrawalBroadcastedTramsaction.layer1_transaction_id, withdrawalBroadcastedTramsaction.layer1_transaction_vout, withdrawalBroadcastedTramsaction.layer1_address, withdrawalBroadcastedTramsaction.amount, withdrawalBroadcastedTramsaction.layer2_withdrawal_id)
         return self.broadcastWithdrawalMulti(withdrawalBroadcastedTramsactions)
 
     def sendConfirmWithdrawal(self, confirmedWithdrawals: List[DatabaseInterface.ConfirmedTransaction]):
         for transaction in confirmedWithdrawals:
-            transaction.signature = SigningAddress.signWithdrawalConfirmedMessage(transaction.transaction_id, transaction.transaction_vout, transaction.address, transaction.amount)
+            transaction.signature = SigningAddress.signWithdrawalConfirmedMessage(self.onboarding_signing_private_key, transaction.transaction_id, transaction.transaction_vout, transaction.address, transaction.amount)
         return self.confirmWithdrawalMulti(confirmedWithdrawals)
