@@ -40,7 +40,7 @@ class BitcoinRPC:
         self.wallet_name = wallet_name
         self.testnet = testnet
         print("rpc_port: " + rpc_port)
-        self.rpc_connection = AuthServiceProxy("http://%s:%s@%s:%s"%(self.rpc_user, self.rpc_password, self.rpc_ip, self.rpc_port))
+        self.rpc_connection = AuthServiceProxy("http://%s:%s@%s:%s"%(self.rpc_user, self.rpc_password, self.rpc_ip, self.rpc_port), timeout=120)
 
     def getTargetConfirmations(self):
         if(self.testnet):
@@ -103,7 +103,7 @@ class BitcoinRPC:
         for key, pendingWithdrawal in pendingWithdrawals.items():
             subtractfeefrom.add(pendingWithdrawal.destination_address)
             existingAmount = sendmanyCmd.get(pendingWithdrawal.destination_address, 0)
-            sendmanyCmd[pendingWithdrawal.destination_address] = pendingWithdrawal.amount + existingAmount 
+            sendmanyCmd[pendingWithdrawal.destination_address] = pendingWithdrawal.amount + existingAmount
         for key, value in sendmanyCmd.items():
             sendmanyCmd[key] = sendmanyCmd.get(key)/SATOSHI_PER_BITCOIN #note: must add the values together while they are integers, and then convert them at the end
         comment = 'N/A' #maybe have the guid here
