@@ -10,6 +10,7 @@
   "wallet_private_key_seed_mneumonic": "[enter random words here (they will be sha256'd) to generate and import deposit addresses to bitcoin core]",
   "import_wallet_privkey_while_looping": false,
   "import_wallet_privkey_startup_count": 1000,
-  "import_wallet_privkey_loop_count": 1000
+  "import_wallet_privkey_loop_count": 1000,
+  "onboarding_signing_private_key": "[enter the private key of the address used to sign onboarding transactions (i.e. depositing/withdrawing)]"
 }
 

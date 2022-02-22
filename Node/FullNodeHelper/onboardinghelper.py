@@ -57,6 +57,7 @@ class OnboardingHelper():
     import_wallet_privkey_while_looping: bool = False
     import_wallet_privkey_startup_count: int = 0
     import_wallet_privkey_loop_count: int = 0
+    onboarding_signing_private_key: string = None
 
     def loadConfig(self):
         requiredConfigKeysLoaded = False
@@ -71,6 +72,7 @@ class OnboardingHelper():
                 self.rpc_password = data["rpc_password"]
                 self.wallet_name = data["wallet_name"]
                 self.layer2_node_url = data["layer2_node_url"]
+                self.onboarding_signing_private_key = data["onboarding_signing_private_key"]
 
                 #thse don't throw exceptions if key is notfound, instead they assign null
                 self.import_wallet_privkey_at_startup = data.get("import_wallet_privkey_at_startup")
@@ -114,7 +116,7 @@ class OnboardingHelper():
 
         # start bitcoin full node, or attach if it already started
         nh = BitcoinRPC(self.rpc_ip, self.rpc_port, self.rpc_user, self.rpc_password, self.wallet_name, self.testnet)
-        comm = Layer2Interface.Layer2Interface(self.layer2_node_url)
+        comm = Layer2Interface.Layer2Interface(self.layer2_node_url, self.onboarding_signing_private_key)
 
         nh.loadWallet()
 

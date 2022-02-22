@@ -10,7 +10,7 @@ TRX_WITHDRAWAL_CONFIRMED = 6  # when the withdrawal gets confirmed in the layer1
 
 
 DEFAULT_ELLIPTICAL_CURVE = ecdsa.SECP256k1
-SIGNING_KEY = "4JabS7wSHXuLrf3ZgxGristcyQh9QScnymVvpRYqmx6s"
+#SIGNING_KEY = "4JabS7wSHXuLrf3ZgxGristcyQh9QScnymVvpRYqmx6s"
 NODE_ID = 'BbwLnyLR9eVjL2qb'
 
 def sign_string(signing_key, message):
@@ -18,14 +18,14 @@ def sign_string(signing_key, message):
         signature = base58.b58encode(privkey.sign(message.encode("utf-8")))
         return signature
 
-def signDepositConfirmedMessage(layer1_transaction_id, layer1_transaction_vout, layer1_address, amount,):
+def signDepositConfirmedMessage(onboarding_signing_private_key, layer1_transaction_id, layer1_transaction_vout, layer1_address, amount):
     message = NODE_ID + " " + str(TRX_DEPOSIT) + ' ' + layer1_transaction_id + ' ' + str(layer1_transaction_vout) + ' ' + layer1_address + ' ' + str(amount)
-    return sign_string(SIGNING_KEY, message)
+    return sign_string(onboarding_signing_private_key, message)
 
-def signWithdrawalBroadcastedMessage(layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, withdrawal_id):
+def signWithdrawalBroadcastedMessage(onboarding_signing_private_key, layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, withdrawal_id):
     message = NODE_ID + " " + str(TRX_WITHDRAWAL_BROADCASTED) + ' ' + layer1_transaction_id + ' ' + str(layer1_transaction_vout) + ' ' + layer1_address + ' ' + str(amount) + ' ' + str(withdrawal_id)
-    return sign_string(SIGNING_KEY, message)
+    return sign_string(onboarding_signing_private_key, message)
 
-def signWithdrawalConfirmedMessage(layer1_transaction_id, layer1_transaction_vout, layer1_address, amount):
+def signWithdrawalConfirmedMessage(onboarding_signing_private_key, layer1_transaction_id, layer1_transaction_vout, layer1_address, amount):
     message = NODE_ID + " " + str(TRX_WITHDRAWAL_CONFIRMED) + ' ' + layer1_transaction_id + ' ' + str(layer1_transaction_vout) + ' ' + layer1_address + ' ' + str(amount)
-    return sign_string(SIGNING_KEY, message)
+    return sign_string(onboarding_signing_private_key, message)
