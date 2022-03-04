@@ -8,11 +8,14 @@ import logging
 import random
 import string
 import datetime
+from math import floor
 from bip_utils import Bip32, Bip32Utils, Bip32Conf, BitcoinConf, Bip44BitcoinTestNet, WifEncoder, P2PKH
 
 import GlobalLogging
 
 DEPOSIT_WALLET_MASTER_PUBKEY = 'tpubD6NzVbkrYhZ4X3rbRcKs6p9AK2Ruazuq1bkrr3f5DpYBGc7meEqN7yf7ovCCXU3HfkNRHoLfmZjYwcrEPsyHArYd8KoJDEiAH8u6eYKaFHY'
+
+BIP32_MAX_INDEX = 2147483647 # (2^31)-1
 
 class MasterPublicKeyIndex(ndb.Model):
     mpk_index = ndb.IntegerProperty()
@@ -139,7 +142,9 @@ def getDepositAddress(_layer2_address, nonce, signature):
     bip32_ctx = Bip32.FromExtendedKey(DEPOSIT_WALLET_MASTER_PUBKEY, Bip32Conf.KEY_NET_VER.Test())
     index = MasterPublicKeyIndex.getIndexAndAtomicallyIncrement()
     GlobalLogging.logger.log_text("getDepositAddress index: " + str(index))
-    bip32_ctx = bip32_ctx.ChildKey(44).ChildKey(1).ChildKey(2).ChildKey(index)
+    divisor = floor(index/BIP32_MAX_INDEX)
+    remainder = index % BIP32_MAX_INDEX
+    bip32_ctx = bip32_ctx.ChildKey(44).ChildKey(1).ChildKey(divisor).ChildKey(remainder)
     pubkey_bytes = bip32_ctx.PublicKey().RawCompressed().ToBytes()
     deposit_layer1_address = P2PKH.ToAddress(pubkey_bytes, BitcoinConf.P2PKH_NET_VER.Test())
 
