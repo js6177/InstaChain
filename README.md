@@ -1,7 +1,14 @@
 # InstaChain
 A decentralized, real-time 2nd layer sidechain with instant transaction confirmations and near 0 fees, with a 2-way peg so you can deposit and withdraw btc directly to and from the btc network. It features a decentralized, non-distributed architecture that enables anyone to run a node (a.k.a their own sidechain) and process transactions. Node operators do not need any permission to run a node, and users can connect to any (1 or more) node they choose to.
 
-### Step-by-step Tuturial
+## Raison d'etre
+* Support micropayments, merchant, and p2p payments by offering instantly confirmed transactions that settle on bitcoin. 
+* Prevent proprietary software/networks from offering bitcoin payment processing services.
+* Scale bitcoin to billions of users by a decentralized, horizontally scalable layer 2 solution.
+* Make bitcoin easier to use by offering a familiar account based ledger paired with pseudonomous public key based transactions/messaging.
+* Get rid of centralized platforms that don't allow withdrawing btc (robinhood, cash app, venmo).
+
+## Step-by-step Tuturial
 Here is a simple tutorial that shows depositing, withdrawing, and transfering using the InstaChain layer2 ledger:
 
 First, clone the repo and navigate to the `/Wallet` folder. This folder contains all the files need to interact with the network.
