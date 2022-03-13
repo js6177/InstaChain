@@ -5,6 +5,7 @@ import json
 import random
 import string
 import datetime
+import math
 from dataclasses import dataclass
 import DatabaseInterface
 import SigningAddress
@@ -70,7 +71,7 @@ class BitcoinRPC:
         master_pubkey = master_bip32_ctx.PublicKey().ToExtended()
         print("Master Public key: " + master_pubkey)
         for i in range(startingIndex, startingIndex+numberOfKeysToGenerate):
-            divisor = floor(i/BIP32_MAX_INDEX)
+            divisor = math.floor(i/BIP32_MAX_INDEX)
             remainder = i % BIP32_MAX_INDEX
             bip32_ctx = master_bip32_ctx.ChildKey(44).ChildKey(1).ChildKey(divisor).ChildKey(remainder)
             wif = WifEncoder.Encode(bip32_ctx.PrivateKey().Raw().ToBytes(), True, privkey_version)

@@ -8,7 +8,7 @@ import logging
 import random
 import string
 import datetime
-from math import floor
+import math
 from bip_utils import Bip32, Bip32Utils, Bip32Conf, BitcoinConf, Bip44BitcoinTestNet, WifEncoder, P2PKH
 
 import GlobalLogging
@@ -142,7 +142,7 @@ def getDepositAddress(_layer2_address, nonce, signature):
     bip32_ctx = Bip32.FromExtendedKey(DEPOSIT_WALLET_MASTER_PUBKEY, Bip32Conf.KEY_NET_VER.Test())
     index = MasterPublicKeyIndex.getIndexAndAtomicallyIncrement()
     GlobalLogging.logger.log_text("getDepositAddress index: " + str(index))
-    divisor = floor(index/BIP32_MAX_INDEX)
+    divisor = math.floor(index/BIP32_MAX_INDEX)
     remainder = index % BIP32_MAX_INDEX
     bip32_ctx = bip32_ctx.ChildKey(44).ChildKey(1).ChildKey(divisor).ChildKey(remainder)
     pubkey_bytes = bip32_ctx.PublicKey().RawCompressed().ToBytes()
