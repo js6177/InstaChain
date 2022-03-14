@@ -10,7 +10,6 @@ TRX_WITHDRAWAL_CONFIRMED = 6  # when the withdrawal gets confirmed in the layer1
 
 
 DEFAULT_ELLIPTICAL_CURVE = ecdsa.SECP256k1
-#SIGNING_KEY = "4JabS7wSHXuLrf3ZgxGristcyQh9QScnymVvpRYqmx6s"
 NODE_ID = 'BbwLnyLR9eVjL2qb'
 
 def sign_string(signing_key, message):

@@ -1,6 +1,5 @@
 import string
 import ecdsa
-import base64
 import base58
 import json
 import string

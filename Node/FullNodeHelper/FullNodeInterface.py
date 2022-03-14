@@ -5,6 +5,7 @@ import json
 import random
 import string
 import datetime
+import math
 from dataclasses import dataclass
 import DatabaseInterface
 import SigningAddress
@@ -17,11 +18,10 @@ import traceback
 import argparse
 
 DEFAULT_TESTNET = True
-WALLET_NAME = "wallet"
 TESTNET_TARGETCONFIRMATIONS = 3
 MAINNET_TARGETCONFIRMATIONS = 6
 SATOSHI_PER_BITCOIN = 100000000
-
+BIP32_MAX_INDEX = 2147483647 # (2^31)-1
 
 class BitcoinRPC:
     rpc_ip: string  = None
@@ -70,21 +70,16 @@ class BitcoinRPC:
         descriptors = []
         master_pubkey = master_bip32_ctx.PublicKey().ToExtended()
         print("Master Public key: " + master_pubkey)
-        j = 2
         for i in range(startingIndex, startingIndex+numberOfKeysToGenerate):
-            bip32_ctx = master_bip32_ctx.ChildKey(44) \
-                                .ChildKey(1) \
-                                .ChildKey(j)                         \
-                                .ChildKey(i)
+            divisor = math.floor(i/BIP32_MAX_INDEX)
+            remainder = i % BIP32_MAX_INDEX
+            bip32_ctx = master_bip32_ctx.ChildKey(44).ChildKey(1).ChildKey(divisor).ChildKey(remainder)
             wif = WifEncoder.Encode(bip32_ctx.PrivateKey().Raw().ToBytes(), True, privkey_version)
 
             bip32_ctx = Bip32.FromExtendedKey(master_pubkey, pubkey_version)
-            bip32_ctx = bip32_ctx.ChildKey(44) \
-                                .ChildKey(1) \
-                                .ChildKey(j)                         \
-                                .ChildKey(i)
+            bip32_ctx = bip32_ctx.ChildKey(44).ChildKey(1).ChildKey(divisor).ChildKey(remainder)
 
-            descriptor = "pkh(" + master_pubkey + "/44/1/" + str(j) + "/" + str(i) + ")"
+            descriptor = "pkh(" + master_pubkey + "/44/1/" + str(divisor) + "/" + str(remainder) + ")"
             descriptor_checksum = checksum.AddChecksum(descriptor) #see getdescriptorinfo
             pubkey_bytes = bip32_ctx.PublicKey().RawCompressed().ToBytes()
             address = P2PKH.ToAddress(pubkey_bytes, BitcoinConf.P2PKH_NET_VER.Test())
@@ -95,7 +90,6 @@ class BitcoinRPC:
             print(status)
         except Exception as e:
             print(e)
-        print("Master Public key: " + master_pubkey)
 
     def broadcastTransaction(self, pendingWithdrawals):
         sendmanyCmd = {}
