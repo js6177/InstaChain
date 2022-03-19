@@ -9,11 +9,12 @@ import random
 import string
 import datetime
 import math
+import os
 from bip_utils import Bip32, Bip32Utils, Bip32Conf, BitcoinConf, Bip44BitcoinTestNet, WifEncoder, P2PKH
 
 import GlobalLogging
 
-DEPOSIT_WALLET_MASTER_PUBKEY = 'tpubD6NzVbkrYhZ4X3rbRcKs6p9AK2Ruazuq1bkrr3f5DpYBGc7meEqN7yf7ovCCXU3HfkNRHoLfmZjYwcrEPsyHArYd8KoJDEiAH8u6eYKaFHY'
+DEPOSIT_WALLET_MASTER_PUBKEY = os.environ.get('DEPOSIT_WALLET_MASTER_PUBKEY')
 
 BIP32_MAX_INDEX = 2147483647 # (2^31)-1
 
@@ -164,12 +165,12 @@ def depositConfirmed(layer1_transaction_id, layer1_transaction_vout, layer1_addr
     if(not KeyVerification.verifyDeposit(layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, signature)):
         return ErrorMessage.ERROR_CANNOT_VERIFY_SIGNATURE
 
-    source = signing_keys.onboarding_signing_key_pubkey
+    source = signing_keys.ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY
     destination_address = Address.Address(destination_pubkey)
     fee = 0
 
     nonce = ''.join(random.choice(string.ascii_letters) for i in range(16))
-    onboarding_transaction_signing_address = Address.Address.fromPrivateKey(signing_keys.onboarding_signing_key_privkey)
+    onboarding_transaction_signing_address = Address.Address.fromPrivateKey(signing_keys.ONBOARDING_DEPOSIT_SIGNING_KEY_PRIVKEY)
     message = str(Transaction.Transaction.TRX_DEPOSIT) + " " + source + " " + destination_pubkey + " " + str(amount) + " " + str(fee) + " " + nonce
     signature = onboarding_transaction_signing_address.sign(message)
     status = Transaction.Transaction.process_transaction(Transaction.Transaction.TRX_DEPOSIT, amount, fee, source, destination_pubkey, message, signature, nonce, layer1_transaction_id)

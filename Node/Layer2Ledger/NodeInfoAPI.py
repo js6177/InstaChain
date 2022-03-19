@@ -1,10 +1,11 @@
+import os
 import ErrorMessage
 from InstaChainAPI import InstachainRequestHandler
 
 
 #unique randomly generated alphanumeric string valid for the lifetime of the node + ledger
 #used as a nonce for signing transactions to prevent cross-node relay attacks, has no cryptographic value 
-NODE_ID = 'BbwLnyLR9eVjL2qb'
+NODE_ID = os.environ.get('NODE_ID')
 
 #lower 32 bits are used to specify the asset
 ASSET_BITCOIN = 1

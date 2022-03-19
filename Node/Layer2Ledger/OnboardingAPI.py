@@ -120,14 +120,3 @@ class depositConfirmed(InstachainRequestHandler):
             transactionResults.append(error)
         self.result = ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS)
         self.result["transactions"] = transactionResults
-
-class jsonTest(InstachainRequestHandler):
-    def getParameters(self):
-        self.jsonParam = self.getPostJsonParams()
-    def processRequest(self):
-        x = json.loads(json.dumps(self.jsonParam), object_hook=lambda d: SimpleNamespace(**d))
-        val = 0
-        for trx in x.transactions:
-            val += trx.value
-        self.result = ErrorMessage.build_error_message(0)
-        self.result["value"] = val
