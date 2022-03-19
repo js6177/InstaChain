@@ -1,4 +1,4 @@
-from Transaction import Transaction, _dropTable
+from Transaction import Transaction
 import ErrorMessage
 import Address
 import time
@@ -73,11 +73,5 @@ class getBalance(InstachainRequestHandler):
             balance.balance = Transaction.get_balance(public_key, True, True)
             balances.append(balance)
         self.result['balance'] = [{'public_key': balance.public_key, 'balance': balance.balance} for balance in balances]
-
-#TODO: remove
-class dropTable(InstachainRequestHandler):
-    def postProcessRequest(self):
-        _dropTable()
-
 
 
