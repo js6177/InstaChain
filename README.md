@@ -26,7 +26,7 @@ You can ignore the "Warning: config.json not found", the config file is for thin
 Now, create a new wallet. Notice, when it prompts it says "(no wallet loaded)" which means you need to either create or load a wallet
 ```
 (no wallet loaded) > new-wallet wallet.json
-4bhk6kJMRbQR2m62onWdTTZvE74bYcP9huFW2JtNN47nYJX4UdZaZGG6R7x11S7QoL5K62hGB6bwgkA2u1Bfs9EU
+4BS6izr4fukPKa91auxCgkn4nPvWLqMLoHBGdySpuds5SvFwU9686cXp81zfF5GaLcDcKFp5WHKLzETumafD1USK
 ``` 
 This creates a new wallet called "wallet.json" and automatically generates an address, which is then printed.  
 When an address is created, the wallet generate a public key and private key pair. The "address" is the public key that is the source and destination address of a transaction. The private key is needed for signing transactions that spend the funds in that address. If you look at the wallet.json file, you'll see the pubkey/privkey pair.
@@ -34,7 +34,7 @@ When an address is created, the wallet generate a public key and private key pai
 {
     "addresses": [
         {
-            "pubkey": "4bhk6kJMRbQR2m62onWdTTZvE74bYcP9huFW2JtNN47nYJX4UdZaZGG6R7x11S7QoL5K62hGB6bwgkA2u1Bfs9EU",
+            "pubkey": "4BS6izr4fukPKa91auxCgkn4nPvWLqMLoHBGdySpuds5SvFwU9686cXp81zfF5GaLcDcKFp5WHKLzETumafD1USK",
             "privkey": "4ayhEYjibFcAuXXXXXXXXXXXXXXXXXXXXXXX",
             "description": "",
             "deposit_address": ""
