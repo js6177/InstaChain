@@ -295,7 +295,7 @@ class Wallet:
             message = self.trusted_nodes[node_url].node_id + ' ' + layer2_address.pubkey + ' ' + nonce
             signature = self.sign_string(layer2_address.privkey, message)
             response = connection.getDepositAddress(self.trusted_nodes[node_url].hostname, layer2_address.pubkey, nonce, signature)
-            layer1_address = response.deposit_address
+            layer1_address = response.layer1_deposit_address
             self.deposit_addresses.append(DepositAddress(node_url, layer1_address, layer2_address.pubkey))
             self.save_wallet()
         else:

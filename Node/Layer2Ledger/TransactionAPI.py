@@ -17,21 +17,17 @@ class pushTransaction(InstachainRequestHandler):
         GlobalLogging.logger.log_text("getParameters() called")
         self.amount = int(self.getPostRequestParams('amount') or 0)
         self.fee = int(self.getPostRequestParams('fee') or 0)
-        self.source = self.getPostRequestParams('source_pubkey')
-        self.destination = self.getPostRequestParams('destination_address')
+        self.source_address_public_key = self.getPostRequestParams('source_address_public_key')
+        self.destination_address_public_key = self.getPostRequestParams('destination_address_public_key')
         self.signature = self.getPostRequestParams('signature')
-        self.nonce = self.getPostRequestParams('nonce')
+        self.transaction_id = self.getPostRequestParams('transaction_id')
         
     def processRequest(self):
-        t = time.time()
-
-        message = KeyVerification.buildTransferMessage(self.source, self.destination, self.amount, self.fee, self.nonce)
-        status = Transaction.process_transaction(Transaction.TRX_TRANSFER, self.amount, self.fee, self.source, self.destination, message, self.signature, self.nonce)
+        message = KeyVerification.buildTransferMessage(self.source_address_public_key, self.destination_address_public_key, self.amount, self.fee, self.transaction_id)
+        status = Transaction.process_transaction(Transaction.TRX_TRANSFER, self.amount, self.fee, self.source_address_public_key, self.destination_address_public_key, message, self.signature, self.transaction_id)
         self.result = ErrorMessage.build_error_message(status)
 
         GlobalLogging.logger.log_text("response: " + json.dumps(self.result))
-        elapsed_time = time.time() - t
-        logging.info('Time elapsed: ' + str(elapsed_time))
 
 class getTransaction(InstachainRequestHandler):
     def getParameters(self):

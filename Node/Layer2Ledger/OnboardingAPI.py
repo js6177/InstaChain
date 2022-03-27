@@ -14,15 +14,15 @@ import KeyVerification
 
 class withdrawalRequest(InstachainRequestHandler):
     def getParameters(self):
-        self.public_key = self.getRequestParams('public_key')
+        self.source_address_public_key = self.getRequestParams('source_address_public_key')
         self.nonce = self.getRequestParams('nonce') #nonce
-        self.withdrawal_address = self.getRequestParams('withdrawal_address')
+        self.layer1_withdrawal_address = self.getRequestParams('layer1_withdrawal_address')
         self.amount = int(self.getRequestParams('amount'))
         self.signature = self.getRequestParams('signature')
 
     def processRequest(self):
-        message = KeyVerification.buildWithdrawalRequestMessage(self.public_key, self.withdrawal_address, self.nonce, self.amount)
-        status = Transaction.process_transaction(Transaction.TRX_WITHDRAWAL_INITIATED, self.amount, 0, self.public_key, self.withdrawal_address, message, self.signature, self.nonce)
+        message = KeyVerification.buildWithdrawalRequestMessage(self.source_address_public_key, self.layer1_withdrawal_address, self.nonce, self.amount)
+        status = Transaction.process_transaction(Transaction.TRX_WITHDRAWAL_INITIATED, self.amount, 0, self.source_address_public_key, self.layer1_withdrawal_address, message, self.signature, self.nonce)
 
         self.result = ErrorMessage.build_error_message(status)
 
@@ -77,32 +77,31 @@ class withdrawalConfirmed(InstachainRequestHandler):
 #called from the node
 class withdrawalCanceled(InstachainRequestHandler):
     def getParameters(self):
-        self.public_key = self.getRequestParams('public_key')
-        self.withdrawal_address = self.getRequestParams('transaction_id')
+        self.source_address_public_key = self.getRequestParams('source_address_public_key')
+        self.transaction_id = self.getRequestParams('transaction_id')
         self.amount = int(self.getRequestParams('amount'))
         self.signature = self.getRequestParams('signature')
     def processRequest(self):
-        rslt, transaction_id = Onboarding.withdrawalCanceled(self.public_key, self.withdrawal_address, self.amount, self.signature)
+        rslt, transaction_id = Onboarding.withdrawalCanceled(self.source_address_public_key, self.transaction_id, self.amount, self.signature)
         self.result = ErrorMessage.build_error_message(rslt)
         self.result['transaction_id'] = transaction_id
 
 class getNewDepositAddress(InstachainRequestHandler):
     def getParameters(self):
-        self.public_key = self.getRequestParams('public_key')
+        self.layer2_address_pubkey = self.getRequestParams('layer2_address_pubkey')
         self.nonce = self.getRequestParams('nonce')
         self.signature = self.getRequestParams('signature')
     def processRequest(self):
-        rslt, address = Onboarding.getDepositAddress(self.public_key, self.nonce, self.signature)
+        rslt, address = Onboarding.getDepositAddress(self.layer2_address_pubkey, self.nonce, self.signature)
         self.result = ErrorMessage.build_error_message(rslt)
         if(rslt == ErrorMessage.ERROR_SUCCESS):
-            self.result['deposit_address'] = address
+            self.result['layer1_deposit_address'] = address
         else:
-            self.result['deposit_address'] = ''
+            self.result['layer1_deposit_address'] = ''
 
 class verifyDepositAddress(InstachainRequestHandler):
     def getParameters(self):
-        self.transaction_id = self.getRequestParams('public_key')
-        self.transaction_id = self.getRequestParams('deposit_address')
+        pass
     def processRequest(self):
         pass
 
