@@ -2,10 +2,11 @@
 A decentralized, real-time 2nd layer sidechain with instant transaction confirmations and near 0 fees, with a 2-way peg so you can deposit and withdraw btc directly to and from the btc network. It features a decentralized, non-distributed architecture that enables anyone to run a node (a.k.a their own sidechain) and process transactions. Node operators do not need any permission to run a node, and users can connect to any (1 or more) node they choose to.
 
 ## Raison d'etre
-* Support micropayments, merchant, and p2p payments by offering instantly confirmed transactions that settle on bitcoin. 
-* Prevent proprietary software/networks from offering bitcoin payment processing services.
+* Support micropayments, merchant, and p2p payments by offering instantly confirmed transactions that settle on bitcoin.
+* Develop an open protocol that exchanges, payment processors, banks, neo-banks, and legacy or cypto fintech companies can easily implement to increase bitcon adoptation and free market competition
 * Scale bitcoin to billions of users by a decentralized, horizontally scalable layer 2 solution.
 * Make bitcoin easier to use by offering a familiar account based ledger paired with pseudonomous public key based transactions/messaging.
+* Prevent proprietary software/networks from offering bitcoin payment processing services.
 * Get rid of centralized platforms that don't allow withdrawing btc (robinhood, cash app, venmo).
 
 ## Step-by-step Tuturial
