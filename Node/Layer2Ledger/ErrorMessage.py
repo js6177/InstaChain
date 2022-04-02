@@ -16,6 +16,7 @@ ERROR_AMOUNT_LESS_THAN_FEE = 22
 ERROR_ADDRESS_LOCKED = 23
 ERROR_NOT_ALPHANUMERIC = 24
 ERROR_FAILED_TO_WRITE_TO_DATABASE = 25
+ERROR_CANNOT_TRANSFER_USING_ONBOARDING_KEY = 26
 
 error_mapping = {
 ERROR_SUCCESS: "Success",
@@ -35,7 +36,8 @@ ERROR_NEGATIVE_AMOUNT: "The transaction amount or fee cannot be negative",
 ERROR_AMOUNT_LESS_THAN_FEE: "The amount must be greater than the fee",
 ERROR_ADDRESS_LOCKED: "The address is locked because it is being processed by another transaction. Please try again",
 ERROR_NOT_ALPHANUMERIC: "Transaction ids and addresses need to be alphanumeric",
-ERROR_FAILED_TO_WRITE_TO_DATABASE: "Failed to write an entity to the database (the .put() method failed)"
+ERROR_FAILED_TO_WRITE_TO_DATABASE: "Failed to write an entity to the database (the .put() method failed)",
+ERROR_CANNOT_TRANSFER_USING_ONBOARDING_KEY: "The onboarding signing key cannot be used to create a transfer transaction"
 }
 
 def build_error_message(error_code, error_message = ''):

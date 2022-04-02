@@ -9,6 +9,7 @@ import types
 from types import SimpleNamespace
 from InstaChainAPI import InstachainRequestHandler
 from NodeInfoAPI import NODE_ID
+from signing_keys import ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY
 import GlobalLogging
 import KeyVerification
 
@@ -23,9 +24,12 @@ class pushTransaction(InstachainRequestHandler):
         self.transaction_id = self.getPostRequestParams('transaction_id')
         
     def processRequest(self):
-        message = KeyVerification.buildTransferMessage(self.source_address_public_key, self.destination_address_public_key, self.amount, self.fee, self.transaction_id)
-        status = Transaction.process_transaction(Transaction.TRX_TRANSFER, self.amount, self.fee, self.source_address_public_key, self.destination_address_public_key, message, self.signature, self.transaction_id)
-        self.result = ErrorMessage.build_error_message(status)
+        if(self.source_address_public_key != ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY):
+            message = KeyVerification.buildTransferMessage(self.source_address_public_key, self.destination_address_public_key, self.amount, self.fee, self.transaction_id)
+            status = Transaction.process_transaction(Transaction.TRX_TRANSFER, self.amount, self.fee, self.source_address_public_key, self.destination_address_public_key, message, self.signature, self.transaction_id)
+            self.result = ErrorMessage.build_error_message(status)
+        else:
+            self.result = ErrorMessage.build_error_message(ErrorMessage.ERROR_CANNOT_TRANSFER_USING_ONBOARDING_KEY)
 
         GlobalLogging.logger.log_text("response: " + json.dumps(self.result))
 
