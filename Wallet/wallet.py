@@ -194,13 +194,9 @@ class Wallet:
         self.save_wallet()
 
     def open_wallet(self, wallet_filename):
-        f = None
-        try:
-            f = open(wallet_filename, "r")
-        except:
-            return ''
+        wallet_file = open(wallet_filename, "r")
         self.path = wallet_filename
-        body = f.read()
+        body = wallet_file.read()
         body_json = json.loads(body)
 
         #check for exception if any keys are missing from json file:

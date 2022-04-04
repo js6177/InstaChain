@@ -123,7 +123,11 @@ class WalletCLI():
             self.close_wallet()
             if(not self.wallet):
                 self.wallet = wallet.Wallet()
-            self.wallet.open_wallet(args[0])
+            try:
+                self.wallet.open_wallet(args[0])
+            except Exception as e:
+                print(e)
+                self.wallet = None
         else:
             print('Usage: open_wallet <wallet path>')
 
