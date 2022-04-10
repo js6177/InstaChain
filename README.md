@@ -1,5 +1,5 @@
 # InstaChain
-A decentralized, real-time 2nd layer sidechain with instant transaction confirmations and near 0 fees, with a 2-way peg so you can deposit and withdraw btc directly to and from the btc network. It features a decentralized, non-distributed architecture that enables anyone to run a node (a.k.a their own sidechain) and process transactions. Node operators do not need any permission to run a node, and users can connect to any (1 or more) node they choose to.
+Instachain (a portmanteau of instant + sidechain) is a decentralized, real-time 2nd layer sidechain with instant transaction confirmations and near 0 fees, with a 2-way peg so you can deposit and withdraw btc directly to and from the btc network. It features a decentralized, non-distributed architecture that enables anyone to run a node (a.k.a their own sidechain) and process transactions. Node operators do not need any permission to run a node, and users can connect to any (1 or more) node they choose to.
 
 ## Raison d'etre
 * Support micropayments, merchant, and p2p payments by offering instantly confirmed transactions that settle on bitcoin.
