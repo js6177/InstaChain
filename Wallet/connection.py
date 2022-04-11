@@ -48,14 +48,14 @@ async def pushTransactionAsync(session, hostname, amount, fee, source_pubkey, de
         printResponse(resp)
         return resp
 
-def pushTransaction(hostname, amount, fee, source_pubkey, destination_address, signature, nonce):
+def pushTransaction(hostname, amount, fee, source_address_public_key, destination_address_public_key, signature, transaction_id):
     url = hostname + 'pushTransaction'
 
     data = {'amount': amount,
-            'source_pubkey': source_pubkey,
-            'destination_address': destination_address,
+            'source_address_public_key': source_address_public_key,
+            'destination_address_public_key': destination_address_public_key,
             'signature': signature,
-            'nonce': nonce,
+            'transaction_id': transaction_id,
             'fee': fee,
             }
 
@@ -80,9 +80,9 @@ def getTransaction(hostname, transaction_id):
     r = requests.get(url, params=data)
     return r.text
 
-def getDepositAddress(hostname, pubkey, nonce, signature):
+def getDepositAddress(hostname, layer2_address_pubkey, nonce, signature):
     url = hostname + 'getNewDepositAddress'
-    data = {'public_key': pubkey, 'nonce': nonce, 'signature': signature}
+    data = {'layer2_address_pubkey': layer2_address_pubkey, 'nonce': nonce, 'signature': signature}
 
     r = requests.get(url, params=data)
     x = json.loads(r.text, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
@@ -102,10 +102,10 @@ def getAddressTransactions(hostname, pubkey):
     r = requests.get(url, params=data)
     return r.text
 
-def sendWithdrawalRequest(hostname, pubkey, withdrawal_address, amount, nonce, signature):
+def sendWithdrawalRequest(hostname, pubkey, layer1_withdrawal_address, amount, nonce, signature):
     url = hostname + 'withdrawalRequest'
-    data = {'public_key': pubkey,
-            'withdrawal_address': withdrawal_address,
+    data = {'source_address_public_key': pubkey,
+            'layer1_withdrawal_address': layer1_withdrawal_address,
             'amount': amount,
             'nonce': nonce,
             'signature': signature}

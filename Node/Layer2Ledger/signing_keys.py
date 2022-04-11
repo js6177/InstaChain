@@ -1,9 +1,11 @@
-#public/priv keys of btc node, used for verifying deposit and withdrawal events from btc node
-deposit_signing_key_pubkey = '3LS4zGsXykk4qZKQuasayaU49VdWsbk5jHa9ExVegntoqLgNE2pywwVTcK7UW9m33Mob3tXjHbYSbKh9A4LgWou6'
+import os 
 
-#public/priv keys of the server, used for signing transactions when a deposit/withdrawal is send from
-onboarding_signing_key_privkey = '4SURUc4ZCXEiARy37YMpTfEt5nwqM4iFWbtVLtPu6DUw'
-onboarding_signing_key_pubkey = '4JRFbqPg1ZFDg2y99BFT4uCEToKWpH33171APaiTTPP2LtHvrGUAvjEaDoYKvmixDYwhQqYtMDZ6E9G9EH9tkMTg'
+#public keys of the fullnodehelper that monitors the btc node, used for verifying deposit and withdrawal events from btc node
+FULLNODE_SIGNING_KEY_PUBKEY = os.environ.get('FULLNODE_SIGNING_KEY_PUBKEY')
+
+#public/priv keys of the layer2ledger, used for signing DEPOSIT transactions when a deposit from the fullnodehelper is received
+ONBOARDING_DEPOSIT_SIGNING_KEY_PRIVKEY = os.environ.get('ONBOARDING_DEPOSIT_SIGNING_KEY_PRIVKEY')
+ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY = os.environ.get('ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY')
 
 
 

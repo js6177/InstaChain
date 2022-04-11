@@ -16,6 +16,11 @@ env_variables:
   REDISHOST: '[IP]'
   REDISPORT: '[PORT]'
   REDISAUTH: '[AUTHKEY]'
+  NODE_ID: ''
+  DEPOSIT_WALLET_MASTER_PUBKEY: ''
+  FULLNODE_SIGNING_KEY_PUBKEY: ''
+  ONBOARDING_DEPOSIT_SIGNING_KEY_PRIVKEY: ''
+  ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY: ''
 
 vpc_access_connector:
   name: projects/[PROJECT-NAME]/locations/[LOCATION]/connectors/addressbalancecache

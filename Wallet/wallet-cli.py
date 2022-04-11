@@ -38,6 +38,11 @@ COMMANDS_HELP = {
 }
 #commands = [help, open_wallet, close_wallet, new_address, list_addresses, add_node, list_nodes, create_transaction, transfer, push_signed_transaction, list_wallet_transactions, list_wallet_balance, list_address_transactions, list_address_balance]
 
+credits = """
+Special thanks to: 
+Jeff Garzik for the python-bitcoinrpc module
+Emanuele Bellocchia for the bip_utils module
+"""
 
 class WalletCLI():
     wallet_name = None
@@ -116,6 +121,7 @@ class WalletCLI():
     def exit(self, args):
         if(self.wallet != None):
             self.close_wallet()
+        print(credits)
         exit(0)
 
     def open_wallet(self, args):
@@ -123,7 +129,11 @@ class WalletCLI():
             self.close_wallet()
             if(not self.wallet):
                 self.wallet = wallet.Wallet()
-            self.wallet.open_wallet(args[0])
+            try:
+                self.wallet.open_wallet(args[0])
+            except Exception as e:
+                print(e)
+                self.wallet = None
         else:
             print('Usage: open_wallet <wallet path>')
 

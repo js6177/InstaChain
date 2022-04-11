@@ -23,15 +23,6 @@ TRANSACTION_MODE = TransactionMode.ADDRESSLOCK
 ADDRESS_BALANCE_CACHE_ENABLED = True
 REDIS_ADDRESS_BALANCE_CACHE_ENABLED = True
 
-def _dropTable():
-    ndb.delete_multi(
-        Transaction.query().fetch(keys_only=True)
-    )
-    ndb.delete_multi(
-        AddressBalanceCache.query().fetch(keys_only=True)
-    )
-    RedisInterface.clearDatabase()
-
 class TotalFees(ndb.Model):
     amount = ndb.IntegerProperty(default = 0, indexed=False)
 
@@ -160,7 +151,7 @@ class Transaction(ndb.Model):
 
         #do not check for Transaction.TRX_WITHDRAWAL_INITIATED as they are signed by server and user respectively
         if(_transaction_type in [ Transaction.TRX_WITHDRAWAL_CANCELED, Transaction.TRX_WITHDRAWAL_CONFIRMED]):
-            if(_source != signing_keys.deposit_signing_key_pubkey):
+            if(_source != signing_keys.FULLNODE_SIGNING_KEY_PUBKEY):
                 return ErrorMessage.ERROR_ONBOARDING_PUBKEY_MISMATCH
 
         #verify signature

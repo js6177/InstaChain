@@ -110,9 +110,9 @@ class Address:
         return {'pubkey': self.pubkey, 'privkey': self.privkey, 'description': self.description, 'deposit_address': self.deposit_address} #, 'deposit_address': self.deposit_address}
 
 class DepositAddress:
-    node_url = ''
-    layer1_address  = ''
-    layer2_address = ''
+    node_url: string = ''
+    layer1_address: string  = ''
+    layer2_address: string = ''
 
     def __init__(self, _node_url, _layer1_address, _layer2_address):
         self.node_url = _node_url
@@ -194,13 +194,9 @@ class Wallet:
         self.save_wallet()
 
     def open_wallet(self, wallet_filename):
-        f = None
-        try:
-            f = open(wallet_filename, "r")
-        except:
-            return ''
+        wallet_file = open(wallet_filename, "r")
         self.path = wallet_filename
-        body = f.read()
+        body = wallet_file.read()
         body_json = json.loads(body)
 
         #check for exception if any keys are missing from json file:
@@ -246,8 +242,9 @@ class Wallet:
                 self.current_node = node_url
     
     def clear_cache(self):
-        self.address_balance = dict()
-        self.confirmed_transactions = set()
+        self.address_balance.clear()
+        self.confirmed_transactions.clear()
+        self.deposit_addresses.clear()
         self.save_wallet()
 
     @staticmethod
@@ -272,9 +269,9 @@ class Wallet:
     def generateRandomNonce(length: int):
         return ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(length))
 
-    def findDepositAddress(self, address, node_url):
+    def findDepositAddress(self, layer2_address_pubkey, node_url):
         for deposit_address in self.deposit_addresses:
-            if(deposit_address.layer2_address == address and deposit_address.node_url == node_url):
+            if(deposit_address.layer2_address == layer2_address_pubkey and deposit_address.node_url == node_url):
                 return deposit_address
         return None
 
@@ -282,18 +279,24 @@ class Wallet:
         transactionJSON = connection.getTransaction(_node_url, transaction_id)
         return transactionJSON
 
-    def getDepositAddress(self, address_pubkey, _node_url): #todo: need to save address, also create a GET_DEPOSIT_ADDRESS + add node_id
-        address = self.addresses[address_pubkey]
+    def getDepositAddress(self, address_pubkey, _node_url):
+        layer2_address = self.addresses[address_pubkey]
         node_url = _node_url or self.current_node
-        nonce = self.generateRandomNonce(8) #TODO: make const
-        #possible todo: check local wallet first
-        message = self.trusted_nodes[node_url].node_id + ' ' + address.pubkey + ' ' + nonce
-        signature = self.sign_string(address.privkey, message)
-        response = connection.getDepositAddress(self.trusted_nodes[node_url].hostname, address.pubkey, nonce, signature)
-        layer2_pubkey = response.deposit_address
-        self.deposit_addresses.append(DepositAddress(node_url, layer2_pubkey, address.pubkey))
-        self.save_wallet()
-        return layer2_pubkey #todo: return status and value
+
+        layer1_address = None
+        deposit_address: DepositAddress = self.findDepositAddress(layer2_address.pubkey, node_url)
+        if(deposit_address == None):
+            nonce = self.generateRandomNonce(8) #TODO: make const
+            #possible todo: check local wallet first
+            message = self.trusted_nodes[node_url].node_id + ' ' + layer2_address.pubkey + ' ' + nonce
+            signature = self.sign_string(layer2_address.privkey, message)
+            response = connection.getDepositAddress(self.trusted_nodes[node_url].hostname, layer2_address.pubkey, nonce, signature)
+            layer1_address = response.layer1_deposit_address
+            self.deposit_addresses.append(DepositAddress(node_url, layer1_address, layer2_address.pubkey))
+            self.save_wallet()
+        else:
+            layer1_address = deposit_address.layer1_address
+        return layer1_address
 
     def createWithdrawTransactionRequest(self, source_address_pubkey: string, layer1_withdrawal_address: string, amount: int, _node_url):
         trx = Transaction()

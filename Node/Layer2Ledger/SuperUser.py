@@ -2,11 +2,13 @@ from Transaction import Transaction, AddressBalanceCache, AddressLock
 from Onboarding import WithdrawalRequests, DepositAddresses, MasterPublicKeyIndex, ConfirmedWithdrawals
 from google.cloud import ndb
 from InstaChainAPI import InstachainRequestHandler
+import RedisInterface
 
 MAX_TRANSACTIONS_TO_DEETE_PER_REQUEST = 10000
 
 class Delete(InstachainRequestHandler):
     def getParameters(self):
+        RedisInterface.clearDatabase()
         ndb.delete_multi(WithdrawalRequests.query().fetch(keys_only=True))
         ndb.delete_multi(ConfirmedWithdrawals.query().fetch(keys_only=True))
         ndb.delete_multi(AddressLock.query().fetch(keys_only=True))  
