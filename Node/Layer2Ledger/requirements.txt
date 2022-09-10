@@ -1,4 +1,5 @@
 flask==2.0.3
+Flask-Cors
 base58==2.0.0
 ecdsa==0.16.1
 bip-utils==1.6.0

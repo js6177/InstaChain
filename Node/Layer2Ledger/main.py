@@ -1,6 +1,7 @@
 from google.cloud import ndb
 from google.cloud import logging
 from flask import Flask
+from flask_cors import CORS
 import InstaChainAPI
 import NodeInfoAPI
 import TransactionAPI
@@ -16,6 +17,7 @@ GlobalLogging.logger = GlobalLogging.logging_client.logger('log')
 
 
 app = Flask(__name__)
+CORS(app)
 
 app.add_url_rule(r'/getNodeInfo', 'getNodeInfo', NodeInfoAPI.getNodeInfo.initializeRequest)
 
