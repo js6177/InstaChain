@@ -10,10 +10,11 @@ TRX_WITHDRAWAL_CONFIRMED = 6  # when the withdrawal gets confirmed in the layer1
 
 
 DEFAULT_ELLIPTICAL_CURVE = ecdsa.SECP256k1
+DEFAULT_KEY_HASH_FUNCTION = hashlib.sha256
 NODE_ID = 'BbwLnyLR9eVjL2qb'
 
 def sign_string(signing_key, message):
-        privkey = ecdsa.SigningKey.from_string(base58.b58decode(signing_key), curve=DEFAULT_ELLIPTICAL_CURVE)
+        privkey = ecdsa.SigningKey.from_string(base58.b58decode(signing_key), curve=DEFAULT_ELLIPTICAL_CURVE, hashfunc=DEFAULT_KEY_HASH_FUNCTION)
         signature = base58.b58encode(privkey.sign(message.encode("utf-8")))
         return signature
 
