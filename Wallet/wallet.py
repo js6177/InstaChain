@@ -16,6 +16,7 @@ from collections import namedtuple
 origin_pubkey = ''
 
 DEFAULT_ELLIPTICAL_CURVE = ecdsa.SECP256k1
+DEFAULT_KEY_HASH_FUNCTION = hashlib.sha256
 KEY_LENGTH = pow(2,10) # 1024 bit key
 
 DEFAULT_FEE = 1 # 1 satoshi
@@ -249,17 +250,17 @@ class Wallet:
 
     @staticmethod
     def sign_string(signing_key, message):
-        privkey = ecdsa.SigningKey.from_string(base58.b58decode(signing_key), curve=DEFAULT_ELLIPTICAL_CURVE)
+        privkey = ecdsa.SigningKey.from_string(base58.b58decode(signing_key), curve=DEFAULT_ELLIPTICAL_CURVE, hashfunc=DEFAULT_KEY_HASH_FUNCTION)
         signature = base58.b58encode(privkey.sign(message.encode("utf-8")))
         return signature
 
-    def verify_signature(self, message, pubkey, signature, elliptical_curve = DEFAULT_ELLIPTICAL_CURVE):
+    def verify_signature(self, message, pubkey, signature, elliptical_curve = DEFAULT_ELLIPTICAL_CURVE, hash_function = DEFAULT_KEY_HASH_FUNCTION):
         print('---verify_signature---')
         print('pubkey', pubkey)
         print('message', message)
         print('signature', signature)
         start_time = time.time()
-        verifying_key = ecdsa.VerifyingKey.from_string(base58.b58decode(pubkey), curve=elliptical_curve)
+        verifying_key = ecdsa.VerifyingKey.from_string(base58.b58decode(pubkey), curve=elliptical_curve, hashfunc = hash_function)
         verified = verifying_key.verify(base58.b58decode(signature), message.encode("utf-8"))
         seconds_elapsed = time.time() - start_time
         print('Time (seconds) to verify: ', seconds_elapsed)
@@ -334,8 +335,9 @@ class Wallet:
     def create_transaction(self, destination_address_pubkey, source_address_pubkey, amount, node):
         trx = Transaction()
         source_address = self.addresses[source_address_pubkey]
-        privkey = ecdsa.SigningKey.from_string(base58.b58decode(source_address.privkey), curve=ecdsa.SECP256k1)
-        pubkey = ecdsa.VerifyingKey.from_string(base58.b58decode(source_address.pubkey), curve=ecdsa.SECP256k1)
+        #TODO add GetSigningKey and GetVerifyingKey with default curve and hashfunc args 
+        privkey = ecdsa.SigningKey.from_string(base58.b58decode(source_address.privkey), curve=DEFAULT_ELLIPTICAL_CURVE, hashfunc=DEFAULT_KEY_HASH_FUNCTION)
+        pubkey = ecdsa.VerifyingKey.from_string(base58.b58decode(source_address.pubkey), curve=DEFAULT_ELLIPTICAL_CURVE, hashfunc=DEFAULT_KEY_HASH_FUNCTION)
 
         trx.transaction_id = ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(32))
         trx.destination_address = destination_address_pubkey
