@@ -1,5 +1,6 @@
 import ecdsa
 import base58
+import hashlib
 
 TRX_TRANSFER = 1  # regular 2nd layer transfer
 TRX_DEPOSIT = 2  # when a user deposits btc to a deposit address, then funds get credited to his pubkey

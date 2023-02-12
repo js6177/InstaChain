@@ -16,3 +16,6 @@ Master Private key: tprv8ZgxMBicQKsPf3idQscpYCPZ5ZQq5q1Jj5HjryTvHoWvhxjKzMXPXcmf
 Master Public key: tpubD6NzVbkrYhZ4YWkRJXHQwc3feavmFACDJNtX9VWDi5KKYSz6ckLyi7PXKa9F6qnPUHX8xyGEii44bmkvovGRVp68Q13yTd8wyrswZFDMFu8
 
 4) Take the master public key, and move it to the Layer2Ledger, so that the deposit address can be generated
+
+5) In the config.json, set 'import_wallet_privkey_at_startup' to false, and run onboardinghelper.py again to start monitoring for withdrawals and deposits. This script will continue running eternally and restart if it encounters any errors.
+If you get an error saying '-4: Wallet already being loading.', this means the wallet is still loading, so try again a bit later.
