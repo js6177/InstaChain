@@ -14,11 +14,11 @@ import KeyVerification
 
 class withdrawalRequest(InstachainRequestHandler):
     def getParameters(self):
-        self.source_address_public_key = self.getRequestParams('source_address_public_key')
-        self.nonce = self.getRequestParams('nonce') #nonce
-        self.layer1_withdrawal_address = self.getRequestParams('layer1_withdrawal_address')
-        self.amount = int(self.getRequestParams('amount'))
-        self.signature = self.getRequestParams('signature')
+        self.source_address_public_key = self.getPostRequestParams('source_address_public_key')
+        self.nonce = self.getPostRequestParams('nonce') #nonce
+        self.layer1_withdrawal_address = self.getPostRequestParams('layer1_withdrawal_address')
+        self.amount = int(self.getPostRequestParams('amount'))
+        self.signature = self.getPostRequestParams('signature')
 
     def processRequest(self):
         message = KeyVerification.buildWithdrawalRequestMessage(self.source_address_public_key, self.layer1_withdrawal_address, self.nonce, self.amount)

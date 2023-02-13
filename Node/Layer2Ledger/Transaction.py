@@ -130,8 +130,8 @@ class Transaction(ndb.Model):
     TRX_WITHDRAWAL_CONFIRMED = 6  # when the withdrawal gets confirmed in the layer1 chain
 
     def to_dict(self):
-        result = super(Transaction, self).to_dict(exclude={'date'})
-        result['timestamp'] = int(self.timestamp.strftime("%s"))
+        result = super(Transaction, self).to_dict(exclude={'timestamp'})
+        result['timestamp'] = int(self.timestamp.timestamp())
         return result
 
     @staticmethod

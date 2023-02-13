@@ -100,27 +100,28 @@ def getAddressTransactions(hostname, pubkey):
     data = { 'public_key': pubkey}
 
     r = requests.get(url, params=data)
+    printResponse(r.text)
     return r.text
 
-def sendWithdrawalRequest(hostname, pubkey, layer1_withdrawal_address, amount, nonce, signature):
+def sendWithdrawalRequest(hostname, source_address_public_key, layer1_withdrawal_address, amount, nonce, signature):
     url = hostname + 'withdrawalRequest'
-    data = {'source_address_public_key': pubkey,
+    data = {'source_address_public_key': source_address_public_key,
             'layer1_withdrawal_address': layer1_withdrawal_address,
             'amount': amount,
             'nonce': nonce,
             'signature': signature}
-    r = requests.post(url, params=data)
+    r = requests.post(url, data=data)
     printResponse(r.text)
     return r.text
 
-async def sendWithdrawalRequestAsync(session, hostname, pubkey, withdrawal_address, amount, nonce, signature):
+async def sendWithdrawalRequestAsync(session, hostname, source_address_public_key, layer1_withdrawal_address, amount, nonce, signature):
     url = hostname + 'withdrawalRequest'
-    data = {'public_key': pubkey,
-            'withdrawal_address': withdrawal_address,
+    data = {'source_address_public_key': source_address_public_key,
+            'layer1_withdrawal_address': layer1_withdrawal_address,
             'amount': amount,
             'nonce': nonce,
             'signature': signature}
-    async with session.post(url, params = data) as response:
+    async with session.post(url, data = data) as response:
         resp = await response.read()
-        printResponse(r.text)
+        printResponse(resp.text)
         return resp
