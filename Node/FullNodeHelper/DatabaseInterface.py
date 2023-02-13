@@ -45,7 +45,8 @@ class ConfirmedTransaction():
         return self
 
     def fromGetTransactionDetails(self, transactionDetailJSON, transaction_id, blockheight, timestamp):
-        self.setValues(transaction_id, ConfirmedTransaction.LAYER2_STATUS_PENDING, transactionDetailJSON["vout"], transactionDetailJSON["amount"], transactionDetailJSON["fee"], transactionDetailJSON["address"], transactionDetailJSON["category"], 0, timestamp, blockheight)
+        print("transactionDetailJSON: " + str(transactionDetailJSON))
+        self.setValues(transaction_id, ConfirmedTransaction.LAYER2_STATUS_PENDING, transactionDetailJSON["vout"], transactionDetailJSON["amount"], transactionDetailJSON.get("fee") or 0, transactionDetailJSON["address"], transactionDetailJSON["category"], 0, timestamp, blockheight)
         return self
 
     @staticmethod

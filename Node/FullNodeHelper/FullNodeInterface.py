@@ -126,9 +126,9 @@ class BitcoinRPC:
                 listsinceblockJSON = self.rpc_connection.listsinceblock()
             else:
                 listsinceblockJSON = self.rpc_connection.listsinceblock(lastblockhash, int(targetConfirmations))
-            print(listsinceblockJSON)
+            print("listsinceblockJSON: " + listsinceblockJSON)
         except Exception as e:
-            print(e)
+            print("listsinceblockJSON: " + str(e))
 
         newlastblock = listsinceblockJSON["lastblock"]
         confirmedTransactions = []
