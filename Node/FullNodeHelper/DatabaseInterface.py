@@ -104,7 +104,7 @@ class DB():
 
     def openOrCreateDB(self):
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS ConfirmedTransactions
-             (transaction_id, layer2_status INTEGER, transaction_vout INTEGER, amount INTEGER, fee INTEGER, address TEXT, category TEXT, confirmations INTEGER, timestamp INTEGER, CONSTRAINT PK_Output PRIMARY KEY (transaction_id, transaction_vout) )''')
+             (transaction_id, layer2_status INTEGER, transaction_vout INTEGER, amount INTEGER, fee INTEGER, address TEXT, category TEXT, confirmations INTEGER, timestamp INTEGER, CONSTRAINT PK_Output PRIMARY KEY (transaction_id, transaction_vout, category) )''')
         self.cursor.execute('''CREATE INDEX IF NOT EXISTS UIX_ConfirmedTransactions_layer2_status
              ON ConfirmedTransactions (layer2_status)''')
         self.conn.commit()
