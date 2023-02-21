@@ -1,11 +1,17 @@
-1) Download and run bitcoin core:
+Note: these instructions have been tested on Linux machines. Windows machines should work too, but are not tested.
+
+1) Copy the bitcoin.conf at /FullNodeHelper/bitcoin.conf to it's default location, in this case of Linux, it will be ~/.bitcoin/bitcoin.conf
+For running it on other OS, see https://en.bitcoin.it/wiki/Running_Bitcoin
+Make sure to change the rpc connection password to something unique, and update the respective rpc parameters in the /FullNodeHelper/config.json file
+
+2) Download and run bitcoin core:
 dev@dev-OpenStack-Nova:~/Apps/bitcoin-0.21.1-x86_64-linux-gnu/bitcoin-0.21.1/bin$ ./bitcoind --testnet
 
-2) Create a wallet:
+3) Create a wallet:
 dev@dev-OpenStack-Nova:~/Apps/bitcoin-0.21.1-x86_64-linux-gnu/bitcoin-0.21.1/bin$ ./bitcoin-cli -testnet createwallet wallet
 'wallet' is the name of the wallet, it can be anything though for safety use alphanumeric characters. Make sure you edit the 'wallet_name' key in config.json so the fullnodehelper passed the correct wallet name through RPC calls
 
-3) Import private keys.
+4) Import private keys.
 In the config file, set the "import_wallet_privkey_at_startup" to true, and the "import_wallet_privkey_startup_count" to how many keys you want to import (you can set this as high as you want, the keys will be imported 1000 at a time).
 Set the "wallet_private_key_seed_mneumonic" to a random mneumonic of 12 alphanumeric words. This will be sha256'd to generate the master private key and deterministically generate the private keys. Treat this mneumonic as a master private keys. if you lose this phrase, you will have no way of generating the private keys.
 Once the config is set, now run the onboardinghelper.py to import these keys.
@@ -15,7 +21,9 @@ Importing 1000 private keys starting at index 8000
 Master Private key: tprv8ZgxMBicQKsPf3idQscpYCPZ5ZQq5q1Jj5HjryTvHoWvhxjKzMXPXcmf9Rm6VJkWssFze8coiTPw5zfMrNvzm2ePxUtSeq3TN6EeytCYGCR
 Master Public key: tpubD6NzVbkrYhZ4YWkRJXHQwc3feavmFACDJNtX9VWDi5KKYSz6ckLyi7PXKa9F6qnPUHX8xyGEii44bmkvovGRVp68Q13yTd8wyrswZFDMFu8
 
-4) Take the master public key, and move it to the Layer2Ledger, so that the deposit address can be generated
+5) Take the master public key, and move it to the Layer2Ledger, so that the deposit address can be generated
 
-5) In the config.json, set 'import_wallet_privkey_at_startup' to false, and run onboardinghelper.py again to start monitoring for withdrawals and deposits. This script will continue running eternally and restart if it encounters any errors.
+6) Wait for the bitcoind to finish syncing the bitcoin blockchain, as any transactions after whatever blocks it has downloaded will not show up.
+
+7) Once it has finished syncing, you can now run the onboardinghelper. In the config.json, set 'import_wallet_privkey_at_startup' to false, and run onboardinghelper.py again to start monitoring for withdrawals and deposits. This script will continue running eternally and restart if it encounters any errors.
 If you get an error saying '-4: Wallet already being loading.', this means the wallet is still loading, so try again a bit later.
