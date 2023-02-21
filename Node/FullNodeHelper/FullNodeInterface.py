@@ -118,7 +118,7 @@ class BitcoinRPC:
         if(lastblockhash):
             targetConfirmations = str(self.getTargetConfirmations())
 
-        print('lastblockhash: ' + lastblockhash)
+        print('lastblockhash: ' + str(lastblockhash))
         print('targetConfirmations: ' + str(targetConfirmations))
         listsinceblockJSON = ''
         try:
@@ -126,7 +126,7 @@ class BitcoinRPC:
                 listsinceblockJSON = self.rpc_connection.listsinceblock()
             else:
                 listsinceblockJSON = self.rpc_connection.listsinceblock(lastblockhash, int(targetConfirmations))
-            print("listsinceblockJSON: " + listsinceblockJSON)
+            print("listsinceblockJSON: " + str(listsinceblockJSON))
         except Exception as e:
             print("listsinceblockJSON: " + str(e))
 

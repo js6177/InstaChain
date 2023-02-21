@@ -110,7 +110,7 @@ class AddressBalanceCache(ndb.Model):
         #add or updates balance
 
 class Transaction(ndb.Model):
-    timestamp = ndb.DateTimeProperty(indexed = False, auto_now_add=True) # date when the transaction was inserted. This does not need to be indexed, so that the db does not update/insert the index at run time and slow a transaction down . If the admin needs to view transactions in chronological order, the can index the model on the fly. 
+    timestamp = ndb.DateTimeProperty(auto_now_add=True) # date when the transaction was inserted. This does not need to be indexed, so that the db does not update/insert the index at run time and slow a transaction down . If the admin needs to view transactions in chronological order, the can index the model on the fly. 
     amount = ndb.IntegerProperty(indexed = False)
     fee = ndb.IntegerProperty(indexed=False)
     source_address_pubkey = ndb.StringProperty() # pubkey of the source address, whose corresponding private key signed the message

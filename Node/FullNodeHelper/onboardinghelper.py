@@ -149,9 +149,10 @@ class OnboardingHelper():
                 if(int(confirmedTransactionJSON["confirmations"]) >= nh.getTargetConfirmations()):
                     trxid = confirmedTransactionJSON["txid"]
                     vout = confirmedTransactionJSON["vout"]
-                    if((trxid, vout) not in confirmedTransactionsDict):
+                    category = confirmedTransactionJSON["category"]
+                    if((trxid, vout, category) not in confirmedTransactionsDict):
                         confirmedTransaction = DatabaseInterface.ConfirmedTransaction().fromListSinceBlockRpcJson(confirmedTransactionJSON)
-                        confirmedTransactionsDict[(trxid, vout)] = confirmedTransaction #add in memory
+                        confirmedTransactionsDict[(trxid, vout, category)] = confirmedTransaction #add in memory
                         db.insertConfirmedTransaction(confirmedTransaction)
             print("lastblockhash: " + lastblockhash)
             db.setLastBlockHash(lastblockhash)
