@@ -128,6 +128,7 @@ class Transaction(ndb.Model):
     TRX_WITHDRAWAL_BROADCASTED = 4 # when the transaction is broadcasted and in the mempool
     TRX_WITHDRAWAL_CANCELED = 5  # when the transaction gets removed from the layer1 mempool for any reason
     TRX_WITHDRAWAL_CONFIRMED = 6  # when the withdrawal gets confirmed in the layer1 chain
+    INSTRUCTION_GET_DEPOSIT_ADDRESS = 7 # instruction to get a deposit address
 
     def to_dict(self):
         result = super(Transaction, self).to_dict(exclude={'timestamp'})

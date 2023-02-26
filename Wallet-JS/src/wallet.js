@@ -58,6 +58,7 @@ const TRX_WITHDRAWAL_INITIATED = 3;  // when the user wants to withdraw to a btc
 const TRX_WITHDRAWAL_BROADCASTED = 4; // when the transaction is broadcasted and in the mempool
 const TRX_WITHDRAWAL_CANCELED = 5;  // when the transaction gets removed from the layer1 mempool for any reason
 const TRX_WITHDRAWAL_CONFIRMED = 6;  // when the withdrawal gets confirmed in the layer1 chain
+const INSTRUCTION_GET_DEPOSIT_ADDRESS = 7; // instruction to get a deposit address
 
 var TransactionTypeMap = {
     [TRX_TRANSFER] : "transfer",
@@ -152,7 +153,7 @@ class MessageBuilder{
     }
 
     buildGetDepositAddressMessage(layer2AddressPubKey, transactionIdNonce){
-        var message = (this.layer2LedgerNodeId + " " + layer2AddressPubKey + " " + transactionIdNonce);
+        var message = (this.layer2LedgerNodeId + " " + this.layer2LedgerNodeAssetId + " " + INSTRUCTION_GET_DEPOSIT_ADDRESS + layer2AddressPubKey + " " + transactionIdNonce);
         console.log('buildGetDepositAddressMessage: ' + message);
         return message;
     }
