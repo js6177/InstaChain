@@ -23,9 +23,11 @@ DEFAULT_FEE = 1 # 1 satoshi
 
 TRX_TRANSFER = 1  # regular 2nd layer transfer
 TRX_DEPOSIT = 2  # when a user deposits btc to a deposit address, then funds get credited to his pubkey
-TRX_WITHDRAWAL_REQUESTED = 3  # when the user wants to withdraw to a btc address (locks that amount)
-TRX_WITHDRAWAL_CANCELED = 4  # when the transaction gets removed from the mainnet mempool for any reason
-TRX_WITHDRAWAL_CONFIRMED = 5  # when the withdrawal gets confirmed in the main btc chain
+TRX_WITHDRAWAL_INITIATED = 3  # when the user wants to withdraw to a btc address (locks that amount)
+TRX_WITHDRAWAL_BROADCASTED = 4 # when the transaction is broadcasted and in the mempool
+TRX_WITHDRAWAL_CANCELED = 5  # when the transaction gets removed from the layer1 mempool for any reason
+TRX_WITHDRAWAL_CONFIRMED = 6  # when the withdrawal gets confirmed in the layer1 chain
+INSTRUCTION_GET_DEPOSIT_ADDRESS = 7 # instruction to get a deposit address
 
 DIRECTION_SENDING = 0
 DIRECTION_RECIEVING = 1
@@ -289,7 +291,7 @@ class Wallet:
         if(deposit_address == None):
             nonce = self.generateRandomNonce(8) #TODO: make const
             #possible todo: check local wallet first
-            message = self.trusted_nodes[node_url].node_id + ' ' + layer2_address.pubkey + ' ' + nonce
+            message = self.trusted_nodes[node_url].node_id + ' ' + str(trx.asset_id) + ' ' + str(INSTRUCTION_GET_DEPOSIT_ADDRESS) + layer2_address.pubkey + ' ' + nonce
             signature = self.sign_string(layer2_address.privkey, message)
             response = connection.getDepositAddress(self.trusted_nodes[node_url].hostname, layer2_address.pubkey, nonce, signature)
             layer1_address = response.layer1_deposit_address
@@ -308,7 +310,7 @@ class Wallet:
         trx.asset_id = self.trusted_nodes[_node_url].asset_id
 
         address = self.addresses[source_address_pubkey]
-        message = self.trusted_nodes[_node_url].node_id + ' ' + str(trx.asset_id) + ' ' + str(TRX_WITHDRAWAL_REQUESTED) + ' ' + source_address_pubkey + ' ' + layer1_withdrawal_address + ' ' + trx.transaction_id + ' ' + str(amount)
+        message = self.trusted_nodes[_node_url].node_id + ' ' + str(trx.asset_id) + ' ' + str(TRX_WITHDRAWAL_INITIATED) + ' ' + source_address_pubkey + ' ' + layer1_withdrawal_address + ' ' + trx.transaction_id + ' ' + str(amount)
         trx.signature = Wallet.sign_string(address.privkey, message)
         print('Transaction id: ' + trx.transaction_id)
         return trx
@@ -434,7 +436,7 @@ class Wallet:
                 if(transaction.transaction_type == TRX_DEPOSIT):
                     source_address = "DEPOSIT"
                 destination_address = transaction.destination_address
-                if(transaction.transaction_type == TRX_WITHDRAWAL_REQUESTED):
+                if(transaction.transaction_type == TRX_WITHDRAWAL_INITIATED):
                     destination_address += " (WITHDRAWAL)"
 
                 amount_sign = "-" if (transaction.source_address == address) else "+"

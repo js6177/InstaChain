@@ -6,7 +6,7 @@ import signing_keys
 from NodeInfoAPI import NODE_ID, NODE_ASSET_ID
 
 def verifyGetDepositAddress(source_pubkey, nonce, signature):
-    message = NODE_ID + " " + source_pubkey + ' ' + nonce
+    message = NODE_ID + " " + str(NODE_ASSET_ID) + " " + str(Transaction.Transaction.INSTRUCTION_GET_DEPOSIT_ADDRESS) + source_pubkey + ' ' + nonce
     verifyingAddress = Address.Address(source_pubkey)
     return verifyingAddress.verify_signature(message, signature)
 
