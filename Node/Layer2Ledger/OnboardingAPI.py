@@ -113,7 +113,7 @@ class depositConfirmed(InstachainRequestHandler):
         transactionResults = []
         request = json.loads(json.dumps(self.jsonParam), object_hook=lambda d: SimpleNamespace(**d))
         for trx in request.transactions:
-            error =  ErrorMessage.build_error_message(Onboarding.depositConfirmed(trx.layer1_transaction_id, trx.layer1_transaction_vout, trx.layer1_address, trx.amount, trx.signature))
+            error =  ErrorMessage.build_error_message(Onboarding.depositConfirmed(trx.layer1_transaction_id, trx.layer1_transaction_vout, trx.layer1_address, trx.amount, trx.nonce, trx.signature))
             error["layer1_transaction_id"] = trx.layer1_transaction_id
             error["layer1_transaction_vout"] = str(trx.layer1_transaction_vout)
             transactionResults.append(error)

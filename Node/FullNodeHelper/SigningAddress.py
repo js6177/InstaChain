@@ -19,8 +19,8 @@ def sign_string(signing_key, message):
         signature = base58.b58encode(privkey.sign(message.encode("utf-8")))
         return signature
 
-def signDepositConfirmedMessage(onboarding_signing_private_key, layer1_transaction_id, layer1_transaction_vout, layer1_address, amount):
-    message = NODE_ID + " " + str(TRX_DEPOSIT) + ' ' + layer1_transaction_id + ' ' + str(layer1_transaction_vout) + ' ' + layer1_address + ' ' + str(amount)
+def signDepositConfirmedMessage(onboarding_signing_private_key, layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, nonce):
+    message = NODE_ID + " " + str(TRX_DEPOSIT) + ' ' + layer1_transaction_id + ' ' + str(layer1_transaction_vout) + ' ' + layer1_address + ' ' + str(amount) + ' ' + str(nonce)
     return sign_string(onboarding_signing_private_key, message)
 
 def signWithdrawalBroadcastedMessage(onboarding_signing_private_key, layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, withdrawal_id):

@@ -10,8 +10,8 @@ def verifyGetDepositAddress(source_pubkey, nonce, signature):
     verifyingAddress = Address.Address(source_pubkey)
     return verifyingAddress.verify_signature(message, signature)
 
-def verifyDeposit(layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, signature):
-    message = NODE_ID + " " + str(Transaction.Transaction.TRX_DEPOSIT) + ' ' + layer1_transaction_id + ' ' + str(layer1_transaction_vout) + ' ' + layer1_address + ' ' + str(amount)
+def verifyDeposit(layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, nonce, signature):
+    message = NODE_ID + " " + str(Transaction.Transaction.TRX_DEPOSIT) + ' ' + layer1_transaction_id + ' ' + str(layer1_transaction_vout) + ' ' + layer1_address + ' ' + str(amount) + ' ' + nonce
     verifyingAddress = Address.Address(signing_keys.FULLNODE_SIGNING_KEY_PUBKEY)
     return verifyingAddress.verify_signature(message, signature)
 

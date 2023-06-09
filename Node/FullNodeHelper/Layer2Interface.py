@@ -87,6 +87,7 @@ class Layer2Interface:
                     'layer1_transaction_vout': depositTransaction.transaction_vout,
                     'amount': depositTransaction.amount,
                     'layer1_address': depositTransaction.address,
+                    'nonce': depositTransaction.nonce,
                     'signature': depositTransaction.signature.decode("utf-8")}
             transactions.append(transaction)
         jsonData = {"transactions":transactions}
@@ -153,7 +154,8 @@ class Layer2Interface:
 
     def sendConfirmDeposit(self, transactions: List[DatabaseInterface.ConfirmedTransaction]):
         for transaction in transactions:
-            transaction.signature = SigningAddress.signDepositConfirmedMessage(self.onboarding_signing_private_key, transaction.transaction_id, transaction.transaction_vout, transaction.address, transaction.amount)
+            transaction.nonce = ''.join(random.choice(string.ascii_letters) for i in range(16))
+            transaction.signature = SigningAddress.signDepositConfirmedMessage(self.onboarding_signing_private_key, transaction.transaction_id, transaction.transaction_vout, transaction.address, transaction.amount, transaction.nonce)
         return self.confirmDepositMulti(transactions)
 
     def sendWithdrawalBroadcasted(self, withdrawalBroadcastedTramsactions: List[WithdrawalBroadcastedTransaction]):
