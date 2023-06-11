@@ -119,11 +119,11 @@ class DepositAddresses(ndb.Model):
     mpk_index = ndb.IntegerProperty()
 
     @staticmethod
-    def getAddressFromPubkey(pubkey):
-        return DepositAddresses.query(DepositAddresses.layer2_address == pubkey).get()
+    def getLayer1DepositAddressFromLayer2AddressPubkey(_layer2_address):
+        return DepositAddresses.query(DepositAddresses.layer2_address == _layer2_address).get()
 
     @staticmethod
-    def getPubkeyFromAddress(_layer1_address):
+    def getLayer2PubkeyFromLayer1Address(_layer1_address):
         deposit = DepositAddresses.query(DepositAddresses.layer1_address == _layer1_address).get()
         if(deposit):
             return deposit.layer2_address
@@ -136,7 +136,7 @@ def getDepositAddress(_layer2_address, nonce, signature):
         return ErrorMessage.ERROR_CANNOT_VERIFY_SIGNATURE, None
 
     #if the address is already created through a previous request
-    deposit_adress = DepositAddresses.getAddressFromPubkey(_layer2_address)
+    deposit_adress = DepositAddresses.getLayer1DepositAddressFromLayer2AddressPubkey(_layer2_address)
     if(deposit_adress):
         return status, deposit_adress.layer1_address
 
@@ -156,20 +156,20 @@ def getDepositAddress(_layer2_address, nonce, signature):
 
 # Called by full node
 # When a deposit is confirmed, the full node calls this function, to credit the layer2 address with the deposited funds
-def depositConfirmed(layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, signature):
-    destination_pubkey = DepositAddresses.getPubkeyFromAddress(layer1_address)
+def depositConfirmed(layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, _nonce, signature):
+    destination_pubkey = DepositAddresses.getLayer2PubkeyFromLayer1Address(layer1_address)
     if (not destination_pubkey):
         return ErrorMessage.ERROR_DEPOSIT_ADDRESS_NOT_FOUND
 
     #check to see if this deposit comes from our btc full node
-    if(not KeyVerification.verifyDeposit(layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, signature)):
+    if(not KeyVerification.verifyDeposit(layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, _nonce, signature)):
         return ErrorMessage.ERROR_CANNOT_VERIFY_SIGNATURE
 
     source = signing_keys.ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY
     destination_address = Address.Address(destination_pubkey)
     fee = 0
 
-    nonce = ''.join(random.choice(string.ascii_letters) for i in range(16))
+    nonce = _nonce
     onboarding_transaction_signing_address = Address.Address.fromPrivateKey(signing_keys.ONBOARDING_DEPOSIT_SIGNING_KEY_PRIVKEY)
     message = str(Transaction.Transaction.TRX_DEPOSIT) + " " + source + " " + destination_pubkey + " " + str(amount) + " " + str(fee) + " " + nonce
     signature = onboarding_transaction_signing_address.sign(message)

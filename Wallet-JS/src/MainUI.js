@@ -38,7 +38,7 @@ import CurrencyBitcoinIcon from '@mui/icons-material/CurrencyBitcoin';
 
 import { red, green, blue } from '@mui/material/colors';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline } from '@mui/material/';
+import { Card, CssBaseline } from '@mui/material/';
 
 
 const theme = createTheme({
@@ -55,6 +55,24 @@ const theme = createTheme({
       light: '#de2618',
       dark: '#b31308',
     },
+    bitcoinOrange:{
+      main: "#f2a900",
+      contrastText: "#FFFFFF"
+    },
+    twitter:{
+      main: "#1DA1F2",
+      contrastText: "#FFFFFF"
+    },
+    github:{
+      main: "#333",
+      contrastText: "#FFFFFF"
+
+    },
+    googleCloud:{
+      main: "#4285F4",
+      contrastText: "#FFFFFF"
+
+    }
   },
 });
 
@@ -65,7 +83,7 @@ export default function MyApp(props) {
     return (
       <div>
         <ThemeProvider theme={theme}>
-          <Stack spacing={2}>
+          <Stack spacing={2} >
             <ProjectHeaderUI/>
             {false && <ProjectDescriptionUI/>}
             <MainUI WorkspaceState={WorkspaceState} transactions={transactions}/>
@@ -83,7 +101,7 @@ export default function MyApp(props) {
         alignItems="flex-start"
         spacing={2}
       >
-        <Chip label="Instachain" />
+        <Chip label="Instachain v0.1 beta testnet" size='medium' color='primary'/>
 
         <Stack
           direction="row"
@@ -91,10 +109,11 @@ export default function MyApp(props) {
           alignItems="flex-start"
           spacing={2}
         > 
-          <Chip icon={<CurrencyBitcoinIcon />} label="Bitcointalk" />
-          <Chip icon={<GitHubIcon />} label="Github" />
-          <Chip icon={<TwitterIcon />} label="Twitter" />
-          <Chip icon={<GoogleIcon />} label="Google Cloud" />
+          <Chip icon={<CurrencyBitcoinIcon />} color='bitcoinOrange' label="Bitcointalk" />
+          <Chip icon={<GitHubIcon />} color='github' label="Github" component="a" href="https://github.com/js6177/InstaChain" clickable/>
+          <Chip icon={<TwitterIcon />} color='twitter' label="Twitter" />
+          <Chip icon={<GoogleIcon />} color='googleCloud' label="Google Cloud" />
+
         </Stack>
          
       </Stack>
@@ -199,7 +218,11 @@ export default function MyApp(props) {
             justifyContent="space-between"
             alignItems="flex-start"
             spacing={2}>
-              <MainAddressBalanceView  mainAddressPubkey={WorkspaceState.mainAddressPubkey} manAddressBalance={WorkspaceState.addressBalances[WorkspaceState.mainAddressPubkey]}/>
+              <Box display="block">
+                <Card variant="outlined" >
+                  <MainAddressBalanceView  mainAddressPubkey={WorkspaceState.mainAddressPubkey} manAddressBalance={WorkspaceState.addressBalances[WorkspaceState.mainAddressPubkey]}/>
+                </Card>
+              </Box>
               <ActionDialog
                 dialogErrorCode={createOpenWalletDialogStatus}
                 isOpen={createOpenWalletDialogIsOpen}
@@ -260,7 +283,7 @@ export default function MyApp(props) {
       <div>
         Main Address: {mainAddressPubkey}
         <br/>
-        Balance: {manAddressBalance}
+        Balance (satoshis): {manAddressBalance}
       </div>
     );
   }

@@ -1,5 +1,6 @@
 import requests
 import time
+import filelock
 import os
 import json
 import random
@@ -24,16 +25,18 @@ SATOSHI_PER_BITCOIN = 100000000
 MAX_NUMBER_OF_KEYS_TO_IMPORT_PER_RPC_REQUEST = 1000
 
 CONFIG_FILE_NAME = "config.json"
+LOCKFILE_PATH = 'onboardinghelper.lock'
 
 def main():
-    #while (True):
-        try:
-            oh = OnboardingHelper()
-            oh.run()
-        except Exception as e:
-            print(e)
-            print(traceback.format_exc())
-            print('Restarting...')
+    if os.path.exists(LOCKFILE_PATH):
+        os.remove(LOCKFILE_PATH)
+    try:
+        oh = OnboardingHelper()
+        oh.run()
+    except Exception as e:
+        print(e)
+        print(traceback.format_exc())
+        print('Restarting...')
 
 
 
@@ -106,6 +109,7 @@ class OnboardingHelper():
             print("Time elapsed: " + str(elapsed_time))
 
     def run(self):
+        termination_called = False
         self.loadConfig()
         parser = argparse.ArgumentParser()
         parser.add_argument('--importprivkeys', dest='importprivkeys', action='store_true', help='Pass this parameter if you need to import private keys to the wallet instead of running the onboarding helper.')
@@ -136,7 +140,7 @@ class OnboardingHelper():
         for withdrawal in pendingWithdrawals:
             withdrawalsDict[withdrawal.layer2_withdrawal_id] = withdrawal
 
-        while(True):
+        while(not termination_called):
             if(self.import_wallet_privkey_while_looping):
                 self.import_private_keys(self.import_wallet_privkey_loop_count, db, nh)
 
@@ -236,6 +240,10 @@ class OnboardingHelper():
                 print("No withdrawals to broadcast")
 
             time.sleep(60*1) #sleep 1 mins
+            if os.path.exists(LOCKFILE_PATH):
+                termination_called = True
+                print("Termination called through lockfile... ")
+
         pass
 
 if __name__ == "__main__":
