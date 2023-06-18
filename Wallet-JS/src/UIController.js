@@ -16,7 +16,8 @@ class UiController extends React.Component{
             getDepositAddressErrorMessage: "",
             withdrawTransactionErrorMessage: "",
             transactions: [],
-            addressBalances: []
+            addressBalances: [],
+            walletLoaded: false
         };
 
         this._callbacksMap = {
@@ -49,7 +50,8 @@ class UiController extends React.Component{
         workSpace.newWallet(mneumonic);
         
         this.setState({
-            mainAddressPubkey: this.getMainWalletAddress()
+            mainAddressPubkey: this.getMainWalletAddress(),
+            walletLoaded: true
         })
 
         this.getTransactions();

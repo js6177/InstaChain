@@ -65,7 +65,7 @@ export function ActionDialog(props) {
       <Stack spacing={2}>
         <ActionDialogDescriptionDisplay text={"To create a wallet, generate a mneumonic, or enter a saved mneumonic to open an existing wallet."}/>
         <Button  variant="contained" id="generateNewWalletMneumonicButton" onClick={generateNewWalletMneumonic}>Generate Wallet Mneumonic</Button>
-        <TextField multiline fullWidth id="textBoxMneumonicValue" label="Mneumonic" variant="outlined" InputLabelProps={{ shrink: true }} defaultValue={MASTER_MNEOMONIC}/>
+        <TextField multiline fullWidth id="textBoxMneumonicValue" label="L2 Mneumonic" variant="outlined" InputLabelProps={{ shrink: true }} defaultValue={MASTER_MNEOMONIC}/>
         <Alert severity="warning">This mneumonic generates your wallet's private keys, so copy it and keep it safe. It is not possible to recover your wallet's private keys if you loose this mneumonic. Do not share with anyone, as anyone with access to this mneumonic can spend your funds.</Alert>
 
         <Button  variant="contained" id="createNewWallet" onClick={ getUiControllerCallbacks()["createWallet"]}>Create/Open Wallet</Button>

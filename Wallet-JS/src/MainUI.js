@@ -16,6 +16,9 @@ import InputLabel from '@mui/material/InputLabel';
 import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
 
+import IconButton from '@mui/material/IconButton';
+import CloseIcon from '@mui/icons-material/Close';
+
 import Accordion from '@mui/material/Accordion';
 import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
@@ -39,13 +42,15 @@ import CurrencyBitcoinIcon from '@mui/icons-material/CurrencyBitcoin';
 import { red, green, blue } from '@mui/material/colors';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { Card, CssBaseline } from '@mui/material/';
+import { color } from '@mui/system';
 
 
 const theme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#4f51b5',
+      main: '#DC9A22',
+      contrastText: "#FFFFFF"
     },
     secondary: {
       main: '#f30057',
@@ -54,6 +59,13 @@ const theme = createTheme({
       main: '#9e3c35',
       light: '#de2618',
       dark: '#b31308',
+    },
+    projectDescriptionCardColor:{
+      main: "#F6CF92"
+    },
+    newWalletButton:{
+      main: "#03D624",
+      contrastText: "#FFFFFF"   
     },
     bitcoinOrange:{
       main: "#f2a900",
@@ -71,7 +83,13 @@ const theme = createTheme({
     googleCloud:{
       main: "#4285F4",
       contrastText: "#FFFFFF"
-
+    },
+    depositButtonColor:{
+      main: "#caffbf",
+      contrastText: "#FFFFFF"
+    },
+    paperColor:{
+      main: "#f8edeb"
     }
   },
 });
@@ -81,9 +99,9 @@ export default function MyApp(props) {
 
   setUiControllerCallbacks(callbacksMap);
     return (
-      <div>
+      <div  >
         <ThemeProvider theme={theme}>
-          <Stack spacing={2} >
+          <Stack spacing={2}  bgcolor="paperColor">
             <ProjectHeaderUI/>
             {false && <ProjectDescriptionUI/>}
             <MainUI WorkspaceState={WorkspaceState} transactions={transactions}/>
@@ -101,7 +119,7 @@ export default function MyApp(props) {
         alignItems="flex-start"
         spacing={2}
       >
-        <Chip label="Instachain v0.1 beta testnet" size='medium' color='primary'/>
+        <Chip label="Instachain v0.1 beta testnet" size='medium'/>
 
         <Stack
           direction="row"
@@ -110,7 +128,7 @@ export default function MyApp(props) {
           spacing={2}
         > 
           <Chip icon={<CurrencyBitcoinIcon />} color='bitcoinOrange' label="Bitcointalk" />
-          <Chip icon={<GitHubIcon />} color='github' label="Github" component="a" href="https://github.com/js6177/InstaChain" clickable/>
+          <Chip icon={<GitHubIcon />} color='github' label="Github" component="a" href="https://github.com/js6177/InstaChain" target="_blank" clickable/>
           <Chip icon={<TwitterIcon />} color='twitter' label="Twitter" />
           <Chip icon={<GoogleIcon />} color='googleCloud' label="Google Cloud" />
 
@@ -214,25 +232,31 @@ export default function MyApp(props) {
       return (
         <div>
           <Stack spacing={2}>
+            <Box  display="flex" justifyContent="center" >
+              <Card sx={{  maxWidth: 1/3, p: 2 }} justifyContent="center" bgcolor='projectDescriptionCardColor'>
+              IC is a new real-time Layer2 sidechain build for instant, near 0 fee payments. To get started, click “new wallet” and generate your L2 wallet; no login or registration is required. To learn more about the project, check the links on the top right.
+              </Card>
+            </Box>
             <Stack direction="row"        
             justifyContent="space-between"
-            alignItems="flex-start"
+            alignItems="flex-end"
             spacing={2}>
-              <Box display="block">
-                <Card variant="outlined" >
-                  <MainAddressBalanceView  mainAddressPubkey={WorkspaceState.mainAddressPubkey} manAddressBalance={WorkspaceState.addressBalances[WorkspaceState.mainAddressPubkey]}/>
-                </Card>
-              </Box>
               <ActionDialog
                 dialogErrorCode={createOpenWalletDialogStatus}
                 isOpen={createOpenWalletDialogIsOpen}
                 onClose={handleCreateOpenWalletDialogClose}
-                dialogTitle="Create/Open Wallet"
+                dialogTitle="Create/Open L2 Wallet"
                 dialogBody={<CreateOpenWalletDialogBody />}
               />
-              <Button variant="outlined" onClick={handleClickCreateOpenWalletDialogOpen}>
-                Create/Open Wallet
+              <Button variant="contained" onClick={handleClickCreateOpenWalletDialogOpen} color='newWalletButton'>
+                Create/Open L2 Wallet
               </Button>
+              {WorkspaceState.walletLoaded &&
+              <Box display="block" >
+                <Card variant="outlined">
+                  <MainAddressBalanceView  mainAddressPubkey={WorkspaceState.mainAddressPubkey} manAddressBalance={WorkspaceState.addressBalances[WorkspaceState.mainAddressPubkey]}/>
+                </Card>
+              </Box>}
             </Stack>
               
             <TransactionDataGrid transactions={transactions} />
@@ -240,34 +264,34 @@ export default function MyApp(props) {
 
 
             <Stack direction="row" spacing={2}>
-              <Button variant="outlined" onClick={handleClickTransferDialogOpen}>
-                Transfer
+              <Button variant="contained"  onClick={handleClickTransferDialogOpen} disabled={!WorkspaceState.walletLoaded}>
+                Transfer (L2-{'>'}L2)
               </Button>
               <ActionDialog
                 dialogErrorCode={transferDialogStatus}
                 isOpen={transferDialogIsOpen}
                 onClose={handleTransferDialogClose}
-                dialogTitle="Transfer"
+                dialogTitle="Transfer (L2->L2)"
                 dialogBody={<TransferDialogBody transferTransactionErrorMessage={WorkspaceState.transferTransactionErrorMessage}/>}
               />
 
-              <Button variant="outlined" onClick={handleDepositDialogOpen}>
-                Deposit
+              <Button variant="contained"  onClick={handleDepositDialogOpen} disabled={!WorkspaceState.walletLoaded}>
+                Deposit (L1-{'>'}L2)
               </Button>
               <ActionDialog
                 isOpen={getDepositAddressDialogIsOpen}
                 onClose={handleDepositDialogClose}
-                dialogTitle="Deposit"
+                dialogTitle="Deposit (L1->L2)"
                 dialogBody={<DepositDialogBody getDepositAddressErrorMessage={WorkspaceState.getDepositAddressErrorMessage} depositAddress={WorkspaceState.depositAddress}/>}
               />
 
-              <Button variant="outlined" onClick={handleWihdrawalDialogOpen}>
-                Withdraw
+              <Button variant="contained" onClick={handleWihdrawalDialogOpen} disabled={!WorkspaceState.walletLoaded} >
+                Withdraw (L2-{'>'}L1)
               </Button>
               <ActionDialog
                 isOpen={withdrawalDialogIsOpen}
                 onClose={handleWithdrawalDialogClose}
-                dialogTitle="Withdraw"
+                dialogTitle="Withdraw (L2->L1)"
                 dialogBody={<WithdrawalDialogBody withdrawTransactionErrorMessage={WorkspaceState.withdrawTransactionErrorMessage}/>}
               />
               </Stack>
@@ -281,7 +305,7 @@ export default function MyApp(props) {
 
     return(
       <div>
-        Main Address: {mainAddressPubkey}
+        Main L2 Address: {mainAddressPubkey}
         <br/>
         Balance (satoshis): {manAddressBalance}
       </div>
