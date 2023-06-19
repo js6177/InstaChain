@@ -51,7 +51,7 @@ export function TransactionDataGrid(props) {
 
   return (
       <Box sx={{ height: 400, width: '100%' }}>
-        <DataGrid
+        <DataGrid sx={{ bgcolor:'#FEFAE0' }}
           rows={transactions}
           columns={columns}
 

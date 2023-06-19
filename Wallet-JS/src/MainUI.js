@@ -15,6 +15,7 @@ import Stack from '@mui/material/Stack';
 import InputLabel from '@mui/material/InputLabel';
 import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
+import Tooltip from '@mui/material/Tooltip';
 
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
@@ -41,13 +42,18 @@ import CurrencyBitcoinIcon from '@mui/icons-material/CurrencyBitcoin';
 
 import { red, green, blue } from '@mui/material/colors';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { Card, CssBaseline } from '@mui/material/';
+import { CssBaseline } from '@mui/material/';
+import { Card } from '@mui/material/';
 import { color } from '@mui/system';
 
 
 const theme = createTheme({
   palette: {
     mode: 'light',
+    spacing: 8,
+    background: {
+      default: "#daffe7"
+    },
     primary: {
       main: '#DC9A22',
       contrastText: "#FFFFFF"
@@ -61,7 +67,7 @@ const theme = createTheme({
       dark: '#b31308',
     },
     projectDescriptionCardColor:{
-      main: "#F6CF92"
+      main: "#DC9A22"
     },
     newWalletButton:{
       main: "#03D624",
@@ -101,7 +107,8 @@ export default function MyApp(props) {
     return (
       <div  >
         <ThemeProvider theme={theme}>
-          <Stack spacing={2}  bgcolor="paperColor">
+          <CssBaseline/>
+          <Stack spacing={2} padding={2}  bgcolor="paperColor">
             <ProjectHeaderUI/>
             {false && <ProjectDescriptionUI/>}
             <MainUI WorkspaceState={WorkspaceState} transactions={transactions}/>
@@ -232,11 +239,13 @@ export default function MyApp(props) {
       return (
         <div>
           <Stack spacing={2}>
+          {!WorkspaceState.walletLoaded &&
             <Box  display="flex" justifyContent="center" >
-              <Card sx={{  maxWidth: 1/3, p: 2 }} justifyContent="center" bgcolor='projectDescriptionCardColor'>
+              <Card sx={{  maxWidth: 1/3, p: 2, bgcolor:'#FEFAE0' }} justifyContent="center" >
               IC is a new real-time Layer2 sidechain build for instant, near 0 fee payments. To get started, click “new wallet” and generate your L2 wallet; no login or registration is required. To learn more about the project, check the links on the top right.
               </Card>
             </Box>
+            }
             <Stack direction="row"        
             justifyContent="space-between"
             alignItems="flex-end"
@@ -253,7 +262,7 @@ export default function MyApp(props) {
               </Button>
               {WorkspaceState.walletLoaded &&
               <Box display="block" >
-                <Card variant="outlined">
+                <Card variant="outlined" sx={{p:2, bgcolor:'#FEFAE0' }}>
                   <MainAddressBalanceView  mainAddressPubkey={WorkspaceState.mainAddressPubkey} manAddressBalance={WorkspaceState.addressBalances[WorkspaceState.mainAddressPubkey]}/>
                 </Card>
               </Box>}
@@ -264,36 +273,45 @@ export default function MyApp(props) {
 
 
             <Stack direction="row" spacing={2}>
-              <Button variant="contained"  onClick={handleClickTransferDialogOpen} disabled={!WorkspaceState.walletLoaded}>
-                Transfer (L2-{'>'}L2)
-              </Button>
-              <ActionDialog
-                dialogErrorCode={transferDialogStatus}
-                isOpen={transferDialogIsOpen}
-                onClose={handleTransferDialogClose}
-                dialogTitle="Transfer (L2->L2)"
-                dialogBody={<TransferDialogBody transferTransactionErrorMessage={WorkspaceState.transferTransactionErrorMessage}/>}
-              />
+              <Tooltip title="Send funds to another Layer 2 address">
+                <Button variant="contained"  onClick={handleClickTransferDialogOpen} disabled={!WorkspaceState.walletLoaded}>
+                  Transfer (L2-{'>'}L2)
+                </Button>
+                </Tooltip>
+                <ActionDialog
+                  dialogErrorCode={transferDialogStatus}
+                  isOpen={transferDialogIsOpen}
+                  onClose={handleTransferDialogClose}
+                  dialogTitle="Transfer (L2->L2)"
+                  dialogBody={<TransferDialogBody transferTransactionErrorMessage={WorkspaceState.transferTransactionErrorMessage}/>}
+                />
+              
 
-              <Button variant="contained"  onClick={handleDepositDialogOpen} disabled={!WorkspaceState.walletLoaded}>
-                Deposit (L1-{'>'}L2)
-              </Button>
-              <ActionDialog
-                isOpen={getDepositAddressDialogIsOpen}
-                onClose={handleDepositDialogClose}
-                dialogTitle="Deposit (L1->L2)"
-                dialogBody={<DepositDialogBody getDepositAddressErrorMessage={WorkspaceState.getDepositAddressErrorMessage} depositAddress={WorkspaceState.depositAddress}/>}
-              />
+              <Tooltip title="Deposit funds from your Layer 1 bitcoin address to your Layer 2 address">
+                <Button variant="contained"  onClick={handleDepositDialogOpen} disabled={!WorkspaceState.walletLoaded}>
+                  Deposit (L1-{'>'}L2)
+                </Button>
+                </Tooltip>
+                <ActionDialog
+                  isOpen={getDepositAddressDialogIsOpen}
+                  onClose={handleDepositDialogClose}
+                  dialogTitle="Deposit (L1->L2)"
+                  dialogBody={<DepositDialogBody getDepositAddressErrorMessage={WorkspaceState.getDepositAddressErrorMessage} depositAddress={WorkspaceState.depositAddress}/>}
+                />
+              
 
-              <Button variant="contained" onClick={handleWihdrawalDialogOpen} disabled={!WorkspaceState.walletLoaded} >
-                Withdraw (L2-{'>'}L1)
-              </Button>
-              <ActionDialog
-                isOpen={withdrawalDialogIsOpen}
-                onClose={handleWithdrawalDialogClose}
-                dialogTitle="Withdraw (L2->L1)"
-                dialogBody={<WithdrawalDialogBody withdrawTransactionErrorMessage={WorkspaceState.withdrawTransactionErrorMessage}/>}
-              />
+              <Tooltip title="Withdraw funds from your Layer 2 address to you Layer 1 bitcoin address">
+                <Button variant="contained" onClick={handleWihdrawalDialogOpen} disabled={!WorkspaceState.walletLoaded}>
+                  Withdraw (L2-{'>'}L1)
+                </Button>
+                </Tooltip>
+                <ActionDialog
+                  isOpen={withdrawalDialogIsOpen}
+                  onClose={handleWithdrawalDialogClose}
+                  dialogTitle="Withdraw (L2->L1)"
+                  dialogBody={<WithdrawalDialogBody withdrawTransactionErrorMessage={WorkspaceState.withdrawTransactionErrorMessage}/>}
+                />
+              
               </Stack>
             </Stack>
         </div>
