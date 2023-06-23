@@ -193,10 +193,11 @@ def withdrawalConfirmed(_layer1_transaction_id, _layer1_transaction_vout,  _laye
     withdrawals = ConfirmedWithdrawals.getWithdrawals(_layer1_transaction_id, _layer1_transaction_vout)
     layer2_withdrawal_ids = set()
     for withdrawal in withdrawals.fetch():
-        withdrawal.confirmed = True
-        withdrawal.confirmed_signature = _signature
-        withdrawal.put()
-        layer2_withdrawal_ids.add(withdrawal.layer2_withdrawal_id)
+        if(withdrawal.confirmed != True):
+            withdrawal.confirmed = True
+            withdrawal.confirmed_signature = _signature
+            withdrawal.put()
+            layer2_withdrawal_ids.add(withdrawal.layer2_withdrawal_id)
     for layer2_withdrawal_id in layer2_withdrawal_ids:
         withdrawalRequest = WithdrawalRequests.getWithdrawalRequest(layer2_withdrawal_id)
         if(withdrawalRequest):
