@@ -1,4 +1,5 @@
 import React from 'react';
+import {useState} from 'react';
 
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
@@ -50,6 +51,13 @@ export function ActionDialog(props) {
 
   export function CreateOpenWalletDialogBody() {
 
+    const [textInputMneumonic, setTextInputMneumonic] = useState('');
+
+    const onChangeHandler = event => {
+      setTextInputMneumonic(event.target.value);
+      console.log('textInputMneumonic: ' +  textInputMneumonic)
+   };
+
     const generateNewWalletMneumonic = () => {
       let mneumonic = "";
       for (let i = 0; i < MNEUMONIC_WORD_COUNT; i++) {
@@ -58,17 +66,18 @@ export function ActionDialog(props) {
       }
       mneumonic = mneumonic.trim();
       console.log("New wallet mneumonic: " + mneumonic);
-      document.getElementById('textBoxMneumonicValue').value = mneumonic;
+      setTextInputMneumonic(mneumonic)
+      //document.getElementById('textBoxMneumonicValue').value = mneumonic;
     };
 
     return (
       <Stack spacing={2} padding={2}>
         <ActionDialogDescriptionDisplay text={"To create a wallet, generate a mneumonic, or enter a saved mneumonic to open an existing wallet."}/>
         <Button  variant="contained" id="generateNewWalletMneumonicButton" onClick={generateNewWalletMneumonic}>Generate Wallet Mneumonic</Button>
-        <TextField multiline fullWidth id="textBoxMneumonicValue" label="L2 Mneumonic" variant="outlined" InputLabelProps={{ shrink: true }} defaultValue={MASTER_MNEOMONIC}/>
+        <TextField multiline fullWidth id="textBoxMneumonicValue" label="L2 Mneumonic" variant="outlined" InputLabelProps={{ shrink: true }} value = {textInputMneumonic} onChange={onChangeHandler}/>
         <Alert severity="warning">This mneumonic generates your wallet's private keys, so copy it and keep it safe. It is not possible to recover your wallet's private keys if you loose this mneumonic. Do not share with anyone, as anyone with access to this mneumonic can spend your funds.</Alert>
 
-        <Button  variant="contained" id="createNewWallet" onClick={ getUiControllerCallbacks()["createWallet"]}>Create/Open Wallet</Button>
+        <Button  variant="contained" id="createNewWallet" disabled={!textInputMneumonic} onClick={ getUiControllerCallbacks()["createWallet"]}>Create/Open Wallet</Button>
       </Stack>
     );
   }
