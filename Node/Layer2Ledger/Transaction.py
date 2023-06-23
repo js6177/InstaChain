@@ -194,8 +194,6 @@ class Transaction(ndb.Model):
             except Exception as ex:
                 GlobalLogging.logger.log_text(traceback.format_exc())
                 return ErrorMessage.ERROR_DATABASE_TRANSACTIONAL_ERROR
-        elif(TRANSACTION_MODE == TransactionMode.TRANSACTION_PUTTRANSACTION):
-            status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _nonce, _layer1_transaction_id)
 
         if((_transaction_type == Transaction.TRX_WITHDRAWAL_INITIATED) and (status == ErrorMessage.ERROR_SUCCESS)):
             Onboarding.WithdrawalRequests.addWithdrawalRequest(_destination, _nonce, _amount)
