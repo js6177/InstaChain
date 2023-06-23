@@ -16,6 +16,8 @@ from bip_utils import P2PKH, P2SH, P2WPKH
 from bitcoinrpc.authproxy import AuthServiceProxy, JSONRPCException
 import traceback
 import argparse
+from OnboardingLogger import OnboardingLogger
+
 
 DEFAULT_TESTNET = True
 TESTNET_TARGETCONFIRMATIONS = 3
@@ -39,7 +41,7 @@ class BitcoinRPC:
         self.rpc_password = rpc_password
         self.wallet_name = wallet_name
         self.testnet = testnet
-        print("rpc_port: " + rpc_port)
+        OnboardingLogger("rpc_port: " + rpc_port)
         self.rpc_connection = AuthServiceProxy("http://%s:%s@%s:%s"%(self.rpc_user, self.rpc_password, self.rpc_ip, self.rpc_port), timeout=120)
 
     def getTargetConfirmations(self):
@@ -57,7 +59,7 @@ class BitcoinRPC:
         try:
             satus = self.rpc_connection.loadwallet(self.wallet_name)
         except Exception as e:
-            print(e)
+            OnboardingLogger(e)
 
     def importMultiplePrivkeys(self, seed, startingIndex, numberOfKeysToGenerate, testnet):
         seed_bytes = binascii.unhexlify(seed)
@@ -65,11 +67,11 @@ class BitcoinRPC:
         privkey_version = BitcoinConf.WIF_NET_VER.Test() if testnet else BitcoinConf.WIF_NET_VER.Main()
 
         master_bip32_ctx = Bip32.FromSeed(seed_bytes, pubkey_version)
-        print("Master Private key: " + master_bip32_ctx.PrivateKey().ToExtended())
+        OnboardingLogger("Master Private key: " + master_bip32_ctx.PrivateKey().ToExtended())
         wif = WifEncoder.Encode(master_bip32_ctx.PrivateKey().Raw().ToBytes(), True, privkey_version)
         descriptors = []
         master_pubkey = master_bip32_ctx.PublicKey().ToExtended()
-        print("Master Public key: " + master_pubkey)
+        OnboardingLogger("Master Public key: " + master_pubkey)
         for i in range(startingIndex, startingIndex+numberOfKeysToGenerate):
             divisor = math.floor(i/BIP32_MAX_INDEX)
             remainder = i % BIP32_MAX_INDEX
@@ -87,9 +89,9 @@ class BitcoinRPC:
             descriptors.append(importmultiCmd)
         try:
             status = self.rpc_connection.importmulti(descriptors)
-            print(status)
+            OnboardingLogger(status)
         except Exception as e:
-            print(e)
+            OnboardingLogger(e)
 
     def broadcastTransaction(self, pendingWithdrawals):
         sendmanyCmd = {}
@@ -103,14 +105,14 @@ class BitcoinRPC:
         comment = 'N/A' #maybe have the guid here
         comment_to = 'N/A' #maybe have the layer2 pubkey here
         minconf = 1 #default minconf value
-        print("broadcastTransaction: " + str(sendmanyCmd))
+        OnboardingLogger("broadcastTransaction: " + str(sendmanyCmd))
 
         status = ''
         try:
             status = self.rpc_connection.sendmany("", sendmanyCmd, str(minconf), "", list(subtractfeefrom))
-            print('/broadcastTransaction: ' + status)
+            OnboardingLogger('/broadcastTransaction: ' + status)
         except Exception as e:
-            print(e)
+            OnboardingLogger(e)
         return status
 
     def getConfirmedTransactions(self, lastblockhash = ''):
@@ -118,17 +120,17 @@ class BitcoinRPC:
         if(lastblockhash):
             targetConfirmations = str(self.getTargetConfirmations())
 
-        print('lastblockhash: ' + str(lastblockhash))
-        print('targetConfirmations: ' + str(targetConfirmations))
+        OnboardingLogger('lastblockhash: ' + str(lastblockhash))
+        OnboardingLogger('targetConfirmations: ' + str(targetConfirmations))
         listsinceblockJSON = ''
         try:
             if (not lastblockhash):
                 listsinceblockJSON = self.rpc_connection.listsinceblock()
             else:
                 listsinceblockJSON = self.rpc_connection.listsinceblock(lastblockhash, int(targetConfirmations))
-            print("listsinceblockJSON: " + str(listsinceblockJSON))
+            OnboardingLogger("listsinceblockJSON: " + str(listsinceblockJSON))
         except Exception as e:
-            print("listsinceblockJSON: " + str(e))
+            OnboardingLogger("listsinceblockJSON: " + str(e))
 
         newlastblock = listsinceblockJSON["lastblock"]
         confirmedTransactions = []

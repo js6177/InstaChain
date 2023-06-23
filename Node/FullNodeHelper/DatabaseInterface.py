@@ -1,6 +1,7 @@
 import sqlite3
 import string
-from pprint import pprint
+from OnboardingLogger import OnboardingLogger
+
 
 from constants import *
 
@@ -45,7 +46,7 @@ class ConfirmedTransaction():
         return self
 
     def fromGetTransactionDetails(self, transactionDetailJSON, transaction_id, blockheight, timestamp):
-        print("transactionDetailJSON: " + str(transactionDetailJSON))
+        OnboardingLogger("transactionDetailJSON: " + str(transactionDetailJSON))
         self.setValues(transaction_id, ConfirmedTransaction.LAYER2_STATUS_PENDING, transactionDetailJSON["vout"], transactionDetailJSON["amount"], transactionDetailJSON.get("fee") or 0, transactionDetailJSON["address"], transactionDetailJSON["category"], 0, timestamp, blockheight)
         return self
 
@@ -145,7 +146,7 @@ class DB():
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', withdrawal)
             self.conn.commit()
         except Exception as e:
-            print(str(e))
+            OnboardingLogger(str(e))
 
 
     def updatePendingWithdrawal(self, layer2_withdrawal_id, status, transaction_id, fee):
@@ -160,7 +161,7 @@ class DB():
         self.conn.commit()
 
     def insertConfirmedTransaction(self, confirmedTransaction: ConfirmedTransaction):
-        print("Inserting ConfirmedTransaction: " + confirmedTransaction.transaction_id + '-' + str(confirmedTransaction.transaction_vout))
+        OnboardingLogger("Inserting ConfirmedTransaction: " + confirmedTransaction.transaction_id + '-' + str(confirmedTransaction.transaction_vout))
         transaction = (confirmedTransaction.transaction_id, confirmedTransaction.transaction_vout, confirmedTransaction.layer2_status, confirmedTransaction.amount, confirmedTransaction.fee, confirmedTransaction.address, confirmedTransaction.category, confirmedTransaction.confirmations, confirmedTransaction.timestamp)
         self.cursor.execute('''INSERT INTO ConfirmedTransactions (transaction_id, transaction_vout, layer2_status, amount, fee, address, category, confirmations, timestamp)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', transaction)
@@ -180,7 +181,7 @@ class DB():
         transactionRows = self.cursor.execute('SELECT * FROM ConfirmedTransactions WHERE layer2_status=? AND category=?', status).fetchall()
         for row in transactionRows:
             transactions.append(ConfirmedTransaction(*row))
-            print(vars(ConfirmedTransaction(*row)))
+            OnboardingLogger(vars(ConfirmedTransaction(*row)))
 
         return transactions
 
@@ -191,13 +192,13 @@ class DB():
         return self.getPendingConfirmedTransactions(ConfirmedTransaction.CATEGORY_SEND)
 
 
-    def updateConfirmedTransaction(self, transaction_id, transaction_vout, layer2_status):
-        params = (layer2_status, transaction_id, transaction_vout)
+    def updateConfirmedTransaction(self, transaction_id, transaction_vout, category, layer2_status):
+        params = (layer2_status, transaction_id, transaction_vout, category)
         self.cursor.execute('''
         UPDATE ConfirmedTransactions
             SET layer2_status = ?
         WHERE
-            transaction_id == ? AND transaction_vout == ?''', params)
+            transaction_id == ? AND transaction_vout == ? AND category == ?''', params)
         self.conn.commit()
         pass
 
@@ -234,13 +235,13 @@ class DB():
         return int(self.getKeyValue('lastBroadcastBlockHeight', defaultValue))
 
     def setLastBroadcastBlockHeight(self, lastBroadcastBlockHeight):
-        print('Setting setLastBroadcastBlockHeight: ' + str(lastBroadcastBlockHeight))
+        OnboardingLogger('Setting setLastBroadcastBlockHeight: ' + str(lastBroadcastBlockHeight))
         self.setKeyValue('lastBroadcastBlockHeight', str(lastBroadcastBlockHeight), True)
 
     def getBroadcastTransactionBlockDelay(self, defaultValue = 6):
         return int(self.getKeyValue('broadcastTransactionBlockDelay', defaultValue))
 
-    def setBroadcastTransactionBlockDelay(self, broadcastTransactionDelay):
+    def setBroadcastTransactionBlockDelay(self, broadcastTransactionBlockDelay):
         self.setKeyValue('broadcastTransactionBlockDelay', str(broadcastTransactionBlockDelay), True)
 
     def getImportPrivkeyBip32Index(self, defaultValue = 0):

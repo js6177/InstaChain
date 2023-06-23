@@ -16,6 +16,8 @@ from bitcoinrpc.authproxy import AuthServiceProxy, JSONRPCException
 import traceback
 import argparse
 from typing import List
+from OnboardingLogger import OnboardingLogger
+
 
 DEFAULT_LAYER2_URL = 'https://testnet.instachain.io/'
 
@@ -57,14 +59,14 @@ class Layer2Interface:
         url = self.layer2_node_url + 'getWithdrawalRequests'
         data = {'latest_timestamp': lastwithdrawalTimestamp}
         r = requests.get(url, params=data, headers=self.header)
-        print(r.text)
+        OnboardingLogger(r.text)
         return r.text
 
     def ackWithdrawalRequests(self, layer2_withdrawal_ids):
         url = self.layer2_node_url + 'ackWithdrawalRequests'
         data = {'layer2_withdrawal_ids': layer2_withdrawal_ids}
         r = requests.post(url, params=data, headers=self.header)
-        print(r.text)
+        OnboardingLogger(r.text)
         return r.text
 
     def confirmDeposit(self, nonce, layer1_transaction_id, amount, layer1_address, signature):
@@ -75,8 +77,8 @@ class Layer2Interface:
                 'layer1_address': layer1_address,
                 'signature': signature}
         r = requests.post(url, params=data, headers=self.header)
-        print('/confirmDeposit ' + layer1_transaction_id)
-        print(r.text)
+        OnboardingLogger('/confirmDeposit ' + layer1_transaction_id)
+        OnboardingLogger(r.text)
         return r.text
 
     def confirmDepositMulti(self, depositTransactions: List[DatabaseInterface.ConfirmedTransaction]):
@@ -92,7 +94,7 @@ class Layer2Interface:
             transactions.append(transaction)
         jsonData = {"transactions":transactions}
         r = requests.post(url, json=jsonData, headers=self.header)
-        print(r.text)
+        OnboardingLogger(r.text)
         return r.text
 
     def broadcastWithdrawalMulti(self, withdrawalBroadcastedTramsactions: List[WithdrawalBroadcastedTransaction]):
@@ -108,10 +110,10 @@ class Layer2Interface:
 
             transactions.append(transaction)
         jsonData = {"transactions":transactions}
-        print('broadcastWithdrawalMulti: ' + json.dumps(jsonData))
+        OnboardingLogger('broadcastWithdrawalMulti: ' + json.dumps(jsonData))
         r = requests.post(url, json=jsonData, headers=self.header)
-        print('broadcastWithdrawalMulti: ' + str(jsonData))
-        print(r.text)
+        OnboardingLogger('broadcastWithdrawalMulti: ' + str(jsonData))
+        OnboardingLogger(r.text)
         return r.text
 
     def broadcastWithdrawal(self, layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, layer2_withdrawal_id, signature):
@@ -123,7 +125,7 @@ class Layer2Interface:
                 'layer2_withdrawal_id': layer2_withdrawal_id,
                 'signature': signature}
         r = requests.post(url, params=data, headers=self.header)
-        print(r.text)
+        OnboardingLogger(r.text)
         return r.text
 
     def confirmWithdrawal(self, layer1_transaction_id, layer1_transaction_vout, layer1_address, amount, signature):
@@ -134,7 +136,7 @@ class Layer2Interface:
                 'amount': amount,
                 'signature': signature}
         r = requests.post(url, params=data, headers=self.header)
-        print(r.text)
+        OnboardingLogger(r.text)
         return r.text
 
     def confirmWithdrawalMulti(self, confirmedWithdrawals: List[DatabaseInterface.ConfirmedTransaction]):
@@ -149,7 +151,7 @@ class Layer2Interface:
             transactions.append(transaction)
         jsonData = {"transactions":transactions}
         r = requests.post(url, json=jsonData, headers=self.header)
-        print(r.text)
+        OnboardingLogger(r.text)
         return r.text
 
     def sendConfirmDeposit(self, transactions: List[DatabaseInterface.ConfirmedTransaction]):

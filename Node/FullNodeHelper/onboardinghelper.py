@@ -20,6 +20,7 @@ import Layer2Interface
 from FullNodeInterface import BitcoinRPC
 from types import SimpleNamespace
 import hashlib
+from OnboardingLogger import OnboardingLogger
 
 SATOSHI_PER_BITCOIN = 100000000
 MAX_NUMBER_OF_KEYS_TO_IMPORT_PER_RPC_REQUEST = 1000
@@ -34,9 +35,9 @@ def main():
         oh = OnboardingHelper()
         oh.run()
     except Exception as e:
-        print(e)
-        print(traceback.format_exc())
-        print('Restarting...')
+        OnboardingLogger(e)
+        OnboardingLogger(traceback.format_exc())
+        OnboardingLogger('Restarting...')
 
 
 
@@ -85,9 +86,9 @@ class OnboardingHelper():
                 self.import_wallet_privkey_loop_count = data.get("import_wallet_privkey_loop_count")
 
         except FileNotFoundError as e:
-            print("Fatal Error: " + CONFIG_FILE_NAME + " not found. Exiting.")
+            OnboardingLogger("Fatal Error: " + CONFIG_FILE_NAME + " not found. Exiting.")
         except KeyError as e:
-            print("Error: Cound not find key " + str(e) + " in " + CONFIG_FILE_NAME + " , Exiting.")
+            OnboardingLogger("Error: Cound not find key " + str(e) + " in " + CONFIG_FILE_NAME + " , Exiting.")
 
     def import_private_keys(self, count: int, db, nh):
         number_of_keys_left_to_import = count
@@ -95,7 +96,7 @@ class OnboardingHelper():
         while(number_of_keys_left_to_import > 0):
             number_of_keys_to_import = min(number_of_keys_left_to_import, MAX_NUMBER_OF_KEYS_TO_IMPORT_PER_RPC_REQUEST)
             privkeyBip32Index = db.getImportPrivkeyBip32Index()
-            print("Importing " + str(number_of_keys_to_import) +" private keys starting at index " + str(privkeyBip32Index))
+            OnboardingLogger("Importing " + str(number_of_keys_to_import) +" private keys starting at index " + str(privkeyBip32Index))
             m = hashlib.sha256()
             m.update(self.wallet_private_key_seed_mneumonic.encode("utf-8"))
             wallet_private_key_seed = m.hexdigest()
@@ -105,8 +106,8 @@ class OnboardingHelper():
 
             elapsed_time = time.time() - t1
 
-            print("Done importing private keys. Imported " + str(number_of_keys_to_import) + " keys from index " + str(privkeyBip32Index))
-            print("Time elapsed: " + str(elapsed_time))
+            OnboardingLogger("Done importing private keys. Imported " + str(number_of_keys_to_import) + " keys from index " + str(privkeyBip32Index))
+            OnboardingLogger("Time elapsed: " + str(elapsed_time))
 
     def run(self):
         termination_called = False
@@ -148,7 +149,7 @@ class OnboardingHelper():
             lastblockhash, confirmedTransactions = nh.getConfirmedTransactions(lastblockhash)
 
             blockheight = nh.getBlockHeader(lastblockhash)["height"]
-            print('Latest blockheight: ' +  str(blockheight))
+            OnboardingLogger('Latest blockheight: ' +  str(blockheight))
             for confirmedTransactionJSON in confirmedTransactions:
                 if(int(confirmedTransactionJSON["confirmations"]) >= nh.getTargetConfirmations()):
                     trxid = confirmedTransactionJSON["txid"]
@@ -158,7 +159,7 @@ class OnboardingHelper():
                         confirmedTransaction = DatabaseInterface.ConfirmedTransaction().fromListSinceBlockRpcJson(confirmedTransactionJSON)
                         confirmedTransactionsDict[(trxid, vout, category)] = confirmedTransaction #add in memory
                         db.insertConfirmedTransaction(confirmedTransaction)
-            print("lastblockhash: " + lastblockhash)
+            OnboardingLogger("lastblockhash: " + lastblockhash)
             db.setLastBlockHash(lastblockhash)
 
             #get pending withdrawals from the node, and save it to the db
@@ -175,12 +176,12 @@ class OnboardingHelper():
 
                 if(pendingWithdrawal.withdrawal_requested_timestamp > lastwithdrawalTimestamp):
                     lastwithdrawalTimestamp = pendingWithdrawal.withdrawal_requested_timestamp
-                print('New withdrawal recieved. address: ' + pendingWithdrawal.destination_address + ' amount: ' + str(pendingWithdrawal.amount))
+                OnboardingLogger('New withdrawal recieved. address: ' + pendingWithdrawal.destination_address + ' amount: ' + str(pendingWithdrawal.amount))
             db.setLastWithdrawalTimestamp(lastwithdrawalTimestamp)
 
             withdrawalTransactionOutputs = {}
             pendingWithdrawals = db.getPendingWithdrawals()
-            print('Fetched ' + str(len(pendingWithdrawals)) + ' pending withdrawals from db')
+            OnboardingLogger('Fetched ' + str(len(pendingWithdrawals)) + ' pending withdrawals from db')
             for pendingWithdrawal in pendingWithdrawals:
                 withdrawalTransactionOutputs[pendingWithdrawal.layer2_withdrawal_id] = pendingWithdrawal
 
@@ -196,8 +197,8 @@ class OnboardingHelper():
                         layer1_transaction_id = trx.layer1_transaction_id
                         layer1_transaction_vout = trx.layer1_transaction_vout
                         if(Layer2Interface.SuccessOrDuplicateErrorCode(error_code)):
-                            db.updateConfirmedTransaction(layer1_transaction_id, layer1_transaction_vout, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
-                            print('Deposit confirmed. transaction_id:' + layer1_transaction_id + ' ' + str(layer1_transaction_vout))
+                            db.updateConfirmedTransaction(layer1_transaction_id, layer1_transaction_vout, DatabaseInterface.ConfirmedTransaction.CATEGORY_RECIEVE, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
+                            OnboardingLogger('Deposit confirmed. transaction_id:' + layer1_transaction_id + ' ' + str(layer1_transaction_vout))
 
             pendingConfirmedWithdrawalTransactions = db.getPendingConfirmedWithdrawalTransactions()
 
@@ -210,18 +211,19 @@ class OnboardingHelper():
                         layer1_transaction_id = trx.layer1_transaction_id
                         layer1_transaction_vout = trx.layer1_transaction_vout
                         if(Layer2Interface.SuccessOrDuplicateErrorCode(error_code)):
-                            db.updateConfirmedTransaction(layer1_transaction_id, layer1_transaction_vout, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
+                            db.updateConfirmedTransaction(layer1_transaction_id, layer1_transaction_vout, DatabaseInterface.ConfirmedTransaction.CATEGORY_SEND, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
+                            OnboardingLogger('Withdrawal confirmed. transaction_id:' + layer1_transaction_id + ' ' + str(layer1_transaction_vout))
 
 
             lastBroadcastBlockHeight = db.getLastBroadcastBlockHeight()
             broadcastTransactionBlockDelay = db.getBroadcastTransactionBlockDelay()
             targetBroadcastBlockheight = lastBroadcastBlockHeight + broadcastTransactionBlockDelay
-            print("lastBroadcastBlockHeight: " + str(lastBroadcastBlockHeight))
-            print("broadcastTransactionBlockDelay: " + str(broadcastTransactionBlockDelay))
-            print("targetBroadcastBlockheight: " + str(targetBroadcastBlockheight))
+            OnboardingLogger("lastBroadcastBlockHeight: " + str(lastBroadcastBlockHeight))
+            OnboardingLogger("broadcastTransactionBlockDelay: " + str(broadcastTransactionBlockDelay))
+            OnboardingLogger("targetBroadcastBlockheight: " + str(targetBroadcastBlockheight))
             if(len(withdrawalTransactionOutputs)):
                 if(blockheight >= (targetBroadcastBlockheight)):
-                    print("Broadcasting " +  str(len(withdrawalTransactionOutputs)) + " withdrawal outputs")
+                    OnboardingLogger("Broadcasting " +  str(len(withdrawalTransactionOutputs)) + " withdrawal outputs")
                     withdrawalTrxId = nh.broadcastTransaction(withdrawalTransactionOutputs)
                     if(withdrawalTrxId):
                         for key, withdrawalOutput in withdrawalTransactionOutputs.items():
@@ -235,14 +237,14 @@ class OnboardingHelper():
                         comm.sendWithdrawalBroadcasted(withdrawalBroadcastedTransactions)
                     db.setLastBroadcastBlockHeight(blockheight)
                 else:
-                    print('Batching: waiting for blockheight ' + str(targetBroadcastBlockheight) + ' to broadcast batched transaction. Current blockheight: ' + str(blockheight))
+                    OnboardingLogger('Batching: waiting for blockheight ' + str(targetBroadcastBlockheight) + ' to broadcast batched transaction. Current blockheight: ' + str(blockheight))
             else:
-                print("No withdrawals to broadcast")
+                OnboardingLogger("No withdrawals to broadcast")
 
             time.sleep(60*1) #sleep 1 mins
             if os.path.exists(LOCKFILE_PATH):
                 termination_called = True
-                print("Termination called through lockfile... ")
+                OnboardingLogger("Termination called through lockfile... ")
 
         pass
 
