@@ -6,10 +6,11 @@ import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
-
 import DialogTitle from '@mui/material/DialogTitle';
 import Dialog from '@mui/material/Dialog';
 import Alert from '@mui/material/Alert';
+
+const { validate, getAddressInfo } = require('bitcoin-address-validation');
 
 import {getUiControllerCallbacks, setUiControllerCallbacks} from '../Callbacks/CallbacksMap'
 
@@ -53,10 +54,10 @@ export function ActionDialog(props) {
 
     const [textInputMneumonic, setTextInputMneumonic] = useState('');
 
-    const onChangeHandler = event => {
+    const inputMneumonicChanged = event => {
       setTextInputMneumonic(event.target.value);
-      console.log('textInputMneumonic: ' +  textInputMneumonic)
-   };
+      console.log('textInputMneumonic: ' +  event.target.value)
+    };
 
     const generateNewWalletMneumonic = () => {
       let mneumonic = "";
@@ -66,7 +67,7 @@ export function ActionDialog(props) {
       }
       mneumonic = mneumonic.trim();
       console.log("New wallet mneumonic: " + mneumonic);
-      setTextInputMneumonic(mneumonic)
+      setTextInputMneumonic(mneumonic);
       //document.getElementById('textBoxMneumonicValue').value = mneumonic;
     };
 
@@ -74,7 +75,7 @@ export function ActionDialog(props) {
       <Stack spacing={2} padding={2}>
         <ActionDialogDescriptionDisplay text={"To create a wallet, generate a mneumonic, or enter a saved mneumonic to open an existing wallet."}/>
         <Button  variant="contained" id="generateNewWalletMneumonicButton" onClick={generateNewWalletMneumonic}>Generate Wallet Mneumonic</Button>
-        <TextField multiline fullWidth id="textBoxMneumonicValue" label="L2 Mneumonic" variant="outlined" InputLabelProps={{ shrink: true }} value = {textInputMneumonic} onChange={onChangeHandler}/>
+        <TextField multiline fullWidth id="textBoxMneumonicValue" label="L2 Mneumonic" variant="outlined" InputLabelProps={{ shrink: true }} value = {textInputMneumonic} onChange={inputMneumonicChanged}/>
         <Alert severity="warning">This mneumonic generates your wallet's private keys, so copy it and keep it safe. It is not possible to recover your wallet's private keys if you loose this mneumonic. Do not share with anyone, as anyone with access to this mneumonic can spend your funds.</Alert>
 
         <Button  variant="contained" id="createNewWallet" disabled={!textInputMneumonic} onClick={ getUiControllerCallbacks()["createWallet"]}>Create/Open Wallet</Button>
@@ -119,6 +120,18 @@ export function ActionDialog(props) {
 
   export function WithdrawalDialogBody(props){
     const { withdrawTransactionErrorMessage } = props;
+    const [isValidL1Address, setIsValidL1Address] = useState(false);
+    const [withdrawalAmount, setWithdrawalAmount] = useState(0);
+
+    const inputWithdrawalDestinationAddressChanged = event => {
+      var valid = validate(event.target.value, 'testnet');
+      console.log("validL1Address: " + valid);
+      setIsValidL1Address(valid);
+    };
+
+    const inputWithdrawalDestinationAmountChanged = event => {
+      setWithdrawalAmount(event.target.valueAsNumber);
+    };
 
     let mainWalletAddressPubkey =  getUiControllerCallbacks()["getMainWalletAddress"]();
     return(
@@ -127,9 +140,9 @@ export function ActionDialog(props) {
         <ActionDialogDescriptionDisplay text={"To withdraw your L2 funds, enter the L1 address to withdraw to and the amount. There are no withdrawal fees, however since the withdrawal is a L1 transactions, the standard L1 network fees apply. You will receive an L1 transaction id when the transaction is broadcasted, which could take up to 6 blocks."}/>
 
         <TextField fullWidth id="inputWithdrawalFromAddress" value={mainWalletAddressPubkey} label="Withdraw From" variant="outlined" InputLabelProps={{ shrink: true, readOnly: true }}/>
-        <TextField fullWidth id="inputWithdrawalDestinationAddress" label="Withdraw To (Layer1 address)" variant="outlined" InputLabelProps={{ shrink: true }}/>
-        <TextField fullWidth id="inputWithdrawalAmount" label="Amount (in satoshis)" variant="outlined" InputLabelProps={{ shrink: true }}/>
-        <Button  variant="contained" id="buttonRequestWithdrawal" onClick={ getUiControllerCallbacks()["requestWithdrawal"]}>Withdraw</Button>
+        <TextField fullWidth id="inputWithdrawalDestinationAddress" label="Withdraw To (Layer1 address)" variant="outlined" InputLabelProps={{ shrink: true }} onChange={inputWithdrawalDestinationAddressChanged}/>
+        <TextField fullWidth id="inputWithdrawalAmount" label="Amount (in satoshis)" type="number" variant="outlined" value={withdrawalAmount} InputLabelProps={{ shrink: true }} onChange={inputWithdrawalDestinationAmountChanged}/>
+        <Button  variant="contained" id="buttonRequestWithdrawal" disabled={!isValidL1Address || !(withdrawalAmount>0)} onClick={ getUiControllerCallbacks()["requestWithdrawal"]}>Withdraw</Button>
         <div>Status: {withdrawTransactionErrorMessage}</div>
       </Stack>
     )
