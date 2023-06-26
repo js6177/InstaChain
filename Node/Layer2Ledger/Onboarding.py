@@ -46,6 +46,7 @@ class WithdrawalRequests(ndb.Model):
     server_signature = ndb.StringProperty() # signed with the onboarding key. Verified by the Onboarding helper
     layer2_transaction_id = ndb.StringProperty() # transaction id that requested this withdrawal
     withdrawal_requested_timestamp = ndb.IntegerProperty() #in unix time in seconds when this withdrawal was requested
+    withdrawal_requested_timestamp_str = ndb.DateTimeProperty(auto_now_add=True, indexed=False)
 
     WITHDRAWAL_STATUS_PENDING = 1 # the node has not queries this request
     WITHDRAWAL_STATUS_IN_PROGRESS = 2 # the node has queried, but the transaction has not been broadcasted
@@ -104,6 +105,7 @@ class ConfirmedWithdrawals(ndb.Model):
     broadcasted_signature = ndb.StringProperty()
     confirmed_signature = ndb.StringProperty()
     confirmed = ndb.BooleanProperty(default=False)
+    confirmation_timestamp_str = ndb.DateTimeProperty(auto_now_add=True)
 
 
     @staticmethod
@@ -201,6 +203,7 @@ def withdrawalConfirmed(_layer1_transaction_id, _layer1_transaction_vout,  _laye
     for layer2_withdrawal_id in layer2_withdrawal_ids:
         withdrawalRequest = WithdrawalRequests.getWithdrawalRequest(layer2_withdrawal_id)
         if(withdrawalRequest):
+            withdrawalRequest.status = WithdrawalRequests.WITHDRAWAL_STATUS_CONFIRMED
             withdrawalRequest.layer1_transaction_id = _layer1_transaction_id
             withdrawalRequest.put()
             result, trx = Transaction.Transaction.get_transaction(withdrawalRequest.layer2_transaction_id)
