@@ -16,8 +16,8 @@ const toHexString = bytes =>
 
 class Layer2Address{
     constructor(mneumonic = "the quick brown fox jumped over the lazy dog"){
-        this.mneumonic = mneumonic.trim();
-        this.fromSeed(SHA256(mneumonic));
+        this.mneumonic = mneumonic.trim().split(/\s+/).join(' ');
+        this.fromSeed(SHA256(this.mneumonic));
     }
 
     fromSeed(seed) {
