@@ -16,6 +16,10 @@ import InputLabel from '@mui/material/InputLabel';
 import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import ToggleButton from '@mui/material/ToggleButton';
+import ListIcon from '@mui/icons-material/List';
+import GridViewIcon from '@mui/icons-material/GridView';
 
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
@@ -25,15 +29,11 @@ import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
-import ListItem from '@mui/material/ListItem';
-import ListItemButton from '@mui/material/ListItemButton';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
-
 
 //import {getMainWalletAddress} from './UIController'
 import {getUiControllerCallbacks, setUiControllerCallbacks} from './Callbacks/CallbacksMap'
 import {TransactionDataGrid} from './UI/TransactionsDataGrid'
+import {TransactionsAccordionList} from './UI/TransactionsAccordionList'
 import {ActionDialog, CreateOpenWalletDialogBody, TransferDialogBody, DepositDialogBody, WithdrawalDialogBody} from './UI/ActionDialog'
 import GitHubIcon from '@mui/icons-material/GitHub';
 import TwitterIcon from '@mui/icons-material/Twitter';
@@ -201,6 +201,8 @@ export default function MyApp(props) {
 
     const [withdrawalDialogIsOpen, setWithdrawalDialogIsOpen] = React.useState(false);
 
+    const [transactionsViewMode, setTransactionsViewMode] = React.useState("list");
+
   
     const handleClickCreateOpenWalletDialogOpen = () => {
       setCreateOpenWalletDialogIsOpen(true);
@@ -236,6 +238,11 @@ export default function MyApp(props) {
       setWithdrawalDialogIsOpen(false);
     };
 
+    const handleTransactionsViewModeChange = (event, newTransactionsViewMode) => {
+      console.log("handleTransactionsViewModeChange: " + newTransactionsViewMode);
+      setTransactionsViewMode(newTransactionsViewMode);
+    };
+
       return (
         <div>
           <Stack spacing={2}>
@@ -268,8 +275,9 @@ export default function MyApp(props) {
               </Box>}
             </Stack>
               
-            <TransactionDataGrid transactions={transactions} />
 
+
+            
 
 
             <Stack direction="row" spacing={2}>
@@ -312,7 +320,29 @@ export default function MyApp(props) {
                   dialogBody={<WithdrawalDialogBody withdrawTransactionErrorMessage={WorkspaceState.withdrawTransactionErrorMessage}/>}
                 />
               
-              </Stack>
+            </Stack>
+
+            <Stack direction="row" spacing={2}>
+              <ToggleButtonGroup
+                value={transactionsViewMode}
+                exclusive
+                onChange={handleTransactionsViewModeChange}>
+                <ToggleButton value="list" aria-label="list">
+                  <ListIcon />
+                </ToggleButton>
+                <ToggleButton value="grid" aria-label="grid">
+                  <GridViewIcon />
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Stack>
+            
+            {
+            transactionsViewMode == "list" && <TransactionsAccordionList transactions={transactions} />
+            }
+            {
+            transactionsViewMode == "grid" && <TransactionDataGrid transactions={transactions} />
+            }
+
             </Stack>
         </div>
       ); 
