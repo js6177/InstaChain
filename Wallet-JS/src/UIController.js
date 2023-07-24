@@ -15,6 +15,7 @@ class UiController extends React.Component{
             transferTransactionErrorMessage: "",
             getDepositAddressErrorMessage: "",
             withdrawTransactionErrorMessage: "",
+            myAddresses: [],
             transactions: [],
             addressBalances: [],
             walletLoaded: false
@@ -51,6 +52,7 @@ class UiController extends React.Component{
         
         this.setState({
             mainAddressPubkey: this.getMainWalletAddress(),
+            myAddresses: [this.getMainWalletAddress()],
             walletLoaded: true
         })
 

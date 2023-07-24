@@ -23,6 +23,7 @@ import GridViewIcon from '@mui/icons-material/GridView';
 
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 import Accordion from '@mui/material/Accordion';
 import AccordionSummary from '@mui/material/AccordionSummary';
@@ -96,6 +97,14 @@ const theme = createTheme({
     },
     paperColor:{
       main: "#f8edeb"
+    },
+    positiveTransactionColor:{
+      main: "#32a852",
+      contrastText: "#FFFFFF"
+    },
+    negativeTransactionColor:{
+      main: "#a83232",
+      contrastText: "#FFFFFF"
     }
   },
 });
@@ -334,10 +343,13 @@ export default function MyApp(props) {
                   <GridViewIcon />
                 </ToggleButton>
               </ToggleButtonGroup>
+              <IconButton onClick={ getUiControllerCallbacks()["getTransactions"]}>
+                <RefreshIcon />
+              </IconButton>
             </Stack>
-            
+
             {
-            transactionsViewMode == "list" && <TransactionsAccordionList transactions={transactions} />
+            transactionsViewMode == "list" && <TransactionsAccordionList transactions={transactions} myAddresses={WorkspaceState.myAddresses} />
             }
             {
             transactionsViewMode == "grid" && <TransactionDataGrid transactions={transactions} />

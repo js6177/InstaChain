@@ -10,13 +10,16 @@ import { Button } from '@mui/material';
 import { Paper } from '@mui/material';
 import { List } from '@mui/material';
 import { Box } from '@mui/material';
+import Chip from '@mui/material/Chip';
+import { color } from '@mui/system';
+
 import { ViewJsonDialogBody } from './ActionDialog';
 import { FixedSizeList } from 'react-window';
 
 //Display a list of transactions in an accordion list, similar to TransactionsDataGrid.js
 //Foreach transaction in transactions, create an AccordionListViewItem passin in the transaction to props
 export function TransactionsAccordionList(props){
-    const { transactions } = props;
+    const { transactions, myAddresses } = props;
     console.log("TransactionsAccordionList JSON: " + JSON.stringify(transactions, null, 2))
     
     return(
@@ -24,7 +27,7 @@ export function TransactionsAccordionList(props){
             <List spacing={2}>
                 {
                     transactions.map((transaction) => (
-                        <AccordionListViewItem transaction={transaction} />
+                        <AccordionListViewItem transaction={transaction} myAddresses={myAddresses}  />
                     ))
                 }
             </List>
@@ -38,16 +41,21 @@ export function TransactionsAccordionList(props){
 //and the transaction id, layer1 transaction id, and timestamp in the dropdown details section
 //Also add a 'view' button to the dropdown that will display the transaction json in a popup
 export function AccordionListViewItem(props){
-    const { transaction } = props;
+    const { transaction, myAddresses } = props;
     const [show, setShow] = React.useState(false);
     const handleClose = () => setShow(false);
     const handleShow = () => setShow(true);
     
+
+    const isTransactionFromMe = myAddresses.includes(transaction.source_address);
+    const transactionAmountWithSign = isTransactionFromMe ? "-" + transaction.amount : "+" + transaction.amount;
+    const transactionColor = isTransactionFromMe ? "negativeTransactionColor" : "positiveTransactionColor";
+
     return(
         <div>
             <ListItem disableGutters={true}>
             <Accordion>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{bgcolor:'#FEFAE0' }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{backgroundColor: '#FEFAE0' }}>
                     <Stack direction="row" 
                             width="100%"
                             spacing={2}  
@@ -66,9 +74,7 @@ export function AccordionListViewItem(props){
                             </Box>
                         </Stack>
                         <Stack direction="column" spacing={0} alignItems="flex-end" justifyContent="space-between">
-                            <Box>
-                                {transaction.amount}
-                            </Box>
+                            <Chip color={transactionColor} label={transactionAmountWithSign} />                                
                             <Box>
                                 {new Date(transaction.timestamp * 1000).toLocaleString()}
                             </Box>

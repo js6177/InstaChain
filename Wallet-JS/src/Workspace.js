@@ -124,6 +124,9 @@ class Workspace{
                 trx.fromJSON(transaction);
                 this.transactions[address].push(trx);
             })
+
+            //Sort transactions by timestamp, with newest first
+            this.transactions[address].sort((a, b) => (a.timestamp < b.timestamp) ? 1 : -1)
         });
         console.log("Wallet transactions: " + JSON.stringify(this.transactions));
         this.onGetTransactionsCallback(Layer2LedgerAPI.getErrorCode(body), Layer2LedgerAPI.getErrorMessage(body));
