@@ -109,7 +109,7 @@ class BitcoinRPC:
 
         status = ''
         try:
-            status = self.rpc_connection.sendmany("", sendmanyCmd, str(minconf), "", list(subtractfeefrom))
+            status = self.rpc_connection.sendmany("", sendmanyCmd, minconf, "", list(subtractfeefrom))
             OnboardingLogger('/broadcastTransaction: ' + status)
         except Exception as e:
             OnboardingLogger(e)

@@ -25,14 +25,16 @@ from OnboardingLogger import OnboardingLogger
 SATOSHI_PER_BITCOIN = 100000000
 MAX_NUMBER_OF_KEYS_TO_IMPORT_PER_RPC_REQUEST = 1000
 
-CONFIG_FILE_NAME = "config.json"
-LOCKFILE_PATH = 'onboardinghelper.lock'
+DEFAULT_WORKING_DIRECTORY = os.path.expanduser('~') + "/.Layer2Bridge/"
+CONFIG_FILE_PATH = DEFAULT_WORKING_DIRECTORY + "config.json"
+LOCKFILE_PATH = DEFAULT_WORKING_DIRECTORY + 'Layer2Bridge.lock'
+
 
 def main():
     if os.path.exists(LOCKFILE_PATH):
         os.remove(LOCKFILE_PATH)
     try:
-        oh = OnboardingHelper()
+        oh = Layer2Bridge()
         oh.run()
     except Exception as e:
         OnboardingLogger(e)
@@ -41,7 +43,7 @@ def main():
 
 
 
-class OnboardingHelper():
+class Layer2Bridge():
     #required config_variables
     database_name: string = None
     rpc_ip: string = None
@@ -66,7 +68,7 @@ class OnboardingHelper():
     def loadConfig(self):
         requiredConfigKeysLoaded = False
         try:
-            with open(CONFIG_FILE_NAME) as config_file:
+            with open(CONFIG_FILE_PATH) as config_file:
                 data = json.load(config_file)
                 #these throw exceptions if key is not found
                 self.database_name = data["database_name"]
@@ -86,9 +88,11 @@ class OnboardingHelper():
                 self.import_wallet_privkey_loop_count = data.get("import_wallet_privkey_loop_count")
 
         except FileNotFoundError as e:
-            OnboardingLogger("Fatal Error: " + CONFIG_FILE_NAME + " not found. Exiting.")
+            OnboardingLogger("Fatal Error: " + CONFIG_FILE_PATH + " not found. Exiting.")
+            exit(1)
         except KeyError as e:
-            OnboardingLogger("Error: Cound not find key " + str(e) + " in " + CONFIG_FILE_NAME + " , Exiting.")
+            OnboardingLogger("Error: Cound not find key " + str(e) + " in " + CONFIG_FILE_PATH + " , Exiting.")
+            exit(1)
 
     def import_private_keys(self, count: int, db, nh):
         number_of_keys_left_to_import = count
