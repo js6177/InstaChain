@@ -7,6 +7,7 @@ import string
 import datetime
 from dataclasses import dataclass
 import DatabaseInterface
+import AuditDatabaseInterface
 import SigningAddress
 import binascii
 import checksum
@@ -153,6 +154,19 @@ class Layer2Interface:
         r = requests.post(url, json=jsonData, headers=self.header)
         OnboardingLogger(r.text)
         return r.text
+    
+    def postLayer1AuditReport(self, blockheight, balance, layer1AddressBalances: List[AuditDatabaseInterface.AuditLayer1Address]):
+        url = self.layer2_node_url + 'postLayer1AuditReport'
+        layer1AddressBalancesJson = [layer1AddressBalance.to_dict() for layer1AddressBalance in layer1AddressBalances]
+        signature = SigningAddress.signLayer1AuditReportMessage(self.onboarding_signing_private_key, blockheight, balance)
+        jsonData = {'block_height': blockheight,
+                'balance': balance,
+                'layer1_address_balances': layer1AddressBalancesJson,
+                'signature': signature.decode("utf-8")}
+        r = requests.post(url, json=jsonData, headers=self.header)
+        OnboardingLogger(r.text)
+        return r.text
+
 
     def sendConfirmDeposit(self, transactions: List[DatabaseInterface.ConfirmedTransaction]):
         for transaction in transactions:

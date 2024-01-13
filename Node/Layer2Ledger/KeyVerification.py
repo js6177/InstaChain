@@ -25,6 +25,11 @@ def verifyWithdrawalConfirmed(layer1_transaction_id, layer1_transaction_vout, la
     verifyingAddress = Address.Address(signing_keys.FULLNODE_SIGNING_KEY_PUBKEY)
     return verifyingAddress.verify_signature(message, signature)
 
+def verifyLayer1AuditReportSignature(blockHeight, balance, signature):
+    message = NODE_ID + " " + str(Transaction.Transaction.INSTRUCTION_LAYER1_AUDIT) + ' ' + str(blockHeight) + ' ' +str(balance)
+    verifyingAddress = Address.Address(signing_keys.FULLNODE_SIGNING_KEY_PUBKEY)
+    return verifyingAddress.verify_signature(message, signature)
+
 def buildTransferMessage(source_pubkey, destination_address_pubkey, amount, fee, nonce):
     return (NODE_ID + " " + str(NODE_ASSET_ID) + " " + str(Transaction.Transaction.TRX_TRANSFER) + " " + source_pubkey + " " + destination_address_pubkey + " " + str(amount) + " " + str(fee) + " " + nonce)
 

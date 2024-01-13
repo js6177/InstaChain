@@ -6,8 +6,10 @@ import random
 import string
 import datetime
 import math
+from typing import List
 from dataclasses import dataclass
 import DatabaseInterface
+from AuditDatabaseInterface import AuditLayer1Address
 import SigningAddress
 import binascii
 import checksum
@@ -148,6 +150,18 @@ class BitcoinRPC:
             output = DatabaseInterface.ConfirmedTransaction(transaction_id = transaction_id, layer2_status=None, transaction_vout=transaction["vout"], amount = transaction["amount"], fee=transaction["fee"], address=transaction["address"], category = transaction["category"], confirmations=0, timestamp=0, blockheight=0 )
             outputs[output.address] = output
         return outputs
+    
+    def getAddressGroupings(self):
+        layer1Addresses: List[AuditLayer1Address] = []
+        addressGroupings = self.rpc_connection.listaddressgroupings()
+        for addressGrouping in addressGroupings:
+            for address in addressGrouping:
+                layer1Address = address[0]
+                amountInSatoshis = int(address[1] * SATOSHI_PER_BITCOIN)
+                layer1AddressLabel = address[2] if len(address) > 2 else ''
+                layer1Address = AuditLayer1Address(layer1_address=layer1Address, layer1_address_label=layer1AddressLabel, balance=amountInSatoshis)
+                layer1Addresses.append(layer1Address)
+        return layer1Addresses
 
     def getBlockHeader(self, blockhash):
         blockHeaderDict = self.rpc_connection.getblockheader(blockhash, True)
@@ -156,3 +170,6 @@ class BitcoinRPC:
     def getBlockHeader(self, blockhash):
         blockHeaderDict = self.rpc_connection.getblockheader(blockhash, True)
         return blockHeaderDict
+    
+    def getBlockHeight(self):
+        return self.rpc_connection.getblockcount()

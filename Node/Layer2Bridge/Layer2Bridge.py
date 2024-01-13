@@ -8,6 +8,7 @@ import string
 import datetime
 from dataclasses import dataclass
 import DatabaseInterface
+import AuditDatabaseInterface
 import SigningAddress
 import binascii
 import checksum
@@ -29,6 +30,9 @@ DEFAULT_WORKING_DIRECTORY = os.path.expanduser('~') + "/.Layer2Bridge/"
 CONFIG_FILE_PATH = DEFAULT_WORKING_DIRECTORY + "config.json"
 LOCKFILE_PATH = DEFAULT_WORKING_DIRECTORY + 'Layer2Bridge.lock'
 
+DEFAULT_LAYER2BRIDGE_DB_NAME = "layer2Bridge.sqlite"
+DEFAULT_AUDIT_DB_NAME = "audit.sqlite"
+
 
 def main():
     if os.path.exists(LOCKFILE_PATH):
@@ -45,7 +49,7 @@ def main():
 
 class Layer2Bridge():
     #required config_variables
-    database_name: string = None
+    database_layer2bridge_name: string = DEFAULT_LAYER2BRIDGE_DB_NAME
     rpc_ip: string = None
     rpc_port: string = None
     rpc_user: string = None
@@ -65,13 +69,18 @@ class Layer2Bridge():
     import_wallet_privkey_loop_count: int = 0
     onboarding_signing_private_key: string = None
 
+    #database names
+    database_audit_name: string = DEFAULT_AUDIT_DB_NAME
+
     def loadConfig(self):
         requiredConfigKeysLoaded = False
         try:
             with open(CONFIG_FILE_PATH) as config_file:
                 data = json.load(config_file)
                 #these throw exceptions if key is not found
-                self.database_name = data["database_name"]
+                self.database_layer2bridge_name = data["database_layer2bridge_name"]
+                #self.database_layer2bridge_name = data.get("database_layer2bridge_name") or DEFAULT_LAYER2BRIDGE_DB_NAME
+
                 self.rpc_ip = data["rpc_ip"]
                 self.rpc_port = data["rpc_port"]
                 self.rpc_user = data["rpc_user"]
@@ -86,6 +95,7 @@ class Layer2Bridge():
                 self.import_wallet_privkey_while_looping = data.get("import_wallet_privkey_while_looping")
                 self.import_wallet_privkey_startup_count = data.get("import_wallet_privkey_startup_count")
                 self.import_wallet_privkey_loop_count = data.get("import_wallet_privkey_loop_count")
+                self.database_audit_name = data.get("database_audit_name") or DEFAULT_AUDIT_DB_NAME
 
         except FileNotFoundError as e:
             OnboardingLogger("Fatal Error: " + CONFIG_FILE_PATH + " not found. Exiting.")
@@ -120,8 +130,10 @@ class Layer2Bridge():
         parser.add_argument('--importprivkeys', dest='importprivkeys', action='store_true', help='Pass this parameter if you need to import private keys to the wallet instead of running the onboarding helper.')
         args = parser.parse_args()
 
-        db = DatabaseInterface.DB(self.database_name)
+        db = DatabaseInterface.DB(self.database_layer2bridge_name)
         db.openOrCreateDB()
+
+        auditDB = AuditDatabaseInterface.AuditDatabaseInterface(self.database_audit_name)
 
         # start bitcoin full node, or attach if it already started
         nh = BitcoinRPC(self.rpc_ip, self.rpc_port, self.rpc_user, self.rpc_password, self.wallet_name, self.testnet)
@@ -244,6 +256,19 @@ class Layer2Bridge():
                     OnboardingLogger('Batching: waiting for blockheight ' + str(targetBroadcastBlockheight) + ' to broadcast batched transaction. Current blockheight: ' + str(blockheight))
             else:
                 OnboardingLogger("No withdrawals to broadcast")
+
+            #update the auditDB if there is new blockheight
+            if(blockheight > auditDB.getLastAuditBlockHeight()):
+                usedLayer1Addresses = nh.getAddressGroupings()
+                auditDB.addOrUpdateLayer1Addresses(usedLayer1Addresses, blockheight, True)
+
+                #get all the layer1 addresses from the auditDB and send it to the node
+                layer1Addresses = auditDB.getLayer1Addresses()
+                layer1AddressesBalance = 0
+                for layer1Address in layer1Addresses:
+                    layer1AddressesBalance += layer1Address.balance
+                comm.postLayer1AuditReport(blockheight, layer1AddressesBalance, layer1Addresses)
+            
 
             time.sleep(60*1) #sleep 1 mins
             if os.path.exists(LOCKFILE_PATH):

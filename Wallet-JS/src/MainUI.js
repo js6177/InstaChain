@@ -36,6 +36,8 @@ import {getUiControllerCallbacks, setUiControllerCallbacks} from './Callbacks/Ca
 import {TransactionDataGrid} from './UI/TransactionsDataGrid'
 import {TransactionsAccordionList} from './UI/TransactionsAccordionList'
 import {ActionDialog, CreateOpenWalletDialogBody, TransferDialogBody, DepositDialogBody, WithdrawalDialogBody} from './UI/ActionDialog'
+import AddressBalanceTable from './UI/AddressBalanceTable';
+
 import GitHubIcon from '@mui/icons-material/GitHub';
 import TwitterIcon from '@mui/icons-material/Twitter';
 import GoogleIcon from '@mui/icons-material/Google';
@@ -111,48 +113,90 @@ const theme = createTheme({
 
 export default function MyApp(props) {
   const { WorkspaceState, transferTransactionErrorMessage, transactions, callbacksMap } = props;
+  const [activeTab, setActiveTab] = React.useState('wallet');
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+  };
 
   setUiControllerCallbacks(callbacksMap);
-    return (
-      <div  >
-        <ThemeProvider theme={theme}>
-          <CssBaseline/>
-          <Stack spacing={2} padding={2}  bgcolor="paperColor">
-            <ProjectHeaderUI/>
-            {false && <ProjectDescriptionUI/>}
-            <MainUI WorkspaceState={WorkspaceState} transactions={transactions}/>
-          </Stack>
-        </ThemeProvider>
-      </div>
-    );
-  }
 
-  function ProjectHeaderUI(props){
-    return(
+  return (
+    <div>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Stack spacing={2} padding={2} bgcolor="paperColor">
+          <ProjectHeaderUI activeTab={activeTab} handleTabChange={handleTabChange} />
+          {activeTab === 'wallet' && <WalletUI WorkspaceState={WorkspaceState} transactions={transactions} />}
+          {activeTab === 'explorer' && <ExplorerUI />}
+          {activeTab === 'audit' && <AuditUI layer1AuditReportResponse={WorkspaceState.layer1AuditReportResponse}/>}
+        </Stack>
+      </ThemeProvider>
+    </div>
+  );
+}
+
+function ProjectHeaderUI(props) {
+  const { activeTab, handleTabChange } = props;
+
+  return (
+    <Stack
+      direction="row"
+      justifyContent="space-between"
+      alignItems="flex-start"
+      spacing={2}
+    >
+      <Chip label="Instachain v0.1 beta testnet" size="medium" />
+
+      <Stack direction="row" spacing={2}>
+        <Button
+          variant={activeTab === 'wallet' ? 'contained' : 'outlined'}
+          onClick={() => handleTabChange('wallet')}
+        >
+          Wallet
+        </Button>
+        <Button
+          variant={activeTab === 'explorer' ? 'contained' : 'outlined'}
+          onClick={() => handleTabChange('explorer')}
+        >
+          Explorer
+        </Button>
+        <Button
+          variant={activeTab === 'audit' ? 'contained' : 'outlined'}
+          onClick={() => handleTabChange('audit')}
+        >
+          Audit
+        </Button>
+      </Stack>
+
+
       <Stack
         direction="row"
-        justifyContent="space-between"
+        justifyContent="flex-end"
         alignItems="flex-start"
         spacing={2}
       >
-        <Chip label="Instachain v0.1 beta testnet" size='medium'/>
-
-        <Stack
-          direction="row"
-          justifyContent="flex-end"
-          alignItems="flex-start"
-          spacing={2}
-        > 
-          <Chip icon={<CurrencyBitcoinIcon />} color='bitcoinOrange' label="Bitcointalk" />
-          <Chip icon={<GitHubIcon />} color='github' label="Github" component="a" href="https://github.com/js6177/InstaChain" target="_blank" clickable/>
-          <Chip icon={<TwitterIcon />} color='twitter' label="Twitter" />
-          <Chip icon={<GoogleIcon />} color='googleCloud' label="Google Cloud" />
-
-        </Stack>
-         
+        <Chip
+          icon={<CurrencyBitcoinIcon />}
+          color="bitcoinOrange"
+          label="Bitcointalk"
+        />
+        <Chip
+          icon={<GitHubIcon />}
+          color="github"
+          label="Github"
+          component="a"
+          href="https://github.com/js6177/InstaChain"
+          target="_blank"
+          clickable
+        />
+        <Chip icon={<TwitterIcon />} color="twitter" label="Twitter" />
+        <Chip icon={<GoogleIcon />} color="googleCloud" label="Google Cloud" />
       </Stack>
-    )
-  }
+    </Stack>
+  );
+}
+
 
   function ProjectDescriptionUI(props){
     const items = [];
@@ -197,7 +241,7 @@ export default function MyApp(props) {
     )
   }
 
-  function MainUI(props){
+  function WalletUI(props){
     const { WorkspaceState, transactions } = props;
     
     const [createOpenWalletDialogIsOpen, setCreateOpenWalletDialogIsOpen] = React.useState(false);
@@ -358,6 +402,18 @@ export default function MyApp(props) {
             </Stack>
         </div>
       ); 
+  }
+
+  function ExplorerUI(props){
+  }
+
+  function AuditUI(props) {
+    const { layer1AuditReportResponse } = props;
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <AddressBalanceTable addressBalances={layer1AuditReportResponse.getAddressBalances()} />
+      </div>
+    );
   }
 
   function MainAddressBalanceView(props){

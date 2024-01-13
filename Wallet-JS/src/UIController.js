@@ -2,13 +2,16 @@ import MyApp from './MainUI';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import {Workspace} from './Workspace';
+import {Layer2LedgerState} from './Layer2LedgerState';
 
 var workSpace = null;
+var layer2LedgerState = null;
 
 class UiController extends React.Component{
     constructor(props){ 
         super(props);
         console.log("UiController constructor");
+
         this.state = {
             mainAddressPubkey: "",
             depositAddress: "",
@@ -18,6 +21,7 @@ class UiController extends React.Component{
             myAddresses: [],
             transactions: [],
             addressBalances: [],
+            layer1AuditReportResponse: {},
             walletLoaded: false
         };
 
@@ -30,10 +34,15 @@ class UiController extends React.Component{
             "getDepositAddress": this.getDepositAddress.bind(this),
             "requestWithdrawal": this.requestWithdrawal.bind(this)
         }
+
+
     }
 
     componentDidMount() {
         console.log("componentDidMount");
+
+        layer2LedgerState = new Layer2LedgerState();
+        layer2LedgerState.setCallbacks(this.onGetLater1AuditReport.bind(this));
       }
     
       render() {
@@ -113,6 +122,12 @@ class UiController extends React.Component{
             workSpace.getDepositAddress();
         }
     }
+
+    getLayer1AuditReport(){
+        if(workSpace){
+            workSpace.getLayer1AuditReport();
+        }
+    }
     
 
     onGetBalance(errorCode, errorMessage, addressBalanceMap){
@@ -155,6 +170,13 @@ class UiController extends React.Component{
         this.setState({
             withdrawTransactionErrorMessage: errorMessage
           })
+    }
+
+    onGetLater1AuditReport(errorCode, errorMessage, _layer1AuditReportResponse){
+        console.log("UiController onGetLater1AuditReport layer1AuditReport: " + JSON.stringify(_layer1AuditReportResponse));
+        this.setState({
+            layer1AuditReportResponse: _layer1AuditReportResponse
+        })
     }
 }
 

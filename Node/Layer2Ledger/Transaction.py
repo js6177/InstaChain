@@ -129,6 +129,7 @@ class Transaction(ndb.Model):
     TRX_WITHDRAWAL_CANCELED = 5  # when the transaction gets removed from the layer1 mempool for any reason
     TRX_WITHDRAWAL_CONFIRMED = 6  # when the withdrawal gets confirmed in the layer1 chain
     INSTRUCTION_GET_DEPOSIT_ADDRESS = 7 # instruction to get a deposit address
+    INSTRUCTION_LAYER1_AUDIT = 8 # instruction to send a layer1 audit report
 
     def to_dict(self):
         result = super(Transaction, self).to_dict(exclude={'timestamp'})

@@ -1,4 +1,4 @@
-import {DEFAULT_LAYER2_HOSTNAME, Layer2LedgerNodeInfo, Layer2LedgerAPI} from './Layer2API';
+import {DEFAULT_LAYER2_HOSTNAME, Layer2LedgerNodeInfo, Layer2LedgerAPI} from './Layer2API/Layer2API';
 import {Wallet, MessageBuilder, Transaction} from './wallet'
 import {v4 as uuidv4} from 'uuid';
 
@@ -6,7 +6,7 @@ class Workspace{
     constructor(layer2ledgerNodeUrl){
         this.layer2ledgerNodeUrl = DEFAULT_LAYER2_HOSTNAME;
         this.layer2LedgerAPI = new Layer2LedgerAPI(layer2ledgerNodeUrl);
-        this.layer2LedgerAPI.getNodeInfo(this);
+        this.layer2LedgerAPI.getNodeInfo(this.onGetNodeInfo.bind(this));
         this.transactions = new Map();
         this.balances = new Map();
 
@@ -92,8 +92,6 @@ class Workspace{
         console.log('layer1DepositAddress: ' + layer1DepositAddress)
         this.onGetDepositAddressCompletedCallback(Layer2LedgerAPI.getErrorCode(body), Layer2LedgerAPI.getErrorMessage(body), layer1DepositAddress)
     }
-
-
     
     getTransactions(){
         this.layer2LedgerAPI.getTransactions(this, [this.wallet.getMainAddress().getPublicKeyString()]);

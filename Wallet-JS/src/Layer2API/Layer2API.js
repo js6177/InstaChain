@@ -43,13 +43,12 @@ class Layer2LedgerAPI{
         return jsonData['error_message'];
     }
 
-    constructor(layer2LedgerNodeHostname = DEFAULT_LAYER2_HOSTNAME, workspace = null){
+    constructor(layer2LedgerNodeHostname = DEFAULT_LAYER2_HOSTNAME){
         this.layer2LedgerNodeHostname = layer2LedgerNodeHostname;
-        this.workspace = workspace;
     }
 
 
-    getNodeInfo(workspace){
+    getNodeInfo(callback){
         let _url = this.layer2LedgerNodeHostname + 'getNodeInfo';
         $.ajax({
             url: _url,
@@ -59,7 +58,7 @@ class Layer2LedgerAPI{
                 console.log('getNodeInfo (data): ' + JSON.stringify(data, null, 2));
                 console.log('getNodeInfo (textStatus): ' + textStatus);
                 console.log('getNodeInfo (jQxhr): ' + jQxhr);
-                workspace.onGetNodeInfo(data);
+                callback(data);
             },
             error: function( jqXhr, textStatus, errorThrown ){
                 console.log( errorThrown );
@@ -199,6 +198,25 @@ class Layer2LedgerAPI{
                 console.log('Error: ' + errorThrown );
             } 
         });
+    }
+
+    getLayer1AuditReport(callback){
+        let _url = this.layer2LedgerNodeHostname + 'getLayer1AuditReport';
+        $.ajax({
+            url: _url,
+            type: 'get',
+            contentType: 'application/x-www-form-urlencoded',
+            success: function( data, textStatus, jQxhr ){
+                console.log('getLayer1AuditReport (data): ' + JSON.stringify(data, null, 2));
+                console.log('getLayer1AuditReport (textStatus): ' + textStatus);
+                console.log('getLayer1AuditReport (jQxhr): ' + jQxhr);
+                callback(data);
+            },
+            error: function( jqXhr, textStatus, errorThrown ){
+                console.log( errorThrown );
+            }   
+        });
+    
     }
 }
 
