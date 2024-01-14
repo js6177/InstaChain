@@ -1,8 +1,8 @@
-import MyApp from './MainUI';
+import MyApp from './pages/MainUI';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import {Workspace} from './Workspace';
-import {Layer2LedgerState} from './Layer2LedgerState';
+import {Workspace} from './state/Workspace';
+import {Layer2LedgerState} from './state/Layer2LedgerState';
 
 var workSpace = null;
 var layer2LedgerState = null;

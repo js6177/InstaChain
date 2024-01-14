@@ -1,5 +1,5 @@
-import {DEFAULT_LAYER2_HOSTNAME, Layer2LedgerNodeInfo, Layer2LedgerAPI} from './Layer2API/Layer2API';
-import {Wallet, MessageBuilder, Transaction} from './wallet'
+import {DEFAULT_LAYER2_HOSTNAME, Layer2LedgerNodeInfo, Layer2LedgerAPI} from '../services/Layer2API';
+import {Wallet, MessageBuilder, Transaction} from '../utils/wallet'
 import {v4 as uuidv4} from 'uuid';
 
 class Workspace{

@@ -1,5 +1,5 @@
-import {DEFAULT_LAYER2_HOSTNAME, Layer2LedgerNodeInfo, Layer2LedgerAPI} from './Layer2API/Layer2API';
-import {Layer1AuditReportResponse} from './Layer2API/messages/Layer1AuditReport';
+import {DEFAULT_LAYER2_HOSTNAME, Layer2LedgerNodeInfo, Layer2LedgerAPI} from '../services/Layer2API';
+import {Layer1AuditReportResponse} from '../services/messages/Layer1AuditReport';
 
 class Layer2LedgerState{
     constructor(layer2ledgerNodeUrl){

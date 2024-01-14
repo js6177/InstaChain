@@ -12,10 +12,10 @@ import Alert from '@mui/material/Alert';
 
 const { validate, getAddressInfo } = require('bitcoin-address-validation');
 
-import {getUiControllerCallbacks, setUiControllerCallbacks} from '../Callbacks/CallbacksMap'
+import {getUiControllerCallbacks, setUiControllerCallbacks} from '../utils/CallbacksMap'
 
 var MASTER_MNEOMONIC = "throw illness metal parrot wet they short aunt decline come bind gospel energy retreat prize fly";
-import {MNEUMONIC_WORD_COUNT, MNEUMONIC_WORDLIST} from '../Mneumonic'
+import {MNEUMONIC_WORD_COUNT, MNEUMONIC_WORDLIST} from '../utils/Mneumonic'
 import { Typography } from '@mui/material';
 
 export function ActionDialogDescriptionDisplay(props){

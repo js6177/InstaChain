@@ -32,11 +32,11 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 
 //import {getMainWalletAddress} from './UIController'
-import {getUiControllerCallbacks, setUiControllerCallbacks} from './Callbacks/CallbacksMap'
-import {TransactionDataGrid} from './UI/TransactionsDataGrid'
-import {TransactionsAccordionList} from './UI/TransactionsAccordionList'
-import {ActionDialog, CreateOpenWalletDialogBody, TransferDialogBody, DepositDialogBody, WithdrawalDialogBody} from './UI/ActionDialog'
-import AddressBalanceTable from './UI/AddressBalanceTable';
+import {getUiControllerCallbacks, setUiControllerCallbacks} from '../utils/CallbacksMap'
+import {TransactionDataGrid} from '../components/TransactionsDataGrid'
+import {TransactionsAccordionList} from '../components/TransactionsAccordionList'
+import {ActionDialog, CreateOpenWalletDialogBody, TransferDialogBody, DepositDialogBody, WithdrawalDialogBody} from '../components/ActionDialog'
+import AddressBalanceTable from '../components/AddressBalanceTable';
 
 import GitHubIcon from '@mui/icons-material/GitHub';
 import TwitterIcon from '@mui/icons-material/Twitter';

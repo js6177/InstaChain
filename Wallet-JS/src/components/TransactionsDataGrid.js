@@ -10,7 +10,7 @@ import PreviewIcon from '@mui/icons-material/Preview';
 
 import {ActionDialog, ViewJsonDialogBody} from './ActionDialog'
 
-import {getUiControllerCallbacks, setUiControllerCallbacks} from '../Callbacks/CallbacksMap'
+import {getUiControllerCallbacks, setUiControllerCallbacks} from '../utils/CallbacksMap'
 
 const columns = [
     { field: 'id', headerName: 'id' },

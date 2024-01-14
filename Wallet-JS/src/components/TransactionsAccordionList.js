@@ -1,6 +1,6 @@
 import React from 'react';
 
-import {getUiControllerCallbacks, setUiControllerCallbacks} from '../Callbacks/CallbacksMap'
+import {getUiControllerCallbacks, setUiControllerCallbacks} from '../utils/CallbacksMap'
 import { Accordion, ListItem, Stack } from '@mui/material';
 import { AccordionSummary } from '@mui/material';
 import { AccordionDetails } from '@mui/material';
