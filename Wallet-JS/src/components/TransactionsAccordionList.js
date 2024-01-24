@@ -1,6 +1,5 @@
 import React from 'react';
 
-import {getUiControllerCallbacks, setUiControllerCallbacks} from '../utils/CallbacksMap'
 import { Accordion, ListItem, Stack } from '@mui/material';
 import { AccordionSummary } from '@mui/material';
 import { AccordionDetails } from '@mui/material';
@@ -20,14 +19,20 @@ import { FixedSizeList } from 'react-window';
 //Foreach transaction in transactions, create an AccordionListViewItem passin in the transaction to props
 export function TransactionsAccordionList(props){
     const { transactions, myAddresses } = props;
+    // assume transactions is a map, with key = address, value = array of transactions
+    // transactionsLoaded is true if transactions is not null and is not empty
+    let transactionsLoaded = transactions && Object.keys(transactions).length > 0;
+    console.log("TransactionsAccordionList transactionsLoaded: " + transactionsLoaded)
     console.log("TransactionsAccordionList JSON: " + JSON.stringify(transactions, null, 2))
     
     return(
         <Box>
             <List spacing={2}>
-                {
-                    transactions.map((transaction) => (
-                        <AccordionListViewItem transaction={transaction} myAddresses={myAddresses}  />
+                {transactionsLoaded &&
+                    Object.entries(transactions).map(([address, transactionArray]) => (
+                        transactionArray.map((transaction) => (
+                            <AccordionListViewItem key={transaction.id} transaction={transaction} myAddresses={myAddresses}  />
+                        ))
                     ))
                 }
             </List>

@@ -1,5 +1,4 @@
 import React from 'react';
-import ReactDOM from 'react-dom/client';
 import Box from '@mui/material/Box';
 import { DataGrid, GridToolbar, GridValueFormatterParams } from '@mui/x-data-grid';
 import Grid from '@mui/material/Grid';
@@ -9,8 +8,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import PreviewIcon from '@mui/icons-material/Preview';
 
 import {ActionDialog, ViewJsonDialogBody} from './ActionDialog'
-
-import {getUiControllerCallbacks, setUiControllerCallbacks} from '../utils/CallbacksMap'
+import { WorkspaceContext } from '../context/WorkspaceContext';
 
 const columns = [
     { field: 'id', headerName: 'id' },
@@ -46,8 +44,6 @@ export function TransactionDataGrid(props) {
       sort: 'desc',
     },
   ]);
-  //console.log("TransactionDataGrid transactions: " + JSON.stringify(transactions) );
-  //_callbacksMap = callbacksMap;
 
   return (
       <Box sx={{ height: 400, width: '100%' }}>
@@ -78,6 +74,8 @@ export function TransactionDataGrid(props) {
 
   export function GridToolbarWithRefresh(props){
     const { transactions } = props;
+    const {workSpace, workspaceStateManager} = React.useContext(WorkspaceContext);
+
     console.log("GridToolbarWithRefresh JSON: " + JSON.stringify(transactions, null, 2))
 
 
@@ -98,7 +96,7 @@ export function TransactionDataGrid(props) {
           <GridToolbar/>
           </Grid>
           <Grid item>
-          <IconButton onClick={ getUiControllerCallbacks()["getTransactions"]}>
+          <IconButton onClick={ () => workspaceStateManager.refreshWallet() }>
             <RefreshIcon />
           </IconButton>
           </Grid>

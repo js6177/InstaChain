@@ -290,3 +290,7 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+#misc
+Wallet-JS/.todo.txt
+Wallet-JS/tmp/

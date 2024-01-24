@@ -21,6 +21,8 @@ class Layer1AuditReportResponse{
         this.errorMessage = "";
         this.totalBalance = 0;
         this.blockHeight = 0;
+
+        this.ready = false;
     }
 
     fromJSON(jsonData){
@@ -35,6 +37,7 @@ class Layer1AuditReportResponse{
             let balance = addressBalance['balance'];
             this.addressBalances.push(new Layer1AddressBalance(layer1Address, balance));
         })
+        this.ready = true;
     }
 
     getAddressBalances(){

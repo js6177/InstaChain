@@ -81,7 +81,7 @@ class Layer2LedgerAPI{
                 console.log('getDepositAddress (data): ' + JSON.stringify(data, null, 2));
                 console.log('getDepositAddress (textStatus): ' + textStatus);
                 console.log('getDepositAddress (jQxhr): ' + jQxhr);
-                callback(data);
+                callback(data, layer2AddressPubKey, nonce);
             },
             error: function( jqXhr, textStatus, errorThrown ){
                 console.log( errorThrown );
@@ -107,7 +107,7 @@ class Layer2LedgerAPI{
                 console.log('pushTransaction (data): ' + JSON.stringify(data, null, 2));
                 console.log('pushTransaction (textStatus): ' + textStatus);
                 console.log('pushTransaction (jQxhr): ' + jQxhr);
-                callback(data);
+                callback(data, transaction_id);
             },
             error: function( jqXhr, textStatus, errorThrown ){
                 console.log( errorThrown );
@@ -133,7 +133,7 @@ class Layer2LedgerAPI{
                 console.log('requestWithdrawal (data): ' + JSON.stringify(data, null, 2));
                 console.log('requestWithdrawal (textStatus): ' + textStatus);
                 console.log('requestWithdrawal (jQxhr): ' + jQxhr);
-                callback(data);
+                callback(data, transactionId);
             },
             error: function( jqXhr, textStatus, errorThrown ){
                 console.log( errorThrown );
@@ -152,12 +152,8 @@ class Layer2LedgerAPI{
             }),
             contentType: 'application/json',
             success: function( data, textStatus, jQxhr ){
-                console.log('getBalance (data): ' + JSON.stringify(data, null, 2));
-                console.log('getBalance (textStatus): ' + textStatus);
-                console.log('getBalance (jQxhr): ' + jQxhr);
                 let returnData = JSON.parse((JSON.stringify(data, null, 2)));
                 let error_code = returnData['error_code'];
-                console.log('error_code: ' + error_code);
                 callback(data);
                 //callback.onGetBalance(data);
             },
@@ -184,15 +180,18 @@ class Layer2LedgerAPI{
             },
             contentType: 'application/x-www-form-urlencoded',
             success: function( data, textStatus, jQxhr ){
-                console.log('pushTransaction (data): ' + JSON.stringify(data, null, 2));
-                console.log('pushTransaction (textStatus): ' + textStatus);
-                console.log('pushTransaction (jQxhr): ' + jQxhr);
-                let returnData = JSON.parse((JSON.stringify(data, null, 2)));
-                let transactions = returnData['transactions'];
-                let error_code = returnData['error_code'];
-                console.log('transactions: ' + transactions)
-                console.log('error_code: ' + error_code);
-                callback.onGetTransactions(data);
+                try {
+                    //print data
+                    console.log('getTransactions (parse data): ' + JSON.parse((JSON.stringify(data, null, 2))));
+                    console.log('getTransactions (data): ' + JSON.stringify(data, null, 2));
+                } catch (error) {
+                    console.log('Error: ' + error);
+                }
+                    let returnData = JSON.parse((JSON.stringify(data, null, 2)));
+                    let transactions = returnData['transactions'];
+                    let error_code = returnData['error_code'];
+                    callback(data);
+
             },
             error: function( jqXhr, textStatus, errorThrown ){
                 console.log('Error: ' + errorThrown );

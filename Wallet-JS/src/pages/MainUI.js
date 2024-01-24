@@ -31,8 +31,8 @@ import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 
-//import {getMainWalletAddress} from './UIController'
-import {getUiControllerCallbacks, setUiControllerCallbacks} from '../utils/CallbacksMap'
+import {Layer2LedgerContext} from '../context/Layer2LedgerContext'
+import { WorkspaceContext } from '../context/WorkspaceContext';
 import {TransactionDataGrid} from '../components/TransactionsDataGrid'
 import {TransactionsAccordionList} from '../components/TransactionsAccordionList'
 import {ActionDialog, CreateOpenWalletDialogBody, TransferDialogBody, DepositDialogBody, WithdrawalDialogBody} from '../components/ActionDialog'
@@ -112,14 +112,13 @@ const theme = createTheme({
 });
 
 export default function MyApp(props) {
-  const { WorkspaceState, transferTransactionErrorMessage, transactions, callbacksMap } = props;
+  const {layer1AuditReportResponse: layer1AuditReport, layer2LedgerStateManager} = React.useContext(Layer2LedgerContext);
+
   const [activeTab, setActiveTab] = React.useState('wallet');
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
   };
-
-  setUiControllerCallbacks(callbacksMap);
 
   return (
     <div>
@@ -127,9 +126,9 @@ export default function MyApp(props) {
         <CssBaseline />
         <Stack spacing={2} padding={2} bgcolor="paperColor">
           <ProjectHeaderUI activeTab={activeTab} handleTabChange={handleTabChange} />
-          {activeTab === 'wallet' && <WalletUI WorkspaceState={WorkspaceState} transactions={transactions} />}
+          {activeTab === 'wallet' && <WalletUI/>}
           {activeTab === 'explorer' && <ExplorerUI />}
-          {activeTab === 'audit' && <AuditUI layer1AuditReportResponse={WorkspaceState.layer1AuditReportResponse}/>}
+          {activeTab === 'audit' && <AuditUI layer1AuditReportResponse={layer1AuditReport} />}
         </Stack>
       </ThemeProvider>
     </div>
@@ -242,8 +241,13 @@ function ProjectHeaderUI(props) {
   }
 
   function WalletUI(props){
-    const { WorkspaceState, transactions } = props;
-    
+
+    //use workspac context here
+    const {workSpace, workspaceStateManager} = React.useContext(WorkspaceContext);
+    //If wallet it null, then it is not loaded
+    const isWalletLoaded = workSpace.wallet != null;
+    console.log("isWalletLoaded: " + isWalletLoaded);
+
     const [createOpenWalletDialogIsOpen, setCreateOpenWalletDialogIsOpen] = React.useState(false);
     const [createOpenWalletDialogStatus, setCreateOpenWalletDialogStatus] = React.useState("");
 
@@ -255,6 +259,16 @@ function ProjectHeaderUI(props) {
     const [withdrawalDialogIsOpen, setWithdrawalDialogIsOpen] = React.useState(false);
 
     const [transactionsViewMode, setTransactionsViewMode] = React.useState("list");
+
+    let mainAddressPubkey = "";
+    let mainAddressBalance = 0;
+    if(isWalletLoaded){
+      mainAddressPubkey = workSpace.wallet.getMainAddressPubkey();
+      mainAddressBalance = workSpace.addressBalances[mainAddressPubkey];
+      console.log("WalletUI addressBalances: " + JSON.stringify(workSpace.addressBalances));
+    }
+    console.log("WalletUI mainAddressPubkey: " + mainAddressPubkey);
+    console.log("WalletUI mainAddressBalance: " + mainAddressBalance);
 
   
     const handleClickCreateOpenWalletDialogOpen = () => {
@@ -299,7 +313,7 @@ function ProjectHeaderUI(props) {
       return (
         <div>
           <Stack spacing={2}>
-          {!WorkspaceState.walletLoaded &&
+          {!isWalletLoaded &&
             <Box  display="flex" justifyContent="center" >
               <Card sx={{  maxWidth: 1/3, p: 2, bgcolor:'#FEFAE0' }} justifyContent="center" >
               IC is a new real-time Layer2 sidechain build for instant, near 0 fee payments. To get started, click “new wallet” and generate your L2 wallet; no login or registration is required. To learn more about the project, check the links on the top right.
@@ -320,22 +334,17 @@ function ProjectHeaderUI(props) {
               <Button variant="contained" onClick={handleClickCreateOpenWalletDialogOpen} color='newWalletButton'>
                 Create/Open L2 Wallet
               </Button>
-              {WorkspaceState.walletLoaded &&
+              {isWalletLoaded &&
               <Box display="block" >
                 <Card variant="outlined" sx={{p:2, bgcolor:'#FEFAE0' }}>
-                  <MainAddressBalanceView  mainAddressPubkey={WorkspaceState.mainAddressPubkey} manAddressBalance={WorkspaceState.addressBalances[WorkspaceState.mainAddressPubkey]}/>
+                  <MainAddressBalanceView  mainAddressPubkey={mainAddressPubkey} manAddressBalance={mainAddressBalance}/>
                 </Card>
               </Box>}
             </Stack>
-              
-
-
-            
-
 
             <Stack direction="row" spacing={2}>
               <Tooltip title="Send funds to another Layer 2 address">
-                <Button variant="contained"  onClick={handleClickTransferDialogOpen} disabled={!WorkspaceState.walletLoaded}>
+                <Button variant="contained"  onClick={handleClickTransferDialogOpen} disabled={!isWalletLoaded}>
                   Transfer (L2-{'>'}L2)
                 </Button>
                 </Tooltip>
@@ -344,12 +353,12 @@ function ProjectHeaderUI(props) {
                   isOpen={transferDialogIsOpen}
                   onClose={handleTransferDialogClose}
                   dialogTitle="Transfer (L2->L2)"
-                  dialogBody={<TransferDialogBody transferTransactionErrorMessage={WorkspaceState.transferTransactionErrorMessage}/>}
+                  dialogBody={<TransferDialogBody transferTransactionErrorMessage={workSpace.transferTransactionErrorMessage}/>}
                 />
               
 
               <Tooltip title="Deposit funds from your Layer 1 bitcoin address to your Layer 2 address">
-                <Button variant="contained"  onClick={handleDepositDialogOpen} disabled={!WorkspaceState.walletLoaded}>
+                <Button variant="contained"  onClick={handleDepositDialogOpen} disabled={!isWalletLoaded}>
                   Deposit (L1-{'>'}L2)
                 </Button>
                 </Tooltip>
@@ -357,12 +366,12 @@ function ProjectHeaderUI(props) {
                   isOpen={getDepositAddressDialogIsOpen}
                   onClose={handleDepositDialogClose}
                   dialogTitle="Deposit (L1->L2)"
-                  dialogBody={<DepositDialogBody getDepositAddressErrorMessage={WorkspaceState.getDepositAddressErrorMessage} depositAddress={WorkspaceState.depositAddress}/>}
+                  dialogBody={<DepositDialogBody getDepositAddressErrorMessage={workSpace.getDepositAddressErrorMessage} depositAddress={workSpace.depositAddress}/>}
                 />
               
 
               <Tooltip title="Withdraw funds from your Layer 2 address to you Layer 1 bitcoin address">
-                <Button variant="contained" onClick={handleWihdrawalDialogOpen} disabled={!WorkspaceState.walletLoaded}>
+                <Button variant="contained" onClick={handleWihdrawalDialogOpen} disabled={!isWalletLoaded}>
                   Withdraw (L2-{'>'}L1)
                 </Button>
                 </Tooltip>
@@ -370,7 +379,7 @@ function ProjectHeaderUI(props) {
                   isOpen={withdrawalDialogIsOpen}
                   onClose={handleWithdrawalDialogClose}
                   dialogTitle="Withdraw (L2->L1)"
-                  dialogBody={<WithdrawalDialogBody withdrawTransactionErrorMessage={WorkspaceState.withdrawTransactionErrorMessage}/>}
+                  dialogBody={<WithdrawalDialogBody withdrawTransactionErrorMessage={workSpace.withdrawTransactionErrorMessage}/>}
                 />
               
             </Stack>
@@ -387,16 +396,15 @@ function ProjectHeaderUI(props) {
                   <GridViewIcon />
                 </ToggleButton>
               </ToggleButtonGroup>
-              <IconButton onClick={ getUiControllerCallbacks()["getTransactions"]}>
+              <IconButton onClick={() => workspaceStateManager.refreshWallet()}>
                 <RefreshIcon />
               </IconButton>
             </Stack>
-
             {
-            transactionsViewMode == "list" && <TransactionsAccordionList transactions={transactions} myAddresses={WorkspaceState.myAddresses} />
+              isWalletLoaded && transactionsViewMode == "list" && <TransactionsAccordionList transactions={workSpace.transactions} myAddresses={[workSpace.wallet.getMainAddressPubkey()]} />
             }
             {
-            transactionsViewMode == "grid" && <TransactionDataGrid transactions={transactions} />
+              isWalletLoaded && transactionsViewMode == "grid" && <TransactionDataGrid transactions={workSpace.transactions[workSpace.wallet.getMainAddressPubkey()]} />
             }
 
             </Stack>
@@ -410,8 +418,8 @@ function ProjectHeaderUI(props) {
   function AuditUI(props) {
     const { layer1AuditReportResponse } = props;
     return (
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <AddressBalanceTable addressBalances={layer1AuditReportResponse.getAddressBalances()} />
+      <div style={{ display: 'flex', justifycontent: 'center' }}>
+        <AddressBalanceTable/>
       </div>
     );
   }

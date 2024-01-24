@@ -12,7 +12,7 @@ import Alert from '@mui/material/Alert';
 
 const { validate, getAddressInfo } = require('bitcoin-address-validation');
 
-import {getUiControllerCallbacks, setUiControllerCallbacks} from '../utils/CallbacksMap'
+import { WorkspaceContext } from '../context/WorkspaceContext';
 
 var MASTER_MNEOMONIC = "throw illness metal parrot wet they short aunt decline come bind gospel energy retreat prize fly";
 import {MNEUMONIC_WORD_COUNT, MNEUMONIC_WORDLIST} from '../utils/Mneumonic'
@@ -53,6 +53,7 @@ export function ActionDialog(props) {
   export function CreateOpenWalletDialogBody() {
 
     const [textInputMneumonic, setTextInputMneumonic] = useState('');
+    const {workSpace, workspaceStateManager} = React.useContext(WorkspaceContext);
 
     const inputMneumonicChanged = event => {
       setTextInputMneumonic(event.target.value);
@@ -78,42 +79,84 @@ export function ActionDialog(props) {
         <TextField multiline fullWidth id="textBoxMneumonicValue" label="L2 Mneumonic" variant="outlined" InputLabelProps={{ shrink: true }} value = {textInputMneumonic} onChange={inputMneumonicChanged}/>
         <Alert severity="warning">This mneumonic generates your wallet's private keys, so copy it and keep it safe. It is not possible to recover your wallet's private keys if you loose this mneumonic. Do not share with anyone, as anyone with access to this mneumonic can spend your funds.</Alert>
 
-        <Button  variant="contained" id="createNewWallet" disabled={!textInputMneumonic} onClick={ getUiControllerCallbacks()["createWallet"]}>Create/Open Wallet</Button>
+        <Button variant="contained" id="createNewWallet" disabled={!textInputMneumonic} onClick={() => workspaceStateManager.newWallet(textInputMneumonic)}>Create/Open Wallet</Button>
       </Stack>
     );
   }
 
   export function TransferDialogBody(props){
     const { transferTransactionErrorMessage } = props;
-    let mainWalletAddressPubkey =  getUiControllerCallbacks()["getMainWalletAddress"]();
+    const {workSpace, workspaceStateManager} = React.useContext(WorkspaceContext);
+    const [destinationAddress, setDestinationAddress] = useState('');
+    const [amount, setAmount] = useState(0);
+    const [trxId, setTrxId] = useState('');
+    const [transactionState, setTransactionState] = useState('');
+    let mainWalletAddressPubkey =  workSpace.wallet?.getMainAddressPubkey();
+    console.log("TransferDialogBody workSpace: " + JSON.stringify(workSpace));
+    console.log("TransferDialogBody workspaceStateManager: " + JSON.stringify(workspaceStateManager));
+    let transactionResult = JSON.stringify(workSpace.transactionResults[trxId], null, 2);
+    console.log("TransferDialogBody trxId: " + trxId);
+    console.log("TransferDialogBody workSpace.transactionResults: " + JSON.stringify(workSpace.transactionResults));
+
+    console.log("TransferDialogBody transactionResult: " + transactionResult);
+
+
+    const handleDestinationAddressChange = (event) => {
+      setDestinationAddress(event.target.value);
+    };
+
+    const handleAmountChange = (event) => {
+      setAmount(event.target.value);
+    };
+
+    function transfer(destinationAddress, amount){
+      let trxId = workspaceStateManager.generateTransactionIdNonce();
+      setTrxId(trxId);
+      setTransactionState("Sending transaction...");
+      workspaceStateManager.transfer(trxId, destinationAddress, amount);
+    }
+
     return (
       <Stack spacing={2} padding={2}>
         <Alert severity="info">This app is in testnet mode - You are sending testnet Layer2 bitcoins. Testnet bitcoins have no value</Alert>
         <ActionDialogDescriptionDisplay text={"To send funds to another L2 address, enter the destination address and the amount in satoshis. This L2 address is the same as the  'Main Address' field. The transaction should confirm instantly."}/>
 
         <TextField fullWidth id="inputTransactionSendFromAddress" value={mainWalletAddressPubkey} label="Send From" variant="outlined" InputLabelProps={{ shrink: true, readOnly: true }}/>
-        <TextField fullWidth id="inputTransactionSendToAddress" label="Send To" variant="outlined" InputLabelProps={{ shrink: true }}/>
-        <TextField fullWidth id="inputTransactionAmount" label="Amount (in satoshis)" variant="outlined" InputLabelProps={{ shrink: true }}/>
-        <Button  variant="contained" id="buttonSendTransaction" onClick={ getUiControllerCallbacks()["transfer"]}>Transfer</Button>
-        <div>Status: {transferTransactionErrorMessage}</div>
+        <TextField fullWidth id="inputTransactionSendToAddress" value={destinationAddress} label="Send To" variant="outlined" InputLabelProps={{ shrink: true }} onChange={handleDestinationAddressChange} />
+        <TextField fullWidth id="inputTransactionAmount" value={amount} label="Amount (in satoshis)" variant="outlined" InputLabelProps={{ shrink: true }} onChange={handleAmountChange} />
+        <Button  variant="contained" id="buttonSendTransaction" onClick={() => transfer(destinationAddress, amount) }>Transfer</Button>
+        {trxId !== '' && <div>Status: {transactionResult}</div>}
       </Stack>
     )
   }
 
   export function DepositDialogBody(props){
     const { getDepositAddressErrorMessage, depositAddress } = props;
+    const {workSpace, workspaceStateManager} = React.useContext(WorkspaceContext);
+    const [trxId, setTrxId] = useState('');
+    const [transactionState, setTransactionState] = useState('');
 
-    let mainWalletAddressPubkey =  getUiControllerCallbacks()["getMainWalletAddress"]();
+    let mainWalletAddressPubkey =  workSpace.wallet?.getMainAddressPubkey();
+    let layer1DepositAddress = workSpace.depositAddresses[mainWalletAddressPubkey];
+    let transactionResult = JSON.stringify(workSpace.transactionResults[trxId], null, 2);
+
+    function getDepositAddress(){
+      let trxId = workspaceStateManager.generateTransactionIdNonce();
+      setTrxId(trxId);
+      setTransactionState("Getting deposit address...");
+      workspaceStateManager.getDepositAddress(trxId);
+    }
+
     return(
       <Stack spacing={2}  padding={2}>
         <Alert severity="info">This app is in testnet mode - make sure to only sent testnet bitcoin to the deposit address!</Alert>
         <ActionDialogDescriptionDisplay text={"To deposit funds to you L2 address, generate a deposit address. This deposit address is a L1 address that will credit your L2 address with any btc received."}/>
 
         <TextField fullWidth id="inputGetDepositLayer2Address" value={mainWalletAddressPubkey} label="L2 Address" variant="outlined" InputLabelProps={{ shrink: true, readOnly: true }}/>
-        <Button  variant="contained" id="buttonGetDepositAddress" onClick={ getUiControllerCallbacks()["getDepositAddress"]}>Get Deposit Address</Button>
-        <TextField fullWidth value={depositAddress} label="L1 Deposit Address" variant="outlined" InputLabelProps={{ shrink: true, readOnly: true }}/>
+        <Button  variant="contained" id="buttonGetDepositAddress" onClick={() => getDepositAddress()}>Get Deposit Address</Button>
+        <TextField fullWidth value={layer1DepositAddress} label="L1 Deposit Address" variant="outlined" InputLabelProps={{ shrink: true, readOnly: true }}/>
 
-        <div>Status: {getDepositAddressErrorMessage}</div>
+        {trxId !== '' && <div>Status: {transactionResult}</div>}
       </Stack>
     )
   }
@@ -122,18 +165,36 @@ export function ActionDialog(props) {
     const { withdrawTransactionErrorMessage } = props;
     const [isValidL1Address, setIsValidL1Address] = useState(false);
     const [withdrawalAmount, setWithdrawalAmount] = useState(0);
+    const [trxId, setTrxId] = useState('');
+    const [transactionState, setTransactionState] = useState('');
+
+    const [layer1WithdrawalDestinatonAddress, setLayer1WithdrawalDestinatonAddress] = useState('');
+    const {workSpace, workspaceStateManager} = React.useContext(WorkspaceContext);
+
+    let transactionResult = JSON.stringify(workSpace.transactionResults[trxId], null, 2);
 
     const inputWithdrawalDestinationAddressChanged = event => {
-      var valid = validate(event.target.value, 'testnet');
+      let layer1Address = event.target.value;
+      var valid = validate(layer1Address, 'testnet');
       console.log("validL1Address: " + valid);
       setIsValidL1Address(valid);
+      setLayer1WithdrawalDestinatonAddress(layer1Address);
     };
 
     const inputWithdrawalDestinationAmountChanged = event => {
       setWithdrawalAmount(event.target.valueAsNumber);
     };
 
-    let mainWalletAddressPubkey =  getUiControllerCallbacks()["getMainWalletAddress"]();
+    function withdraw(layer1WithdrawalDestinatonAddress, amount){
+      let trxId = workspaceStateManager.generateTransactionIdNonce();
+      setTrxId(trxId);
+      setTransactionState("Withdrawing transaction...");
+      workspaceStateManager.requestWithdrawal(trxId, layer1WithdrawalDestinatonAddress, amount);
+    }
+
+
+    let mainWalletAddressPubkey =  workSpace.wallet?.getMainAddressPubkey();
+
     return(
       <Stack spacing={2}  padding={2}>
         <Alert severity="info">This app is in testnet mode - make sure the withdrawal address is a testnet address!</Alert>
@@ -142,8 +203,8 @@ export function ActionDialog(props) {
         <TextField fullWidth id="inputWithdrawalFromAddress" value={mainWalletAddressPubkey} label="Withdraw From" variant="outlined" InputLabelProps={{ shrink: true, readOnly: true }}/>
         <TextField fullWidth id="inputWithdrawalDestinationAddress" label="Withdraw To (Layer1 address)" variant="outlined" InputLabelProps={{ shrink: true }} onChange={inputWithdrawalDestinationAddressChanged}/>
         <TextField fullWidth id="inputWithdrawalAmount" label="Amount (in satoshis)" type="number" variant="outlined" value={withdrawalAmount} InputLabelProps={{ shrink: true }} onChange={inputWithdrawalDestinationAmountChanged}/>
-        <Button  variant="contained" id="buttonRequestWithdrawal" disabled={!isValidL1Address || !(withdrawalAmount>0)} onClick={ getUiControllerCallbacks()["requestWithdrawal"]}>Withdraw</Button>
-        <div>Status: {withdrawTransactionErrorMessage}</div>
+        <Button  variant="contained" id="buttonRequestWithdrawal" disabled={!isValidL1Address || !(withdrawalAmount>0)} onClick={ () => withdraw(layer1WithdrawalDestinatonAddress, withdrawalAmount)}>Withdraw</Button>
+        {trxId !== '' && <div>Status: {transactionResult}</div>}
       </Stack>
     )
   }

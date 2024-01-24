@@ -116,17 +116,13 @@ class Transaction{
 
         this.id = this.transaction_id + ':' + this.node_id
 
-        console.log("Transaction.fromJSON: " + JSON.stringify(jsonDict))
-        console.log("Transaction.fromJSON: TransactionTypeMap" + JSON.stringify(TransactionTypeMap))
-
-        console.log("Transaction.fromJSON: transaction_type" + this.transaction_type)
-        console.log("Transaction.fromJSON: transaction_type_desc" + this.transaction_type_desc)
     }
 }
 
 class Wallet{
     constructor(mneumonic){
         this.layer2address = new Layer2Address(mneumonic);
+        this.uid = crypto.randomBytes(20).toString('hex');
     }
 
     getMainAddress(){
@@ -164,6 +160,5 @@ class MessageBuilder{
         return message;
     }
 }
-
 
 export {Wallet, MessageBuilder, Transaction}
