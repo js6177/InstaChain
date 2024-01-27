@@ -1,10 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
-import { UiController } from './UIController';
+const { UiController } = require('./UIController');
 
 
-const root = ReactDOM.createRoot(document.getElementById("title"));
+const root = ReactDOM.createRoot(document.getElementById("title")!);
 root.render(
 <React.StrictMode>
     <UiController />
