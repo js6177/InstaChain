@@ -1,9 +1,17 @@
-import {DEFAULT_LAYER2_HOSTNAME, Layer2LedgerNodeInfo, Layer2LedgerAPI} from '../services/Layer2API';
-import { Workspace } from '../state/Workspace';
-import { Wallet, MessageBuilder, Transaction } from '../utils/wallet'
+const { DEFAULT_LAYER2_HOSTNAME, Layer2LedgerNodeInfo, Layer2LedgerAPI } = require('../services/Layer2API');
+const { Workspace } = require('../state/Workspace');
+const { Wallet, MessageBuilder, Transaction } = require('../utils/wallet');
 
 class WorkspaceStateManager{
-    constructor(setWorkspaceState, layer2ledgerNodeUrl = DEFAULT_LAYER2_HOSTNAME){
+
+    public setWorkspaceState: any;
+    public layer2ledgerNodeUrl: string;
+    public layer2LedgerAPI: typeof Layer2LedgerAPI;
+    public workspace: typeof Workspace;
+    public layer2LedgerNodeInfo: typeof Layer2LedgerNodeInfo;
+    public messageBuilder: typeof MessageBuilder;
+
+    constructor(setWorkspaceState: any, layer2ledgerNodeUrl: string = DEFAULT_LAYER2_HOSTNAME) {
         this.setWorkspaceState = setWorkspaceState;
         this.layer2ledgerNodeUrl = layer2ledgerNodeUrl;
         this.layer2LedgerAPI = new Layer2LedgerAPI(this.layer2ledgerNodeUrl);
@@ -11,7 +19,7 @@ class WorkspaceStateManager{
         this.workspace = new Workspace(this.layer2ledgerNodeUrl);
     }
 
-    onGetNodeInfo(data){
+    onGetNodeInfo(data: any){
         console.log("WorkspaceStateManager.onGetNodeInfo");
         this.layer2LedgerNodeInfo = new Layer2LedgerNodeInfo(this.layer2ledgerNodeUrl, '', 0);
         this.layer2LedgerNodeInfo.fromJSON(data);
@@ -19,7 +27,7 @@ class WorkspaceStateManager{
 
     }
 
-    newWallet(mneumonic){
+    newWallet(mneumonic: string){
         this.workspace.wallet = new Wallet(mneumonic);
         this.getTransactions();
         this.getWalletBalance();
@@ -31,11 +39,11 @@ class WorkspaceStateManager{
         this.layer2LedgerAPI.getBalance(this.onGetWalletBalance.bind(this), [layer2AddressPubKey]);
     }
 
-    onGetWalletBalance(data){
+    onGetWalletBalance(data: any){
         let body = JSON.parse(JSON.stringify(data, null, 2));
         console.log("onGetWalletBalance: " + JSON.stringify(body));
         let balances = body['balance'];
-        balances.forEach(balanceObject => {
+        balances.forEach((balanceObject: { [x: string]: any; }) => {
             let layer2AddressPubKey = balanceObject['public_key'];
             let balance = balanceObject['balance'];
             this.workspace.addressBalances[layer2AddressPubKey] = balance;
@@ -44,7 +52,7 @@ class WorkspaceStateManager{
         this.setLatestWorkspaceState();
     }
 
-    transfer(trxId, destinationAddress, amount, fee = 1){
+    transfer(trxId: string, destinationAddress: string, amount: number, fee = 1){
         console.log("WorkspaceStateManager.transfer" + JSON.stringify(this.workspace));
         let sourceAddress = this.workspace.wallet.getMainAddress();
         //let trxId = this.generateTransactionIdNonce();
@@ -56,7 +64,7 @@ class WorkspaceStateManager{
         this.layer2LedgerAPI.pushTransaction(this.onTransferTransactionCompleted.bind(this), amount, fee, sourceAddress.getPublicKeyString(), destinationAddress, signature, trxId)
     }
 
-    onTransferTransactionCompleted(data, trxId){
+    onTransferTransactionCompleted(data: any, trxId: string){
         console.log("onTransferTransactionCompleted" +  JSON.stringify(data));
 
         let body = JSON.parse(JSON.stringify(data, null, 2));
@@ -66,7 +74,7 @@ class WorkspaceStateManager{
         this.setLatestWorkspaceState();
     }
 
-    getDepositAddress(trxId){
+    getDepositAddress(trxId: string){
         let layer2Address = this.workspace.wallet.getMainAddress();
         //let trxId = this.generateTransactionIdNonce();
         let message = this.messageBuilder.buildGetDepositAddressMessage(layer2Address.getPublicKeyString(), trxId);  
@@ -75,7 +83,7 @@ class WorkspaceStateManager{
         this.layer2LedgerAPI.getDepositAddress(this.onGetDepositAddress.bind(this), layer2Address.getPublicKeyString(), trxId, signature);
     }
 
-    onGetDepositAddress(data, layer2Address, trxId){
+    onGetDepositAddress(data: any, layer2Address: string, trxId: string){
         let body = JSON.parse(JSON.stringify(data, null, 2));
         let layer1DepositAddress = body['layer1_deposit_address'];
         console.log('layer1DepositAddress: ' + layer1DepositAddress);
@@ -84,7 +92,7 @@ class WorkspaceStateManager{
         this.setLatestWorkspaceState();
     }
 
-    requestWithdrawal(trxId, layer1WithdrawalDestinatonAddress, amount){
+    requestWithdrawal(trxId: string, layer1WithdrawalDestinatonAddress: string, amount: number){
         let sourceAddress = this.workspace.wallet.getMainAddress();
 
         //let trxId = this.generateTransactionIdNonce();
@@ -93,7 +101,7 @@ class WorkspaceStateManager{
         this.layer2LedgerAPI.requestWithdrawal(this.onWithdrawalRequestCompleted.bind(this), sourceAddress.getPublicKeyString(), layer1WithdrawalDestinatonAddress, amount, trxId, signature);
     }
 
-    onWithdrawalRequestCompleted(data, trxId){
+    onWithdrawalRequestCompleted(data: any, trxId: string){
         console.log("onWithdrawalRequestCompleted: " +  JSON.stringify(data));
 
         let body = JSON.parse(JSON.stringify(data, null, 2));
@@ -108,21 +116,21 @@ class WorkspaceStateManager{
         this.layer2LedgerAPI.getTransactions(this.onGetTransactions.bind(this), [this.workspace.wallet.getMainAddress().getPublicKeyString()]);
     }
 
-    onGetTransactions(data){
+    onGetTransactions(data: any){
         let body = JSON.parse(JSON.stringify(data, null, 2));
 
         let transactions = body['transactions'];
-        transactions.forEach(layer2Address => {
+        transactions.forEach((layer2Address: { [x: string]: any; }) => {
             let address = layer2Address['public_key'];
             this.workspace.transactions[address] = []
 
             let addressTransactions = layer2Address['transactions'];
-            addressTransactions.forEach(transaction => {
+            addressTransactions.forEach((transaction: any) => {
                 let trx = new Transaction();
                 trx.fromJSON(transaction);
                 this.workspace.transactions[address].push(trx);
             })
-            this.workspace.transactions[address].sort((a, b) => (a.timestamp < b.timestamp) ? 1 : -1)
+            this.workspace.transactions[address].sort((a: { timestamp: number; }, b: { timestamp: number; }) => (a.timestamp < b.timestamp) ? 1 : -1)
         });
         this.setLatestWorkspaceState();
     }
@@ -132,21 +140,21 @@ class WorkspaceStateManager{
         this.getWalletBalance();
     }
 
-    setWalletState(wallet){
+/*     setWalletState(wallet: string){
         this.setWorkspaceState && this.setWorkspaceState((prevState) => ({ ...prevState, wallet: wallet}));
-    }
+    } */
 
-    setTransactionsState(transactions){
+/*     setTransactionsState(transactions){
         //console.log("Setting transactions state");
         console.log("WorkspaceStateManager setting trx count: " + transactions.length);
         console.log("WorkspaceStateManager.setTransactionsState: " + JSON.stringify(transactions));
         this.setWorkspaceState && this.setWorkspaceState((prevState) => ({ ...prevState, transactions: transactions }));
-    }
+    } */
 
-    setAddressBalancesState(addressBalances){
+/*     setAddressBalancesState(addressBalances){
         console.log("WorkspaceStateManager.setAddressBalancesState: " + JSON.stringify(addressBalances));
         this.setWorkspaceState && this.setWorkspaceState((prevState) => ({ ...prevState, addressBalances: addressBalances }));
-    }
+    } */
 
     setLatestWorkspaceState(){
         console.log("WorkspaceStateManager.setLatestWorkspaceState");
