@@ -31,8 +31,8 @@ import AccordionDetails from '@mui/material/AccordionDetails';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 
-import {Layer2LedgerContext} from '../context/Layer2LedgerContext'
-import { WorkspaceContext } from '../context/WorkspaceContext';
+import {Layer2LedgerContext} from '../context/Layer2LedgerContext';
+import {WorkspaceContext} from '../context/WorkspaceContext';
 import {TransactionDataGrid} from '../components/TransactionsDataGrid'
 import {TransactionsAccordionList} from '../components/TransactionsAccordionList'
 import {ActionDialog, CreateOpenWalletDialogBody, TransferDialogBody, DepositDialogBody, WithdrawalDialogBody} from '../components/ActionDialog'
@@ -44,7 +44,7 @@ import GoogleIcon from '@mui/icons-material/Google';
 import CurrencyBitcoinIcon from '@mui/icons-material/CurrencyBitcoin';
 
 import { red, green, blue } from '@mui/material/colors';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { ThemeProvider, createTheme} from '@mui/material/styles';
 import { CssBaseline } from '@mui/material/';
 import { Card } from '@mui/material/';
 import { color } from '@mui/system';
@@ -53,7 +53,7 @@ import { color } from '@mui/system';
 const theme = createTheme({
   palette: {
     mode: 'light',
-    spacing: 8,
+    //spacing: 8,
     background: {
       default: "#daffe7"
     },
@@ -69,10 +69,7 @@ const theme = createTheme({
       light: '#de2618',
       dark: '#b31308',
     },
-    projectDescriptionCardColor:{
-      main: "#DC9A22"
-    },
-    newWalletButton:{
+/*     newWalletButton:{
       main: "#03D624",
       contrastText: "#FFFFFF"   
     },
@@ -107,16 +104,16 @@ const theme = createTheme({
     negativeTransactionColor:{
       main: "#a83232",
       contrastText: "#FFFFFF"
-    }
+    } */
   },
 });
 
-export default function MyApp(props) {
-  const {layer1AuditReportResponse: layer1AuditReport, layer2LedgerStateManager} = React.useContext(Layer2LedgerContext);
+export default function MyApp(props: any) {
+  const {layer1AuditReportResponse: layer1AuditReport} = React.useContext(Layer2LedgerContext);
 
   const [activeTab, setActiveTab] = React.useState('wallet');
 
-  const handleTabChange = (tab) => {
+  const handleTabChange = (tab: React.SetStateAction<string>) => {
     setActiveTab(tab);
   };
 
@@ -135,7 +132,7 @@ export default function MyApp(props) {
   );
 }
 
-function ProjectHeaderUI(props) {
+function ProjectHeaderUI(props: any) {
   const { activeTab, handleTabChange } = props;
 
   return (
@@ -177,28 +174,29 @@ function ProjectHeaderUI(props) {
       >
         <Chip
           icon={<CurrencyBitcoinIcon />}
-          color="bitcoinOrange"
           label="Bitcointalk"
         />
         <Chip
           icon={<GitHubIcon />}
-          color="github"
           label="Github"
           component="a"
           href="https://github.com/js6177/InstaChain"
           target="_blank"
           clickable
         />
-        <Chip icon={<TwitterIcon />} color="twitter" label="Twitter" />
-        <Chip icon={<GoogleIcon />} color="googleCloud" label="Google Cloud" />
+        <Chip icon={<TwitterIcon />}  label="Twitter" />
+        <Chip icon={<GoogleIcon />} label="Google Cloud" />
       </Stack>
     </Stack>
   );
 }
 
 
-  function ProjectDescriptionUI(props){
-    const items = [];
+  function ProjectDescriptionUI(props: any) {
+    return (
+      <div/>
+    );
+/*     const items : any = [];
     const featuresMap = new Map([
       ['2 way peg', ''],
       ['Open Source', ''],
@@ -237,16 +235,16 @@ function ProjectHeaderUI(props) {
           </List>
         </Box>
       </div>
-    )
+    ) */
   }
 
-  function WalletUI(props){
+  function WalletUI(props: any){
 
     //use workspac context here
-    const {workSpace, workspaceStateManager} = React.useContext(WorkspaceContext);
+    const {workspace, workspaceStateManager} = React.useContext(WorkspaceContext);
     //If wallet it null, then it is not loaded
-    const isWalletLoaded = workSpace.wallet != null;
-    console.log("isWalletLoaded: " + isWalletLoaded);
+    const isWalletLoaded = workspace?.wallet != null;
+    ////console.log("isWalletLoaded: " + isWalletLoaded);
 
     const [createOpenWalletDialogIsOpen, setCreateOpenWalletDialogIsOpen] = React.useState(false);
     const [createOpenWalletDialogStatus, setCreateOpenWalletDialogStatus] = React.useState("");
@@ -263,19 +261,19 @@ function ProjectHeaderUI(props) {
     let mainAddressPubkey = "";
     let mainAddressBalance = 0;
     if(isWalletLoaded){
-      mainAddressPubkey = workSpace.wallet.getMainAddressPubkey();
-      mainAddressBalance = workSpace.addressBalances[mainAddressPubkey];
-      console.log("WalletUI addressBalances: " + JSON.stringify(workSpace.addressBalances));
+      mainAddressPubkey = workspace?.wallet.getMainAddressPubkey();
+      mainAddressBalance = workspace?.addressBalances.get(mainAddressPubkey);
+      //console.log("WalletUI addressBalances: " + JSON.stringify(workSpace.addressBalances));
     }
-    console.log("WalletUI mainAddressPubkey: " + mainAddressPubkey);
-    console.log("WalletUI mainAddressBalance: " + mainAddressBalance);
+    //console.log("WalletUI mainAddressPubkey: " + mainAddressPubkey);
+    //console.log("WalletUI mainAddressBalance: " + mainAddressBalance);
 
   
     const handleClickCreateOpenWalletDialogOpen = () => {
       setCreateOpenWalletDialogIsOpen(true);
     };
   
-    const handleCreateOpenWalletDialogClose = (value) => {
+    const handleCreateOpenWalletDialogClose = (value: React.SetStateAction<string>) => {
       setCreateOpenWalletDialogIsOpen(false);
       setCreateOpenWalletDialogStatus(value);
     };
@@ -284,7 +282,7 @@ function ProjectHeaderUI(props) {
       setTransferDialogIsOpen(true);
     };
     
-    const handleTransferDialogClose = (value) => {
+    const handleTransferDialogClose = (value: React.SetStateAction<string>) => {
       setTransferDialogIsOpen(false);
       setTransferDialogStatus(value);
     };
@@ -305,8 +303,8 @@ function ProjectHeaderUI(props) {
       setWithdrawalDialogIsOpen(false);
     };
 
-    const handleTransactionsViewModeChange = (event, newTransactionsViewMode) => {
-      console.log("handleTransactionsViewModeChange: " + newTransactionsViewMode);
+    const handleTransactionsViewModeChange = (_event: any, newTransactionsViewMode: React.SetStateAction<string>) => {
+      //console.log("handleTransactionsViewModeChange: " + newTransactionsViewMode);
       setTransactionsViewMode(newTransactionsViewMode);
     };
 
@@ -315,7 +313,7 @@ function ProjectHeaderUI(props) {
           <Stack spacing={2}>
           {!isWalletLoaded &&
             <Box  display="flex" justifyContent="center" >
-              <Card sx={{  maxWidth: 1/3, p: 2, bgcolor:'#FEFAE0' }} justifyContent="center" >
+              <Card sx={{  maxWidth: 1/3, p: 2, bgcolor:'#FEFAE0' }} >
               IC is a new real-time Layer2 sidechain build for instant, near 0 fee payments. To get started, click “new wallet” and generate your L2 wallet; no login or registration is required. To learn more about the project, check the links on the top right.
               </Card>
             </Box>
@@ -331,7 +329,7 @@ function ProjectHeaderUI(props) {
                 dialogTitle="Create/Open L2 Wallet"
                 dialogBody={<CreateOpenWalletDialogBody />}
               />
-              <Button variant="contained" onClick={handleClickCreateOpenWalletDialogOpen} color='newWalletButton'>
+              <Button variant="contained" onClick={handleClickCreateOpenWalletDialogOpen}>
                 Create/Open L2 Wallet
               </Button>
               {isWalletLoaded &&
@@ -353,7 +351,7 @@ function ProjectHeaderUI(props) {
                   isOpen={transferDialogIsOpen}
                   onClose={handleTransferDialogClose}
                   dialogTitle="Transfer (L2->L2)"
-                  dialogBody={<TransferDialogBody transferTransactionErrorMessage={workSpace.transferTransactionErrorMessage}/>}
+                  dialogBody={<TransferDialogBody />}
                 />
               
 
@@ -366,7 +364,7 @@ function ProjectHeaderUI(props) {
                   isOpen={getDepositAddressDialogIsOpen}
                   onClose={handleDepositDialogClose}
                   dialogTitle="Deposit (L1->L2)"
-                  dialogBody={<DepositDialogBody getDepositAddressErrorMessage={workSpace.getDepositAddressErrorMessage} depositAddress={workSpace.depositAddress}/>}
+                  dialogBody={<DepositDialogBody/>}
                 />
               
 
@@ -379,7 +377,7 @@ function ProjectHeaderUI(props) {
                   isOpen={withdrawalDialogIsOpen}
                   onClose={handleWithdrawalDialogClose}
                   dialogTitle="Withdraw (L2->L1)"
-                  dialogBody={<WithdrawalDialogBody withdrawTransactionErrorMessage={workSpace.withdrawTransactionErrorMessage}/>}
+                  dialogBody={<WithdrawalDialogBody/>}
                 />
               
             </Stack>
@@ -396,15 +394,15 @@ function ProjectHeaderUI(props) {
                   <GridViewIcon />
                 </ToggleButton>
               </ToggleButtonGroup>
-              <IconButton onClick={() => workspaceStateManager.refreshWallet()}>
+              <IconButton onClick={() => workspaceStateManager?.refreshWallet()}>
                 <RefreshIcon />
               </IconButton>
             </Stack>
             {
-              isWalletLoaded && transactionsViewMode == "list" && <TransactionsAccordionList transactions={workSpace.transactions} myAddresses={[workSpace.wallet.getMainAddressPubkey()]} />
+              isWalletLoaded && transactionsViewMode == "list" && <TransactionsAccordionList transactions={workspace.transactions} myAddresses={[workspace.wallet.getMainAddressPubkey()]} />
             }
             {
-              isWalletLoaded && transactionsViewMode == "grid" && <TransactionDataGrid transactions={workSpace.transactions[workSpace.wallet.getMainAddressPubkey()]} />
+              isWalletLoaded && transactionsViewMode == "grid" && <TransactionDataGrid transactions={workspace.transactions.get(workspace.wallet.getMainAddressPubkey())} />
             }
 
             </Stack>
@@ -412,19 +410,23 @@ function ProjectHeaderUI(props) {
       ); 
   }
 
-  function ExplorerUI(props){
+  function ExplorerUI(props: any){
+    return(
+      <div>
+      </div>
+    );
   }
 
-  function AuditUI(props) {
+  function AuditUI(props: any) {
     const { layer1AuditReportResponse } = props;
     return (
-      <div style={{ display: 'flex', justifycontent: 'center' }}>
+      <div style={{ display: 'flex' }}>
         <AddressBalanceTable/>
       </div>
     );
   }
 
-  function MainAddressBalanceView(props){
+  function MainAddressBalanceView(props: any){
     const { WorkspaceState, mainAddressPubkey, manAddressBalance } = props;
 
     return(

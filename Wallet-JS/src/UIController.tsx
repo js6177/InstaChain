@@ -9,16 +9,16 @@ import { Layer2LedgerContext } from './context/Layer2LedgerContext';
 import { WorkspaceContext } from './context/WorkspaceContext';
 
 
-function UiController(props) {
+function UiController(props: any) {
     const [layer1AuditReportResponse, setlayer1AuditReportResponse] = useState(
         new Layer1AuditReportResponse()
     );
     const layer2LedgerStateManager = new Layer2LedgerStateManager(setlayer1AuditReportResponse);
 
-    const [workSpace, setWorkSpace] = useState(new Workspace());
+    const [workspace, setWorkSpace] = useState(new Workspace());
     const [workspaceStateManager, setWorkspaceStateManagerState] = useState(new WorkspaceStateManager(setWorkSpace));
 
-    console.log("UiController workSpace: " + JSON.stringify(workSpace, null, 2));
+    ////console.log("UiController workSpace: " + JSON.stringify(workSpace, null, 2));
 
     useEffect(() => {
         layer2LedgerStateManager.fetchLayer2LedgerState();
@@ -26,8 +26,8 @@ function UiController(props) {
 
     return (        
         <div>
-            <Layer2LedgerContext.Provider value={{layer1AuditReportResponse , layer2LedgerStateManager}}>
-                <WorkspaceContext.Provider value={{workSpace, workspaceStateManager}}>
+            <Layer2LedgerContext.Provider value={{layer1AuditReportResponse, layer2LedgerStateManager}}>
+                <WorkspaceContext.Provider value={{workspace, workspaceStateManager}}>
                     <MyApp/>
                 </WorkspaceContext.Provider>
             </Layer2LedgerContext.Provider>

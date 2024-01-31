@@ -12,8 +12,8 @@ class Workspace {
     public depositAddresses: Map<string, any>;
     public transactionResults: Map<string, any>;
 
-    constructor(layer2ledgerNodeUrl: string) {
-        this.layer2ledgerNodeUrl = DEFAULT_LAYER2_HOSTNAME;
+    constructor(layer2ledgerNodeUrl: string = DEFAULT_LAYER2_HOSTNAME) {
+        this.layer2ledgerNodeUrl = layer2ledgerNodeUrl;
         this.mneumonic = null;
         this.wallet = null;
         this.transactions = new Map();

@@ -23,7 +23,7 @@ class Layer2LedgerState {
     }
 
     public onGetNodeInfo(data: any) {
-        console.log("Layer2LedgerState.onGetNodeInfo");
+        //console.log("Layer2LedgerState.onGetNodeInfo");
         this.layer2LedgerNodeInfo = new Layer2LedgerNodeInfo(this.layer2ledgerNodeUrl, '', 0);
         this.layer2LedgerNodeInfo.fromJSON(data);
 
@@ -37,7 +37,7 @@ class Layer2LedgerState {
 
     public onGetLayer1AuditReport(data: any) {
         this.layer1AuditReport.fromJSON(data);
-        console.log("Layer2LedgerState.onGetLayer1AuditReport: " + JSON.stringify(this.layer1AuditReport));
+        //console.log("Layer2LedgerState.onGetLayer1AuditReport: " + JSON.stringify(this.layer1AuditReport));
         this.onGetLayer1AuditReportCallback && this.onGetLayer1AuditReportCallback('', '', this.layer1AuditReport);
     }
 }

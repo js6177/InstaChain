@@ -7,7 +7,7 @@ import { IconButton } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import PreviewIcon from '@mui/icons-material/Preview';
 
-import {ActionDialog, ViewJsonDialogBody} from './ActionDialog'
+import {ActionDialog, ViewJsonDialogBody} from './ActionDialog';
 import { WorkspaceContext } from '../context/WorkspaceContext';
 
 const columns = [
@@ -19,7 +19,7 @@ const columns = [
     { field: 'layer1_transaction_id', headerName: 'Layer1 transaction id', flex: 1.0 },
     { field: 'transaction_type_desc', headerName: 'Transaction type', flex: 0.25 },
     { field: 'amount', headerName: 'Amount', flex: 0.25 },
-    { field: 'timestamp', headerName: 'Date', flex: 0.75, valueFormatter: (params) => {
+    { field: 'timestamp', headerName: 'Date', flex: 0.75, valueFormatter: (params: { value: number | null; }) => {
       if (params.value == null) {
         return '';
       }
@@ -35,9 +35,9 @@ const rows = [
 ];
 
 
-export function TransactionDataGrid(props) {
+export function TransactionDataGrid(props: {transactions: any[]}) {
   const { transactions } = props;
-  console.log("TransactionDataGrid JSON: " + JSON.stringify(transactions, null, 2))
+  ////console.log("TransactionDataGrid JSON: " + JSON.stringify(transactions, null, 2))
   const [sortModel, setSortModel] = React.useState([
     {
       field: 'timestamp',
@@ -72,11 +72,11 @@ export function TransactionDataGrid(props) {
     );
   }
 
-  export function GridToolbarWithRefresh(props){
+  export function GridToolbarWithRefresh(props: {transactions: any[]}){
     const { transactions } = props;
-    const {workSpace, workspaceStateManager} = React.useContext(WorkspaceContext);
+    const { workspaceStateManager} = React.useContext(WorkspaceContext);
 
-    console.log("GridToolbarWithRefresh JSON: " + JSON.stringify(transactions, null, 2))
+    ////console.log("GridToolbarWithRefresh JSON: " + JSON.stringify(transactions, null, 2))
 
 
     const [viewJsonDialogIsOpen, setViewJsonDialogIsOpenIsOpen] = React.useState(false);
@@ -96,7 +96,7 @@ export function TransactionDataGrid(props) {
           <GridToolbar/>
           </Grid>
           <Grid item>
-          <IconButton onClick={ () => workspaceStateManager.refreshWallet() }>
+          <IconButton onClick={ () => (workspaceStateManager != null && workspaceStateManager.refreshWallet()) }>
             <RefreshIcon />
           </IconButton>
           </Grid>

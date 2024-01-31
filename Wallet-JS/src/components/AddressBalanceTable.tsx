@@ -1,22 +1,23 @@
 import React, { useState } from 'react';
 import { useContext } from 'react';
 import { Layer2LedgerContext } from '../context/Layer2LedgerContext';
+import { Layer1AddressBalance } from '../services/messages/Layer1AuditReport';
 
 function AddressBalanceTable() {
-    const { layer1AuditReportResponse, _ } = useContext(Layer2LedgerContext);
-    let addressBalances = [];
-    let sortedBalances = [];
+    const { layer1AuditReportResponse } = useContext(Layer2LedgerContext);
+    let addressBalances: Layer1AddressBalance[] = [];
+    let sortedBalances: Layer1AddressBalance[] = [];
     const totalBalance = 0;
     const [showZeroBalances, setShowZeroBalances] = useState(true); // Step 1
 
-    console.log("AddressBalanceTable() layer1AuditReport: " + JSON.stringify(layer1AuditReportResponse));
-    console.log("AddressBalanceTable() totalbaalance: " + layer1AuditReportResponse.totalBalance);
+    ////console.log("AddressBalanceTable() layer1AuditReport: " + JSON.stringify(layer1AuditReportResponse));
+    ////console.log("AddressBalanceTable() totalbaalance: " + layer1AuditReportResponse.totalBalance);
     if (layer1AuditReportResponse.ready === true) {
         addressBalances = layer1AuditReportResponse.getAddressBalances();
         sortedBalances = addressBalances.sort((a, b) => b.getBalance() - a.getBalance());
     }
 
-    const handleShowZeroBalancesChange = (event) => { // Step 2
+    const handleShowZeroBalancesChange = (event: { target: { checked: boolean | ((prevState: boolean) => boolean); }; }) => { // Step 2
         setShowZeroBalances(event.target.checked);
     };
 

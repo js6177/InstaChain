@@ -1,31 +1,40 @@
 class Layer1AddressBalance {
-    constructor(layer1Address, balance) {
+    public layer1Address: string;
+    public balance: number;
+
+    constructor(layer1Address: string, balance: number) {
         this.layer1Address = layer1Address;
         this.balance = balance;
     }
 
-    getAddress() {
+    getAddress(): string {
         return this.layer1Address;
     }
 
-    getBalance() {  
+    getBalance(): number {  
         return this.balance;
     }
 }
 
 
-class Layer1AuditReportResponse{
-    constructor(){
+class Layer1AuditReportResponse {
+    public addressBalances: Layer1AddressBalance[];
+    public errorCode: number;
+    public errorMessage: string;
+    public totalBalance: number;
+    public blockHeight: number;
+    public ready: boolean;
+
+    constructor() {
         this.addressBalances = [];
         this.errorCode = 0;
         this.errorMessage = "";
         this.totalBalance = 0;
         this.blockHeight = 0;
-
         this.ready = false;
     }
 
-    fromJSON(jsonData){
+    fromJSON(jsonData: any) {
         this.errorCode = jsonData['error_code'];
         this.errorMessage = jsonData['error_message'];
         this.totalBalance = jsonData['report']['balance'];
@@ -33,15 +42,15 @@ class Layer1AuditReportResponse{
 
         let addressBalances = jsonData['address_balances'];
         this.addressBalances = [];
-        addressBalances.forEach(addressBalance => {
+        addressBalances.forEach((addressBalance: any) => {
             let layer1Address = addressBalance['layer1Address'];
             let balance = addressBalance['balance'];
             this.addressBalances.push(new Layer1AddressBalance(layer1Address, balance));
-        })
+        });
         this.ready = true;
     }
 
-    getAddressBalances(){
+    getAddressBalances() {
         return this.addressBalances;
     }
 }

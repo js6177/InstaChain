@@ -1,0 +1,17 @@
+{
+    "configurations": [
+        {
+            "name": "Attach to Chrome",
+            "port": 9222,
+            "request": "attach",
+            "type": "chrome",
+            "webRoot": "${workspaceFolder}"
+        },
+        {
+            "type": "chrome",
+            "name": "Launch new instance",
+            "request": "launch",
+            "url": "http://127.0.0.1:5500/dist/index.html"
+        }
+    ]
+}
