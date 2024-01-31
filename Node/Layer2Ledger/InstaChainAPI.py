@@ -16,9 +16,9 @@ class FlaskRequestHandler():
         return request.get_json() 
 
 class InstachainRequestHandler(FlaskRequestHandler):
-    parameters = []
-
-    result = ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS)
+    def __init__(self):
+        self.result = ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS)
+        self.parameters = []
 
     def getParameters(self):
         pass
