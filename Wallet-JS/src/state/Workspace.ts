@@ -1,16 +1,17 @@
-const { DEFAULT_LAYER2_HOSTNAME, Layer2LedgerNodeInfo, Layer2LedgerAPI } = require('../services/Layer2API');
-const { Wallet, MessageBuilder, Transaction } = require('../utils/wallet');
-const { useState } = require('react');
-const { v4: uuidv4 } = require('uuid');
+import { DEFAULT_LAYER2_HOSTNAME, Layer2LedgerNodeInfo, Layer2LedgerAPI } from '../services/Layer2API';
+import { Wallet, MessageBuilder, Transaction } from '../utils/wallet';
+import { useState } from 'react';
+import CommonResponse from '../services/messages/CommonResponse';
+
 
 class Workspace {
     public layer2ledgerNodeUrl: string;
     public mneumonic: string | null;
     public wallet: any | null;
     public transactions: Map<string, any>;
-    public addressBalances: Map<string, any>;
-    public depositAddresses: Map<string, any>;
-    public transactionResults: Map<string, any>;
+    public addressBalances: Map<string, number>;
+    public depositAddresses: Map<string, string>;
+    public transactionResults: Map<string, CommonResponse>;
 
     constructor(layer2ledgerNodeUrl: string = DEFAULT_LAYER2_HOSTNAME) {
         this.layer2ledgerNodeUrl = layer2ledgerNodeUrl;

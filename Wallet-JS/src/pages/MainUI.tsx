@@ -262,7 +262,7 @@ function ProjectHeaderUI(props: any) {
     let mainAddressBalance = 0;
     if(isWalletLoaded){
       mainAddressPubkey = workspace?.wallet.getMainAddressPubkey();
-      mainAddressBalance = workspace?.addressBalances.get(mainAddressPubkey);
+      mainAddressBalance = workspace?.addressBalances.get(mainAddressPubkey) || 0;
       //console.log("WalletUI addressBalances: " + JSON.stringify(workSpace.addressBalances));
     }
     //console.log("WalletUI mainAddressPubkey: " + mainAddressPubkey);
