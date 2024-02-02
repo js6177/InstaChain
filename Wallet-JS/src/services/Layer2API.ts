@@ -26,6 +26,7 @@ class Layer2LedgerNodeInfo {
     layer2LedgerNodeUrl: string;
     layer2LedgerNodeId: string;
     layer2LedgerAssetId: number;
+    minimumTransactionAmount: number = 1000;
 
     constructor(node_url: string, node_id: string, node_asset_id: number) {
         this.layer2LedgerNodeUrl = node_url;
@@ -33,20 +34,10 @@ class Layer2LedgerNodeInfo {
         this.layer2LedgerAssetId = node_asset_id;
     }
 
-
-    fromJSON(data: any){
-        ////console.log("Layer2LedgerNodeInfo.fromJSON");
-        let body = JSON.parse(JSON.stringify(data, null, 2));
-        if(body["error_code"] === 0){
-            this.layer2LedgerNodeId  = body["node_info"]["node_id"];
-            this.layer2LedgerAssetId  = body["node_info"]["asset_id"];
-            ////console.log("Node id: " + this.layer2LedgerNodeId);
-        }
-    }
-
     fromGetNodeInfoResponse(getNodeInfoResponse: GetNodeInfoResponse){
         this.layer2LedgerNodeId = getNodeInfoResponse.node_info.node_id;
         this.layer2LedgerAssetId = getNodeInfoResponse.node_info.asset_id;
+        this.minimumTransactionAmount = getNodeInfoResponse.node_info.layer1_network_info.minimum_transaction_amount;
     }
 }
 

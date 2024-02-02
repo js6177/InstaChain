@@ -27,6 +27,9 @@ interface NodeInfo {
         major_version: number;
         minor_version: number;
         patch_version: number;
+    };
+    layer1_network_info: {
+      minimum_transaction_amount: number;
     }
 }
 

@@ -13,6 +13,7 @@ import signing_keys
 import GlobalLogging
 import Onboarding
 import RedisInterface
+from NodeInfoAPI import MINIMUM_LAYER1_TRANSACTION_AMOUNT
 
 class TransactionMode(Enum):
     ADDRESSLOCK = auto() # source and destination addresses are locked, preventing duplicates
@@ -148,6 +149,9 @@ class Transaction(ndb.Model):
 
         if(not _nonce.isalnum()):
             return ErrorMessage.ERROR_NOT_ALPHANUMERIC
+        
+        if(_transaction_type ==Transaction.TRX_WITHDRAWAL_INITIATED and (_amount < MINIMUM_LAYER1_TRANSACTION_AMOUNT)):
+            return ErrorMessage.ERROR_AMOUNT_LESS_THAN_MINIMUM_WITHDRAWAL_AMOUNT
 
         source = Address(_source)
 

@@ -1,3 +1,5 @@
+import { GetNodeInfoResponse } from "../services/messages/GetNodeInfoResponse";
+
 const { DEFAULT_LAYER2_HOSTNAME, Layer2LedgerNodeInfo, Layer2LedgerAPI } = require('../services/Layer2API');
 const { Layer1AuditReportResponse } = require('../services/messages/Layer1AuditReport');
 
@@ -19,10 +21,10 @@ class Layer2LedgerStateManager {
         this.layer2LedgerAPI.getNodeInfo(this.onGetNodeInfo.bind(this));
     }
 
-    private onGetNodeInfo(data: any) {
+    private onGetNodeInfo(getNodeInfoResponse: GetNodeInfoResponse) {
         //console.log("Layer2LedgerState.onGetNodeInfo");
         this.layer2LedgerNodeInfo = new Layer2LedgerNodeInfo(this.layer2ledgerNodeUrl, '', 0);
-        this.layer2LedgerNodeInfo.fromJSON(data);
+        this.layer2LedgerNodeInfo.fromGetNodeInfoResponse(getNodeInfoResponse);
 
         //get the rest of the Layer2 Ledger info (like the audit report)
         this.getLayer1AuditReport();

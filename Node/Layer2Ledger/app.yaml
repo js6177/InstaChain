@@ -21,6 +21,7 @@ env_variables:
   FULLNODE_SIGNING_KEY_PUBKEY: ''
   ONBOARDING_DEPOSIT_SIGNING_KEY_PRIVKEY: ''
   ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY: ''
+  MINIMUM_LAYER1_TRANSACTION_AMOUNT: 1000
 
 vpc_access_connector:
   name: projects/[PROJECT-NAME]/locations/[LOCATION]/connectors/addressbalancecache

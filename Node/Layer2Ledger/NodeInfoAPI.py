@@ -15,6 +15,9 @@ ASSET_ETHEREUM = 2
 ASSET_TESTNET_FLAG = (1 << 32) #bit 32 is the testnet flag
 ASSET_STABLECOIN_FLAG = (1 << 33)
 
+#minimum transaction amount for withdrawals
+MINIMUM_LAYER1_TRANSACTION_AMOUNT = int(os.environ.get('MINIMUM_LAYER1_TRANSACTION_AMOUNT', 1000))
+
 # variable that holds what asset the node supports
 # For now, a node can support only 1 asset, though in the future, multi-asset nodes are possible
 NODE_ASSET_ID = ASSET_BITCOIN|ASSET_TESTNET_FLAG
@@ -22,6 +25,7 @@ NODE_ASSET_ID = ASSET_BITCOIN|ASSET_TESTNET_FLAG
 class getNodeInfo(InstachainRequestHandler):
     def processRequest(self):
         version = {'major_version': 1, 'minor_version': 0, 'patch_version': 0, 'API_version': 1}
+        layer1_network_info = {'minimum_transaction_amount': MINIMUM_LAYER1_TRANSACTION_AMOUNT}
         deposit_address_derivation_path = "pkh(" + DEPOSIT_WALLET_MASTER_PUBKEY + "/44/1/(i/2147483647)/(i%2147483647))"
         self.result = ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS)
-        self.result['node_info'] = {'node_id': NODE_ID, 'node_name': 'Tesnet Node', 'asset_id': NODE_ASSET_ID, 'deposit_address_derivation_path': deposit_address_derivation_path, 'version': version}
+        self.result['node_info'] = {'node_id': NODE_ID, 'node_name': 'Tesnet Node', 'asset_id': NODE_ASSET_ID, 'deposit_address_derivation_path': deposit_address_derivation_path, 'version': version, 'layer1_network_info': layer1_network_info}
