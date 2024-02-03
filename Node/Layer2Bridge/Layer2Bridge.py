@@ -60,7 +60,8 @@ class Layer2Bridge():
     wallet_private_key_seed_mneumonic: string = None
     testnet: bool = True
     layer2_node_url: string = None
-
+    enable_batching: bool = False
+    
     #variables for importing private keys
     import_wallet_privkey_at_startup: bool = False
     wallet_private_key_seed_mneumonic: string = None
@@ -195,11 +196,17 @@ class Layer2Bridge():
                 OnboardingLogger('New withdrawal recieved. address: ' + pendingWithdrawal.destination_address + ' amount: ' + str(pendingWithdrawal.amount))
             db.setLastWithdrawalTimestamp(lastwithdrawalTimestamp)
 
+            #get pending withdrawals from the db and prepare it to be broadcasted by the node
             withdrawalTransactionOutputs = {}
             pendingWithdrawals = db.getPendingWithdrawals()
             OnboardingLogger('Fetched ' + str(len(pendingWithdrawals)) + ' pending withdrawals from db')
             for pendingWithdrawal in pendingWithdrawals:
-                withdrawalTransactionOutputs[pendingWithdrawal.layer2_withdrawal_id] = pendingWithdrawal
+                #only broadcast if the minimum amount is greater than the minimum withdrawal amount
+                minWithdrawalAmount = nh.getMinimumTransactionAmount()
+                if(pendingWithdrawal.amount >= minWithdrawalAmount):
+                    withdrawalTransactionOutputs[pendingWithdrawal.layer2_withdrawal_id] = pendingWithdrawal
+                else:
+                    OnboardingLogger(f"Skipping withdrawal {pendingWithdrawal.layer2_withdrawal_id} with amount {pendingWithdrawal.amount} because it is less than the minimum withdrawal amount of {minWithdrawalAmount} satoshis")
 
 
             pendingConfirmedDepositTransactions = db.getPendingConfirmedDepositTransactions()
@@ -238,7 +245,7 @@ class Layer2Bridge():
             OnboardingLogger("broadcastTransactionBlockDelay: " + str(broadcastTransactionBlockDelay))
             OnboardingLogger("targetBroadcastBlockheight: " + str(targetBroadcastBlockheight))
             if(len(withdrawalTransactionOutputs)):
-                if(blockheight >= (targetBroadcastBlockheight)):
+                if((not self.enable_batching) or (blockheight >= (targetBroadcastBlockheight))):
                     OnboardingLogger("Broadcasting " +  str(len(withdrawalTransactionOutputs)) + " withdrawal outputs")
                     withdrawalTrxId = nh.broadcastTransaction(withdrawalTransactionOutputs)
                     if(withdrawalTrxId):

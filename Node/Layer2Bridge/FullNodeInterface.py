@@ -46,6 +46,10 @@ class BitcoinRPC:
         OnboardingLogger("rpc_port: " + rpc_port)
         self.rpc_connection = AuthServiceProxy("http://%s:%s@%s:%s"%(self.rpc_user, self.rpc_password, self.rpc_ip, self.rpc_port), timeout=120)
 
+    #TODO: find a way to dynamically get this from the node
+    def getMinimumTransactionAmount(self) -> int:
+        return 1000
+
     def getTargetConfirmations(self):
         if(self.testnet):
             return TESTNET_TARGETCONFIRMATIONS
