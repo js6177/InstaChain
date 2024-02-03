@@ -109,7 +109,7 @@ const theme = createTheme({
 });
 
 export default function MyApp(props: any) {
-  const {layer1AuditReportResponse: layer1AuditReport} = React.useContext(Layer2LedgerContext);
+  const {layer2LedgerState} = React.useContext(Layer2LedgerContext);
 
   const [activeTab, setActiveTab] = React.useState('wallet');
 
@@ -125,7 +125,7 @@ export default function MyApp(props: any) {
           <ProjectHeaderUI activeTab={activeTab} handleTabChange={handleTabChange} />
           {activeTab === 'wallet' && <WalletUI/>}
           {activeTab === 'explorer' && <ExplorerUI />}
-          {activeTab === 'audit' && <AuditUI layer1AuditReportResponse={layer1AuditReport} />}
+          {activeTab === 'audit' && <AuditUI layer1AuditReportResponse={layer2LedgerState?.layer1AuditReport} />}
         </Stack>
       </ThemeProvider>
     </div>

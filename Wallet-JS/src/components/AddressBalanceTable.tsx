@@ -4,16 +4,14 @@ import { Layer2LedgerContext } from '../context/Layer2LedgerContext';
 import { Layer1AddressBalance } from '../services/messages/Layer1AuditReport';
 
 function AddressBalanceTable() {
-    const { layer1AuditReportResponse } = useContext(Layer2LedgerContext);
+    const { layer2LedgerState: layer2LedgerState } = useContext(Layer2LedgerContext);
     let addressBalances: Layer1AddressBalance[] = [];
     let sortedBalances: Layer1AddressBalance[] = [];
     const totalBalance = 0;
-    const [showZeroBalances, setShowZeroBalances] = useState(true); // Step 1
+    const [showZeroBalances, setShowZeroBalances] = useState(true); 
 
-    ////console.log("AddressBalanceTable() layer1AuditReport: " + JSON.stringify(layer1AuditReportResponse));
-    ////console.log("AddressBalanceTable() totalbaalance: " + layer1AuditReportResponse.totalBalance);
-    if (layer1AuditReportResponse.ready === true) {
-        addressBalances = layer1AuditReportResponse.getAddressBalances();
+    if (layer2LedgerState?.layer1AuditReport?.ready === true) {
+        addressBalances = layer2LedgerState?.layer1AuditReport?.getAddressBalances();
         sortedBalances = addressBalances.sort((a, b) => b.getBalance() - a.getBalance());
     }
 
@@ -25,7 +23,7 @@ function AddressBalanceTable() {
         <div>
             <div>
                 <h2>Layer 1 Audit Report</h2>
-                <p>Total Balance: {layer1AuditReportResponse.totalBalance}</p>
+                <p>Total Balance: {layer2LedgerState?.layer1AuditReport?.totalBalance}</p>
             </div>
             <label>
                 <input
