@@ -7,7 +7,7 @@ import CommonResponse from '../services/messages/CommonResponse';
 class Workspace {
     public layer2ledgerNodeUrl: string;
     public mneumonic: string | null;
-    public wallet: any | null;
+    public wallet: Wallet | null;
     public transactions: Map<string, any>;
     public addressBalances: Map<string, number>;
     public depositAddresses: Map<string, string>;

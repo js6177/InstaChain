@@ -136,7 +136,7 @@ export function ActionDialog(props: any){
     const [trxId, setTrxId] = useState('');
     const [transactionState, setTransactionState] = useState('');
 
-    let mainWalletAddressPubkey =  workspace?.wallet?.getMainAddressPubkey();
+    let mainWalletAddressPubkey =  workspace?.wallet?.getMainAddressPubkey() || '';
     let layer1DepositAddress = workspace?.depositAddresses.get(mainWalletAddressPubkey);
     let transactionResult = JSON.stringify(workspace?.transactionResults.get(trxId), null, 2);
 

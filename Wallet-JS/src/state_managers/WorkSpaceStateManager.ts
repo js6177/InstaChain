@@ -8,7 +8,7 @@ import TransferTransactionResponse from '../services/messages/TransferTransactio
 import WithdrawalRequestResponse from '../services/messages/WithdrawalRequestResponse';
 
 import { Workspace } from '../state/Workspace';
-const { Wallet, MessageBuilder, Transaction } = require('../utils/wallet');
+import { Wallet, MessageBuilder, Transaction } from '../utils/wallet';
 
 class WorkspaceStateManager{
 
@@ -17,7 +17,7 @@ class WorkspaceStateManager{
     public layer2LedgerAPI: Layer2LedgerAPI;
     public workspace: Workspace;
     public layer2LedgerNodeInfo: Layer2LedgerNodeInfo | null;
-    public messageBuilder: typeof MessageBuilder;
+    public messageBuilder: MessageBuilder | null;
 
     constructor(setWorkspaceState: any, layer2ledgerNodeUrl: string = DEFAULT_LAYER2_HOSTNAME) {
         this.setWorkspaceState = setWorkspaceState;
@@ -25,6 +25,7 @@ class WorkspaceStateManager{
         this.layer2LedgerAPI = new Layer2LedgerAPI(this.layer2ledgerNodeUrl);
         this.layer2LedgerAPI.getNodeInfo(this.onGetNodeInfo.bind(this));
         this.layer2LedgerNodeInfo = null;
+        this.messageBuilder = null;
         this.workspace = new Workspace(this.layer2ledgerNodeUrl);
     }
 
@@ -42,9 +43,10 @@ class WorkspaceStateManager{
     }
 
     getWalletBalance(){
-        let layer2AddressPubKey = this.workspace.wallet.getMainAddress().getPublicKeyString();         
-
-        this.layer2LedgerAPI.getBalance(this.onGetWalletBalance.bind(this), [layer2AddressPubKey]);
+        let layer2AddressPubKey = this.workspace.wallet?.getMainAddress().getPublicKeyString();
+        if (layer2AddressPubKey){       
+            this.layer2LedgerAPI.getBalance(this.onGetWalletBalance.bind(this), [layer2AddressPubKey]);
+        }
     }
 
     onGetWalletBalance(getBalanceResponse: GetBalanceResponse){
@@ -58,15 +60,15 @@ class WorkspaceStateManager{
     }
 
     transfer(trxId: string, destinationAddress: string, amount: number, fee = 1){
-        //console.log("WorkspaceStateManager.transfer" + JSON.stringify(this.workspace));
-        let sourceAddress = this.workspace.wallet.getMainAddress();
-        //let trxId = this.generateTransactionIdNonce();
-        let message = this.messageBuilder.buildTransferMessage(sourceAddress.getPublicKeyString(), destinationAddress, amount, fee, trxId);
-        let signature = sourceAddress.signMessage(message);
-        //console.log("transfer message: " + message);
-        //console.log("transfer signature: " + signature);
-
-        this.layer2LedgerAPI.pushTransaction(this.onTransferTransactionCompleted.bind(this), amount, fee, sourceAddress.getPublicKeyString(), destinationAddress, signature, trxId)
+        if(this.workspace.wallet !== null && this.messageBuilder !== null){
+            let sourceAddress = this.workspace.wallet.getMainAddress();
+            let sourceAddressPubKey = sourceAddress.getPublicKeyString();
+            if(sourceAddressPubKey !== null){
+                let message = this.messageBuilder?.buildTransferMessage(sourceAddressPubKey, destinationAddress, amount, fee, trxId);
+                let signature = sourceAddress.signMessage(message);
+                this.layer2LedgerAPI.pushTransaction(this.onTransferTransactionCompleted.bind(this), amount, fee, sourceAddressPubKey, destinationAddress, signature, trxId);
+            }
+        }
     }
 
     onTransferTransactionCompleted(transferTransactionResponse: TransferTransactionResponse, trxId: string){
@@ -78,12 +80,16 @@ class WorkspaceStateManager{
     }
 
     getDepositAddress(trxId: string){
-        let layer2Address = this.workspace.wallet.getMainAddress();
-        //let trxId = this.generateTransactionIdNonce();
-        let message = this.messageBuilder.buildGetDepositAddressMessage(layer2Address.getPublicKeyString(), trxId);  
-        let signature = layer2Address.signMessage(message);
+        if(this.workspace.wallet !== null && this.messageBuilder !== null){
+            let layer2Address = this.workspace.wallet.getMainAddress();
+            let layer2AddressPubKey = layer2Address.getPublicKeyString();
+            if(layer2AddressPubKey !== null){
+                let message = this.messageBuilder?.buildGetDepositAddressMessage(layer2AddressPubKey, trxId);  
+                let signature = layer2Address.signMessage(message);
 
-        this.layer2LedgerAPI.getDepositAddress(this.onGetDepositAddress.bind(this), layer2Address.getPublicKeyString(), trxId, signature);
+                this.layer2LedgerAPI.getDepositAddress(this.onGetDepositAddress.bind(this), layer2AddressPubKey, trxId, signature);
+            }
+        }
     }
 
     onGetDepositAddress(getDepositAddressResponse: GetDepositAddressResponse, layer2Address: string, trxId: string){
@@ -94,11 +100,16 @@ class WorkspaceStateManager{
     }
 
     requestWithdrawal(trxId: string, layer1WithdrawalDestinatonAddress: string, amount: number){
-        let sourceAddress = this.workspace.wallet.getMainAddress();
+        if(this.workspace.wallet !== null && this.messageBuilder !== null){
 
-        let message = this.messageBuilder.buildWithdrawalRequestMessage(sourceAddress.getPublicKeyString(), layer1WithdrawalDestinatonAddress, trxId, amount);
-        let signature = sourceAddress.signMessage(message);
-        this.layer2LedgerAPI.requestWithdrawal(this.onWithdrawalRequestCompleted.bind(this), sourceAddress.getPublicKeyString(), layer1WithdrawalDestinatonAddress, amount, trxId, signature);
+        let sourceAddress = this.workspace.wallet.getMainAddress();
+        let sourceAddressPubKey = sourceAddress.getPublicKeyString();
+        if(sourceAddressPubKey !== null){
+            let message = this.messageBuilder?.buildWithdrawalRequestMessage(sourceAddressPubKey, layer1WithdrawalDestinatonAddress, trxId, amount);
+            let signature = sourceAddress.signMessage(message);
+            this.layer2LedgerAPI.requestWithdrawal(this.onWithdrawalRequestCompleted.bind(this), sourceAddressPubKey, layer1WithdrawalDestinatonAddress, amount, trxId, signature);
+            }
+        }
     }
 
     onWithdrawalRequestCompleted(withdrawalRequestResponse: WithdrawalRequestResponse, trxId: string){
@@ -110,8 +121,12 @@ class WorkspaceStateManager{
     }
 
     getTransactions(){
-        //console.log("WorkspaceStateManager.getTransactions");
-        this.layer2LedgerAPI.getTransactions(this.onGetTransactions.bind(this), [this.workspace.wallet.getMainAddress().getPublicKeyString()]);
+        if(this.workspace.wallet !== null){
+            let layer2AddressPubKey = this.workspace.wallet.getMainAddress().getPublicKeyString();
+            if(layer2AddressPubKey !== null){
+                this.layer2LedgerAPI.getTransactions(this.onGetTransactions.bind(this), [layer2AddressPubKey]);
+            }
+        }
     }
 
     onGetTransactions(getTransactionsResponse: GetTransactionsResponse){
@@ -136,24 +151,7 @@ class WorkspaceStateManager{
         this.getWalletBalance();
     }
 
-/*     setWalletState(wallet: string){
-        this.setWorkspaceState && this.setWorkspaceState((prevState) => ({ ...prevState, wallet: wallet}));
-    } */
-
-/*     setTransactionsState(transactions){
-        ////console.log("Setting transactions state");
-        //console.log("WorkspaceStateManager setting trx count: " + transactions.length);
-        //console.log("WorkspaceStateManager.setTransactionsState: " + JSON.stringify(transactions));
-        this.setWorkspaceState && this.setWorkspaceState((prevState) => ({ ...prevState, transactions: transactions }));
-    } */
-
-/*     setAddressBalancesState(addressBalances){
-        //console.log("WorkspaceStateManager.setAddressBalancesState: " + JSON.stringify(addressBalances));
-        this.setWorkspaceState && this.setWorkspaceState((prevState) => ({ ...prevState, addressBalances: addressBalances }));
-    } */
-
     setLatestWorkspaceState(){
-        //console.log("WorkspaceStateManager.setLatestWorkspaceState");
         this.setWorkspaceState({
             wallet: this.workspace.wallet,
             transactions: this.workspace.transactions,

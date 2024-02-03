@@ -258,11 +258,11 @@ function ProjectHeaderUI(props: any) {
 
     const [transactionsViewMode, setTransactionsViewMode] = React.useState("list");
 
-    let mainAddressPubkey = "";
-    let mainAddressBalance = 0;
+    let mainLayer2AddressPubkey = "";
+    let mainLayer2AddressBalance = 0;
     if(isWalletLoaded){
-      mainAddressPubkey = workspace?.wallet.getMainAddressPubkey();
-      mainAddressBalance = workspace?.addressBalances.get(mainAddressPubkey) || 0;
+      mainLayer2AddressPubkey = workspace?.wallet?.getMainAddressPubkey() || "";
+      mainLayer2AddressBalance = workspace?.addressBalances.get(mainLayer2AddressPubkey) || 0;
       //console.log("WalletUI addressBalances: " + JSON.stringify(workSpace.addressBalances));
     }
     //console.log("WalletUI mainAddressPubkey: " + mainAddressPubkey);
@@ -335,7 +335,7 @@ function ProjectHeaderUI(props: any) {
               {isWalletLoaded &&
               <Box display="block" >
                 <Card variant="outlined" sx={{p:2, bgcolor:'#FEFAE0' }}>
-                  <MainAddressBalanceView  mainAddressPubkey={mainAddressPubkey} manAddressBalance={mainAddressBalance}/>
+                  <MainAddressBalanceView  mainAddressPubkey={mainLayer2AddressPubkey} manAddressBalance={mainLayer2AddressBalance}/>
                 </Card>
               </Box>}
             </Stack>
@@ -399,10 +399,10 @@ function ProjectHeaderUI(props: any) {
               </IconButton>
             </Stack>
             {
-              isWalletLoaded && transactionsViewMode == "list" && <TransactionsAccordionList transactions={workspace.transactions} myAddresses={[workspace.wallet.getMainAddressPubkey()]} />
+              isWalletLoaded && transactionsViewMode == "list" && <TransactionsAccordionList transactions={workspace.transactions} myAddresses={[mainLayer2AddressPubkey]} />
             }
             {
-              isWalletLoaded && transactionsViewMode == "grid" && <TransactionDataGrid transactions={workspace.transactions.get(workspace.wallet.getMainAddressPubkey())} />
+              isWalletLoaded && transactionsViewMode == "grid" && <TransactionDataGrid transactions={workspace.transactions.get(mainLayer2AddressPubkey)} />
             }
 
             </Stack>
