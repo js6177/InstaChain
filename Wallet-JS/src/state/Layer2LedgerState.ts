@@ -1,11 +1,12 @@
-const { DEFAULT_LAYER2_HOSTNAME, Layer2LedgerNodeInfo, Layer2LedgerAPI } = require('../services/Layer2API');
-const { Layer1AuditReportResponse } = require('../services/messages/Layer1AuditReport');
+import { DEFAULT_LAYER2_HOSTNAME } from '../services/Layer2API';
+import { Layer2LedgerNodeInfo, Layer2LedgerAPI } from '../services/Layer2API';
+import { Layer1AuditReportResponse } from '../services/messages/Layer1AuditReport';
 
 class Layer2LedgerState {
     public layer2ledgerNodeUrl: string;
-    public layer2LedgerAPI: typeof Layer2LedgerAPI;
-    public layer2LedgerNodeInfo: typeof Layer2LedgerNodeInfo;
-    public layer1AuditReport: typeof Layer1AuditReportResponse;
+    public layer2LedgerAPI:  Layer2LedgerAPI;
+    public layer2LedgerNodeInfo: Layer2LedgerNodeInfo | null = null;
+    public layer1AuditReport: Layer1AuditReportResponse;
     
     constructor(layer2ledgerNodeUrl: string = DEFAULT_LAYER2_HOSTNAME) {
         this.layer2ledgerNodeUrl = layer2ledgerNodeUrl;

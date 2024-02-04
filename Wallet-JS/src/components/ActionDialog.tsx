@@ -17,6 +17,7 @@ import { WorkspaceContext } from '../context/WorkspaceContext';
 var MASTER_MNEOMONIC = "throw illness metal parrot wet they short aunt decline come bind gospel energy retreat prize fly";
 import {MNEUMONIC_WORD_COUNT, MNEUMONIC_WORDLIST} from '../utils/Mneumonic';
 import { Typography } from '@mui/material';
+import { Layer2LedgerContext } from '../context/Layer2LedgerContext';
 
 export function ActionDialogDescriptionDisplay(props: {text: string}){
   const { text } = props;
@@ -67,9 +68,7 @@ export function ActionDialog(props: any){
           mneumonic += MNEUMONIC_WORDLIST[index] + " ";
         }
         mneumonic = mneumonic.trim();
-        // //console.log("New wallet mneumonic: " + mneumonic);
         setTextInputMneumonic(mneumonic);
-        //document.getElementById('textBoxMneumonicValue').value = mneumonic;
       };
 
       return (
@@ -91,13 +90,9 @@ export function ActionDialog(props: any){
       const [trxId, setTrxId] = useState('');
       const [transactionState, setTransactionState] = useState('');
       let mainWalletAddressPubkey =  workspace?.wallet?.getMainAddressPubkey();
-      // //console.log("TransferDialogBody workSpace: " + JSON.stringify(workSpace));
-      // //console.log("TransferDialogBody workspaceStateManager: " + JSON.stringify(workspaceStateManager));
-      let transactionResult = JSON.stringify(workspace?.transactionResults.get(trxId), null, 2);
-      // //console.log("TransferDialogBody trxId: " + trxId);
-      // //console.log("TransferDialogBody workSpace.transactionResults: " + JSON.stringify(workSpace.transactionResults));
 
-    ////console.log("TransferDialogBody transactionResult: " + transactionResult);
+      let transactionResult = JSON.stringify(workspace?.transactionResults.get(trxId), null, 2);
+
 
 
     const handleDestinationAddressChange = (event: { target: { value: React.SetStateAction<string>; }; }) => {
@@ -164,8 +159,11 @@ export function ActionDialog(props: any){
   }
 
   export function WithdrawalDialogBody(props: any){
+    const {layer2LedgerState} = React.useContext(Layer2LedgerContext);
     const [isValidL1Address, setIsValidL1Address] = useState(false);
     const [withdrawalAmount, setWithdrawalAmount] = useState(0);
+    const [withdrawalAmountValid, setWithdrawalAmountValid] = useState(false);
+    let minimumWithdrawalAmount = layer2LedgerState?.layer2LedgerNodeInfo?.minimumTransactionAmount || 1000;
     const [trxId, setTrxId] = useState('');
     const [transactionState, setTransactionState] = useState('');
 
@@ -184,6 +182,7 @@ export function ActionDialog(props: any){
 
     const inputWithdrawalDestinationAmountChanged = (event: any) => {
       setWithdrawalAmount(event.target.valueAsNumber);
+      setWithdrawalAmountValid((event.target.valueAsNumber >= minimumWithdrawalAmount));
     };
 
     function withdraw(layer1WithdrawalDestinatonAddress: string, amount: number){
@@ -205,8 +204,29 @@ export function ActionDialog(props: any){
 
         <TextField fullWidth id="inputWithdrawalFromAddress" value={mainWalletAddressPubkey} label="Withdraw From" variant="outlined" InputLabelProps={{ shrink: true}} inputProps={{ readOnly: true }} />
         <TextField fullWidth id="inputWithdrawalDestinationAddress" label="Withdraw To (Layer1 address)" variant="outlined" InputLabelProps={{ shrink: true }} onChange={inputWithdrawalDestinationAddressChanged}/>
-        <TextField fullWidth id="inputWithdrawalAmount" label="Amount (in satoshis)" type="number" variant="outlined" value={withdrawalAmount} InputLabelProps={{ shrink: true }} onChange={inputWithdrawalDestinationAmountChanged}/>
-        <Button  variant="contained" id="buttonRequestWithdrawal" disabled={!isValidL1Address || !(withdrawalAmount>0)} onClick={ () => withdraw(layer1WithdrawalDestinatonAddress, withdrawalAmount)}>Withdraw</Button>
+        <TextField
+          fullWidth
+          id="inputWithdrawalAmount"
+          label="Amount (in satoshis)"
+          type="number"
+          variant="outlined"
+          value={withdrawalAmount}
+          InputLabelProps={{ shrink: true }}
+          onChange={inputWithdrawalDestinationAmountChanged}
+          error={!withdrawalAmountValid}
+          helperText={
+            !withdrawalAmountValid &&
+            `The withdrawal amount must be greater than ${minimumWithdrawalAmount}`
+          }
+        />
+        <Button
+          variant="contained"
+          id="buttonRequestWithdrawal"
+          disabled={!isValidL1Address || !withdrawalAmountValid}
+          onClick={() => withdraw(layer1WithdrawalDestinatonAddress, withdrawalAmount)}
+        >
+          Withdraw
+        </Button>
         {trxId !== '' && <div>Status: {transactionResult}</div>}
       </Stack>
     )
