@@ -143,7 +143,7 @@ class BitcoinRPC:
         transactions = listsinceblockJSON["transactions"]
         for transaction in transactions:
             confirmedTransactions.append(transaction)
-        return newlastblock,confirmedTransactions
+        return newlastblock, confirmedTransactions
 
     def getTransaction(self, transaction_id):
         outputs = {}
