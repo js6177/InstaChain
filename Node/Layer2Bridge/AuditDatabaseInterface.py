@@ -7,6 +7,9 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, BigInteger, Float, Boolean, DateTime, ForeignKey
 
+from BitcoinRPCResponses.ListAddressGroupingsResponse import BitcoinRpcListAddressGroupingsAddress
+from constants import SATOSHI_PER_BITCOIN
+
 Base = declarative_base()
 
 class AuditState(Base):
@@ -40,6 +43,13 @@ class AuditLayer1Address(Base):
             'last_updated_block_height': self.last_updated_block_height,
             'last_updated_on': self.last_updated_on.timestamp()  # Convert datetime to Unix timestamp
         }
+    
+    @staticmethod
+    def fromBitcoinRpcListAddressGroupingsAddress(address: BitcoinRpcListAddressGroupingsAddress) -> AuditLayer1Address:
+        layer1_address = address.address
+        layer1_address_label = address.label
+        balance = int(address.amount * SATOSHI_PER_BITCOIN)
+        return AuditLayer1Address(layer1_address, layer1_address_label, balance)
 
 class AuditDatabaseInterface:
     def __init__(self, dbPath: string):

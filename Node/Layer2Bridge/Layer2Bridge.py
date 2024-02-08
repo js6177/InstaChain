@@ -1,3 +1,4 @@
+from typing import Dict, List
 import requests
 import time
 import filelock
@@ -7,6 +8,8 @@ import random
 import string
 import datetime
 from dataclasses import dataclass
+from BitcoinRPCResponses.ListSinceBlockResponse import BitcoinRpcListSinceBlockResponse
+from BitcoinRPCResponses.LoadWalletResponse import BitcoinRpcLoadWalletResponse
 import DatabaseInterface
 import AuditDatabaseInterface
 import SigningAddress
@@ -22,6 +25,7 @@ from FullNodeInterface import BitcoinRPC
 from types import SimpleNamespace
 import hashlib
 from OnboardingLogger import OnboardingLogger
+
 
 SATOSHI_PER_BITCOIN = 100000000
 MAX_NUMBER_OF_KEYS_TO_IMPORT_PER_RPC_REQUEST = 1000
@@ -137,7 +141,10 @@ class Layer2Bridge():
         self.bitcoinRPC = BitcoinRPC(self.rpc_ip, self.rpc_port, self.rpc_user, self.rpc_password, self.wallet_name, self.testnet)
         self.layer2Interface = Layer2Interface.Layer2Interface(self.layer2_node_url, self.onboarding_signing_private_key)
 
-        self.bitcoinRPC.loadWallet()
+        wallet_loaded: BitcoinRpcLoadWalletResponse = self.bitcoinRPC.loadWallet()
+        if(not wallet_loaded.success):
+            OnboardingLogger(f"Error: Wallet could not load. {str(wallet_loaded.exception)}")
+            return
 
         if(self.import_wallet_privkey_at_startup):
             self.import_private_keys(self.import_wallet_privkey_startup_count, self.layer2BridgeDB, self.bitcoinRPC)
@@ -172,19 +179,24 @@ class Layer2Bridge():
 
     def getConfirmedTransactionsFromNodeAndSaveToDb(self):
         #get confirmed transactions from the node and save it to the db
-        confirmedTransactions = []
-        self.lastblockhash, confirmedTransactions = self.bitcoinRPC.getConfirmedTransactions(self.lastblockhash)
-        self.blockheight = self.bitcoinRPC.getBlockHeader(self.lastblockhash)["height"]
+        confirmedTransactionsResponse: BitcoinRpcListSinceBlockResponse = self.bitcoinRPC.getConfirmedTransactions(self.lastblockhash)
+        if(not confirmedTransactionsResponse.success):
+            OnboardingLogger(f"Error: Could not get confirmed transactions from node. {str(confirmedTransactionsResponse.exception)}")
+            return
+        self.lastblockhash = confirmedTransactionsResponse.lastblock
+        getBlockHeaderResponse = self.bitcoinRPC.getBlockHeader(self.lastblockhash)
+        if(not getBlockHeaderResponse.success):
+            OnboardingLogger(f"Error: Could not get block header from node. {str(getBlockHeaderResponse.exception)}")
+            return
+        self.blockheight = getBlockHeaderResponse.height
+
         OnboardingLogger('Latest blockheight: ' +  str(self.blockheight))
-        for confirmedTransactionJSON in confirmedTransactions:
-            if(int(confirmedTransactionJSON["confirmations"]) >= self.bitcoinRPC.getTargetConfirmations()):
-                trxid = confirmedTransactionJSON["txid"]
-                vout = confirmedTransactionJSON["vout"]
-                category = confirmedTransactionJSON["category"]
-                if((trxid, vout, category) not in self.confirmedTransactionsDict):
-                    confirmedTransaction = DatabaseInterface.ConfirmedTransaction().fromListSinceBlockRpcJson(confirmedTransactionJSON)
-                    self.confirmedTransactionsDict[(trxid, vout, category)] = confirmedTransaction #add in memory
-                    self.layer2BridgeDB.insertConfirmedTransaction(confirmedTransaction)
+        for confirmedTransaction in confirmedTransactionsResponse.transactions:
+            if(confirmedTransaction.confirmations >= self.bitcoinRPC.getTargetConfirmations()):
+                if((confirmedTransaction.txid, confirmedTransaction.vout, confirmedTransaction.category) not in self.confirmedTransactionsDict):
+                    confirmedTransactionDbObject = DatabaseInterface.ConfirmedTransaction().fromBitcoinRpcListSinceBlockTransactions(confirmedTransaction)
+                    self.confirmedTransactionsDict[(confirmedTransaction.txid, confirmedTransaction.vout, confirmedTransaction.category)] = confirmedTransactionDbObject #add in memory
+                    self.layer2BridgeDB.insertConfirmedTransaction(confirmedTransactionDbObject)
         OnboardingLogger("lastblockhash: " + self.lastblockhash)
         self.layer2BridgeDB.setLastBlockHash(self.lastblockhash)
 
@@ -206,9 +218,9 @@ class Layer2Bridge():
             OnboardingLogger('New withdrawal recieved. address: ' + pendingWithdrawal.destination_address + ' amount: ' + str(pendingWithdrawal.amount))
         self.layer2BridgeDB.setLastWithdrawalTimestamp(lastwithdrawalTimestamp)
     
-    def getPendingWithdrawalsFromDb(self):
+    def getPendingWithdrawalsFromDb(self) -> None:
         #get pending withdrawals from the db and prepare it to be broadcasted by the node
-        self.withdrawalTransactionOutputs = {}
+        self.withdrawalTransactionOutputs: Dict[str, DatabaseInterface.PendingWithdrawal] = {}
         pendingWithdrawals = self.layer2BridgeDB.getPendingWithdrawals()
         OnboardingLogger('Fetched ' + str(len(pendingWithdrawals)) + ' pending withdrawals from db')
         for pendingWithdrawal in pendingWithdrawals:
@@ -264,18 +276,26 @@ class Layer2Bridge():
         if(len(self.withdrawalTransactionOutputs)):
             if((not self.enable_batching) or (self.blockheight >= (targetBroadcastBlockheight))):
                 OnboardingLogger("Broadcasting " +  str(len(self.withdrawalTransactionOutputs)) + " withdrawal outputs")
-                withdrawalTrxId = self.bitcoinRPC.broadcastTransaction(self.withdrawalTransactionOutputs)
-                if(withdrawalTrxId):
+                broadcastedTransaction = self.bitcoinRPC.broadcastTransaction(self.withdrawalTransactionOutputs)
+                withdrawalTrxId = broadcastedTransaction.transaction_id
+                if(broadcastedTransaction.success):
                     for key, withdrawalOutput in self.withdrawalTransactionOutputs.items():
                         withdrawalOutput.status = DatabaseInterface.PendingWithdrawal.LAYER1_STATUS_BROADCASTED
                         self.layer2BridgeDB.updatePendingWithdrawal(withdrawalOutput.layer2_withdrawal_id, withdrawalOutput.status, withdrawalTrxId, 0)
-                    withdrawalOutputs = self.bitcoinRPC.getTransaction(withdrawalTrxId)
-                    withdrawalBroadcastedTransactions = []
-                    for key, withdrawalOutput in self.withdrawalTransactionOutputs.items(): # do db writes and layer2 updates in seperate loops
-                        output = withdrawalOutputs[withdrawalOutput.destination_address]
-                        withdrawalBroadcastedTransactions.append(Layer2Interface.Layer2Interface.WithdrawalBroadcastedTransaction(layer1_transaction_id = withdrawalTrxId, layer1_transaction_vout = output.transaction_vout, layer1_address=withdrawalOutput.destination_address, amount = int(output.amount*SATOSHI_PER_BITCOIN), layer2_withdrawal_id = withdrawalOutput.layer2_withdrawal_id, signature = ''))
-                    self.layer2Interface.sendWithdrawalBroadcasted(withdrawalBroadcastedTransactions)
-                self.layer2BridgeDB.setLastBroadcastBlockHeight(self.blockheight)
+                    bitcoinRpcGetTransactionResponse = self.bitcoinRPC.getTransaction(withdrawalTrxId)
+                    if(bitcoinRpcGetTransactionResponse.success):
+                        withdrawalOutputs = DatabaseInterface.ConfirmedTransaction.fromBitcoinRpcGetTransactionResponse(bitcoinRpcGetTransactionResponse)
+                        
+                        withdrawalBroadcastedTransactions = []
+                        for key, withdrawalOutput in self.withdrawalTransactionOutputs.items(): # do db writes and layer2 updates in seperate loops
+                            output = withdrawalOutputs[withdrawalOutput.destination_address]
+                            withdrawalBroadcastedTransactions.append(Layer2Interface.Layer2Interface.WithdrawalBroadcastedTransaction(layer1_transaction_id = withdrawalTrxId, layer1_transaction_vout = output.transaction_vout, layer1_address=withdrawalOutput.destination_address, amount = output.amount, layer2_withdrawal_id = withdrawalOutput.layer2_withdrawal_id, signature = ''))
+                        self.layer2Interface.sendWithdrawalBroadcasted(withdrawalBroadcastedTransactions)
+                    else:
+                        OnboardingLogger("Error: Could not get broadcasted transaction from node. " + str(withdrawalOutputs.exception))
+                    self.layer2BridgeDB.setLastBroadcastBlockHeight(self.blockheight)
+                else:
+                    OnboardingLogger("Error: Could not broadcast transaction. " + str(broadcastedTransaction.exception))
             else:
                 OnboardingLogger('Batching: waiting for blockheight ' + str(targetBroadcastBlockheight) + ' to broadcast batched transaction. Current blockheight: ' + str(self.blockheight))
         else:
@@ -284,15 +304,20 @@ class Layer2Bridge():
     def updateAuditDB(self):
         #update the auditDB if there is new blockheight
         if(self.blockheight > self.auditDB.getLastAuditBlockHeight()):
-            usedLayer1Addresses = self.bitcoinRPC.getAddressGroupings()
-            self.auditDB.addOrUpdateLayer1Addresses(usedLayer1Addresses, self.blockheight, True)
+            addressGroupingsResponse = self.bitcoinRPC.getAddressGroupings()
+            if(addressGroupingsResponse.success):
+                usedLayer1Addresses: List[AuditDatabaseInterface.AuditLayer1Address] = []
+                for addressGrouping in addressGroupingsResponse.address_groupings:
+                    for address in addressGrouping:
+                        usedLayer1Addresses.append(AuditDatabaseInterface.AuditLayer1Address.fromBitcoinRpcListAddressGroupingsAddress(address))
+                self.auditDB.addOrUpdateLayer1Addresses(usedLayer1Addresses, self.blockheight, True)
 
-            #get all the layer1 addresses from the auditDB and send it to the node
-            layer1Addresses = self.auditDB.getLayer1Addresses()
-            layer1AddressesBalance = 0
-            for layer1Address in layer1Addresses:
-                layer1AddressesBalance += layer1Address.balance
-            self.layer2Interface.postLayer1AuditReport(self.blockheight, layer1AddressesBalance, layer1Addresses)
+                #get all the layer1 addresses from the auditDB and send it to the node
+                layer1Addresses = self.auditDB.getLayer1Addresses()
+                layer1AddressesBalance = 0
+                for layer1Address in layer1Addresses:
+                    layer1AddressesBalance += layer1Address.balance
+                self.layer2Interface.postLayer1AuditReport(self.blockheight, layer1AddressesBalance, layer1Addresses)
 
 if __name__ == "__main__":
     main()

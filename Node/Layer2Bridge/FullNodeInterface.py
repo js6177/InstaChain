@@ -8,6 +8,12 @@ import datetime
 import math
 from typing import List
 from dataclasses import dataclass
+from BitcoinRPCResponses.GetBlockCountResponse import BitcoinRpcGetBlockHeightResponse
+from BitcoinRPCResponses.GetBlockHeaderResponse import BitcoinRpcGetBlockHeaderResponse
+from BitcoinRPCResponses.GetTransactionResponse import BitcoinRpcGetTransactionResponse
+from BitcoinRPCResponses.ListAddressGroupingsResponse import BitcoinRpcListAddressGroupingsResponse
+from BitcoinRPCResponses.LoadWalletResponse import BitcoinRpcLoadWalletResponse
+from BitcoinRPCResponses.ListSinceBlockResponse import BitcoinRpcListSinceBlockResponse
 import DatabaseInterface
 from AuditDatabaseInterface import AuditLayer1Address
 import SigningAddress
@@ -19,6 +25,8 @@ from bitcoinrpc.authproxy import AuthServiceProxy, JSONRPCException
 import traceback
 import argparse
 from OnboardingLogger import OnboardingLogger
+
+from BitcoinRPCResponses.SendManyResponse import BitcoinRpcSendManyResponse
 
 
 DEFAULT_TESTNET = True
@@ -61,11 +69,17 @@ class BitcoinRPC:
             return " -testnet "
         return ""
 
-    def loadWallet(self):
+    def loadWallet(self) -> BitcoinRpcLoadWalletResponse:
+        loadWalletResponse: BitcoinRpcLoadWalletResponse = None
         try:
-            satus = self.rpc_connection.loadwallet(self.wallet_name)
+            wallet = self.rpc_connection.loadwallet(self.wallet_name)
+            loadWalletResponse = BitcoinRpcLoadWalletResponse(name=wallet, warning=None, success=True)
+            #status = self.rpc_connection.loadwallet(self.wallet_name)
         except Exception as e:
+            wallet_already_loaded = (e.code==-35)
+            loadWalletResponse = BitcoinRpcLoadWalletResponse(name=None, warning=None, exception=e, success=wallet_already_loaded)
             OnboardingLogger(e)
+        return loadWalletResponse
 
     def importMultiplePrivkeys(self, seed, startingIndex, numberOfKeysToGenerate, testnet):
         seed_bytes = binascii.unhexlify(seed)
@@ -99,7 +113,7 @@ class BitcoinRPC:
         except Exception as e:
             OnboardingLogger(e)
 
-    def broadcastTransaction(self, pendingWithdrawals):
+    def broadcastTransaction(self, pendingWithdrawals) -> BitcoinRpcSendManyResponse:
         sendmanyCmd = {}
         subtractfeefrom = set()
         for key, pendingWithdrawal in pendingWithdrawals.items():
@@ -113,67 +127,79 @@ class BitcoinRPC:
         minconf = 1 #default minconf value
         OnboardingLogger("broadcastTransaction: " + str(sendmanyCmd))
 
-        status = ''
+        sendManyResponse: BitcoinRpcSendManyResponse = None
         try:
-            status = self.rpc_connection.sendmany("", sendmanyCmd, minconf, "", list(subtractfeefrom))
-            OnboardingLogger('/broadcastTransaction: ' + status)
+            trx_id = self.rpc_connection.sendmany("", sendmanyCmd, minconf, "", list(subtractfeefrom))
+            sendManyResponse = BitcoinRpcSendManyResponse(success=True, exception=None, transaction_id=trx_id)
+            OnboardingLogger('/broadcastTransaction: ' + trx_id)
         except Exception as e:
+            sendManyResponse = BitcoinRpcSendManyResponse(success=False, exception=e, transaction_id=None)
             OnboardingLogger(e)
-        return status
+        return sendManyResponse
 
-    def getConfirmedTransactions(self, lastblockhash = ''):
+    def getConfirmedTransactions(self, lastblockhash = '') -> BitcoinRpcListSinceBlockResponse:
         targetConfirmations = 0
         if(lastblockhash):
             targetConfirmations = str(self.getTargetConfirmations())
 
         OnboardingLogger('lastblockhash: ' + str(lastblockhash))
         OnboardingLogger('targetConfirmations: ' + str(targetConfirmations))
+        listSinceBlockResponse: BitcoinRpcListSinceBlockResponse = BitcoinRpcListSinceBlockResponse()
         listsinceblockJSON = ''
         try:
             if (not lastblockhash):
                 listsinceblockJSON = self.rpc_connection.listsinceblock()
             else:
                 listsinceblockJSON = self.rpc_connection.listsinceblock(lastblockhash, int(targetConfirmations))
+            listSinceBlockResponse.success = True
+            listSinceBlockResponse.fromJSON(listsinceblockJSON)
             OnboardingLogger("listsinceblockJSON: " + str(listsinceblockJSON))
         except Exception as e:
+            listSinceBlockResponse.success = False
+            listSinceBlockResponse.exception = e
             OnboardingLogger("listsinceblockJSON: " + str(e))
+        return listSinceBlockResponse
 
-        newlastblock = listsinceblockJSON["lastblock"]
-        confirmedTransactions = []
-        transactions = listsinceblockJSON["transactions"]
-        for transaction in transactions:
-            confirmedTransactions.append(transaction)
-        return newlastblock, confirmedTransactions
-
-    def getTransaction(self, transaction_id):
-        outputs = {}
-        gettransactionJSON = self.rpc_connection.gettransaction(transaction_id)
-        return DatabaseInterface.ConfirmedTransaction.fromGetTransaction(gettransactionJSON)
-        transactionDetails = gettransactionJSON["details"]
-        for transaction in transactionDetails:
-            output = DatabaseInterface.ConfirmedTransaction(transaction_id = transaction_id, layer2_status=None, transaction_vout=transaction["vout"], amount = transaction["amount"], fee=transaction["fee"], address=transaction["address"], category = transaction["category"], confirmations=0, timestamp=0, blockheight=0 )
-            outputs[output.address] = output
-        return outputs
+    def getTransaction(self, transaction_id) -> BitcoinRpcGetTransactionResponse:
+        getTransactionResponse: BitcoinRpcGetTransactionResponse = BitcoinRpcGetTransactionResponse()
+        try:
+            getTransactionJSON = self.rpc_connection.gettransaction(transaction_id)
+            getTransactionResponse = BitcoinRpcGetTransactionResponse().fromJSON(getTransactionJSON)
+            getTransactionResponse.success = True
+        except Exception as e:
+            getTransactionResponse.success = False
+            getTransactionResponse.exception = e
+            OnboardingLogger(e)
+        return getTransactionResponse
     
-    def getAddressGroupings(self):
-        layer1Addresses: List[AuditLayer1Address] = []
-        addressGroupings = self.rpc_connection.listaddressgroupings()
-        for addressGrouping in addressGroupings:
-            for address in addressGrouping:
-                layer1Address = address[0]
-                amountInSatoshis = int(address[1] * SATOSHI_PER_BITCOIN)
-                layer1AddressLabel = address[2] if len(address) > 2 else ''
-                layer1Address = AuditLayer1Address(layer1_address=layer1Address, layer1_address_label=layer1AddressLabel, balance=amountInSatoshis)
-                layer1Addresses.append(layer1Address)
-        return layer1Addresses
+    def getAddressGroupings(self) -> BitcoinRpcListAddressGroupingsResponse:
+        addressGroupings: BitcoinRpcListAddressGroupingsResponse = BitcoinRpcListAddressGroupingsResponse()
+        try:
+            addressGroupingsJson = self.rpc_connection.listaddressgroupings()
+            addressGroupings.fromJSON(addressGroupingsJson)
+            addressGroupings.success = True
+        except Exception as e:
+            addressGroupings.success = False
+            addressGroupings.exception = e
+        return addressGroupings
 
-    def getBlockHeader(self, blockhash):
-        blockHeaderDict = self.rpc_connection.getblockheader(blockhash, True)
-        return blockHeaderDict
-
-    def getBlockHeader(self, blockhash):
-        blockHeaderDict = self.rpc_connection.getblockheader(blockhash, True)
-        return blockHeaderDict
+    def getBlockHeader(self, blockhash) -> BitcoinRpcGetBlockHeaderResponse:
+        blockHeader: BitcoinRpcGetBlockHeaderResponse = BitcoinRpcGetBlockHeaderResponse()
+        try:
+            getBlockHeaderJson = self.rpc_connection.getblockheader(blockhash, True)
+            blockHeader = BitcoinRpcGetBlockHeaderResponse().fromJSON(getBlockHeaderJson)
+            blockHeader.success = True
+        except Exception as e:
+            blockHeader.success = False
+            blockHeader.exception = e
+        return blockHeader
     
-    def getBlockHeight(self):
-        return self.rpc_connection.getblockcount()
+    def getBlockHeight(self) -> BitcoinRpcGetBlockHeightResponse:
+        blockHeight: BitcoinRpcGetBlockHeightResponse = BitcoinRpcGetBlockHeightResponse()
+        try:
+            blockHeight.height = self.rpc_connection.getblockcount()
+            blockHeight.success = True
+        except Exception as e:
+            blockHeight.success = False
+            blockHeight.exception = e
+        return blockHeight
