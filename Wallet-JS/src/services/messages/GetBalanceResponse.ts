@@ -13,13 +13,13 @@
 
 import CommonResponse from "./CommonResponse";
 
-interface Balance {
+interface GetBalanceResponseBalance {
     balance: number;
     public_key: string;
 }
 
 interface GetBalanceResponse extends CommonResponse{
-    balance: Balance[];
+    balance: GetBalanceResponseBalance[];
 }
 
-export default GetBalanceResponse;
+export {GetBalanceResponse, GetBalanceResponseBalance}

@@ -1,5 +1,5 @@
 import { DEFAULT_LAYER2_HOSTNAME, Layer2LedgerNodeInfo, Layer2LedgerAPI } from '../services/Layer2API';
-import GetBalanceResponse from '../services/messages/GetBalanceResponse';
+import { GetBalanceResponse, GetBalanceResponseBalance } from '../services/messages/GetBalanceResponse';
 import GetDepositAddressResponse from '../services/messages/GetDepositAddressResponse';
 import { GetNodeInfoResponse } from '../services/messages/GetNodeInfoResponse';
 
@@ -52,7 +52,7 @@ class WorkspaceStateManager{
     onGetWalletBalance(getBalanceResponse: GetBalanceResponse){
         let addressBalances = new Map<string, number>();
         let balances = getBalanceResponse.balance;
-        balances.forEach((balance) => {
+        balances.forEach((balance: GetBalanceResponseBalance) => {
             addressBalances.set(balance.public_key, balance.balance);
         });
         this.workspace.addressBalances = addressBalances;
@@ -72,10 +72,7 @@ class WorkspaceStateManager{
     }
 
     onTransferTransactionCompleted(transferTransactionResponse: TransferTransactionResponse, trxId: string){
-
-
         this.workspace.transactionResults.set(trxId, transferTransactionResponse);
-        //console.log("transactionResults: " + JSON.stringify(this.workspace.transactionResults));
         this.setLatestWorkspaceState();
     }
 
@@ -93,7 +90,6 @@ class WorkspaceStateManager{
     }
 
     onGetDepositAddress(getDepositAddressResponse: GetDepositAddressResponse, layer2Address: string, trxId: string){
-        //console.log('layer1DepositAddress: ' + layer1DepositAddress);
         this.workspace.depositAddresses.set(layer2Address, getDepositAddressResponse.layer1_deposit_address);
         this.workspace.transactionResults.set(trxId, getDepositAddressResponse);
         this.setLatestWorkspaceState();
@@ -113,10 +109,7 @@ class WorkspaceStateManager{
     }
 
     onWithdrawalRequestCompleted(withdrawalRequestResponse: WithdrawalRequestResponse, trxId: string){
-
-
         this.workspace.transactionResults.set(trxId, withdrawalRequestResponse);
-        //console.log("transactionResults: " + JSON.stringify(this.workspace.transactionResults));
         this.setLatestWorkspaceState();
     }
 
