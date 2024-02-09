@@ -15,7 +15,7 @@ const ERROR_DATABASE_TRANSACTIONAL_ERROR = 19
 
 const DEFAULT_LAYER2_HOSTNAME = 'https://testnet.instachain.io/' //if user has not added any nodes, get the default one
 
-import GetBalanceResponse from './messages/GetBalanceResponse'
+import { GetBalanceResponse } from './messages/GetBalanceResponse'
 import GetDepositAddressResponse from './messages/GetDepositAddressResponse'
 import { GetNodeInfoResponse } from './messages/GetNodeInfoResponse'
 import { GetTransactionsResponse } from './messages/GetTransactionsResponse';
