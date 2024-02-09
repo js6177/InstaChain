@@ -8,6 +8,9 @@ import {useState, useEffect} from 'react';
 import { Layer2LedgerContext } from './context/Layer2LedgerContext';
 import { WorkspaceContext } from './context/WorkspaceContext';
 import { Layer2LedgerState } from './state/Layer2LedgerState';
+import { SettingsState } from './state/SettingsState';
+import { SettingsManager } from './state_managers/SettingsManager';
+import { SettingsContext } from './context/SettingsContext';
 
 
 function UiController(props: any) {
@@ -17,6 +20,10 @@ function UiController(props: any) {
     const [workspace, setWorkSpace] = useState(new Workspace());
     const [workspaceStateManager, setWorkspaceStateManagerState] = useState(new WorkspaceStateManager(setWorkSpace));
 
+    const [settingsState, setSettingsState] = useState(new SettingsState());
+    const settingsManager = new SettingsManager(setSettingsState);
+    //const [settingsManager, setSettingsManager] = useState(new SettingsManager(setSettingsState));
+
     useEffect(() => {
         layer2LedgerStateManager.fetchLayer2LedgerState();
     }, []);
@@ -25,7 +32,9 @@ function UiController(props: any) {
         <div>
             <Layer2LedgerContext.Provider value={{layer2LedgerState, layer2LedgerStateManager}}>
                 <WorkspaceContext.Provider value={{workspace, workspaceStateManager}}>
-                    <MyApp/>
+                    <SettingsContext.Provider value={{settingsState, settingsManager}}>
+                        <MyApp/>
+                    </SettingsContext.Provider>
                 </WorkspaceContext.Provider>
             </Layer2LedgerContext.Provider>
         </div>

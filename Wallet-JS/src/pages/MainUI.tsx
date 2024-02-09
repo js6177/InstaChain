@@ -48,6 +48,7 @@ import { ThemeProvider, createTheme} from '@mui/material/styles';
 import { CssBaseline } from '@mui/material/';
 import { Card } from '@mui/material/';
 import { color } from '@mui/system';
+import BtcAmountDisplay from '../components/BtcAmountDisplay';
 
 
 const theme = createTheme({
@@ -433,7 +434,11 @@ function ProjectHeaderUI(props: any) {
       <div>
         Main L2 Address: {mainAddressPubkey}
         <br/>
-        Balance (satoshis): {manAddressBalance}
+        <Stack direction="row" spacing={2}>
+          <Typography variant="body1">Balance:</Typography>
+          <BtcAmountDisplay amount={manAddressBalance} color='green'/>
+        </Stack>
+        
       </div>
     );
   }

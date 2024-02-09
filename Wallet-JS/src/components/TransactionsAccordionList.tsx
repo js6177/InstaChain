@@ -13,6 +13,7 @@ import Chip from '@mui/material/Chip';
 import { color } from '@mui/system';
 
 import { Transaction } from '../utils/wallet';
+import BtcAmountDisplay from './BtcAmountDisplay';
 
 //Display a list of transactions in an accordion list, similar to TransactionsDataGrid.js
 //Foreach transaction in transactions, create an AccordionListViewItem passin in the transaction to props
@@ -54,10 +55,8 @@ export function AccordionListViewItem(props: {transaction: Transaction, myAddres
     
 
     const isTransactionFromMe = myAddresses.includes(transaction.source_address);
-    const transactionAmountWithSign = isTransactionFromMe ? "-" + transaction.amount : "+" + transaction.amount;
-    //const transactionColor: string = isTransactionFromMe ? "negativeTransactionColor" : "positiveTransactionColor";
-    const transactionColor = isTransactionFromMe ? "error" : "success";
-
+    const transactionColor = isTransactionFromMe ? "red" : "green";
+    const transactionAmount: number = (isTransactionFromMe ? -(transaction.amount ?? 0) : transaction.amount) ?? 0;
 
     return(
         <div>
@@ -82,7 +81,7 @@ export function AccordionListViewItem(props: {transaction: Transaction, myAddres
                             </Box>
                         </Stack>
                         <Stack direction="column" spacing={0} alignItems="flex-end" justifyContent="space-between">
-                            <Chip label={transactionAmountWithSign} color={transactionColor} />                                
+                            <BtcAmountDisplay amount={transactionAmount} color={transactionColor} />                               
                             <Box>
                                 {new Date(transaction.timestamp * 1000).toLocaleString()}
                             </Box>
