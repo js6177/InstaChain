@@ -7,7 +7,7 @@ import { IconButton } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import PreviewIcon from '@mui/icons-material/Preview';
 
-import {ActionDialog, ViewJsonDialogBody} from './ActionDialog';
+import {ActionDialog, ViewJsonDialogBody} from './ActionDialogs/ActionDialog';
 import { WorkspaceContext } from '../context/WorkspaceContext';
 
 const columns = [

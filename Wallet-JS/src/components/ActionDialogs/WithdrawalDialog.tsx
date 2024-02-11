@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { WorkspaceContext } from "../context/WorkspaceContext";
 import React from "react";
 import { Alert, Button, Stack, TextField } from "@mui/material";
 import { ActionDialogDescriptionDisplay } from "./ActionDialog";
-import { Layer2LedgerContext } from "../context/Layer2LedgerContext";
+import { Layer2LedgerContext } from "../../context/Layer2LedgerContext";
+import { WorkspaceContext } from "../../context/WorkspaceContext";
 const { validate, getAddressInfo } = require('bitcoin-address-validation');
 
 

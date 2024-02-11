@@ -12,11 +12,11 @@ import Alert from '@mui/material/Alert';
 
 const { validate, getAddressInfo } = require('bitcoin-address-validation');
 
-import { WorkspaceContext } from '../context/WorkspaceContext';
+import { WorkspaceContext } from '../../context/WorkspaceContext';
 
 
 import { Typography } from '@mui/material';
-import { Layer2LedgerContext } from '../context/Layer2LedgerContext';
+import { Layer2LedgerContext } from '../../context/Layer2LedgerContext';
 
 export function ActionDialogDescriptionDisplay(props: {text: string}){
   const { text } = props;

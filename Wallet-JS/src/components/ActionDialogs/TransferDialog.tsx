@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { WorkspaceContext } from "../context/WorkspaceContext";
+import { WorkspaceContext } from "../../context/WorkspaceContext";
 import React from "react";
 import { Alert, Button, Stack, TextField } from "@mui/material";
 import { ActionDialogDescriptionDisplay } from "./ActionDialog";

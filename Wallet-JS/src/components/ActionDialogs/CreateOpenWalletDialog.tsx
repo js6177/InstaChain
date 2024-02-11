@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { WorkspaceContext } from "../context/WorkspaceContext";
+import { WorkspaceContext } from "../../context/WorkspaceContext";
 import React from "react";
 import { Alert, Button, Stack, TextField } from "@mui/material";
 import { ActionDialogDescriptionDisplay } from "./ActionDialog";
 
 var MASTER_MNEOMONIC = "throw illness metal parrot wet they short aunt decline come bind gospel energy retreat prize fly";
-import {MNEUMONIC_WORD_COUNT, MNEUMONIC_WORDLIST} from '../utils/Mneumonic';
+import {MNEUMONIC_WORD_COUNT, MNEUMONIC_WORDLIST} from '../../utils/Mneumonic';
 
 export function CreateOpenWalletDialogBody() {
 
