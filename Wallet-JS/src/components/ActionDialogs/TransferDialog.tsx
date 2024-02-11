@@ -3,6 +3,7 @@ import { WorkspaceContext } from "../../context/WorkspaceContext";
 import React from "react";
 import { Alert, Button, Stack, TextField } from "@mui/material";
 import { ActionDialogDescriptionDisplay } from "./ActionDialog";
+import { AvailableBalance } from "../AvailableBalance";
 
 export function TransferDialogBody(props: any){
     const {workspace, workspaceStateManager} = React.useContext(WorkspaceContext);
@@ -11,6 +12,11 @@ export function TransferDialogBody(props: any){
     const [trxId, setTrxId] = useState('');
     const [transactionState, setTransactionState] = useState('');
     const mainWalletAddressPubkey =  workspace?.wallet?.getMainAddressPubkey();
+    if(mainWalletAddressPubkey === null || mainWalletAddressPubkey === undefined){
+      return <div>Wallet not loaded</div>
+    }
+    const walletBalance = workspace?.addressBalances.get(mainWalletAddressPubkey) || 0;
+
 
     const transactionResult = JSON.stringify(workspace?.transactionResults.get(trxId), null, 2);
 
@@ -40,6 +46,7 @@ export function TransferDialogBody(props: any){
 
       <TextField fullWidth id="inputTransactionSendFromAddress" value={mainWalletAddressPubkey} label="Send From" variant="outlined" InputLabelProps={{ shrink: true }} inputProps={{ readOnly: true }}/>
       <TextField fullWidth id="inputTransactionSendToAddress" value={destinationAddress} label="Send To" variant="outlined" InputLabelProps={{ shrink: true }} onChange={handleDestinationAddressChange} />
+      {walletBalance > 0 && <AvailableBalance walletBalance={walletBalance}/>}
       <TextField fullWidth id="inputTransactionAmount" value={amount} label="Amount (in satoshis)" variant="outlined" InputLabelProps={{ shrink: true }} onChange={handleAmountChange} />
       <Button  variant="contained" id="buttonSendTransaction" onClick={() => transfer(destinationAddress, amount) }>Transfer</Button>
       {trxId !== '' && <div>Status: {transactionResult}</div>}

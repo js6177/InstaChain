@@ -4,6 +4,7 @@ import { Alert, Button, Stack, TextField } from "@mui/material";
 import { ActionDialogDescriptionDisplay } from "./ActionDialog";
 import { Layer2LedgerContext } from "../../context/Layer2LedgerContext";
 import { WorkspaceContext } from "../../context/WorkspaceContext";
+import { AvailableBalance } from "../AvailableBalance";
 const { validate, getAddressInfo } = require('bitcoin-address-validation');
 
 
@@ -46,6 +47,10 @@ export function WithdrawalDialogBody(props: any){
 
 
     const mainWalletAddressPubkey =  workspace?.wallet?.getMainAddressPubkey();
+    if(mainWalletAddressPubkey === null || mainWalletAddressPubkey === undefined){
+      return <div>Wallet not loaded</div>
+    }
+    const walletBalance = workspace?.addressBalances.get(mainWalletAddressPubkey) || 0;
 
     return(
       <Stack spacing={2}  padding={2}>
@@ -54,6 +59,7 @@ export function WithdrawalDialogBody(props: any){
 
         <TextField fullWidth id="inputWithdrawalFromAddress" value={mainWalletAddressPubkey} label="Withdraw From" variant="outlined" InputLabelProps={{ shrink: true}} inputProps={{ readOnly: true }} />
         <TextField fullWidth id="inputWithdrawalDestinationAddress" label="Withdraw To (Layer1 address)" variant="outlined" InputLabelProps={{ shrink: true }} onChange={inputWithdrawalDestinationAddressChanged}/>
+        {walletBalance > 0 && <AvailableBalance walletBalance={walletBalance}/>}
         <TextField
           fullWidth
           id="inputWithdrawalAmount"

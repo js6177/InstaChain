@@ -21,6 +21,21 @@ class Workspace {
         this.depositAddresses = new Map();
         this.transactionResults = new Map();
     }
+
+/*     getBalance(): number {
+        let balance = 0;
+        const addresses: string[] = []; // Declare addresses as an empty array of strings
+        if(this.wallet !== null){
+            const address = this.wallet.getMainAddressPubkey();
+            if(address !== null){
+                addresses.push(address);
+            }
+        }
+        for(const address of addresses){
+            balance += this.addressBalances.get(address) || 0;
+        }
+        return balance;
+    } */
 }
 
 export {Workspace}

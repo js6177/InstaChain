@@ -54,6 +54,7 @@ import { Card } from '@mui/material/';
 import { color } from '@mui/system';
 import BtcAmountDisplay from '../components/BtcAmountDisplay';
 import { Transaction } from '../utils/wallet';
+import { AvailableBalance } from '../components/AvailableBalance';
 
 
 const theme = createTheme({
@@ -433,16 +434,14 @@ function ProjectHeaderUI(props: any) {
   }
 
   function MainAddressBalanceView(props: any){
-    const { WorkspaceState, mainAddressPubkey, manAddressBalance } = props;
+    const { mainAddressPubkey, manAddressBalance } = props;
 
     return(
       <div>
         Main L2 Address: {mainAddressPubkey}
         <br/>
-        <Stack direction="row" spacing={2}>
-          <Typography variant="body1">Balance:</Typography>
-          <BtcAmountDisplay amount={manAddressBalance} color='green'/>
-        </Stack>
+        {manAddressBalance > 0 && <AvailableBalance walletBalance={manAddressBalance}/>}
+
         
       </div>
     );
