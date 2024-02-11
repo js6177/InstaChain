@@ -144,24 +144,6 @@ class Transaction {
 
         this.id = this.transaction_id + ':' + this.node_id;
     }
-
-    fromJSON(data: any) {
-        const jsonDict = JSON.parse(JSON.stringify(data, null, 2));
-        this.amount = jsonDict["amount"];
-        this.fee = jsonDict['fee'];
-        this.source_address = jsonDict['source_address_pubkey'];
-        this.destination_address = jsonDict['destination_address_pubkey'];
-        this.transaction_type = jsonDict['transaction_type'];
-        this.transaction_type_desc = TransactionTypeMap[this.transaction_type];
-        this.transaction_id = jsonDict['transaction_id'];
-        this.layer1_transaction_id = jsonDict['layer1_transaction_id'];
-        this.timestamp = jsonDict['timestamp'];
-        this.locale_date = new Date(this.timestamp * 1000).toLocaleString();
-        this.signature = jsonDict['signature'];
-        this.node_id = jsonDict['node_id'];
-
-        this.id = this.transaction_id + ':' + this.node_id;
-    }
 }
 
 class Wallet {
@@ -171,9 +153,6 @@ class Wallet {
     constructor(mneumonic: string) {
         this.layer2address = new Layer2Address(mneumonic);
         this.uid = crypto.randomBytes(20).toString('hex');
-
-        //console.log("Wallet.uid: " + this.uid);
-        //console.log("Wallet.layer2addres: " + JSON.stringify(this.layer2address));
     }
 
     getMainAddress(): Layer2Address {
@@ -181,7 +160,6 @@ class Wallet {
     }
 
     getMainAddressPubkey(): string | null {
-        //console.log("Wallet.getMainAddressPubkey: " + this.layer2address.public_key_str);
         return this.layer2address.public_key_str;
     }
 }

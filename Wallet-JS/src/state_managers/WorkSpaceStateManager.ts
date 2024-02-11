@@ -37,6 +37,7 @@ class WorkspaceStateManager{
     }
 
     newWallet(mneumonic: string){
+        this.clearWallet();
         this.workspace.wallet = new Wallet(mneumonic);
         this.getTransactions();
         this.getWalletBalance();
@@ -110,6 +111,15 @@ class WorkspaceStateManager{
 
     onWithdrawalRequestCompleted(withdrawalRequestResponse: WithdrawalRequestResponse, trxId: string){
         this.workspace.transactionResults.set(trxId, withdrawalRequestResponse);
+        this.setLatestWorkspaceState();
+    }
+
+    clearWallet(){
+        this.workspace.wallet = null;
+        this.workspace.transactions = new Map<string, Transaction[]>();
+        this.workspace.addressBalances = new Map<string, number>();
+        this.workspace.transactionResults = new Map<string, any>();
+        this.workspace.depositAddresses = new Map<string, string>();
         this.setLatestWorkspaceState();
     }
 
