@@ -294,3 +294,6 @@ dist
 #misc
 Wallet-JS/.todo.txt
 Wallet-JS/tmp/
+Wallet-JS/.vscode/settings.json
+Node/Layer2Ledger/.vscode/settings.json
+Node/Layer2Bridge/.vscode/settings.json
