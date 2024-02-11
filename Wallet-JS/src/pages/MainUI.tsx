@@ -35,7 +35,11 @@ import {Layer2LedgerContext} from '../context/Layer2LedgerContext';
 import {WorkspaceContext} from '../context/WorkspaceContext';
 import {TransactionDataGrid} from '../components/TransactionsDataGrid'
 import {TransactionsAccordionList} from '../components/TransactionsAccordionList'
-import {ActionDialog, CreateOpenWalletDialogBody, TransferDialogBody, DepositDialogBody, WithdrawalDialogBody} from '../components/ActionDialog'
+import {ActionDialog} from '../components/ActionDialog'
+import {CreateOpenWalletDialogBody} from '../components/CreateOpenWalletDialog'
+import {TransferDialogBody} from '../components/TransferDialog'
+import {WithdrawalDialogBody} from '../components/WithdrawalDialog'
+import {DepositDialogBody} from '../components/DepositDialog'
 import AddressBalanceTable from '../components/AddressBalanceTable';
 
 import GitHubIcon from '@mui/icons-material/GitHub';
