@@ -95,7 +95,7 @@ class Layer2Interface:
             transactions.append(transaction)
         jsonData = {"transactions":transactions}
         r = requests.post(url, json=jsonData, headers=self.header)
-        OnboardingLogger(r.text)
+        OnboardingLogger("confirmDepositMulti: " + str(r.text))
         return r.text
 
     def broadcastWithdrawalMulti(self, withdrawalBroadcastedTramsactions: List[WithdrawalBroadcastedTransaction]):
