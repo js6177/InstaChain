@@ -4,7 +4,7 @@ import React from "react";
 import { Alert, Button, Stack, TextField } from "@mui/material";
 import { ActionDialogDescriptionDisplay } from "./ActionDialog";
 
-var MASTER_MNEOMONIC = "throw illness metal parrot wet they short aunt decline come bind gospel energy retreat prize fly";
+const MASTER_MNEOMONIC = "throw illness metal parrot wet they short aunt decline come bind gospel energy retreat prize fly";
 import {MNEUMONIC_WORD_COUNT, MNEUMONIC_WORDLIST} from '../../utils/Mneumonic';
 
 export function CreateOpenWalletDialogBody() {
@@ -19,7 +19,7 @@ export function CreateOpenWalletDialogBody() {
       const generateNewWalletMneumonic = () => {
         let mneumonic = "";
         for (let i = 0; i < MNEUMONIC_WORD_COUNT; i++) {
-          let index = Math.floor(Math.random() * MNEUMONIC_WORDLIST.length-1);
+          const index = Math.floor(Math.random() * MNEUMONIC_WORDLIST.length-1);
           mneumonic += MNEUMONIC_WORDLIST[index] + " ";
         }
         mneumonic = mneumonic.trim();

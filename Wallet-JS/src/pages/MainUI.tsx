@@ -53,6 +53,7 @@ import { CssBaseline } from '@mui/material/';
 import { Card } from '@mui/material/';
 import { color } from '@mui/system';
 import BtcAmountDisplay from '../components/BtcAmountDisplay';
+import { Transaction } from '../utils/wallet';
 
 
 const theme = createTheme({
@@ -407,7 +408,7 @@ function ProjectHeaderUI(props: any) {
               isWalletLoaded && transactionsViewMode == "list" && <TransactionsAccordionList transactions={workspace.transactions} myAddresses={[mainLayer2AddressPubkey]} />
             }
             {
-              isWalletLoaded && transactionsViewMode == "grid" && <TransactionDataGrid transactions={workspace.transactions.get(mainLayer2AddressPubkey)} />
+              isWalletLoaded && transactionsViewMode == "grid" && <TransactionDataGrid transactions={workspace.transactions.get(mainLayer2AddressPubkey) ?? []} />
             }
 
             </Stack>

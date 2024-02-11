@@ -10,7 +10,7 @@ type BtcAmountDisplayProps = {
 
 const BtcAmountDisplay: React.FC<BtcAmountDisplayProps> = ({ amount, color }) => {
     const { settingsState, settingsManager } = React.useContext(SettingsContext);
-    let currencyUnits = settingsState?.currencyUnits;
+    const currencyUnits = settingsState?.currencyUnits;
     let currencyAmount: number = amount;
     if(currencyUnits === CurrencyUnits.BTC) {
         currencyAmount = currencyAmount / 100000000;

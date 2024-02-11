@@ -3,7 +3,7 @@ import { GetTransactionsResponseTransaction } from "../services/messages/GetTran
 const { base58_to_binary, binary_to_base58 } = require('base58-js')
 const secp256k1 = require('secp256k1')
 
-var default_hashing_algorithm = 'sha256'
+const default_hashing_algorithm = 'sha256'
 const crypto = require('crypto-browserify')
 
 function SHA256(s: string): string {
@@ -146,7 +146,7 @@ class Transaction {
     }
 
     fromJSON(data: any) {
-        let jsonDict = JSON.parse(JSON.stringify(data, null, 2));
+        const jsonDict = JSON.parse(JSON.stringify(data, null, 2));
         this.amount = jsonDict["amount"];
         this.fee = jsonDict['fee'];
         this.source_address = jsonDict['source_address_pubkey'];
@@ -199,19 +199,19 @@ class MessageBuilder{
     }
 
     buildTransferMessage(sourceAddressPubkey: string, destinationAddressPubkey: string, amount: number, fee: number, transactionIdNonce: string){
-        var message = (this.layer2LedgerNodeId + " " + this.layer2LedgerNodeAssetId + " " + TRX_TRANSFER + " " + sourceAddressPubkey + " " + destinationAddressPubkey + " " + amount + " " + fee + " " + transactionIdNonce);
+        const message = (this.layer2LedgerNodeId + " " + this.layer2LedgerNodeAssetId + " " + TRX_TRANSFER + " " + sourceAddressPubkey + " " + destinationAddressPubkey + " " + amount + " " + fee + " " + transactionIdNonce);
         ////console.log('buildTransferMessage: ' + message);
         return message;
     }
 
     buildGetDepositAddressMessage(layer2AddressPubKey: string, transactionIdNonce: string){
-        var message = (this.layer2LedgerNodeId + " " + this.layer2LedgerNodeAssetId + " " + INSTRUCTION_GET_DEPOSIT_ADDRESS + layer2AddressPubKey + " " + transactionIdNonce);
+        const message = (this.layer2LedgerNodeId + " " + this.layer2LedgerNodeAssetId + " " + INSTRUCTION_GET_DEPOSIT_ADDRESS + layer2AddressPubKey + " " + transactionIdNonce);
         ////console.log('buildGetDepositAddressMessage: ' + message);
         return message;
     }
 
     buildWithdrawalRequestMessage(layer2SourceAddressPubKey: string, layer1WithdrawalAddress: string, transactionIdNonce: string, amount: number){
-        var message = (this.layer2LedgerNodeId + " " + this.layer2LedgerNodeAssetId + " " + TRX_WITHDRAWAL_INITIATED +  " " + layer2SourceAddressPubKey + " " + layer1WithdrawalAddress + " " + transactionIdNonce + " " + amount );
+        const message = (this.layer2LedgerNodeId + " " + this.layer2LedgerNodeAssetId + " " + TRX_WITHDRAWAL_INITIATED +  " " + layer2SourceAddressPubKey + " " + layer1WithdrawalAddress + " " + transactionIdNonce + " " + amount );
         ////console.log('buildWithdrawalRequestMessage: ' + message);
         return message;
     }

@@ -10,9 +10,9 @@ export function TransferDialogBody(props: any){
     const [amount, setAmount] = useState(0);
     const [trxId, setTrxId] = useState('');
     const [transactionState, setTransactionState] = useState('');
-    let mainWalletAddressPubkey =  workspace?.wallet?.getMainAddressPubkey();
+    const mainWalletAddressPubkey =  workspace?.wallet?.getMainAddressPubkey();
 
-    let transactionResult = JSON.stringify(workspace?.transactionResults.get(trxId), null, 2);
+    const transactionResult = JSON.stringify(workspace?.transactionResults.get(trxId), null, 2);
 
 
 
@@ -26,7 +26,7 @@ export function TransferDialogBody(props: any){
 
   function transfer(destinationAddress: string, amount: number){
     if(workspaceStateManager !== null){
-      let trxId = workspaceStateManager.generateTransactionIdNonce();
+      const trxId = workspaceStateManager.generateTransactionIdNonce();
       setTrxId(trxId);
       setTransactionState("Sending transaction...");
       workspaceStateManager.transfer(trxId, destinationAddress, amount);

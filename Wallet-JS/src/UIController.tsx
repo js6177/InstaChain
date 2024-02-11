@@ -3,7 +3,6 @@ import React from 'react';
 import {Workspace} from './state/Workspace';
 import {Layer2LedgerStateManager} from './state_managers/Layer2LedgerStateManager';
 import {WorkspaceStateManager} from './state_managers/WorkSpaceStateManager';
-import {Layer1AuditReportResponse} from './services/messages/Layer1AuditReport';
 import {useState, useEffect} from 'react';
 import { Layer2LedgerContext } from './context/Layer2LedgerContext';
 import { WorkspaceContext } from './context/WorkspaceContext';

@@ -21,17 +21,17 @@ export function TransactionsAccordionList(props: {transactions: Map<string, Tran
     const { transactions, myAddresses } = props;
     // assume transactions is a map, with key = address, value = array of transactions
     // transactionsLoaded is true if transactions is not null and is not empty
-    let transactionsLoaded = transactions && transactions.size > 0;
+    const transactionsLoaded = transactions && transactions.size > 0;
     ////console.log("TransactionsAccordionList transactionsLoaded: " + transactionsLoaded)
     ////console.log("TransactionsAccordionList JSON: " + JSON.stringify(transactions, null, 2))
-    let accordionListViewItems: JSX.Element[] = [];
+    const accordionListViewItems: JSX.Element[] = [];
     if(transactionsLoaded){
         transactions.forEach((transactionArray, address) => {
             transactionArray.forEach((transaction) => {
                 accordionListViewItems.push(<AccordionListViewItem key={transaction.id} transaction={transaction} myAddresses={myAddresses} />);
             });
         });
-    };
+    }
     
     return(
         <Box>

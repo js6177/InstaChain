@@ -40,11 +40,11 @@ class Layer1AuditReportResponse {
         this.totalBalance = jsonData['report']['balance'];
         this.blockHeight = jsonData['report']['blockHeight'];
 
-        let addressBalances = jsonData['address_balances'];
+        const addressBalances = jsonData['address_balances'];
         this.addressBalances = [];
         addressBalances.forEach((addressBalance: any) => {
-            let layer1Address = addressBalance['layer1Address'];
-            let balance = addressBalance['balance'];
+            const layer1Address = addressBalance['layer1Address'];
+            const balance = addressBalance['balance'];
             this.addressBalances.push(new Layer1AddressBalance(layer1Address, balance));
         });
         this.ready = true;

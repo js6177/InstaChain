@@ -1,6 +1,6 @@
 import React from 'react';
 import Box from '@mui/material/Box';
-import { DataGrid, GridToolbar, GridValueFormatterParams } from '@mui/x-data-grid';
+import { DataGrid, GridToolbar } from '@mui/x-data-grid';
 import Grid from '@mui/material/Grid';
 import { IconButton } from '@mui/material';
 
@@ -9,6 +9,7 @@ import PreviewIcon from '@mui/icons-material/Preview';
 
 import {ActionDialog, ViewJsonDialogBody} from './ActionDialogs/ActionDialog';
 import { WorkspaceContext } from '../context/WorkspaceContext';
+import { Transaction } from '../utils/wallet';
 
 const columns = [
     { field: 'id', headerName: 'id' },
@@ -35,7 +36,7 @@ const rows = [
 ];
 
 
-export function TransactionDataGrid(props: {transactions: any[]}) {
+export function TransactionDataGrid(props: {transactions: Transaction[]}) {
   const { transactions } = props;
   ////console.log("TransactionDataGrid JSON: " + JSON.stringify(transactions, null, 2))
   const [sortModel, setSortModel] = React.useState([
@@ -72,7 +73,7 @@ export function TransactionDataGrid(props: {transactions: any[]}) {
     );
   }
 
-  export function GridToolbarWithRefresh(props: {transactions: any[]}){
+  export function GridToolbarWithRefresh(props: {transactions: Transaction[]}){
     const { transactions } = props;
     const { workspaceStateManager} = React.useContext(WorkspaceContext);
 

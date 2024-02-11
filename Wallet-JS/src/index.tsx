@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
-const { UiController } = require('./UIController');
+import { UiController } from './UIController';
 
 
 const root = ReactDOM.createRoot(document.getElementById("title")!);

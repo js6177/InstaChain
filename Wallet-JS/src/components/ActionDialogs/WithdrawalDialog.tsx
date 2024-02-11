@@ -13,18 +13,18 @@ export function WithdrawalDialogBody(props: any){
     const [isValidL1Address, setIsValidL1Address] = useState(false);
     const [withdrawalAmount, setWithdrawalAmount] = useState(0);
     const [withdrawalAmountValid, setWithdrawalAmountValid] = useState(false);
-    let minimumWithdrawalAmount = layer2LedgerState?.layer2LedgerNodeInfo?.minimumTransactionAmount || 1000;
+    const minimumWithdrawalAmount = layer2LedgerState?.layer2LedgerNodeInfo?.minimumTransactionAmount || 1000;
     const [trxId, setTrxId] = useState('');
     const [transactionState, setTransactionState] = useState('');
 
     const [layer1WithdrawalDestinatonAddress, setLayer1WithdrawalDestinatonAddress] = useState('');
     const {workspace, workspaceStateManager} = React.useContext(WorkspaceContext);
 
-    let transactionResult = JSON.stringify(workspace?.transactionResults.get(trxId), null, 2);
+    const transactionResult = JSON.stringify(workspace?.transactionResults.get(trxId), null, 2);
 
     const inputWithdrawalDestinationAddressChanged = (event: { target: { value: any; }; }) => {
-      let layer1Address = event.target.value;
-      var valid = validate(layer1Address, 'testnet');
+      const layer1Address = event.target.value;
+      const valid = validate(layer1Address, 'testnet');
       ////console.log("validL1Address: " + valid);
       setIsValidL1Address(valid);
       setLayer1WithdrawalDestinatonAddress(layer1Address);
@@ -37,7 +37,7 @@ export function WithdrawalDialogBody(props: any){
 
     function withdraw(layer1WithdrawalDestinatonAddress: string, amount: number){
       if(workspaceStateManager !== null){
-        let trxId = workspaceStateManager.generateTransactionIdNonce();
+        const trxId = workspaceStateManager.generateTransactionIdNonce();
         setTrxId(trxId);
         setTransactionState("Withdrawing transaction...");
         workspaceStateManager.requestWithdrawal(trxId, layer1WithdrawalDestinatonAddress, amount);
@@ -45,7 +45,7 @@ export function WithdrawalDialogBody(props: any){
     }
 
 
-    let mainWalletAddressPubkey =  workspace?.wallet?.getMainAddressPubkey();
+    const mainWalletAddressPubkey =  workspace?.wallet?.getMainAddressPubkey();
 
     return(
       <Stack spacing={2}  padding={2}>
