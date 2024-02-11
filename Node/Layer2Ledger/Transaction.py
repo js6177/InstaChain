@@ -165,20 +165,6 @@ class Transaction(ndb.Model):
         if(not signature_verified):
             return ErrorMessage.ERROR_CANNOT_VERIFY_SIGNATURE
 
-        #onboarding checking
-        if(_layer1_transaction_id):
-            trx_exists = Transaction.query(Transaction.layer1_transaction_id == _layer1_transaction_id).get()
-            if(trx_exists and (_transaction_type not in [Transaction.TRX_WITHDRAWAL_CONFIRMED, Transaction.TRX_WITHDRAWAL_CANCELED])):
-                return ErrorMessage.ERROR_CANNOT_DUPLICATE_TRANSACTION #make sure DEPOSIT doesn't get saved twice
-
-            if(trx_exists and _transaction_type == Transaction.TRX_WITHDRAWAL_CANCELED):
-                return ErrorMessage.ERROR_FEATURE_NOT_SUPPORTED
-                original_withdrawal_request = Transaction.query(Transaction.layer1_transaction_id == _layer1_transaction_id, Transaction.transaction_type == Transaction.TRX_WITHDRAWAL_INITIATED).get()
-                if(not original_withdrawal_request):
-                    return ErrorMessage.ERROR_COULD_NOT_FIND_WITHDRAWAL_REQUEST #make sure we don't cancel withdraw if the withdrawal request isn't there
-                for trx in trx_exists:
-                    if(trx.transaction_type == Transaction.TRX_WITHDRAWAL_CANCELED):
-                        return ErrorMessage.ERROR_CANNOT_CANCEL_WITHDRAWAL_MULTIPLE_TIMES #make sure TRX_WITHDRAWAL_CANCELED doesn't get saved twice
 
         if(TRANSACTION_MODE == TransactionMode.ADDRESSLOCK):
             try:
