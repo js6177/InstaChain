@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { useContext } from 'react';
 import { Layer2LedgerContext } from '../context/Layer2LedgerContext';
 import { Layer1AddressBalance } from '../services/messages/Layer1AuditReport';
+import BtcAmountDisplay from './BtcAmountDisplay';
 
 function AddressBalanceTable() {
     const { layer2LedgerState: layer2LedgerState } = useContext(Layer2LedgerContext);
     let addressBalances: Layer1AddressBalance[] = [];
     let sortedBalances: Layer1AddressBalance[] = [];
-    const totalBalance = 0;
     const [showZeroBalances, setShowZeroBalances] = useState(true); 
 
     if (layer2LedgerState?.layer1AuditReport?.ready === true) {
@@ -19,11 +19,14 @@ function AddressBalanceTable() {
         setShowZeroBalances(event.target.checked);
     };
 
+
     return (
         <div>
             <div>
                 <h2>Layer 1 Audit Report</h2>
-                <p>Total Balance: {layer2LedgerState?.layer1AuditReport?.totalBalance}</p>
+                <p>
+                    Total Balance: <BtcAmountDisplay amount={layer2LedgerState?.layer1AuditReport?.totalBalance ?? 0} color="green" />
+                </p>
             </div>
             <label>
                 <input
@@ -45,7 +48,7 @@ function AddressBalanceTable() {
                         ((showZeroBalances || addressBalance.getBalance() > 0) && ( // Step 3
                             <tr key={addressBalance.getAddress()}>
                                 <td>{addressBalance.getAddress()}</td>
-                                <td>{addressBalance.getBalance()}</td>
+                                <BtcAmountDisplay amount={addressBalance.getBalance()} color="green"/>
                             </tr>
                         )
                     )))}

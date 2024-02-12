@@ -5,7 +5,7 @@ import { ActionDialogDescriptionDisplay } from "./ActionDialog";
 import { Layer2LedgerContext } from "../../context/Layer2LedgerContext";
 import { WorkspaceContext } from "../../context/WorkspaceContext";
 import { AvailableBalance } from "../AvailableBalance";
-const { validate, getAddressInfo } = require('bitcoin-address-validation');
+import { validate, getAddressInfo, Network } from 'bitcoin-address-validation';
 
 
 
@@ -23,9 +23,9 @@ export function WithdrawalDialogBody(props: any){
 
     const transactionResult = JSON.stringify(workspace?.transactionResults.get(trxId), null, 2);
 
-    const inputWithdrawalDestinationAddressChanged = (event: { target: { value: any; }; }) => {
+    const inputWithdrawalDestinationAddressChanged = (event: { target: { value: string; }; }) => {
       const layer1Address = event.target.value;
-      const valid = validate(layer1Address, 'testnet');
+      const valid = validate(layer1Address, Network.testnet);
       ////console.log("validL1Address: " + valid);
       setIsValidL1Address(valid);
       setLayer1WithdrawalDestinatonAddress(layer1Address);
@@ -58,7 +58,20 @@ export function WithdrawalDialogBody(props: any){
         <ActionDialogDescriptionDisplay text={"To withdraw your L2 funds, enter the L1 address to withdraw to and the amount. There are no withdrawal fees, however since the withdrawal is a L1 transactions, the standard L1 network fees apply. You will receive an L1 transaction id when the transaction is broadcasted, which could take up to 6 blocks."}/>
 
         <TextField fullWidth id="inputWithdrawalFromAddress" value={mainWalletAddressPubkey} label="Withdraw From" variant="outlined" InputLabelProps={{ shrink: true}} inputProps={{ readOnly: true }} />
-        <TextField fullWidth id="inputWithdrawalDestinationAddress" label="Withdraw To (Layer1 address)" variant="outlined" InputLabelProps={{ shrink: true }} onChange={inputWithdrawalDestinationAddressChanged}/>
+        <TextField
+          fullWidth
+          id="inputWithdrawalDestinationAddress"
+          label="Withdraw To (Layer1 address)"
+          variant="outlined"
+          InputLabelProps={{ shrink: true }}
+          onChange={inputWithdrawalDestinationAddressChanged}
+          error={layer1WithdrawalDestinatonAddress !== '' && !isValidL1Address}
+          helperText={
+            layer1WithdrawalDestinatonAddress !== '' && !isValidL1Address
+              ? "Invalid Layer1 address"
+              : ""
+          }
+        />
         {walletBalance > 0 && <AvailableBalance walletBalance={walletBalance}/>}
         <TextField
           fullWidth
