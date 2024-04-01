@@ -39,7 +39,9 @@ class getTransaction(InstachainRequestHandler):
     def processRequest(self):
         rslt, transaction = Transaction.get_transaction(self.transaction_id)
         self.result = ErrorMessage.build_error_message(rslt)
-        self.result['transaction'] = transaction.to_dict()
+        self.result['transaction_id'] = self.transaction_id #So that the client can identify the transaction_id they searched for in the response
+        if(transaction is not None):
+            self.result['transaction'] = transaction.to_dict()
 
 class getAllTransactionsOfPublicKey(InstachainRequestHandler):
     def getParameters(self):
@@ -70,8 +72,8 @@ class getBalance(InstachainRequestHandler):
         for public_key in request.public_keys:
             balance = type('', (), {})()
             balance.public_key = public_key
-            balance.balance = Transaction.get_balance(public_key, True, True)
+            (balance.balance, balance.address_found) = Transaction.get_balance(public_key, True, True)
             balances.append(balance)
-        self.result['balance'] = [{'public_key': balance.public_key, 'balance': balance.balance} for balance in balances]
+        self.result['balance'] = [{'public_key': balance.public_key, 'balance': balance.balance, 'address_found': balance.address_found } for balance in balances]
 
 

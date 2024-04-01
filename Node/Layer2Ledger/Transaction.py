@@ -5,6 +5,7 @@ from Address import Address
 import ErrorMessage
 from typing import List
 from enum import Enum, auto
+from typing import Tuple
 import string
 import datetime
 import traceback
@@ -99,7 +100,8 @@ class AddressBalanceCache(ndb.Model):
         t1 = datetime.datetime.now()
         hit = AddressBalanceCache.get(_address)
         if(not hit):
-            hit = AddressBalanceCache(address = _address, balance = Transaction.get_balance(_address, False, False, transactionIdToIgnore))
+            (_balance, _) = Transaction.get_balance(_address, False, False, transactionIdToIgnore)
+            hit = AddressBalanceCache(address = _address, balance = _balance)
         hit.balance += _balance
         try:
             hit.put()
@@ -205,7 +207,7 @@ class Transaction(ndb.Model):
         if(nonce_exists):
             status = ErrorMessage.ERROR_DUPLICATE_TRANSACTION_ID
         else:
-            balance = Transaction.get_balance(source.pubkey, ADDRESS_BALANCE_CACHE_ENABLED)
+            (balance, _) = Transaction.get_balance(source.pubkey, ADDRESS_BALANCE_CACHE_ENABLED)
             if (balance >= _amount or (_transaction_type == Transaction.TRX_DEPOSIT)):                                 
                 trx = Transaction(amount=_amount, fee=_fee, source_address_pubkey=source.pubkey,
                                   destination_address_pubkey=_destination, transaction_type=_transaction_type,
@@ -229,16 +231,18 @@ class Transaction(ndb.Model):
         return status
 
     @staticmethod
-    def get_balance(pubkey, useCache = True, useRedisAddressBalanceCache = False, transactionIdToIgnore = None):
+    def get_balance(pubkey, useCache = True, useRedisAddressBalanceCache = False, transactionIdToIgnore = None) -> Tuple[int, bool]:
         
         t1 = datetime.datetime.now()
-        trx_count = 0 #for logging, use to hold the count of transactions. Do lot use Query.count() method, as it will recalculate
+        trx_count: int = 0 #for logging, use to hold the count of transactions. Do lot use Query.count() method, as it will recalculate
+        address_found: bool = False
 
         if(useRedisAddressBalanceCache):
             balance = RedisInterface.get(pubkey)
             if(balance != None):
+                address_found = True
                 DebugLogger.TransactionDuration.logDuration(t1, pubkey, 'get_balance (from RedisAddressBalanceCache)', trx_count)
-                return int(balance)
+                return (int(balance), address_found)
 
         address = Address(pubkey)
         balance = 0
@@ -248,6 +252,7 @@ class Transaction(ndb.Model):
             if(hit):
                 balance = hit.balance
                 balance_found_from_cache = True
+                address_found = True
 
         if(not balance_found_from_cache):
             output_transactions = Transaction.query(Transaction.source_address_pubkey == address.pubkey)
@@ -258,15 +263,17 @@ class Transaction(ndb.Model):
                 #ignore TRX_WITHDRAWAL_CONFIRMED for now, we don't want to subtract twice
                     balance -= output.amount
                     trx_count += 1
+                    address_found = True
 
             for input in input_transactions.fetch():
                 if(input.transaction_type != Transaction.TRX_WITHDRAWAL_CONFIRMED):
                     if(input.key != transactionIdToIgnore):
                         balance += input.amount - input.fee
                         trx_count += 1
+                        address_found = True
 
         DebugLogger.TransactionDuration.logDuration(t1, address.pubkey, 'get_balance', trx_count)
-        return balance
+        return (balance, address_found)
 
     @staticmethod
     def get_transaction(transaction_id):

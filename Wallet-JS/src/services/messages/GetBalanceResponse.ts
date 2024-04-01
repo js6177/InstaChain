@@ -16,10 +16,11 @@ import CommonResponse from "./CommonResponse";
 interface GetBalanceResponseBalance {
     balance: number;
     public_key: string;
+    address_found: boolean;
 }
 
 interface GetBalanceResponse extends CommonResponse{
-    balance: GetBalanceResponseBalance[];
+  balance: GetBalanceResponseBalance[];
 }
 
 export {GetBalanceResponse, GetBalanceResponseBalance}

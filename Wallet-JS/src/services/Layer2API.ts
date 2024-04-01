@@ -18,6 +18,7 @@ const DEFAULT_LAYER2_HOSTNAME = 'https://testnet.instachain.io/' //if user has n
 import { GetBalanceResponse } from './messages/GetBalanceResponse'
 import GetDepositAddressResponse from './messages/GetDepositAddressResponse'
 import { GetNodeInfoResponse } from './messages/GetNodeInfoResponse'
+import GetTransactionResponse from './messages/GetTransactionResponse'
 import { GetTransactionsResponse } from './messages/GetTransactionsResponse';
 import TransferTransactionResponse from './messages/TransferTransactionResponse'
 import WithdrawalRequestResponse from './messages/WithdrawalRequestResponse'
@@ -148,7 +149,7 @@ class Layer2LedgerAPI{
         });
     }
 
-    getBalance(callback: (getBalanceResponse: GetBalanceResponse) => void, layer2AddressPubKeys: string[]){
+    getBalance(callback: (getBalanceResponse: GetBalanceResponse, ownAddress: boolean) => void, layer2AddressPubKeys: string[], ownAddress: boolean = true){
         ////console.log(layer2AddressPubKeys);
         const _url = this.layer2LedgerNodeHostname + 'getBalance';
         $.ajax({
@@ -160,7 +161,7 @@ class Layer2LedgerAPI{
             contentType: 'application/json',
             success: function( data: any, textStatus: any, jQxhr: any ){
                 const getBalanceResponse: GetBalanceResponse = JSON.parse((JSON.stringify(data, null, 2)));
-                callback(getBalanceResponse);
+                callback(getBalanceResponse, ownAddress);
             },
             error: function( jqXhr: any, textStatus: any, errorThrown: any ){
                 ////console.log('Error: ' + JSON.stringify(jqXhr) );
@@ -170,12 +171,33 @@ class Layer2LedgerAPI{
         });
     }
 
-    getTransaction(transactionId: string){
-        
+    getTransaction(callback: (response: GetTransactionResponse) => void, transactionId: string){
+        const _url = this.layer2LedgerNodeHostname + 'getTransaction';
+        $.ajax({
+            url: _url,
+            type: 'get',
+            data: {
+                'transaction_id': transactionId,
+            },
+            contentType: 'application/x-www-form-urlencoded',
+            success: function( data: any, textStatus: any, jQxhr: any ){
+                ////console.log('getTransaction (data): ' + JSON.stringify(data, null, 2));
+                ////console.log('getTransaction (textStatus): ' + textStatus);
+                ////console.log('getTransaction (jQxhr): ' + jQxhr);
+                const getTransactionResponse: GetTransactionResponse = JSON.parse((JSON.stringify(data, null, 2)));
+                callback(getTransactionResponse);
+            },
+            error: function( jqXhr: any, textStatus: any, errorThrown: any ){
+                ////console.log( errorThrown );
+
+                console.log('Error: ' + errorThrown );
+                
+            } 
+        });
     }
 
     
-    getTransactions(callback: (response: GetTransactionsResponse) => void, layer2AddressPubKeys: string[]){
+    getTransactions(callback: (response: GetTransactionsResponse, ownAddress: boolean) => void, layer2AddressPubKeys: string[], ownAddress: boolean = true){
         const _url = this.layer2LedgerNodeHostname + 'getAllTransactionsOfPublicKey';
         //console.log('getTransactions (layer2AddressPubKeys): ' + layer2AddressPubKeys);
         //console.log('getTransactions (_url): ' + _url);
@@ -188,7 +210,7 @@ class Layer2LedgerAPI{
             contentType: 'application/x-www-form-urlencoded',
             success: function( data: any, textStatus: any, jQxhr: any ){
                 const getTransactionsResponse: GetTransactionsResponse = JSON.parse((JSON.stringify(data, null, 2)));
-                callback(getTransactionsResponse);
+                callback(getTransactionsResponse, ownAddress);
 
             },
             error: function( jqXhr: any, textStatus: any, errorThrown: any ){

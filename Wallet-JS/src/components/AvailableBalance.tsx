@@ -1,11 +1,11 @@
 import React from "react";
 import BtcAmountDisplay from "./BtcAmountDisplay";
 
-export function AvailableBalance(props: {walletBalance: number}){
-    const {walletBalance} = props;
+export function AvailableBalance(props: {walletBalance: number, availableBalanceText?: string}){
+    const {walletBalance, availableBalanceText = "Available Balance: "} = props;
     return (
     <div style={{ display: 'flex', alignItems: 'center' }}>
-        <div>{"Available Balance: "}</div>
+        <div>{availableBalanceText}</div>
         <BtcAmountDisplay amount={walletBalance} color="green"/>
     </div>
     )

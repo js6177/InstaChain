@@ -2,12 +2,13 @@ import { DEFAULT_LAYER2_HOSTNAME, Layer2LedgerNodeInfo, Layer2LedgerAPI } from '
 import { GetBalanceResponse, GetBalanceResponseBalance } from '../services/messages/GetBalanceResponse';
 import GetDepositAddressResponse from '../services/messages/GetDepositAddressResponse';
 import { GetNodeInfoResponse } from '../services/messages/GetNodeInfoResponse';
+import GetTransactionResponse from '../services/messages/GetTransactionResponse';
 
 import { GetTransactionsResponse, TransactionGroup, GetTransactionsResponseTransaction } from '../services/messages/GetTransactionsResponse';
 import TransferTransactionResponse from '../services/messages/TransferTransactionResponse';
 import WithdrawalRequestResponse from '../services/messages/WithdrawalRequestResponse';
 
-import { Workspace } from '../state/Workspace';
+import { Workspace, SearchResultStatus } from '../state/Workspace';
 import { Wallet, MessageBuilder, Transaction } from '../utils/wallet';
 
 class WorkspaceStateManager{
@@ -39,7 +40,7 @@ class WorkspaceStateManager{
     newWallet(mneumonic: string){
         this.clearWallet();
         this.workspace.wallet = new Wallet(mneumonic);
-        this.getTransactions();
+        this.getWalletTransactions();
         this.getWalletBalance();
     }
 
@@ -50,15 +51,39 @@ class WorkspaceStateManager{
         }
     }
 
-    onGetWalletBalance(getBalanceResponse: GetBalanceResponse){
+    getAddressBalance(address: string){
+        this.layer2LedgerAPI.getBalance(this.onGetWalletBalance.bind(this), [address], false);
+    }
+
+    onGetWalletBalance(getBalanceResponse: GetBalanceResponse, ownAddress: boolean){
         const addressBalances = new Map<string, number>();
         const balances = getBalanceResponse.balance;
         balances.forEach((balance: GetBalanceResponseBalance) => {
-            addressBalances.set(balance.public_key, balance.balance);
+            if(balance.address_found){
+                addressBalances.set(balance.public_key, balance.balance);
+
+                if(!ownAddress){
+                    let searchResultStates: SearchResultStatus | undefined = this.workspace.searchResults.get(balance.public_key);
+                    if(searchResultStates === null || searchResultStates === undefined){
+                        searchResultStates = new SearchResultStatus();
+                        searchResultStates.getAddressBalanceResults = getBalanceResponse;
+                        this.workspace.searchResults.set(balance.public_key, searchResultStates);
+                    }else{
+                        searchResultStates.getAddressBalanceResults = getBalanceResponse;
+                        console.log('searchResultStates.balanceResults: ', searchResultStates.getAddressBalanceResults);
+                    }
+                }
+            }
         });
-        this.workspace.addressBalances = addressBalances;
+        if(ownAddress){
+            this.workspace.addressBalances = addressBalances;
+        }else{
+            this.workspace.searchedAddressBalances = addressBalances;
+        }
         this.setLatestWorkspaceState();
     }
+
+
 
     transfer(trxId: string, destinationAddress: string, amount: number, fee = 1){
         if(this.workspace.wallet !== null && this.messageBuilder !== null){
@@ -123,7 +148,7 @@ class WorkspaceStateManager{
         this.setLatestWorkspaceState();
     }
 
-    getTransactions(){
+    getWalletTransactions(){
         if(this.workspace.wallet !== null){
             const layer2AddressPubKey = this.workspace.wallet.getMainAddress().getPublicKeyString();
             if(layer2AddressPubKey !== null){
@@ -132,25 +157,71 @@ class WorkspaceStateManager{
         }
     }
 
-    onGetTransactions(getTransactionsResponse: GetTransactionsResponse){
+    getAddressTransactions(address: string){
+        this.layer2LedgerAPI.getTransactions(this.onGetTransactions.bind(this), [address], false);
+    }
+
+    onGetTransactions(getTransactionsResponse: GetTransactionsResponse, ownAddresses: boolean){
         const transactionGroups = getTransactionsResponse.transactions;
+        let transactions = new Map<string, Transaction[]>();
+        if(ownAddresses){
+            transactions = this.workspace.transactions;
+        }else{ 
+            transactions = this.workspace.searchedAdressTransactions;
+        }
         transactionGroups.forEach((transactionGroup: TransactionGroup) => {
             const layer2Address = transactionGroup.public_key;
-            this.workspace.transactions.set(layer2Address, []);
+            transactions.set(layer2Address, []);
 
             const addressTransactions = transactionGroup.transactions;
             addressTransactions.forEach((transaction: GetTransactionsResponseTransaction) => {
                 const trx = new Transaction();
                 trx.fromGetTransactionsResponseTransaction(transaction);
-                this.workspace?.transactions?.get(layer2Address)?.push(trx);
+                transactions.get(layer2Address)?.push(trx);
             })
-            this.workspace?.transactions?.get(layer2Address)?.sort((a: { timestamp: number; }, b: { timestamp: number; }) => (a.timestamp < b.timestamp) ? 1 : -1)
+            transactions.get(layer2Address)?.sort((a: { timestamp: number; }, b: { timestamp: number; }) => (a.timestamp < b.timestamp) ? 1 : -1)
+
+            if(!ownAddresses){
+                let searchResultStates: SearchResultStatus | undefined = this.workspace.searchResults.get(layer2Address);
+                if(searchResultStates === null || searchResultStates === undefined){
+                    searchResultStates = new SearchResultStatus();
+                    searchResultStates.getTransactionsResults = getTransactionsResponse;
+                    this.workspace.searchResults.set(layer2Address, searchResultStates);
+                }else{
+                    searchResultStates.getTransactionsResults = getTransactionsResponse;
+                    console.log('searchResultStates.transactionResults: ', searchResultStates.getTransactionsResults);
+                }
+            }
         });
+
         this.setLatestWorkspaceState();
     }
 
+    getTransaction(trxId: string){
+        this.layer2LedgerAPI.getTransaction(this.onGetTransaction.bind(this), trxId);
+    }
+
+    onGetTransaction(getTransactionResponse: GetTransactionResponse){
+        console.log('getTransactionResponse: ', getTransactionResponse);
+        const trx = new Transaction();
+        if(getTransactionResponse.transaction !== null && getTransactionResponse.transaction !== undefined){
+            trx.fromGetTransactionsResponseTransaction(getTransactionResponse.transaction);
+            this.workspace.searchedTransaction.set(getTransactionResponse.transaction.transaction_id, trx);
+        }
+
+        let searchResultStates: SearchResultStatus | undefined = this.workspace.searchResults.get(trx.transaction_id);
+        if(searchResultStates === null || searchResultStates === undefined){
+            searchResultStates = new SearchResultStatus();
+            searchResultStates.getSingleTransactionResults = getTransactionResponse;
+            this.workspace.searchResults.set(getTransactionResponse.transaction_id, searchResultStates);
+        }else{
+            searchResultStates.getSingleTransactionResults = getTransactionResponse;
+            console.log('searchResultStates.transactionResults: ', searchResultStates.getTransactionsResults);
+        }    
+    }
+
     refreshWallet(){
-        this.getTransactions();
+        this.getWalletTransactions();
         this.getWalletBalance();
     }
 
@@ -161,7 +232,11 @@ class WorkspaceStateManager{
             addressBalances: this.workspace.addressBalances,
             transactionResults: this.workspace.transactionResults,
             depositAddresses: this.workspace.depositAddresses,
-            layer2ledgerNodeUrl: this.layer2ledgerNodeUrl
+            layer2ledgerNodeUrl: this.layer2ledgerNodeUrl,
+            searchedAddressBalances: this.workspace.searchedAddressBalances,
+            searchedAdressTransactions: this.workspace.searchedAdressTransactions,
+            searchResults: this.workspace.searchResults,
+            searchedTransaction: this.workspace.searchedTransaction
         });
     }
 
