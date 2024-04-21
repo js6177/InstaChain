@@ -8,17 +8,36 @@ import { TransactionsAccordionList } from "../components/TransactionsAccordionLi
 import { WorkspaceContext } from "../context/WorkspaceContext";
 import { Transaction } from "../utils/wallet";
 import { IsSuccessResponse } from "../utils/MessageUtils";
+import { ExplorerContext } from "../context/ExplorerStateContext";
 
 
 export default function ExplorerUI(props: any){
   const {workspace, workspaceStateManager} = React.useContext(WorkspaceContext);
-  const [searchInputText, setSearchInputText] = useState<string>(""); // changes every time the user types in the search bar
-  const [lastSearchInputText, setLastSearchInputText] = useState<string>(""); // stores the last text that was searched
-  const [isAddressFound, setAddressFound] = useState<boolean>(false);
-  const [isTransactionFound, setTransactionFound] = useState<boolean>(false);
+  const {explorerState, explorerStateManager} = React.useContext(ExplorerContext);
+  const [searchInputText, setSearchInputText] = useState<string>(explorerState?.lastSearchText || ""); // changes every time the user types in the search bar
+  const [lastSearchInputText, setLastSearchInputText] = useState<string>(explorerState?.lastSearchText || ""); // stores the last text that was searched
+  const [isAddressFound, setAddressFound] = useState<boolean>(explorerState?.isAddressBalanceDisplayed() || explorerState?.isAddressOverviewDisplayed() || false);
+  const [isTransactionFound, setTransactionFound] = useState<boolean>(explorerState?.isTransactionDisplayed() || false);
 
   const [foundAddressBalance, setFoundAddressBalance] = useState<number>(0);
   const [foundTransaction, setFoundTransaction] = useState<Transaction | null>(null);
+
+  const [isAddressBalanceDisplayed, setIsAddressBalanceDisplayed] = useState<boolean>(explorerState?.isAddressBalanceDisplayed() || false);
+  const [isAddressOverviewDisplayed, setIsAddressOverviewDisplayed] = useState<boolean>(explorerState?.isAddressOverviewDisplayed() || false);
+  const [isTransactionDisplayed, setIsTransactionDisplayed] = useState<boolean>(explorerState?.isTransactionDisplayed() || false);
+
+  useEffect(() => {
+    if (isTransactionDisplayed) {
+      setFoundTransaction(workspaceStateManager?.workspace?.searchedTransaction?.get(lastSearchInputText) as Transaction);
+    }
+    if (isAddressBalanceDisplayed) {
+      setFoundAddressBalance(workspaceStateManager?.workspace?.searchedAddressBalances?.get(lastSearchInputText) as number);
+    }
+    if (isAddressOverviewDisplayed) {
+      // TODO: Fill in data needed for the address overview
+    }
+  }, [isTransactionDisplayed, isAddressBalanceDisplayed, isAddressOverviewDisplayed]);
+
 
   useEffect(() => {
     const addressBalanceResults = workspaceStateManager?.workspace?.searchResults?.get(lastSearchInputText)?.getAddressBalanceResults;
@@ -30,9 +49,22 @@ export default function ExplorerUI(props: any){
 
     if(_isAddressFound){
       setFoundAddressBalance(workspaceStateManager?.workspace?.searchedAddressBalances?.get(lastSearchInputText) as number);
+      explorerStateManager?.setDisplayedAddressBalance(lastSearchInputText);
+      explorerStateManager?.setLastSearchText(lastSearchInputText);
+      setIsAddressBalanceDisplayed(true);
+      setIsTransactionDisplayed(false);
     }
     if(_isTransactionFound){
       setFoundTransaction(workspaceStateManager?.workspace?.searchedTransaction?.get(lastSearchInputText) as Transaction);
+      explorerStateManager?.setDisplayedTransaction(lastSearchInputText);
+      explorerStateManager?.setLastSearchText(lastSearchInputText);
+      setIsTransactionDisplayed(true);
+      setIsAddressBalanceDisplayed(false);
+    }
+    if(!_isAddressFound && !_isTransactionFound){
+      explorerStateManager?.setNoSearchResults();
+      setIsAddressBalanceDisplayed(false);
+      setIsTransactionDisplayed(false);
     }
   }, [workspace]);
 
@@ -43,6 +75,7 @@ export default function ExplorerUI(props: any){
   const handleSearch = () => {
     //clean the existing search results
     setLastSearchInputText(searchInputText);
+    explorerStateManager?.setLastSearchText(searchInputText);
     console.log("Search for: ", searchInputText);
     workspaceStateManager?.getAddressBalance(searchInputText);
     //workspaceStateManager?.getAddressTransactions(searchInputText);
@@ -62,13 +95,13 @@ export default function ExplorerUI(props: any){
         <SearchIcon />
       </IconButton>
       <div>
-        {isAddressFound && (
+        {isAddressBalanceDisplayed && (
             <AddressBalanceView
               address={lastSearchInputText}
               balance={foundAddressBalance as number}
             />
         )}
-        {isTransactionFound && (
+        {isTransactionDisplayed && (foundTransaction) && (
             <TransactionsAccordionList
               transactions={new Map<string, Transaction[]>().set(lastSearchInputText, [foundTransaction as Transaction])}
               myAddresses={[]}

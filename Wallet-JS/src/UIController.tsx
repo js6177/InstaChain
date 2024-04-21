@@ -10,6 +10,9 @@ import { Layer2LedgerState } from './state/Layer2LedgerState';
 import { SettingsState } from './state/SettingsState';
 import { SettingsManager } from './state_managers/SettingsManager';
 import { SettingsContext } from './context/SettingsContext';
+import { ExplorerState } from './state/ExplorerState';
+import { ExplorerStateManager } from './state_managers/ExplorerStateManager';
+import { ExplorerContext } from './context/ExplorerStateContext';
 
 
 function UiController(props: any) {
@@ -21,7 +24,9 @@ function UiController(props: any) {
 
     const [settingsState, setSettingsState] = useState(new SettingsState());
     const settingsManager = new SettingsManager(setSettingsState);
-    //const [settingsManager, setSettingsManager] = useState(new SettingsManager(setSettingsState));
+
+    const [explorerState, setExplorerState] = useState(new ExplorerState());
+    const explorerStateManager = new ExplorerStateManager(setExplorerState);
 
     useEffect(() => {
         layer2LedgerStateManager.fetchLayer2LedgerState();
@@ -32,7 +37,9 @@ function UiController(props: any) {
             <Layer2LedgerContext.Provider value={{layer2LedgerState, layer2LedgerStateManager}}>
                 <WorkspaceContext.Provider value={{workspace, workspaceStateManager}}>
                     <SettingsContext.Provider value={{settingsState, settingsManager}}>
-                        <MyApp/>
+                        <ExplorerContext.Provider value={{explorerState, explorerStateManager}}>
+                            <MyApp/>
+                        </ExplorerContext.Provider>
                     </SettingsContext.Provider>
                 </WorkspaceContext.Provider>
             </Layer2LedgerContext.Provider>
