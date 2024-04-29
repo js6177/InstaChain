@@ -47,7 +47,10 @@ export function TransferDialogBody(props: any){
       <TextField fullWidth id="inputTransactionSendFromAddress" value={mainWalletAddressPubkey} label="Send From" variant="outlined" InputLabelProps={{ shrink: true }} inputProps={{ readOnly: true }}/>
       <TextField fullWidth id="inputTransactionSendToAddress" value={destinationAddress} label="Send To" variant="outlined" InputLabelProps={{ shrink: true }} onChange={handleDestinationAddressChange} />
       {walletBalance > 0 && <AvailableBalance walletBalance={walletBalance}/>}
-      <TextField fullWidth id="inputTransactionAmount" value={amount} label="Amount (in satoshis)" variant="outlined" InputLabelProps={{ shrink: true }} onChange={handleAmountChange} />
+      <Stack spacing={2} padding={2} direction="row">
+        <TextField fullWidth id="inputTransactionAmount" value={amount} label="Amount (in satoshis)" variant="outlined" InputLabelProps={{ shrink: true }} onChange={handleAmountChange} />
+        <Button variant="contained" id="buttonMaxAmount" onClick={() => setAmount(walletBalance)}>Max</Button>
+      </Stack>
       <Button  variant="contained" id="buttonSendTransaction" onClick={() => transfer(destinationAddress, amount) }>Transfer</Button>
       {trxId !== '' && <div>Status: {transactionResult}</div>}
     </Stack>
