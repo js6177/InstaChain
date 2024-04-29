@@ -73,21 +73,24 @@ export function WithdrawalDialogBody(props: any){
           }
         />
         {walletBalance > 0 && <AvailableBalance walletBalance={walletBalance}/>}
-        <TextField
-          fullWidth
-          id="inputWithdrawalAmount"
-          label="Amount (in satoshis)"
-          type="number"
-          variant="outlined"
-          value={withdrawalAmount}
-          InputLabelProps={{ shrink: true }}
-          onChange={inputWithdrawalDestinationAmountChanged}
-          error={!withdrawalAmountValid}
-          helperText={
-            !withdrawalAmountValid &&
-            `The withdrawal amount must be greater than ${minimumWithdrawalAmount}`
-          }
-        />
+        <Stack spacing={2} padding={2} direction="row">
+          <TextField
+            fullWidth
+            id="inputWithdrawalAmount"
+            label="Amount (in satoshis)"
+            type="number"
+            variant="outlined"
+            value={withdrawalAmount}
+            InputLabelProps={{ shrink: true }}
+            onChange={inputWithdrawalDestinationAmountChanged}
+            error={!withdrawalAmountValid}
+            helperText={
+              !withdrawalAmountValid &&
+              `The withdrawal amount must be greater than ${minimumWithdrawalAmount}`
+            }
+          />
+          <Button variant="contained" id="buttonMaxWithdrawalAmount" onClick={() => setWithdrawalAmount(walletBalance)}>Max</Button>
+        </Stack>
         <Button
           variant="contained"
           id="buttonRequestWithdrawal"
