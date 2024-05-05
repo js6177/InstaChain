@@ -13,6 +13,8 @@ from signing_keys import ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY
 import GlobalLogging
 import KeyVerification
 
+MAX_NUMBER_OF_GETBALANCE_ADDRESSES = 10
+
 class pushTransaction(InstachainRequestHandler):
     def getParameters(self):
         GlobalLogging.logger.log_text("getParameters() called")
@@ -69,7 +71,7 @@ class getBalance(InstachainRequestHandler):
     def processRequest(self):
         request = json.loads(json.dumps(self.jsonParam), object_hook=lambda d: SimpleNamespace(**d))
         balances = []
-        for public_key in request.public_keys:
+        for public_key in request.public_keys[:MAX_NUMBER_OF_GETBALANCE_ADDRESSES]:
             balance = type('', (), {})()
             balance.public_key = public_key
             (balance.balance, balance.address_found) = Transaction.get_balance(public_key, True, True)
