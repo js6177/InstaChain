@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useContext } from 'react';
 import { Layer2LedgerContext } from '../context/Layer2LedgerContext';
-import { Layer1AddressBalance } from '../services/messages/Layer1AuditReport';
+import { Layer1AddressBalance } from '../services/messages/Layer1AuditReportResponse';
 import BtcAmountDisplay from './BtcAmountDisplay';
 
 function AddressBalanceTable() {

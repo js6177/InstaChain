@@ -20,6 +20,7 @@ import GetDepositAddressResponse from './messages/GetDepositAddressResponse'
 import { GetNodeInfoResponse } from './messages/GetNodeInfoResponse'
 import GetTransactionResponse from './messages/GetTransactionResponse'
 import { GetTransactionsResponse } from './messages/GetTransactionsResponse';
+import { Layer1AuditReportResponse } from './messages/Layer1AuditReportResponse'
 import TransferTransactionResponse from './messages/TransferTransactionResponse'
 import WithdrawalRequestResponse from './messages/WithdrawalRequestResponse'
 
@@ -219,7 +220,7 @@ class Layer2LedgerAPI{
         });
     }
 
-    getLayer1AuditReport(callback: any){
+    getLayer1AuditReport(callback: (response: Layer1AuditReportResponse) => void){
         const _url = this.layer2LedgerNodeHostname + 'getLayer1AuditReport';
         $.ajax({
             url: _url,

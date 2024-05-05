@@ -3,7 +3,6 @@ import { Layer2LedgerState } from "../state/Layer2LedgerState";
 
 import { DEFAULT_LAYER2_HOSTNAME } from '../services/Layer2API';
 import { Layer2LedgerNodeInfo, Layer2LedgerAPI } from '../services/Layer2API';
-import { Layer1AuditReportResponse } from '../services/messages/Layer1AuditReport';
 
 class Layer2LedgerStateManager {
     public setLayer2LedgerState: (state: Layer2LedgerState) => void;
