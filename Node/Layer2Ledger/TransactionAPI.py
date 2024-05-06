@@ -14,6 +14,7 @@ import GlobalLogging
 import KeyVerification
 
 MAX_NUMBER_OF_GETBALANCE_ADDRESSES = 10
+MAX_NUMBER_OF_GETTRANSACTIONS_ADDRESSES = 10
 
 class pushTransaction(InstachainRequestHandler):
     def getParameters(self):
@@ -51,7 +52,7 @@ class getAllTransactionsOfPublicKey(InstachainRequestHandler):
 
     def processRequest(self):
         transactions_list = []
-        for public_key in self.public_keys:
+        for public_key in self.public_keys[:MAX_NUMBER_OF_GETTRANSACTIONS_ADDRESSES]:
             transactions = Transaction.get_all_transactions(public_key)
             transaction_dict = {}
             transaction_dict['public_key'] = public_key
