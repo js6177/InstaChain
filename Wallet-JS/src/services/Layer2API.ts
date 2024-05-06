@@ -15,6 +15,12 @@ const ERROR_DATABASE_TRANSACTIONAL_ERROR = 19
 
 const DEFAULT_LAYER2_HOSTNAME = 'https://testnet.instachain.io/' //if user has not added any nodes, get the default one
 
+import GetBalanceRequest from './messages/Requests/GetBalanceRequest'
+import GetDepositAddressRequest from './messages/Requests/GetDepositAddressRequest'
+import GetTransactionRequest from './messages/Requests/GetTransactionRequest'
+import GetTransactionsRequest from './messages/Requests/GetTransactionsRequest'
+import PushTransactionRequest from './messages/Requests/PushTransactionRequest'
+import RequestWithdrawalRequest from './messages/Requests/RequestWithdrawalRequest'
 import { GetBalanceResponse } from './messages/Responses/GetBalanceResponse'
 import GetDepositAddressResponse from './messages/Responses/GetDepositAddressResponse'
 import { GetNodeInfoResponse } from './messages/Responses/GetNodeInfoResponse'
@@ -75,20 +81,16 @@ class Layer2LedgerAPI{
         });
     }
 
-    getDepositAddress(callback: (getDepositAddressResponse: GetDepositAddressResponse, layer2AddressPubKey: string, trxID: string) => void, layer2AddressPubKey: string, nonce: string, signature: string){
+    getDepositAddress(callback: (getDepositAddressResponse: GetDepositAddressResponse, layer2AddressPubKey: string, trxID: string) => void, getDepositAddressRequest: GetDepositAddressRequest){
         const _url = this.layer2LedgerNodeHostname + 'getNewDepositAddress';
         $.ajax({
             url: _url,
             type: 'get',
             contentType: 'application/x-www-form-urlencoded',
-            data: {
-                'layer2_address_pubkey': layer2AddressPubKey,
-                'nonce': nonce,
-                'signature': signature
-            },
+            data: getDepositAddressRequest,
             success: function( data: any, textStatus: any, jQxhr: any ){
                 const getDepositAddressResponse: GetDepositAddressResponse = JSON.parse((JSON.stringify(data, null, 2)));
-                callback(getDepositAddressResponse, layer2AddressPubKey, nonce);
+                callback(getDepositAddressResponse, getDepositAddressRequest.layer2_address_pubkey, getDepositAddressRequest.nonce);
             },
             error: function( jqXhr: any, textStatus: any, errorThrown: any ){
                 ////console.log( errorThrown );
@@ -96,26 +98,19 @@ class Layer2LedgerAPI{
         });
     }
 
-    pushTransaction(callback: (transferTransactionResponse: TransferTransactionResponse, trxId: string) => void, amount: number, fee: number, source_address_public_key: string, destination_address_public_key: string, signature: string, transaction_id: string){
+    pushTransaction(callback: (transferTransactionResponse: TransferTransactionResponse, trxId: string) => void, pushTransactionRequest: PushTransactionRequest){
         const _url = this.layer2LedgerNodeHostname + 'pushTransaction';
         $.ajax({
             url: _url,
             type: 'post',
-            data: {
-                'amount': amount,
-                'source_address_public_key': source_address_public_key,
-                'destination_address_public_key': destination_address_public_key,
-                'signature': signature,
-                'transaction_id': transaction_id,
-                'fee': fee,
-            },
+            data: pushTransactionRequest,
             contentType: 'application/x-www-form-urlencoded',
             success: function( data: any, textStatus: any, jQxhr: any ){
                 //console.log('pushTransaction (data): ' + JSON.stringify(data, null, 2));
                 ////console.log('pushTransaction (textStatus): ' + textStatus);
                 ////console.log('pushTransaction (jQxhr): ' + jQxhr);
                 const transferTransactionResponse : TransferTransactionResponse = JSON.parse((JSON.stringify(data, null, 2)));
-                callback(transferTransactionResponse, transaction_id);
+                callback(transferTransactionResponse, pushTransactionRequest.transaction_id);
             },
             error: function( jqXhr: any, textStatus: any, errorThrown: any ){
                 ////console.log( errorThrown );
@@ -124,25 +119,19 @@ class Layer2LedgerAPI{
     }
 
 
-    requestWithdrawal(callback: (withdrawalRequestResponse: WithdrawalRequestResponse, trxId: string) => void, layer2AddressPubKey: string, layer1Address: string, amount: number, transactionId: string, signature: string){
+    requestWithdrawal(callback: (withdrawalRequestResponse: WithdrawalRequestResponse, trxId: string) => void, requestWithdrawalRequest: RequestWithdrawalRequest){
         const _url = this.layer2LedgerNodeHostname + 'withdrawalRequest';
         $.ajax({
             url: _url,
             type: 'post',
-            data: {
-                'amount': amount,
-                'source_address_public_key': layer2AddressPubKey,
-                'layer1_withdrawal_address': layer1Address,
-                'signature': signature,
-                'nonce': transactionId
-            },
+            data: requestWithdrawalRequest,
             contentType: 'application/x-www-form-urlencoded',
             success: function( data: any, textStatus: any, jQxhr: any ){
                 //console.log('requestWithdrawal (data): ' + JSON.stringify(data, null, 2));
                 ////console.log('requestWithdrawal (textStatus): ' + textStatus);
                 ////console.log('requestWithdrawal (jQxhr): ' + jQxhr);
                 const withdrawalRequestResponse : WithdrawalRequestResponse = JSON.parse((JSON.stringify(data, null, 2)));
-                callback(withdrawalRequestResponse, transactionId);
+                callback(withdrawalRequestResponse, requestWithdrawalRequest.nonce);
             },
             error: function( jqXhr: any, textStatus: any, errorThrown: any ){
                 ////console.log( errorThrown );
@@ -150,15 +139,13 @@ class Layer2LedgerAPI{
         });
     }
 
-    getBalance(callback: (getBalanceResponse: GetBalanceResponse, ownAddress: boolean) => void, layer2AddressPubKeys: string[], ownAddress: boolean = true){
+    getBalance(callback: (getBalanceResponse: GetBalanceResponse, ownAddress: boolean) => void, getBalanceRequest: GetBalanceRequest, ownAddress: boolean = true){
         ////console.log(layer2AddressPubKeys);
         const _url = this.layer2LedgerNodeHostname + 'getBalance';
         $.ajax({
             url: _url,
             type: 'post',
-            data: JSON.stringify( {
-                'public_keys': layer2AddressPubKeys,
-            }),
+            data: JSON.stringify(getBalanceRequest),
             contentType: 'application/json',
             success: function( data: any, textStatus: any, jQxhr: any ){
                 const getBalanceResponse: GetBalanceResponse = JSON.parse((JSON.stringify(data, null, 2)));
@@ -172,14 +159,12 @@ class Layer2LedgerAPI{
         });
     }
 
-    getTransaction(callback: (response: GetTransactionResponse) => void, transactionId: string){
+    getTransaction(callback: (response: GetTransactionResponse) => void, getTransactionRequest: GetTransactionRequest){
         const _url = this.layer2LedgerNodeHostname + 'getTransaction';
         $.ajax({
             url: _url,
             type: 'get',
-            data: {
-                'transaction_id': transactionId,
-            },
+            data: getTransactionRequest,
             contentType: 'application/x-www-form-urlencoded',
             success: function( data: any, textStatus: any, jQxhr: any ){
                 ////console.log('getTransaction (data): ' + JSON.stringify(data, null, 2));
@@ -198,16 +183,14 @@ class Layer2LedgerAPI{
     }
 
     
-    getTransactions(callback: (response: GetTransactionsResponse, ownAddress: boolean) => void, layer2AddressPubKeys: string[], ownAddress: boolean = true){
+    getTransactions(callback: (response: GetTransactionsResponse, ownAddress: boolean) => void, getTransactionsRequest: GetTransactionsRequest, ownAddress: boolean = true){
         const _url = this.layer2LedgerNodeHostname + 'getAllTransactionsOfPublicKey';
         //console.log('getTransactions (layer2AddressPubKeys): ' + layer2AddressPubKeys);
         //console.log('getTransactions (_url): ' + _url);
         $.ajax({
             url: _url,
             type: 'get',
-            data: {
-                'public_key': layer2AddressPubKeys[0],
-            },
+            data: getTransactionsRequest,
             contentType: 'application/x-www-form-urlencoded',
             success: function( data: any, textStatus: any, jQxhr: any ){
                 const getTransactionsResponse: GetTransactionsResponse = JSON.parse((JSON.stringify(data, null, 2)));
