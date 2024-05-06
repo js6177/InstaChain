@@ -1,8 +1,8 @@
 import { DEFAULT_LAYER2_HOSTNAME} from '../services/Layer2API';
 import { Wallet, Transaction } from '../utils/wallet';
-import CommonResponse from '../services/messages/CommonResponse';
-import { GetBalanceResponse } from '../services/messages/GetBalanceResponse';
-import GetTransactionResponse from '../services/messages/GetTransactionResponse';
+import CommonResponse from '../services/messages/Responses/CommonResponse';
+import { GetBalanceResponse } from '../services/messages/Responses/GetBalanceResponse';
+import GetTransactionResponse from '../services/messages/Responses/GetTransactionResponse';
 
 class SearchResultStatus {
     getAddressBalanceResults: GetBalanceResponse | null = null;

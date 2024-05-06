@@ -15,14 +15,14 @@ const ERROR_DATABASE_TRANSACTIONAL_ERROR = 19
 
 const DEFAULT_LAYER2_HOSTNAME = 'https://testnet.instachain.io/' //if user has not added any nodes, get the default one
 
-import { GetBalanceResponse } from './messages/GetBalanceResponse'
-import GetDepositAddressResponse from './messages/GetDepositAddressResponse'
-import { GetNodeInfoResponse } from './messages/GetNodeInfoResponse'
-import GetTransactionResponse from './messages/GetTransactionResponse'
-import { GetTransactionsResponse } from './messages/GetTransactionsResponse';
-import { Layer1AuditReportResponse } from './messages/Layer1AuditReportResponse'
-import TransferTransactionResponse from './messages/TransferTransactionResponse'
-import WithdrawalRequestResponse from './messages/WithdrawalRequestResponse'
+import { GetBalanceResponse } from './messages/Responses/GetBalanceResponse'
+import GetDepositAddressResponse from './messages/Responses/GetDepositAddressResponse'
+import { GetNodeInfoResponse } from './messages/Responses/GetNodeInfoResponse'
+import GetTransactionResponse from './messages/Responses/GetTransactionResponse'
+import { GetTransactionsResponse } from './messages/Responses/GetTransactionsResponse';
+import { Layer1AuditReportResponse } from './messages/Responses/Layer1AuditReportResponse'
+import TransferTransactionResponse from './messages/Responses/TransferTransactionResponse'
+import WithdrawalRequestResponse from './messages/Responses/WithdrawalRequestResponse'
 
 class Layer2LedgerNodeInfo {
     layer2LedgerNodeUrl: string;

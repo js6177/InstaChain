@@ -1,4 +1,4 @@
-import { GetTransactionsResponseTransaction } from "../services/messages/GetTransactionsResponse";
+import { GetTransactionsResponseTransaction } from "../services/messages/Responses/GetTransactionsResponse";
 
 const { base58_to_binary, binary_to_base58 } = require('base58-js')
 const secp256k1 = require('secp256k1')

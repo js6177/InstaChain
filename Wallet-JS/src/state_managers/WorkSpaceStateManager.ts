@@ -1,12 +1,12 @@
 import { DEFAULT_LAYER2_HOSTNAME, Layer2LedgerNodeInfo, Layer2LedgerAPI } from '../services/Layer2API';
-import { GetBalanceResponse, GetBalanceResponseBalance } from '../services/messages/GetBalanceResponse';
-import GetDepositAddressResponse from '../services/messages/GetDepositAddressResponse';
-import { GetNodeInfoResponse } from '../services/messages/GetNodeInfoResponse';
-import GetTransactionResponse from '../services/messages/GetTransactionResponse';
+import { GetBalanceResponse, GetBalanceResponseBalance } from '../services/messages/Responses/GetBalanceResponse';
+import GetDepositAddressResponse from '../services/messages/Responses/GetDepositAddressResponse';
+import { GetNodeInfoResponse } from '../services/messages/Responses/GetNodeInfoResponse';
+import GetTransactionResponse from '../services/messages/Responses/GetTransactionResponse';
 
-import { GetTransactionsResponse, TransactionGroup, GetTransactionsResponseTransaction } from '../services/messages/GetTransactionsResponse';
-import TransferTransactionResponse from '../services/messages/TransferTransactionResponse';
-import WithdrawalRequestResponse from '../services/messages/WithdrawalRequestResponse';
+import { GetTransactionsResponse, TransactionGroup, GetTransactionsResponseTransaction } from '../services/messages/Responses/GetTransactionsResponse';
+import TransferTransactionResponse from '../services/messages/Responses/TransferTransactionResponse';
+import WithdrawalRequestResponse from '../services/messages/Responses/WithdrawalRequestResponse';
 
 import { Workspace, SearchResultStatus } from '../state/Workspace';
 import { Wallet, MessageBuilder, Transaction } from '../utils/wallet';
