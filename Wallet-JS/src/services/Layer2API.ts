@@ -189,9 +189,9 @@ class Layer2LedgerAPI{
         //console.log('getTransactions (_url): ' + _url);
         $.ajax({
             url: _url,
-            type: 'get',
-            data: getTransactionsRequest,
-            contentType: 'application/x-www-form-urlencoded',
+            type: 'post',
+            data: JSON.stringify(getTransactionsRequest),
+            contentType: 'application/json',
             success: function( data: any, textStatus: any, jQxhr: any ){
                 const getTransactionsResponse: GetTransactionsResponse = JSON.parse((JSON.stringify(data, null, 2)));
                 callback(getTransactionsResponse, ownAddress);

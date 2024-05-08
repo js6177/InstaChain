@@ -1,5 +1,5 @@
 interface GetTransactionsRequest {
-    public_key: string;
+    public_keys: string[];
 }
 
 export default GetTransactionsRequest;

@@ -185,7 +185,7 @@ class WorkspaceStateManager{
             const layer2AddressPubKey = this.workspace.wallet.getMainAddress().getPublicKeyString();
             if(layer2AddressPubKey !== null){
                 const getTransactionsRequest: GetTransactionsRequest = {
-                    public_key: layer2AddressPubKey
+                    public_keys: [layer2AddressPubKey]
                 };
                 this.layer2LedgerAPI.getTransactions(this.onGetTransactions.bind(this), getTransactionsRequest);
             }
@@ -194,7 +194,7 @@ class WorkspaceStateManager{
 
     getAddressTransactions(address: string){
         const getTransactionsRequest: GetTransactionsRequest = {
-            public_key: address
+            public_keys: [address]
         };
         this.layer2LedgerAPI.getTransactions(this.onGetTransactions.bind(this), getTransactionsRequest, false);
     }

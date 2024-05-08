@@ -48,11 +48,13 @@ class getTransaction(InstachainRequestHandler):
 
 class getAllTransactionsOfPublicKey(InstachainRequestHandler):
     def getParameters(self):
-        self.public_keys = self.getRequestParams('public_key').split(',')
+        self.jsonParam = self.getPostJsonParams()
+        #self.public_keys = self.getRequestParams('public_key').split(',')
 
     def processRequest(self):
+        request = json.loads(json.dumps(self.jsonParam), object_hook=lambda d: SimpleNamespace(**d))
         transactions_list = []
-        for public_key in self.public_keys[:MAX_NUMBER_OF_GETTRANSACTIONS_ADDRESSES]:
+        for public_key in request.public_keys[:MAX_NUMBER_OF_GETTRANSACTIONS_ADDRESSES]:
             transactions = Transaction.get_all_transactions(public_key)
             transaction_dict = {}
             transaction_dict['public_key'] = public_key
