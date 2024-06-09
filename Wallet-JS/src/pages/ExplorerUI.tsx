@@ -9,6 +9,7 @@ import { WorkspaceContext } from "../context/WorkspaceContext";
 import { Transaction } from "../utils/wallet";
 import { IsSuccessResponse } from "../utils/MessageUtils";
 import { ExplorerContext } from "../context/ExplorerStateContext";
+import { AddressOverview } from "../components/AddressOverview";
 
 
 export default function ExplorerUI(props: any){
@@ -21,6 +22,7 @@ export default function ExplorerUI(props: any){
 
   const [foundAddressBalance, setFoundAddressBalance] = useState<number>(0);
   const [foundTransaction, setFoundTransaction] = useState<Transaction | null>(null);
+  const [foundAddressTransactions, setFoundAddressTransactions] = useState<Transaction[]>([]);
 
   const [isAddressBalanceDisplayed, setIsAddressBalanceDisplayed] = useState<boolean>(explorerState?.isAddressBalanceDisplayed() || false);
   const [isAddressOverviewDisplayed, setIsAddressOverviewDisplayed] = useState<boolean>(explorerState?.isAddressOverviewDisplayed() || false);
@@ -32,8 +34,12 @@ export default function ExplorerUI(props: any){
     }
     if (isAddressBalanceDisplayed) {
       setFoundAddressBalance(workspaceStateManager?.workspace?.searchedAddressBalances?.get(lastSearchInputText) as number);
+      if(workspaceStateManager?.workspace?.searchedAdressTransactions?.get(lastSearchInputText) != null){
+        setFoundAddressTransactions(workspaceStateManager?.workspace?.searchedAdressTransactions?.get(lastSearchInputText) as Transaction[]);
+      }
     }
     if (isAddressOverviewDisplayed) {
+      setFoundAddressTransactions(workspaceStateManager?.workspace?.searchedAdressTransactions?.get(lastSearchInputText) as Transaction[]);
       // TODO: Fill in data needed for the address overview
     }
   }, [isTransactionDisplayed, isAddressBalanceDisplayed, isAddressOverviewDisplayed]);

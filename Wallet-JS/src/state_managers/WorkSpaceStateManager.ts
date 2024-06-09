@@ -67,7 +67,7 @@ class WorkspaceStateManager{
         this.layer2LedgerAPI.getBalance(this.onGetWalletBalance.bind(this), getBalanceRequest, false);
     }
 
-    onGetWalletBalance(getBalanceResponse: GetBalanceResponse, ownAddress: boolean){
+    onGetWalletBalance(getBalanceResponse: GetBalanceResponse, ownAddress: boolean, getTransactions: boolean = true){
         const addressBalances = new Map<string, number>();
         const balances = getBalanceResponse.balance;
         balances.forEach((balance: GetBalanceResponseBalance) => {
@@ -83,6 +83,10 @@ class WorkspaceStateManager{
                     }else{
                         searchResultStates.getAddressBalanceResults = getBalanceResponse;
                         console.log('searchResultStates.balanceResults: ', searchResultStates.getAddressBalanceResults);
+                    }
+
+                    if(getTransactions){
+                        this.getAddressTransactions(balance.public_key);
                     }
                 }
             }
