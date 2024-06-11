@@ -10,10 +10,17 @@ import GoogleIcon from '@mui/icons-material/Google';
 import CurrencyBitcoinIcon from '@mui/icons-material/CurrencyBitcoin';
 
 import { ThemeProvider, createTheme} from '@mui/material/styles';
-import { CssBaseline } from '@mui/material/';
+import { Box, Card, CssBaseline } from '@mui/material/';
 import AuditUI from './AuditUI';
 import WalletUI from './WalletUI';
 import ExplorerUI from './ExplorerUI';
+import { Link, Route, Routes } from 'react-router-dom';
+
+
+const HomePath = "/";
+const WalletPath = "/wallet";
+const ExplorerPath = "/explorer";
+const AuditPath = "/audit";
 
 
 const theme = createTheme({
@@ -84,15 +91,18 @@ export default function MyApp(props: any) {
 
   return (
     <div>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Stack spacing={2} padding={2} bgcolor="paperColor">
-          <ProjectHeaderUI activeTab={activeTab} handleTabChange={handleTabChange} />
-          {activeTab === 'wallet' && <WalletUI/>}
-          {activeTab === 'explorer' && <ExplorerUI />}
-          {activeTab === 'audit' && <AuditUI/>}
-        </Stack>
-      </ThemeProvider>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <Stack spacing={2} padding={2} bgcolor="paperColor">
+            <ProjectHeaderUI activeTab={activeTab} handleTabChange={handleTabChange} />
+            <Routes>
+              <Route path={HomePath} Component={ProjectDescriptionUI} />
+              <Route path={WalletPath} Component={WalletUI} />
+              <Route path={ExplorerPath} Component={ExplorerUI} />
+              <Route path={AuditPath} Component={AuditUI} />
+            </Routes>
+          </Stack>
+        </ThemeProvider>
     </div>
   );
 }
@@ -110,24 +120,36 @@ function ProjectHeaderUI(props: any) {
       <Chip label="Instachain v0.1 beta testnet" size="medium" />
 
       <Stack direction="row" spacing={2}>
-        <Button
-          variant={activeTab === 'wallet' ? 'contained' : 'outlined'}
-          onClick={() => handleTabChange('wallet')}
-        >
-          Wallet
-        </Button>
-        <Button
-          variant={activeTab === 'explorer' ? 'contained' : 'outlined'}
-          onClick={() => handleTabChange('explorer')}
-        >
-          Explorer
-        </Button>
-        <Button
-          variant={activeTab === 'audit' ? 'contained' : 'outlined'}
-          onClick={() => handleTabChange('audit')}
-        >
-          Audit
-        </Button>
+        <Link to={HomePath}>
+          <Button
+            variant={activeTab === 'home' ? 'contained' : 'outlined'}
+            onClick={() => handleTabChange('home')}
+          >
+            Home
+          </Button>
+        </Link>
+        <Link to = {WalletPath}>
+          <Button
+            variant={activeTab === 'wallet' ? 'contained' : 'outlined'}
+            onClick={() => handleTabChange('wallet')}>
+            Wallet
+          </Button>
+        </Link>
+        <Link to={ExplorerPath}>
+          <Button
+            variant={activeTab === 'explorer' ? 'contained' : 'outlined'}
+            onClick={() => handleTabChange('explorer')}>
+            Explorer
+          </Button>
+        </Link>
+        <Link to = {AuditPath}>
+          <Button
+            variant={activeTab === 'audit' ? 'contained' : 'outlined'}
+            onClick={() => handleTabChange('audit')}
+          >
+            Audit
+          </Button>
+        </Link>
       </Stack>
 
 
@@ -159,7 +181,13 @@ function ProjectHeaderUI(props: any) {
 
 function ProjectDescriptionUI(props: any) {
     return (
-      <div/>
+      <div>              
+        <Box  display="flex" justifyContent="center" >
+          <Card sx={{  maxWidth: 1/3, p: 2, bgcolor:'#FEFAE0' }} >
+          IC is a new real-time Layer2 sidechain build for instant, near 0 fee payments. To get started, click “new wallet” and generate your L2 wallet; no login or registration is required. To learn more about the project, check the links on the top right.
+          </Card>
+        </Box>    
+      </div>
     );
 /*     const items : any = [];
     const featuresMap = new Map([

@@ -13,6 +13,7 @@ import { SettingsContext } from './context/SettingsContext';
 import { ExplorerState } from './state/ExplorerState';
 import { ExplorerStateManager } from './state_managers/ExplorerStateManager';
 import { ExplorerContext } from './context/ExplorerStateContext';
+import { BrowserRouter, RouterProvider} from "react-router-dom";
 
 
 function UiController(props: any) {
@@ -38,7 +39,9 @@ function UiController(props: any) {
                 <WorkspaceContext.Provider value={{workspace, workspaceStateManager}}>
                     <SettingsContext.Provider value={{settingsState, settingsManager}}>
                         <ExplorerContext.Provider value={{explorerState, explorerStateManager}}>
-                            <MyApp/>
+                            <BrowserRouter>
+                                <MyApp/>
+                            </BrowserRouter>
                         </ExplorerContext.Provider>
                     </SettingsContext.Provider>
                 </WorkspaceContext.Provider>

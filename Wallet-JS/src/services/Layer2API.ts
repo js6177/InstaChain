@@ -139,7 +139,7 @@ class Layer2LedgerAPI{
         });
     }
 
-    getBalance(callback: (getBalanceResponse: GetBalanceResponse, ownAddress: boolean) => void, getBalanceRequest: GetBalanceRequest, ownAddress: boolean = true){
+    getBalance(callback: (getBalanceResponse: GetBalanceResponse, ownAddress: boolean, getTransactions: boolean, fromSearch: boolean, searchedAddress: string ) => void, getBalanceRequest: GetBalanceRequest, ownAddress: boolean = true, getTransactions: boolean = false, fromSearch: boolean = false, searchedAddress: string = ''){
         ////console.log(layer2AddressPubKeys);
         const _url = this.layer2LedgerNodeHostname + 'getBalance';
         $.ajax({
@@ -149,7 +149,7 @@ class Layer2LedgerAPI{
             contentType: 'application/json',
             success: function( data: any, textStatus: any, jQxhr: any ){
                 const getBalanceResponse: GetBalanceResponse = JSON.parse((JSON.stringify(data, null, 2)));
-                callback(getBalanceResponse, ownAddress);
+                callback(getBalanceResponse, ownAddress, getTransactions, fromSearch, searchedAddress);
             },
             error: function( jqXhr: any, textStatus: any, errorThrown: any ){
                 ////console.log('Error: ' + JSON.stringify(jqXhr) );
@@ -159,7 +159,7 @@ class Layer2LedgerAPI{
         });
     }
 
-    getTransaction(callback: (response: GetTransactionResponse) => void, getTransactionRequest: GetTransactionRequest){
+    getTransaction(callback: (response: GetTransactionResponse, fromSearch: boolean) => void, getTransactionRequest: GetTransactionRequest, fromSearch: boolean = false){
         const _url = this.layer2LedgerNodeHostname + 'getTransaction';
         $.ajax({
             url: _url,
@@ -171,7 +171,7 @@ class Layer2LedgerAPI{
                 ////console.log('getTransaction (textStatus): ' + textStatus);
                 ////console.log('getTransaction (jQxhr): ' + jQxhr);
                 const getTransactionResponse: GetTransactionResponse = JSON.parse((JSON.stringify(data, null, 2)));
-                callback(getTransactionResponse);
+                callback(getTransactionResponse, fromSearch);
             },
             error: function( jqXhr: any, textStatus: any, errorThrown: any ){
                 ////console.log( errorThrown );

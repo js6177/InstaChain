@@ -39,8 +39,6 @@ class Workspace {
         this.searchedTransaction = new Map();
         this.searchResults = new Map();
     }
-
-
 }
 
 export {Workspace, SearchResultStatus}

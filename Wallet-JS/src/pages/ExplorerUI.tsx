@@ -7,7 +7,7 @@ import { TransactionsAccordionList } from "../components/TransactionsAccordionLi
 
 import { WorkspaceContext } from "../context/WorkspaceContext";
 import { Transaction } from "../utils/wallet";
-import { IsSuccessResponse } from "../utils/MessageUtils";
+import { IsGetAddressBalanceFound, IsSuccessResponse } from "../utils/MessageUtils";
 import { ExplorerContext } from "../context/ExplorerStateContext";
 import { AddressOverview } from "../components/AddressOverview";
 
@@ -47,7 +47,7 @@ export default function ExplorerUI(props: any){
 
   useEffect(() => {
     const addressBalanceResults = workspaceStateManager?.workspace?.searchResults?.get(lastSearchInputText)?.getAddressBalanceResults;
-    const _isAddressFound = addressBalanceResults != null && IsSuccessResponse(addressBalanceResults);
+    const _isAddressFound = addressBalanceResults != null && IsSuccessResponse(addressBalanceResults) && IsGetAddressBalanceFound(addressBalanceResults, lastSearchInputText);
     setAddressFound(_isAddressFound);
     const singleTransactionResult = workspaceStateManager?.workspace?.searchResults?.get(lastSearchInputText)?.getSingleTransactionResults;
     const _isTransactionFound = singleTransactionResult != null && IsSuccessResponse(singleTransactionResult);
@@ -83,9 +83,10 @@ export default function ExplorerUI(props: any){
     setLastSearchInputText(searchInputText);
     explorerStateManager?.setLastSearchText(searchInputText);
     console.log("Search for: ", searchInputText);
-    workspaceStateManager?.getAddressBalance(searchInputText);
+    workspaceStateManager?.search(searchInputText);
+    //workspaceStateManager?.getAddressBalance(searchInputText);
     //workspaceStateManager?.getAddressTransactions(searchInputText);
-    workspaceStateManager?.getTransaction(searchInputText);
+    //workspaceStateManager?.getTransaction(searchInputText);
   }
 
 

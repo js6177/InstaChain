@@ -89,13 +89,7 @@ export default function WalletUI(props: any){
       return (
         <div>
           <Stack spacing={2}>
-          {!isWalletLoaded &&
-            <Box  display="flex" justifyContent="center" >
-              <Card sx={{  maxWidth: 1/3, p: 2, bgcolor:'#FEFAE0' }} >
-              IC is a new real-time Layer2 sidechain build for instant, near 0 fee payments. To get started, click “new wallet” and generate your L2 wallet; no login or registration is required. To learn more about the project, check the links on the top right.
-              </Card>
-            </Box>
-            }
+
             <Stack direction="row"        
             justifyContent="space-between"
             alignItems="flex-end"
