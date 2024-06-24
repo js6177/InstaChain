@@ -30,29 +30,45 @@ export function AddressPresenter(props: AddressPresenterProps) {
     const {explorerState, explorerStateManager} = React.useContext(ExplorerContext);
     
     const [addressBalance, setAddressBalance] = useState<number>(0);
-    const [addressTransactions, setAddressTransactions] = useState<Transaction[]>([]);
+    const [addressTransactions, setAddressTransactions] = useState<Transaction[] | null>(null);
 
-    useEffect(() => {
+    loadAddress();
+
+    function loadAddress(){
         // Fetch the address's balance and transactions
-        if(workspace?.searchedAddressBalances?.get(address) != null){
-            setAddressBalance(workspace?.searchedAddressBalances?.get(address) as number);
+        const newAddressBalance = workspace?.searchedAddressBalances?.get(address);
+        if(newAddressBalance != null){
+            if(addressBalance != newAddressBalance){
+                setAddressBalance(workspace?.searchedAddressBalances?.get(address) as number);
+            }
         }else{
             workspaceStateManager?.getAddressBalance(address);
         }
+
+
         if(workspace?.searchedAdressTransactions?.get(address) != null){
-            setAddressTransactions(workspace?.searchedAdressTransactions?.get(address) as Transaction[]);
+            if(addressTransactions == null){
+                setAddressTransactions(workspace?.searchedAdressTransactions?.get(address) as Transaction[]);
+            }
         }
         else{
             workspaceStateManager?.getAddressTransactions(address);
         }
+    }
+
+    useEffect(() => {
+        loadAddress();
     }, [workspace]);
 
     return (
+        (addressBalance != null && addressTransactions != null) && (
         <AddressOverview
             address={address}
             balance={addressBalance}
             transactions={new Map([[address, addressTransactions]])}
             myAddresses={[]}
+            enableAddressLink={true}
         />
+        )
     );
 }

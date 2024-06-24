@@ -11,6 +11,7 @@ class AddressOverviewProps {
     balance: number = 0;
     transactions: Map<string, Transaction[]> = new Map();
     myAddresses: string[] = [];
+    enableAddressLink?: boolean = false;
 }
 
 export function AddressOverview(props: AddressOverviewProps) {
@@ -19,6 +20,7 @@ export function AddressOverview(props: AddressOverviewProps) {
             <AddressBalanceView
                 address={props.address}
                 balance={props.balance}
+                enableAddressLink={props.enableAddressLink}
             />
             <TransactionsAccordionList
                 transactions={props.transactions}

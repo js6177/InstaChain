@@ -13,6 +13,7 @@ import { AddressPresenter, AddressPresenterFromRoute } from "../components/Explo
 import {ErrorPresenter} from "../components/Explorer/ErrorPresenter";
 
 import { Routes, Route } from 'react-router-dom';
+import { TransactionPresenterFromRoute } from "../components/Explorer/TransactionPresenter";
 
 export default function ExplorerUI(props: any){
   const {workspace, workspaceStateManager} = React.useContext(WorkspaceContext);
@@ -123,6 +124,7 @@ export default function ExplorerUI(props: any){
         </div>
         <Routes>
           <Route path="/address/:address" element={<AddressPresenterFromRoute />} />
+          <Route path="/transaction/:transactionID" element={<TransactionPresenterFromRoute />} />
           <Route path="*" element={<ErrorPresenter />} />
         </Routes>
     </div>

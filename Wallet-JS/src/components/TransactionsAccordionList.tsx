@@ -28,7 +28,7 @@ export function TransactionsAccordionList(props: {transactions: Map<string, Tran
     if(transactionsLoaded){
         transactions.forEach((transactionArray, address) => {
             transactionArray.forEach((transaction) => {
-                accordionListViewItems.push(<AccordionListViewItem key={transaction.id} transaction={transaction} myAddresses={myAddresses} />);
+                accordionListViewItems.push(<TransactionAccordionListViewItem key={transaction.id} transaction={transaction} myAddresses={myAddresses} />);
             });
         });
     }
@@ -47,7 +47,7 @@ export function TransactionsAccordionList(props: {transactions: Map<string, Tran
 //Display the transaction amount, source address, destination address, and transaction type in the main body,
 //and the transaction id, layer1 transaction id, and timestamp in the dropdown details section
 //Also add a 'view' button to the dropdown that will display the transaction json in a popup
-export function AccordionListViewItem(props: {transaction: Transaction, myAddresses: string[]}){
+export function TransactionAccordionListViewItem(props: {transaction: Transaction, myAddresses: string[]}){
     const { transaction, myAddresses } = props;
     const [show, setShow] = React.useState(false);
     const handleClose = () => setShow(false);
