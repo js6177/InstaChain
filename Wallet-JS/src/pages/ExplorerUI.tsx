@@ -9,8 +9,10 @@ import { WorkspaceContext } from "../context/WorkspaceContext";
 import { Transaction } from "../utils/wallet";
 import { IsGetAddressBalanceFound, IsSuccessResponse } from "../utils/MessageUtils";
 import { ExplorerContext } from "../context/ExplorerStateContext";
-import { AddressOverview } from "../components/AddressOverview";
+import { AddressPresenter, AddressPresenterFromRoute } from "../components/Explorer/AddressPresenter";
+import {ErrorPresenter} from "../components/Explorer/ErrorPresenter";
 
+import { Routes, Route } from 'react-router-dom';
 
 export default function ExplorerUI(props: any){
   const {workspace, workspaceStateManager} = React.useContext(WorkspaceContext);
@@ -106,6 +108,7 @@ export default function ExplorerUI(props: any){
             <AddressBalanceView
               address={lastSearchInputText}
               balance={foundAddressBalance as number}
+              enableAddressLink={true}
             />
         )}
         {isTransactionDisplayed && (foundTransaction) && (
@@ -118,6 +121,10 @@ export default function ExplorerUI(props: any){
           <p>No results found</p>
         }
         </div>
+        <Routes>
+          <Route path="/address/:address" element={<AddressPresenterFromRoute />} />
+          <Route path="*" element={<ErrorPresenter />} />
+        </Routes>
     </div>
   );
 }

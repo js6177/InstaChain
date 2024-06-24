@@ -39,7 +39,7 @@ function UiController(props: any) {
                 <WorkspaceContext.Provider value={{workspace, workspaceStateManager}}>
                     <SettingsContext.Provider value={{settingsState, settingsManager}}>
                         <ExplorerContext.Provider value={{explorerState, explorerStateManager}}>
-                            <BrowserRouter>
+                            <BrowserRouter basename="">
                                 <MyApp/>
                             </BrowserRouter>
                         </ExplorerContext.Provider>

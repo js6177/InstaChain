@@ -15,12 +15,8 @@ import AuditUI from './AuditUI';
 import WalletUI from './WalletUI';
 import ExplorerUI from './ExplorerUI';
 import { Link, Route, Routes } from 'react-router-dom';
+import { AuditPath, ExplorerPath, HomePath, WalletPath } from '../utils/RouterUtils';
 
-
-const HomePath = "/";
-const WalletPath = "/wallet";
-const ExplorerPath = "/explorer";
-const AuditPath = "/audit";
 
 
 const theme = createTheme({
@@ -83,7 +79,7 @@ const theme = createTheme({
 
 export default function MyApp(props: any) {
 
-  const [activeTab, setActiveTab] = React.useState('wallet');
+  const [activeTab, setActiveTab] = React.useState('home');
 
   const handleTabChange = (tab: React.SetStateAction<string>) => {
     setActiveTab(tab);
@@ -96,10 +92,10 @@ export default function MyApp(props: any) {
           <Stack spacing={2} padding={2} bgcolor="paperColor">
             <ProjectHeaderUI activeTab={activeTab} handleTabChange={handleTabChange} />
             <Routes>
-              <Route path={HomePath} Component={ProjectDescriptionUI} />
-              <Route path={WalletPath} Component={WalletUI} />
-              <Route path={ExplorerPath} Component={ExplorerUI} />
-              <Route path={AuditPath} Component={AuditUI} />
+              <Route path={HomePath} element={<ProjectDescriptionUI/>} />
+              <Route path={WalletPath} element={<WalletUI />} />
+              <Route path={`${ExplorerPath}/*`} element={<ExplorerUI />} />
+              <Route path={AuditPath} element={<AuditUI />} />
             </Routes>
           </Stack>
         </ThemeProvider>

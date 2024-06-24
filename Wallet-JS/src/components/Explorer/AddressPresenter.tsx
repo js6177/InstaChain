@@ -1,0 +1,58 @@
+/**
+ * A component for displaying a Layer2 address and it's balance and transactions
+ * This component has an AddressOverview component that displays the address, it's balance and it's transactions
+ * This will fetch the address's transactions from the WorkspaceStateManager.workspace.searchedAdressTransactions[address] and the address's balance from the WorkspaceStateManager.workspace.searchedAddressBalances[address].
+ * If they are empty, it will fetch them using the WorspaceStateManager.getAddressTransactions(address) and WorkspaceStateManager.getAddressBalance(address) functions.
+ * @param address The address to display
+ */
+
+import React, { useEffect, useState } from 'react';
+import { AddressOverview } from '../AddressOverview';
+import { Transaction } from '../../utils/wallet';
+import { WorkspaceContext } from '../../context/WorkspaceContext';
+import { ExplorerContext } from '../../context/ExplorerStateContext';
+import { useParams } from 'react-router-dom';
+
+
+class AddressPresenterProps {
+    address: string = "";
+}
+
+export function AddressPresenterFromRoute() {
+    const { address } = useParams();
+    return <AddressPresenter address={address as string} />;
+}
+
+export function AddressPresenter(props: AddressPresenterProps) {
+    const { address } = props;
+
+    const {workspace, workspaceStateManager} = React.useContext(WorkspaceContext);
+    const {explorerState, explorerStateManager} = React.useContext(ExplorerContext);
+    
+    const [addressBalance, setAddressBalance] = useState<number>(0);
+    const [addressTransactions, setAddressTransactions] = useState<Transaction[]>([]);
+
+    useEffect(() => {
+        // Fetch the address's balance and transactions
+        if(workspace?.searchedAddressBalances?.get(address) != null){
+            setAddressBalance(workspace?.searchedAddressBalances?.get(address) as number);
+        }else{
+            workspaceStateManager?.getAddressBalance(address);
+        }
+        if(workspace?.searchedAdressTransactions?.get(address) != null){
+            setAddressTransactions(workspace?.searchedAdressTransactions?.get(address) as Transaction[]);
+        }
+        else{
+            workspaceStateManager?.getAddressTransactions(address);
+        }
+    }, [workspace]);
+
+    return (
+        <AddressOverview
+            address={address}
+            balance={addressBalance}
+            transactions={new Map([[address, addressTransactions]])}
+            myAddresses={[]}
+        />
+    );
+}

@@ -10,20 +10,21 @@ class SearchResultStatus {
     getSingleTransactionResults: GetTransactionResponse | null = null;
 }
 
+
 class Workspace {
     public layer2ledgerNodeUrl: string;
     //public mneumonic: string | null;
     public wallet: Wallet | null;
-    public transactions: Map<string, Transaction[]>;
-    public addressBalances: Map<string, number>;
-    public depositAddresses: Map<string, string>;
-    public transactionResults: Map<string, CommonResponse>;
+    public transactions: Map<string, Transaction[]>; // Key: Layer2 address, Value: List of transactions
+    public addressBalances: Map<string, number>;  // Key: Layer2 address, Value: balance
+    public depositAddresses: Map<string, string>; // Key: Layer2 address, Value: Layer1 deposit address
+    public transactionResults: Map<string, CommonResponse>; // Key: Layer2 transaction id, Value: Result of the transaction
 
     //Addreses and Transactions that are searched through the explorer and are not part of the wallet
-    public searchedAddressBalances: Map<string, number>;
-    public searchedAdressTransactions: Map<string, Transaction[]>;
-    public searchedTransaction: Map<string, Transaction>;
-    public searchResults: Map<string, SearchResultStatus>;
+    public searchedAddressBalances: Map<string, number>; // Key: Layer2 address, Value: balance
+    public searchedAdressTransactions: Map<string, Transaction[]>; // Key: Layer2 address, Value: List of transactions
+    public searchedTransaction: Map<string, Transaction>; // Key: Layer2 transaction id, Value: Transaction
+    public searchResults: Map<string, SearchResultStatus>; // Key: Search text, Value: Results of the search
 
     constructor(layer2ledgerNodeUrl: string = DEFAULT_LAYER2_HOSTNAME) {
         this.layer2ledgerNodeUrl = layer2ledgerNodeUrl;
