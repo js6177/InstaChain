@@ -7,6 +7,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { TransactionAccordionListViewItem } from '../TransactionsAccordionList';
 import { Transaction } from '../../utils/wallet';
@@ -29,6 +30,8 @@ export function TransactionPresenter(props: TransactionPresenterProps) {
 
     const {workspace, workspaceStateManager} = React.useContext(WorkspaceContext);
     const {explorerState, explorerStateManager} = React.useContext(ExplorerContext);
+    const [isSearchFinishedLoading, setIsSearchFinishedLoading] = useState<boolean>(false);
+
     
     const [transaction, setTransaction] = useState<Transaction | null>(null);
 
@@ -39,6 +42,7 @@ export function TransactionPresenter(props: TransactionPresenterProps) {
         if(workspace?.searchedTransaction?.get(transactionID) != null){
             if(transaction == null){
                 setTransaction(workspace?.searchedTransaction?.get(transactionID) as Transaction);
+                setIsSearchFinishedLoading(true);
             }
         }else{
             workspaceStateManager?.getTransaction(transactionID);
@@ -50,12 +54,15 @@ export function TransactionPresenter(props: TransactionPresenterProps) {
     }, [workspace]);
 
     return (
+        isSearchFinishedLoading ? (
             transaction && (
                 <TransactionAccordionListViewItem
                     transaction={transaction as Transaction}
                     myAddresses={[]}
                 />
             )
-        
+        ) : (
+            <CircularProgress />
+        )
     );
 }

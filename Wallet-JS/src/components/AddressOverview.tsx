@@ -11,7 +11,7 @@ class AddressOverviewProps {
     balance: number = 0;
     transactions: Map<string, Transaction[]> = new Map();
     myAddresses: string[] = [];
-    enableAddressLink?: boolean = false;
+    enableAddressLink?: boolean = true;
 }
 
 export function AddressOverview(props: AddressOverviewProps) {

@@ -7,6 +7,7 @@ import NodeInfoAPI
 import TransactionAPI
 import OnboardingAPI
 import AuditAPI
+import ExplorerAPI
 import GlobalLogging
 
 import SuperUser #delete this in production
@@ -39,6 +40,8 @@ app.add_url_rule(r'/depositFunds', 'depositFunds', OnboardingAPI.depositConfirme
 
 app.add_url_rule(r'/postLayer1AuditReport', 'postLayer1AuditReport', AuditAPI.postLayer1AuditReport.initializeRequest, methods=['POST'])
 app.add_url_rule(r'/getLayer1AuditReport', 'getLayer1AuditReport', AuditAPI.getLayer1AuditReport.initializeRequest)
+
+app.add_url_rule(r'/search', 'search', ExplorerAPI.search.initializeRequest)
 
 
 # Remove from production, the /delete is only for deleting all the tables when dev/testing

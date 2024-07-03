@@ -21,12 +21,14 @@ import GetTransactionRequest from './messages/Requests/GetTransactionRequest'
 import GetTransactionsRequest from './messages/Requests/GetTransactionsRequest'
 import PushTransactionRequest from './messages/Requests/PushTransactionRequest'
 import RequestWithdrawalRequest from './messages/Requests/RequestWithdrawalRequest'
+import SearchRequest from './messages/Requests/SearchRequest'
 import { GetBalanceResponse } from './messages/Responses/GetBalanceResponse'
 import GetDepositAddressResponse from './messages/Responses/GetDepositAddressResponse'
 import { GetNodeInfoResponse } from './messages/Responses/GetNodeInfoResponse'
 import GetTransactionResponse from './messages/Responses/GetTransactionResponse'
 import { GetTransactionsResponse } from './messages/Responses/GetTransactionsResponse';
 import { Layer1AuditReportResponse } from './messages/Responses/Layer1AuditReportResponse'
+import SearchResultsResponse from './messages/Responses/SearchResultsResponse'
 import TransferTransactionResponse from './messages/Responses/TransferTransactionResponse'
 import WithdrawalRequestResponse from './messages/Responses/WithdrawalRequestResponse'
 
@@ -220,6 +222,23 @@ class Layer2LedgerAPI{
             }   
         });
     
+    }
+
+    search(callback: (response: SearchResultsResponse) => void, searchRequest: SearchRequest ){
+        const _url = this.layer2LedgerNodeHostname + 'search';
+        $.ajax({
+            url: _url,
+            type: 'get',
+            contentType: 'application/x-www-form-urlencoded',
+            data: searchRequest,
+            success: function( data: any, textStatus: any, jQxhr: any ){
+                const searchResultsResponse: SearchResultsResponse = JSON.parse((JSON.stringify(data, null, 2)));
+                callback(searchResultsResponse);
+            },
+            error: function( jqXhr: any, textStatus: any, errorThrown: any ){
+                console.log( errorThrown );
+            }   
+        });
     }
 }
 

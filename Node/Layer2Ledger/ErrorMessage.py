@@ -20,6 +20,7 @@ ERROR_CANNOT_TRANSFER_USING_ONBOARDING_KEY = 26
 ERROR_AUDIT_REPORT_ALREADY_EXISTS = 27
 ERROR_AUDIT_REPORT_DOES_NOT_EXIST = 28
 ERROR_AMOUNT_LESS_THAN_MINIMUM_WITHDRAWAL_AMOUNT = 29
+ERROR_SEARCH_TYPE_NOT_SUPPORTED = 30
 
 error_mapping = {
 ERROR_SUCCESS: "Success",
@@ -43,7 +44,8 @@ ERROR_FAILED_TO_WRITE_TO_DATABASE: "Failed to write an entity to the database (t
 ERROR_CANNOT_TRANSFER_USING_ONBOARDING_KEY: "The onboarding signing key cannot be used to create a transfer transaction",
 ERROR_AUDIT_REPORT_ALREADY_EXISTS: "An audit report already exists for this block height",
 ERROR_AUDIT_REPORT_DOES_NOT_EXIST: "An audit report does not exist for this block height",
-ERROR_AMOUNT_LESS_THAN_MINIMUM_WITHDRAWAL_AMOUNT: "The amount must be greater than the minimum withdrawal amount"
+ERROR_AMOUNT_LESS_THAN_MINIMUM_WITHDRAWAL_AMOUNT: "The amount must be greater than the minimum withdrawal amount",
+ERROR_SEARCH_TYPE_NOT_SUPPORTED: "The search type is not supported"
 }
 
 def build_error_message(error_code, error_message = ''):

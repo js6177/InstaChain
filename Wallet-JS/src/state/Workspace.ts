@@ -3,18 +3,14 @@ import { Wallet, Transaction } from '../utils/wallet';
 import CommonResponse from '../services/messages/Responses/CommonResponse';
 import { GetBalanceResponse } from '../services/messages/Responses/GetBalanceResponse';
 import GetTransactionResponse from '../services/messages/Responses/GetTransactionResponse';
-
-class SearchResultStatus {
-    getAddressBalanceResults: GetBalanceResponse | null = null;
-    getTransactionsResults: CommonResponse | null = null;
-    getSingleTransactionResults: GetTransactionResponse | null = null;
-}
+import SearchResultsResponse from '../services/messages/Responses/SearchResultsResponse';
 
 
 class Workspace {
     public layer2ledgerNodeUrl: string;
     //public mneumonic: string | null;
     public wallet: Wallet | null;
+    // Addresses and Transactions that are part of the wallet
     public transactions: Map<string, Transaction[]>; // Key: Layer2 address, Value: List of transactions
     public addressBalances: Map<string, number>;  // Key: Layer2 address, Value: balance
     public depositAddresses: Map<string, string>; // Key: Layer2 address, Value: Layer1 deposit address
@@ -24,7 +20,9 @@ class Workspace {
     public searchedAddressBalances: Map<string, number>; // Key: Layer2 address, Value: balance
     public searchedAdressTransactions: Map<string, Transaction[]>; // Key: Layer2 address, Value: List of transactions
     public searchedTransaction: Map<string, Transaction>; // Key: Layer2 transaction id, Value: Transaction
-    public searchResults: Map<string, SearchResultStatus>; // Key: Search text, Value: Results of the search
+
+    public searchResults: Map<string, SearchResultsResponse>; // Key: Search text, Value: Results of the search
+
 
     constructor(layer2ledgerNodeUrl: string = DEFAULT_LAYER2_HOSTNAME) {
         this.layer2ledgerNodeUrl = layer2ledgerNodeUrl;
@@ -38,8 +36,9 @@ class Workspace {
         this.searchedAddressBalances = new Map();
         this.searchedAdressTransactions = new Map();
         this.searchedTransaction = new Map();
+
         this.searchResults = new Map();
     }
 }
 
-export {Workspace, SearchResultStatus}
+export {Workspace}

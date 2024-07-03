@@ -5,16 +5,18 @@ import GetTransactionRequest from '../services/messages/Requests/GetTransactionR
 import GetTransactionsRequest from '../services/messages/Requests/GetTransactionsRequest';
 import PushTransactionRequest from '../services/messages/Requests/PushTransactionRequest';
 import RequestWithdrawalRequest from '../services/messages/Requests/RequestWithdrawalRequest';
+import SearchRequest from '../services/messages/Requests/SearchRequest';
 import { GetBalanceResponse, GetBalanceResponseBalance } from '../services/messages/Responses/GetBalanceResponse';
 import GetDepositAddressResponse from '../services/messages/Responses/GetDepositAddressResponse';
 import { GetNodeInfoResponse } from '../services/messages/Responses/GetNodeInfoResponse';
 import GetTransactionResponse from '../services/messages/Responses/GetTransactionResponse';
 
 import { GetTransactionsResponse, TransactionGroup, GetTransactionsResponseTransaction } from '../services/messages/Responses/GetTransactionsResponse';
+import SearchResultsResponse from '../services/messages/Responses/SearchResultsResponse';
 import TransferTransactionResponse from '../services/messages/Responses/TransferTransactionResponse';
 import WithdrawalRequestResponse from '../services/messages/Responses/WithdrawalRequestResponse';
 
-import { Workspace, SearchResultStatus } from '../state/Workspace';
+import { Workspace } from '../state/Workspace';
 import { Wallet, MessageBuilder, Transaction } from '../utils/wallet';
 
 class WorkspaceStateManager{
@@ -75,16 +77,6 @@ class WorkspaceStateManager{
                 addressBalances.set(balance.public_key, balance.balance);
 
                 if(!ownAddress){
-                    let searchResultStates: SearchResultStatus | undefined = this.workspace.searchResults.get(balance.public_key);
-                    if(searchResultStates === null || searchResultStates === undefined){
-                        searchResultStates = new SearchResultStatus();
-                        searchResultStates.getAddressBalanceResults = getBalanceResponse;
-                        this.workspace.searchResults.set(balance.public_key, searchResultStates);
-                    }else{
-                        searchResultStates.getAddressBalanceResults = getBalanceResponse;
-                        console.log('searchResultStates.balanceResults: ', searchResultStates.getAddressBalanceResults);
-                    }
-
                     if(getTransactions){
                         this.getAddressTransactions(balance.public_key);
                     }
@@ -96,9 +88,9 @@ class WorkspaceStateManager{
         }else{
             this.workspace.searchedAddressBalances = addressBalances;
         }
-        if(!fromSearch || this.isSearchResultsFinished(searchedAddress)){
-            this.setLatestWorkspaceState();
-        }
+
+        this.setLatestWorkspaceState();
+
     }
 
 
@@ -224,18 +216,6 @@ class WorkspaceStateManager{
                 transactions.get(layer2Address)?.push(trx);
             })
             transactions.get(layer2Address)?.sort((a: { timestamp: number; }, b: { timestamp: number; }) => (a.timestamp < b.timestamp) ? 1 : -1)
-
-            if(!ownAddresses){
-                let searchResultStates: SearchResultStatus | undefined = this.workspace.searchResults.get(layer2Address);
-                if(searchResultStates === null || searchResultStates === undefined){
-                    searchResultStates = new SearchResultStatus();
-                    searchResultStates.getTransactionsResults = getTransactionsResponse;
-                    this.workspace.searchResults.set(layer2Address, searchResultStates);
-                }else{
-                    searchResultStates.getTransactionsResults = getTransactionsResponse;
-                    console.log('searchResultStates.transactionResults: ', searchResultStates.getTransactionsResults);
-                }
-            }
         });
 
         this.setLatestWorkspaceState();
@@ -256,19 +236,7 @@ class WorkspaceStateManager{
             this.workspace.searchedTransaction.set(getTransactionResponse.transaction.transaction_id, trx);
         }
 
-        let searchResultStates: SearchResultStatus | undefined = this.workspace.searchResults.get(trx.transaction_id);
-        if(searchResultStates === null || searchResultStates === undefined){
-            searchResultStates = new SearchResultStatus();
-            searchResultStates.getSingleTransactionResults = getTransactionResponse;
-            this.workspace.searchResults.set(getTransactionResponse.transaction_id, searchResultStates);
-        }else{
-            searchResultStates.getSingleTransactionResults = getTransactionResponse;
-            console.log('searchResultStates.transactionResults: ', searchResultStates.getTransactionsResults);
-        }  
-
-        if(!fromSearch || this.isSearchResultsFinished(trx.transaction_id)){
-            this.setLatestWorkspaceState();
-        }
+        this.setLatestWorkspaceState();
     }
 
     refreshWallet(){
@@ -277,13 +245,25 @@ class WorkspaceStateManager{
     }
 
     search(searchText: string){
-        this.getAddressBalance(searchText, true);
-        this.getTransaction(searchText, true);
+        const searchRequest: SearchRequest = {
+            search_string: searchText,
+            search_type: '*'
+        };
+        this.layer2LedgerAPI.search(this.onSearchResults.bind(this), searchRequest);
     }
 
-        // check to see if both searchedTransaction and searchedAddressBalances are not null
-    isSearchResultsFinished(searchText: string): boolean {
-        return this.workspace.searchResults.get(searchText)?.getSingleTransactionResults != null && this.workspace.searchResults.get(searchText)?.getAddressBalanceResults != null;
+    onSearchResults(searchResults: SearchResultsResponse){
+        console.log('searchResults: ', searchResults);
+        this.workspace.searchResults.set(searchResults.search_string, searchResults);
+        if(searchResults.l2_address !== null){
+            this.workspace.searchedAddressBalances.set(searchResults.search_string, searchResults.l2_address.balance);
+        }
+        if(searchResults.l2_transaction !== null){
+            const transaction = new Transaction();
+            transaction.fromGetTransactionsResponseTransaction(searchResults.l2_transaction);
+            this.workspace.searchedTransaction.set(searchResults.search_string, transaction);
+        }
+        this.setLatestWorkspaceState();
     }
 
     setLatestWorkspaceState(){
@@ -296,8 +276,8 @@ class WorkspaceStateManager{
             layer2ledgerNodeUrl: this.layer2ledgerNodeUrl,
             searchedAddressBalances: this.workspace.searchedAddressBalances,
             searchedAdressTransactions: this.workspace.searchedAdressTransactions,
-            searchResults: this.workspace.searchResults,
-            searchedTransaction: this.workspace.searchedTransaction
+            searchedTransaction: this.workspace.searchedTransaction,
+            searchResults: this.workspace.searchResults
         });
     }
 

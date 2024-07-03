@@ -7,7 +7,10 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import CircularProgress from '@mui/material/CircularProgress';
+
 import { AddressOverview } from '../AddressOverview';
+import { AddressBalanceView } from '../AddressBalanceView';
 import { Transaction } from '../../utils/wallet';
 import { WorkspaceContext } from '../../context/WorkspaceContext';
 import { ExplorerContext } from '../../context/ExplorerStateContext';
@@ -16,18 +19,20 @@ import { useParams } from 'react-router-dom';
 
 class AddressPresenterProps {
     address: string = "";
+    showTransactions?: boolean = true;
 }
 
 export function AddressPresenterFromRoute() {
     const { address } = useParams();
-    return <AddressPresenter address={address as string} />;
+    return <AddressPresenter address={address as string} showTransactions={true}/>;
 }
 
 export function AddressPresenter(props: AddressPresenterProps) {
-    const { address } = props;
+    const { address,  showTransactions = false} = props;
 
     const {workspace, workspaceStateManager} = React.useContext(WorkspaceContext);
     const {explorerState, explorerStateManager} = React.useContext(ExplorerContext);
+    const [isSearchFinishedLoading, setIsSearchFinishedLoading] = useState<boolean>(false);
     
     const [addressBalance, setAddressBalance] = useState<number>(0);
     const [addressTransactions, setAddressTransactions] = useState<Transaction[] | null>(null);
@@ -40,19 +45,22 @@ export function AddressPresenter(props: AddressPresenterProps) {
         if(newAddressBalance != null){
             if(addressBalance != newAddressBalance){
                 setAddressBalance(workspace?.searchedAddressBalances?.get(address) as number);
+                setIsSearchFinishedLoading(true);
             }
         }else{
             workspaceStateManager?.getAddressBalance(address);
         }
 
-
-        if(workspace?.searchedAdressTransactions?.get(address) != null){
-            if(addressTransactions == null){
-                setAddressTransactions(workspace?.searchedAdressTransactions?.get(address) as Transaction[]);
+        if(showTransactions){
+            if(workspace?.searchedAdressTransactions?.get(address) != null){
+                if(addressTransactions == null){
+                    setAddressTransactions(workspace?.searchedAdressTransactions?.get(address) as Transaction[]);
+                    setIsSearchFinishedLoading(true);
+                }
             }
-        }
-        else{
-            workspaceStateManager?.getAddressTransactions(address);
+            else{
+                workspaceStateManager?.getAddressTransactions(address);
+            }
         }
     }
 
@@ -60,15 +68,28 @@ export function AddressPresenter(props: AddressPresenterProps) {
         loadAddress();
     }, [workspace]);
 
+    // If showTransactions is true, display AddressOverview.
+    // Otherwise, return display AddressBalance
     return (
-        (addressBalance != null && addressTransactions != null) && (
-        <AddressOverview
-            address={address}
-            balance={addressBalance}
-            transactions={new Map([[address, addressTransactions]])}
-            myAddresses={[]}
-            enableAddressLink={true}
-        />
+        isSearchFinishedLoading ? (
+            showTransactions ? (
+                (addressBalance != null && addressTransactions != null) && (
+                <AddressOverview
+                    address={address}
+                    balance={addressBalance}
+                    transactions={new Map([[address, addressTransactions]])}
+                    myAddresses={[]}
+                    enableAddressLink={true}
+                />
+                )
+            ) : 
+            (
+                <AddressBalanceView address={address} balance={addressBalance} enableAddressLink={true} />
+            )
+        ) : (
+            <div>
+                <CircularProgress />
+            </div>        
         )
     );
 }

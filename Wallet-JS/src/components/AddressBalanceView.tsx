@@ -17,9 +17,9 @@ import { Link } from "react-router-dom";
 class AddressBalanceViewProps {
     address: string = "";
     balance: number = 0;
-    enableAddressLink?: boolean = false;
+    enableAddressLink?: boolean = true;
 
-    constructor(address: string, balance: number, enableAddressLink: boolean = false) {
+    constructor(address: string, balance: number, enableAddressLink: boolean = true) {
         this.address = address;
         this.balance = balance;
         this.enableAddressLink = enableAddressLink;
@@ -27,7 +27,7 @@ class AddressBalanceViewProps {
 }
 
 function AddressBalanceView(props: AddressBalanceViewProps) {
-    const { address, balance, enableAddressLink} = props;
+    const { address, balance, enableAddressLink = true} = props;
     return (
         <Card>
             <Stack direction="column" spacing={0} sx={{ margin: '16px' }}>
