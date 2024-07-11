@@ -1,4 +1,5 @@
 import { GetTransactionsResponseTransaction } from "../services/messages/Responses/GetTransactionsResponse";
+import { TransactionTimestampToDate } from "./DateUtils";
 
 const { base58_to_binary, binary_to_base58 } = require('base58-js')
 const secp256k1 = require('secp256k1')
@@ -138,7 +139,7 @@ class Transaction {
         this.transaction_id = getTransactionsResponseTransaction.transaction_id;
         this.layer1_transaction_id = getTransactionsResponseTransaction.layer1_transaction_id;
         this.timestamp = getTransactionsResponseTransaction.timestamp;
-        this.locale_date = new Date(this.timestamp * 1000).toLocaleString();
+        this.locale_date = TransactionTimestampToDate(this.timestamp);
         this.signature = getTransactionsResponseTransaction.signature;
         this.node_id = ''; //getTransactionsResponseTransaction.node_id;
 

@@ -5,6 +5,7 @@ import React from 'react';
 import { TransactionsAccordionList } from './TransactionsAccordionList';
 import { AddressBalanceView } from './AddressBalanceView';
 import { Transaction } from '../utils/wallet';
+import { AddressAdditionalInfo } from './AddressAdditionalInfo';
 
 class AddressOverviewProps {
     address: string = "";
@@ -15,6 +16,8 @@ class AddressOverviewProps {
 }
 
 export function AddressOverview(props: AddressOverviewProps) {
+
+    const transactions: Transaction[] = props.transactions.get(props.address) ? props.transactions.get(props.address) as Transaction[] : [];
     return (
         <div>
             <AddressBalanceView
@@ -22,6 +25,8 @@ export function AddressOverview(props: AddressOverviewProps) {
                 balance={props.balance}
                 enableAddressLink={props.enableAddressLink}
             />
+            <AddressAdditionalInfo transactions={transactions} />
+
             <TransactionsAccordionList
                 transactions={props.transactions}
                 myAddresses={props.myAddresses}

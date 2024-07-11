@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { Accordion, ListItem, Stack } from '@mui/material';
+import { Accordion, Card, ListItem, Stack } from '@mui/material';
 import { AccordionSummary } from '@mui/material';
 import { AccordionDetails } from '@mui/material';
 import { Typography } from '@mui/material';
@@ -14,6 +14,10 @@ import { color } from '@mui/system';
 
 import { Transaction } from '../utils/wallet';
 import BtcAmountDisplay from './BtcAmountDisplay';
+import { TransactionTimestampToDate } from '../utils/DateUtils';
+import { CopyableTextDisplay } from './Explorer/CopyableTextDisplay';
+import { ExplorerLinkBuilder } from '../utils/RouterUtils';
+import { Link } from 'react-router-dom';
 
 //Display a list of transactions in an accordion list, similar to TransactionsDataGrid.js
 //Foreach transaction in transactions, create an AccordionListViewItem passin in the transaction to props
@@ -69,21 +73,34 @@ export function TransactionAccordionListViewItem(props: {transaction: Transactio
                             justifyContent="space-between"
                             alignItems="stretch" 
                             >
-                        <Stack direction="column" spacing={0}>
-                            <Box>
-                                {"From: " + transaction.source_address}
-                            </Box>
-                            <Box>
-                                {"To: " + transaction.destination_address}
-                            </Box>
+                         <Stack direction="column" spacing={0} alignItems="flex-end" justifyContent="space-between">
                             <Box>
                                 {transaction.transaction_type_desc}
                             </Box>
+                            <CopyableTextDisplay label="Tx ID:" text={transaction.transaction_id} childElement={
+                                <Link to={ExplorerLinkBuilder.buildLayer2TransactionLink(transaction.transaction_id)}>
+                                    <Box>{transaction.transaction_id}</Box>
+                                </Link>
+                                } />
                         </Stack>
+                        <Stack direction="column" spacing={0}>
+                            <CopyableTextDisplay label="From:" text={transaction.source_address} childElement={
+                                <Link to={ExplorerLinkBuilder.buildLayer2AddressLink(transaction.source_address)}>
+                                    <Box>{transaction.source_address}</Box>
+                                </Link>
+                            } />
+
+                            <CopyableTextDisplay label="To:" text={transaction.destination_address} childElement={
+                                <Link to={ExplorerLinkBuilder.buildLayer2AddressLink(transaction.destination_address)}>
+                                    <Box>{transaction.destination_address}</Box>
+                                </Link>
+                            } />
+                        </Stack>
+
                         <Stack direction="column" spacing={0} alignItems="flex-end" justifyContent="space-between">
                             <BtcAmountDisplay amount={transactionAmount} color={transactionColor} />                               
                             <Box>
-                                {new Date(transaction.timestamp * 1000).toLocaleString()}
+                                {TransactionTimestampToDate(transaction.timestamp)}
                             </Box>
                         </Stack>
 

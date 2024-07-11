@@ -13,6 +13,8 @@ import Stack from "@mui/material/Stack";
 import React from "react";
 import { AvailableBalance } from "./AvailableBalance";
 import { Link } from "react-router-dom";
+import { CopyableTextDisplay } from "./Explorer/CopyableTextDisplay";
+import { ExplorerLinkBuilder } from "../utils/RouterUtils";
 
 class AddressBalanceViewProps {
     address: string = "";
@@ -32,7 +34,14 @@ function AddressBalanceView(props: AddressBalanceViewProps) {
         <Card>
             <Stack direction="column" spacing={0} sx={{ margin: '16px' }}>
                 {enableAddressLink ? (
-                    <Link to={`/explorer/address/${address}`}>Address: {address}</Link>
+                    <Stack direction="row" spacing={0}>
+                            <CopyableTextDisplay label="Address:" text={address} childElement={
+                                <Link to={ExplorerLinkBuilder.buildLayer2AddressLink(address)}>
+                                    <Box>{address}</Box>
+                                </Link>
+                                } />
+                        
+                    </Stack>                    
                 ) : (
                     <Box>Address: {address}</Box>
                 )}

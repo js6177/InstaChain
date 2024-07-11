@@ -10,6 +10,7 @@ import PreviewIcon from '@mui/icons-material/Preview';
 import {ActionDialog, ViewJsonDialogBody} from './ActionDialogs/ActionDialog';
 import { WorkspaceContext } from '../context/WorkspaceContext';
 import { Transaction } from '../utils/wallet';
+import { TransactionTimestampToDate } from '../utils/DateUtils';
 
 const columns = [
     { field: 'id', headerName: 'id' },
@@ -25,7 +26,7 @@ const columns = [
         return '';
       }
 
-      const valueFormatted = new Date(params.value * 1000).toLocaleString();
+      const valueFormatted = TransactionTimestampToDate(params.value);
       return valueFormatted;
     }, }
 
