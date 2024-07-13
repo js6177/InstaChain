@@ -15,11 +15,12 @@ import { TransactionTimestampToDate } from '../utils/DateUtils';
 
 
 class AddressAdditionalInfoProps {
+    address: string = "";
     transactions: Transaction[] = [];
 }
 
 export function AddressAdditionalInfo(props: AddressAdditionalInfoProps) {
-    const { transactions } = props;
+    const { address, transactions } = props;
 
     const transactionCount = transactions.length;
     const linkedUsers = "None";
@@ -31,8 +32,8 @@ export function AddressAdditionalInfo(props: AddressAdditionalInfoProps) {
         firstSeen = TransactionTimestampToDate(transactions.reduce((min, transaction) => transaction.timestamp < min ? transaction.timestamp : min, transactions[0].timestamp));
         lastSeen = TransactionTimestampToDate(transactions.reduce((max, transaction) => transaction.timestamp > max ? transaction.timestamp : max, transactions[0].timestamp));
     
-        totalSent = transactions.filter(transaction => transaction.source_address === transaction.source_address).reduce((total, transaction) => total + (transaction.amount ?? 0), 0);
-        totalReceived = transactions.filter(transaction => transaction.source_address !== transaction.source_address).reduce((total, transaction) => total + (transaction.amount ?? 0), 0);
+        totalSent = transactions.filter(transaction => address === transaction.source_address).reduce((total, transaction) => total + (transaction.amount ?? 0), 0);
+        totalReceived = transactions.filter(transaction => address === transaction.destination_address).reduce((total, transaction) => total + (transaction.amount ?? 0), 0);
     }
     return (
         <div>

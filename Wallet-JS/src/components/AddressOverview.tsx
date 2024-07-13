@@ -27,7 +27,7 @@ export function AddressOverview(props: AddressOverviewProps) {
                     balance={props.balance}
                     enableAddressLink={props.enableAddressLink}
                 />
-                <AddressAdditionalInfo transactions={transactions} />
+                <AddressAdditionalInfo transactions={transactions} address={props.address} />
             </Card>
 
             <TransactionsAccordionList

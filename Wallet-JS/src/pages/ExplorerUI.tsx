@@ -50,7 +50,6 @@ export default function ExplorerUI(props: any){
         <Route path="/search/:searchString" element={<SearchResultsPresenterFromRoute />} />
         <Route path="/address/:address" element={<AddressPresenterFromRoute />} />
         <Route path="/transaction/:transactionID" element={<TransactionPresenterFromRoute />} />
-        <Route path="*" element={<ErrorPresenter />} />
       </Routes>
     </div>
   );
