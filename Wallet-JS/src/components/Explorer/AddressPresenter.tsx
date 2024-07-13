@@ -15,6 +15,7 @@ import { Transaction } from '../../utils/wallet';
 import { WorkspaceContext } from '../../context/WorkspaceContext';
 import { ExplorerContext } from '../../context/ExplorerStateContext';
 import { useParams } from 'react-router-dom';
+import { AreTransactionArraysEqual } from '../../utils/ComparisonUtils';
 
 
 class AddressPresenterProps {
@@ -51,10 +52,11 @@ export function AddressPresenter(props: AddressPresenterProps) {
             workspaceStateManager?.getAddressBalance(address);
         }
 
+        const newAddressTransactions = workspace?.searchedAdressTransactions?.get(address);
         if(showTransactions){
-            if(workspace?.searchedAdressTransactions?.get(address) != null){
-                if(addressTransactions == null){
-                    setAddressTransactions(workspace?.searchedAdressTransactions?.get(address) as Transaction[]);
+            if(newAddressTransactions != null){
+                if(!AreTransactionArraysEqual(newAddressTransactions, addressTransactions as Transaction[])){
+                    setAddressTransactions(newAddressTransactions);
                     setIsSearchFinishedLoading(true);
                 }
             }

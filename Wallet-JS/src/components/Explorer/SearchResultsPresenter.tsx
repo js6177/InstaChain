@@ -49,20 +49,22 @@ export function SearchResultsPresenter(props: SearchResultsPresenterProps) {
     useEffect(() => {
         if(workspace?.searchResults.get(searchString) != null){
             const searchResults = workspace?.searchResults.get(searchString);
-            const _isAddressFound = searchResults?.l2_address != null;
-            setAddressFound(_isAddressFound);
-            const _isTransactionFound = searchResults?.l2_transaction != null;
-            setTransactionFound(_isTransactionFound);
+            if(searchResults != null){
+                setIsSearchFinishedLoading(true);
+            
+                const _isAddressFound = searchResults?.l2_address != null;
+                setAddressFound(_isAddressFound);
+                const _isTransactionFound = searchResults?.l2_transaction != null;
+                setTransactionFound(_isTransactionFound);
 
-            if(_isAddressFound){
-                setFoundAddressBalance(searchResults?.l2_address?.balance as number);
-                setIsSearchFinishedLoading(true);
-            }
-            if(_isTransactionFound){
-                const transaction = new Transaction();
-                transaction.fromGetTransactionsResponseTransaction(searchResults?.l2_transaction as GetTransactionsResponseTransaction);
-                setFoundTransaction(transaction);
-                setIsSearchFinishedLoading(true);
+                if(_isAddressFound){
+                    setFoundAddressBalance(searchResults?.l2_address?.balance as number);
+                }
+                if(_isTransactionFound){
+                    const transaction = new Transaction();
+                    transaction.fromGetTransactionsResponseTransaction(searchResults?.l2_transaction as GetTransactionsResponseTransaction);
+                    setFoundTransaction(transaction);
+                }
             }
         }
     }, [workspace]);
@@ -74,6 +76,7 @@ export function SearchResultsPresenter(props: SearchResultsPresenterProps) {
             <div>
                 {isAddressFound && <AddressPresenter address={searchString} />}
                 {isTransactionFound && foundTransaction != null && <TransactionPresenter transactionID={searchString} />}
+                {!isAddressFound && !isTransactionFound && <div>No results found for search string: {searchString}</div>}
             </div>
         ) : (
             <div>
