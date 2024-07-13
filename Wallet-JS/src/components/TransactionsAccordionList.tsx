@@ -18,6 +18,7 @@ import { TransactionTimestampToDate } from '../utils/DateUtils';
 import { CopyableTextDisplay } from './Explorer/CopyableTextDisplay';
 import { ExplorerLinkBuilder } from '../utils/RouterUtils';
 import { Link } from 'react-router-dom';
+import JsonPretty from 'react-json-pretty';
 
 //Display a list of transactions in an accordion list, similar to TransactionsDataGrid.js
 //Foreach transaction in transactions, create an AccordionListViewItem passin in the transaction to props
@@ -108,7 +109,7 @@ export function TransactionAccordionListViewItem(props: {transaction: Transactio
                 </AccordionSummary>
                 <AccordionDetails>
                     <Typography>
-                        {JSON.stringify(transaction, null, 2)}
+                        <JsonPretty id="json-data" data={transaction} />
                     </Typography>
                 </AccordionDetails>
             </Accordion>
