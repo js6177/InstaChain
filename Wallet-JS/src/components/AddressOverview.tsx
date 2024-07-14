@@ -7,6 +7,8 @@ import { AddressBalanceView } from './AddressBalanceView';
 import { Transaction } from '../utils/wallet';
 import { AddressAdditionalInfo } from './AddressAdditionalInfo';
 import { Card } from '@mui/material';
+import { TRX_WITHDRAWAL_INITIATED } from "../utils/wallet";
+
 
 class AddressOverviewProps {
     address: string = "";
@@ -17,8 +19,14 @@ class AddressOverviewProps {
 }
 
 export function AddressOverview(props: AddressOverviewProps) {
-
+    
     const transactions: Transaction[] = props.transactions.get(props.address) ? props.transactions.get(props.address) as Transaction[] : [];
+    let isLayer1WithdrawalAddress = false;
+    transactions.forEach(transaction => { 
+        if(transaction.transaction_type == TRX_WITHDRAWAL_INITIATED && transaction.destination_address == props.address){
+            isLayer1WithdrawalAddress = true;
+        }     
+    });
     return (
         <div>
             <Card>
@@ -26,6 +34,7 @@ export function AddressOverview(props: AddressOverviewProps) {
                     address={props.address}
                     balance={props.balance}
                     enableAddressLink={props.enableAddressLink}
+                    isLayer1WithdrawalAddress={isLayer1WithdrawalAddress}
                 />
                 <AddressAdditionalInfo transactions={transactions} address={props.address} />
             </Card>

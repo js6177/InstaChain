@@ -22,6 +22,7 @@ interface NodeInfo {
     deposit_address_derivation_path: string;
     node_id: string;
     node_name: string;
+    onboarding_deposit_signing_key_pubkey: string;
     version: {
         API_version: number;
         major_version: number;

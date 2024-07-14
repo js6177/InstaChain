@@ -12,6 +12,7 @@ import React from 'react';
 import { Transaction } from '../utils/wallet';
 import { Box, Card } from '@mui/material';
 import { TransactionTimestampToDate } from '../utils/DateUtils';
+import BtcAmountDisplay from './BtcAmountDisplay';
 
 
 class AddressAdditionalInfoProps {
@@ -48,8 +49,14 @@ export function AddressAdditionalInfo(props: AddressAdditionalInfoProps) {
                         <div>Last seen: {lastSeen}</div>
                     </div>
                     <div style={{ flex: 1 }}>
-                        <div>Total sent: {totalSent}</div>
-                        <div>Total received: {totalReceived}</div>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                            <div>Total sent: </div>
+                            <BtcAmountDisplay amount={totalSent} color="green"/>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                            <div>Total received: </div>
+                            <BtcAmountDisplay amount={totalReceived} color="green"/>
+                        </div>
                     </div>
                 </div>
             </Card>

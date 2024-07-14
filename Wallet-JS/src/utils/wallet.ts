@@ -63,13 +63,13 @@ class Layer2Address{
 
 const DEFAULT_FEE = 1 // 1 satoshi
 
-const TRX_TRANSFER = 1;  // regular 2nd layer transfer
-const TRX_DEPOSIT = 2;  // when a user deposits btc to a deposit address, then funds get credited to his pubkey
-const TRX_WITHDRAWAL_INITIATED = 3;  // when the user wants to withdraw to a btc address (locks that amount)
-const TRX_WITHDRAWAL_BROADCASTED = 4; // when the transaction is broadcasted and in the mempool
-const TRX_WITHDRAWAL_CANCELED = 5;  // when the transaction gets removed from the layer1 mempool for any reason
-const TRX_WITHDRAWAL_CONFIRMED = 6;  // when the withdrawal gets confirmed in the layer1 chain
-const INSTRUCTION_GET_DEPOSIT_ADDRESS = 7; // instruction to get a deposit address
+export const TRX_TRANSFER = 1;  // regular 2nd layer transfer
+export const TRX_DEPOSIT = 2;  // when a user deposits btc to a deposit address, then funds get credited to his pubkey
+export const TRX_WITHDRAWAL_INITIATED = 3;  // when the user wants to withdraw to a btc address (locks that amount)
+export const TRX_WITHDRAWAL_BROADCASTED = 4; // when the transaction is broadcasted and in the mempool
+export const TRX_WITHDRAWAL_CANCELED = 5;  // when the transaction gets removed from the layer1 mempool for any reason
+export const TRX_WITHDRAWAL_CONFIRMED = 6;  // when the withdrawal gets confirmed in the layer1 chain
+export const INSTRUCTION_GET_DEPOSIT_ADDRESS = 7; // instruction to get a deposit address
 
 type TransactionTypeMap = {
     [key: number]: string;

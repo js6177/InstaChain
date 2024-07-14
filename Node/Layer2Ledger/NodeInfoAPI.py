@@ -22,10 +22,13 @@ MINIMUM_LAYER1_TRANSACTION_AMOUNT = int(os.environ.get('MINIMUM_LAYER1_TRANSACTI
 # For now, a node can support only 1 asset, though in the future, multi-asset nodes are possible
 NODE_ASSET_ID = ASSET_BITCOIN|ASSET_TESTNET_FLAG
 
+from signing_keys import ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY
+
+
 class getNodeInfo(InstachainRequestHandler):
     def processRequest(self):
         version = {'major_version': 1, 'minor_version': 0, 'patch_version': 0, 'API_version': 1}
         layer1_network_info = {'minimum_transaction_amount': MINIMUM_LAYER1_TRANSACTION_AMOUNT}
         deposit_address_derivation_path = "pkh(" + DEPOSIT_WALLET_MASTER_PUBKEY + "/44/1/(i/2147483647)/(i%2147483647))"
         self.result = ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS)
-        self.result['node_info'] = {'node_id': NODE_ID, 'node_name': 'Tesnet Node', 'asset_id': NODE_ASSET_ID, 'deposit_address_derivation_path': deposit_address_derivation_path, 'version': version, 'layer1_network_info': layer1_network_info}
+        self.result['node_info'] = {'node_id': NODE_ID, 'node_name': 'Tesnet Node', 'asset_id': NODE_ASSET_ID, 'deposit_address_derivation_path': deposit_address_derivation_path, 'onboarding_deposit_signing_key_pubkey': ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY, 'version': version, 'layer1_network_info': layer1_network_info}

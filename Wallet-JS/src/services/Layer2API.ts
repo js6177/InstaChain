@@ -37,6 +37,8 @@ class Layer2LedgerNodeInfo {
     layer2LedgerNodeId: string;
     layer2LedgerAssetId: number;
     minimumTransactionAmount: number = 1000;
+    onboardingDepositSigningKeyPubkey: string = '';
+    //TODO: add GetNodeInfoResponse (NodeInfo) as a field
 
     constructor(node_url: string, node_id: string, node_asset_id: number) {
         this.layer2LedgerNodeUrl = node_url;
@@ -48,6 +50,7 @@ class Layer2LedgerNodeInfo {
         this.layer2LedgerNodeId = getNodeInfoResponse.node_info.node_id;
         this.layer2LedgerAssetId = getNodeInfoResponse.node_info.asset_id;
         this.minimumTransactionAmount = getNodeInfoResponse.node_info.layer1_network_info.minimum_transaction_amount;
+        this.onboardingDepositSigningKeyPubkey = getNodeInfoResponse.node_info.onboarding_deposit_signing_key_pubkey;
     }
 }
 
