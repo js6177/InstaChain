@@ -54,7 +54,27 @@ class Layer2LedgerNodeInfo {
     }
 }
 
+function throttle(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+    const originalMethod = descriptor.value;
+    descriptor.value = function(...args: any[]) {       
+        const argsString = JSON.stringify(args);
+        const apiRequestKey = `${propertyKey}_${argsString}`;
+
+        const lastRun = Layer2LedgerAPI.apiRequestTimestampMap.get(apiRequestKey) || 0;
+        const now = Date.now();
+        if (now - lastRun > 1000) {
+            Layer2LedgerAPI.apiRequestTimestampMap.set(apiRequestKey, now);
+            return originalMethod.apply(this, args);
+        } else {
+            console.log(`Throttling ${propertyKey}`);
+            return null;
+        }
+    };
+    return descriptor;
+}
+
 class Layer2LedgerAPI{
+    static apiRequestTimestampMap: Map<string, number> = new Map<string, number>(); //key: method name, value: last run time
     layer2LedgerNodeHostname: string;
 
     static getErrorCode(jsonData: any) {
@@ -69,7 +89,7 @@ class Layer2LedgerAPI{
         this.layer2LedgerNodeHostname = layer2LedgerNodeHostname;
     }
 
-
+    @throttle
     getNodeInfo(callback: (response: GetNodeInfoResponse) => void){
         const _url = this.layer2LedgerNodeHostname + 'getNodeInfo';
         $.ajax({
@@ -144,6 +164,7 @@ class Layer2LedgerAPI{
         });
     }
 
+    @throttle
     getBalance(callback: (getBalanceResponse: GetBalanceResponse, ownAddress: boolean, getTransactions: boolean, fromSearch: boolean, searchedAddress: string ) => void, getBalanceRequest: GetBalanceRequest, ownAddress: boolean = true, getTransactions: boolean = false, fromSearch: boolean = false, searchedAddress: string = ''){
         ////console.log(layer2AddressPubKeys);
         const _url = this.layer2LedgerNodeHostname + 'getBalance';
@@ -164,6 +185,7 @@ class Layer2LedgerAPI{
         });
     }
 
+    @throttle
     getTransaction(callback: (response: GetTransactionResponse, fromSearch: boolean) => void, getTransactionRequest: GetTransactionRequest, fromSearch: boolean = false){
         const _url = this.layer2LedgerNodeHostname + 'getTransaction';
         $.ajax({
@@ -187,7 +209,7 @@ class Layer2LedgerAPI{
         });
     }
 
-    
+    @throttle
     getTransactions(callback: (response: GetTransactionsResponse, ownAddress: boolean) => void, getTransactionsRequest: GetTransactionsRequest, ownAddress: boolean = true){
         const _url = this.layer2LedgerNodeHostname + 'getAllTransactionsOfPublicKey';
         //console.log('getTransactions (layer2AddressPubKeys): ' + layer2AddressPubKeys);
@@ -208,6 +230,7 @@ class Layer2LedgerAPI{
         });
     }
 
+    @throttle
     getLayer1AuditReport(callback: (response: Layer1AuditReportResponse) => void){
         const _url = this.layer2LedgerNodeHostname + 'getLayer1AuditReport';
         $.ajax({
@@ -227,6 +250,7 @@ class Layer2LedgerAPI{
     
     }
 
+    @throttle
     search(callback: (response: SearchResultsResponse) => void, searchRequest: SearchRequest ){
         const _url = this.layer2LedgerNodeHostname + 'search';
         $.ajax({
