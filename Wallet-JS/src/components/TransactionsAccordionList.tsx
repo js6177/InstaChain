@@ -64,8 +64,7 @@ export function TransactionAccordionListViewItem(props: {transaction: Transactio
     const transactionAmount: number = (isTransactionFromMe ? -(transaction.amount ?? 0) : transaction.amount) ?? 0;
 
     return(
-        <div>
-            <ListItem disableGutters={true}>
+        <ListItem style={{display: 'list-item'}}>
             <Accordion>
                 <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{backgroundColor: '#FEFAE0' }}>
                     <Stack direction="row" 
@@ -74,7 +73,7 @@ export function TransactionAccordionListViewItem(props: {transaction: Transactio
                             justifyContent="space-between"
                             alignItems="stretch" 
                             >
-                         <Stack direction="column" spacing={0} alignItems="flex-end" justifyContent="space-between">
+                         <Stack direction="column" spacing={0} alignItems="flex-begin" justifyContent="space-between">
                             <Box>
                                 {transaction.transaction_type_desc}
                             </Box>
@@ -84,7 +83,7 @@ export function TransactionAccordionListViewItem(props: {transaction: Transactio
                                 </Link>
                                 } />
                         </Stack>
-                        <Stack direction="column" spacing={0}>
+                        <Stack direction="column" spacing={0} alignItems="flex-end" justifyContent="space-between">
                             <CopyableTextDisplay label="From:" text={transaction.source_address} childElement={
                                 <Link to={ExplorerLinkBuilder.buildLayer2AddressLink(transaction.source_address)}>
                                     <Box>{transaction.source_address}</Box>
@@ -113,7 +112,6 @@ export function TransactionAccordionListViewItem(props: {transaction: Transactio
                     </Typography>
                 </AccordionDetails>
             </Accordion>
-            </ListItem>
-        </div>
+        </ListItem>
     );
 }
