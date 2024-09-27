@@ -1,15 +1,16 @@
 import { DEFAULT_LAYER2_HOSTNAME} from '../services/Layer2API';
 import { Wallet, Transaction } from '../utils/wallet';
-import CommonResponse from '../services/messages/Responses/CommonResponse';
-import { GetBalanceResponse } from '../services/messages/Responses/GetBalanceResponse';
-import GetTransactionResponse from '../services/messages/Responses/GetTransactionResponse';
-import SearchResultsResponse from '../services/messages/Responses/SearchResultsResponse';
-
-
+import CommonResponse from '../services/messages/Layer2Ledger/Responses/CommonResponse';
+import { GetBalanceResponse } from '../services/messages/Layer2Ledger/Responses/GetBalanceResponse';
+import GetTransactionResponse from '../services/messages/Layer2Ledger/Responses/GetTransactionResponse';
+import SearchResultsResponse from '../services/messages/Layer2Ledger/Responses/SearchResultsResponse';
+import {WalletManager} from '../state_managers/WalletManager';
 class Workspace {
     public layer2ledgerNodeUrl: string;
     //public mneumonic: string | null;
-    public wallet: Wallet | null;
+    //public wallet: Map<string, Wallet>;
+    public walletManager: WalletManager;
+
     // Addresses and Transactions that are part of the wallet
     public transactions: Map<string, Transaction[]>; // Key: Layer2 address, Value: List of transactions
     public addressBalances: Map<string, number>;  // Key: Layer2 address, Value: balance
@@ -27,7 +28,8 @@ class Workspace {
     constructor(layer2ledgerNodeUrl: string = DEFAULT_LAYER2_HOSTNAME) {
         this.layer2ledgerNodeUrl = layer2ledgerNodeUrl;
         //this.mneumonic = null;
-        this.wallet = null;
+        //this.wallet =  new Map();
+        this.walletManager = new WalletManager();
         this.transactions = new Map();
         this.addressBalances = new Map();
         this.depositAddresses = new Map();

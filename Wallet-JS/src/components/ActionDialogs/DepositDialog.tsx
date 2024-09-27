@@ -9,7 +9,7 @@ export function DepositDialogBody(props: any){
     const [trxId, setTrxId] = useState('');
     const [transactionState, setTransactionState] = useState('');
 
-    const mainWalletAddressPubkey =  workspace?.wallet?.getMainAddressPubkey() || '';
+    const mainWalletAddressPubkey =  workspace?.walletManager.getMainWalletAddressPubkey() || '';
     const layer1DepositAddress = workspace?.depositAddresses.get(mainWalletAddressPubkey);
     const transactionResult = JSON.stringify(workspace?.transactionResults.get(trxId), null, 2);
 

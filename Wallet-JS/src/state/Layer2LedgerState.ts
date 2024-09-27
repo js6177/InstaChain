@@ -1,6 +1,6 @@
 import { DEFAULT_LAYER2_HOSTNAME } from '../services/Layer2API';
 import { Layer2LedgerNodeInfo, Layer2LedgerAPI } from '../services/Layer2API';
-import { Layer1AuditReportResponse } from '../services/messages/Responses/Layer1AuditReportResponse';
+import { Layer1AuditReportResponse } from '../services/messages/Layer2Ledger/Responses/Layer1AuditReportResponse';
 
 class Layer2LedgerState {
     public layer2ledgerNodeUrl: string;

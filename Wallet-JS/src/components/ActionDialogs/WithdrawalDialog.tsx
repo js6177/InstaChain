@@ -46,7 +46,7 @@ export function WithdrawalDialogBody(props: any){
     }
 
 
-    const mainWalletAddressPubkey =  workspace?.wallet?.getMainAddressPubkey();
+    const mainWalletAddressPubkey =  workspace?.walletManager.getMainWalletAddressPubkey();
     if(mainWalletAddressPubkey === null || mainWalletAddressPubkey === undefined){
       return <div>Wallet not loaded</div>
     }

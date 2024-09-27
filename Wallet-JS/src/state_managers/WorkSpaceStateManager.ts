@@ -1,20 +1,21 @@
 import { DEFAULT_LAYER2_HOSTNAME, Layer2LedgerNodeInfo, Layer2LedgerAPI } from '../services/Layer2API';
-import GetBalanceRequest from '../services/messages/Requests/GetBalanceRequest';
-import GetDepositAddressRequest from '../services/messages/Requests/GetDepositAddressRequest';
-import GetTransactionRequest from '../services/messages/Requests/GetTransactionRequest';
-import GetTransactionsRequest from '../services/messages/Requests/GetTransactionsRequest';
-import PushTransactionRequest from '../services/messages/Requests/PushTransactionRequest';
-import RequestWithdrawalRequest from '../services/messages/Requests/RequestWithdrawalRequest';
-import SearchRequest from '../services/messages/Requests/SearchRequest';
-import { GetBalanceResponse, GetBalanceResponseBalance } from '../services/messages/Responses/GetBalanceResponse';
-import GetDepositAddressResponse from '../services/messages/Responses/GetDepositAddressResponse';
-import { GetNodeInfoResponse } from '../services/messages/Responses/GetNodeInfoResponse';
-import GetTransactionResponse from '../services/messages/Responses/GetTransactionResponse';
+import GetBalanceRequest from '../services/messages/Layer2Ledger/Requests/GetBalanceRequest';
+import GetDepositAddressRequest from '../services/messages/Layer2Ledger/Requests/GetDepositAddressRequest';
+import GetTransactionRequest from '../services/messages/Layer2Ledger/Requests/GetTransactionRequest';
+import GetTransactionsRequest from '../services/messages/Layer2Ledger/Requests/GetTransactionsRequest';
+import PushTransactionRequest from '../services/messages/Layer2Ledger/Requests/PushTransactionRequest';
+import RequestWithdrawalRequest from '../services/messages/Layer2Ledger/Requests/RequestWithdrawalRequest';
+import SearchRequest from '../services/messages/Layer2Ledger/Requests/SearchRequest';
+import { GetBalanceResponse, GetBalanceResponseBalance } from '../services/messages/Layer2Ledger/Responses/GetBalanceResponse';
+import GetDepositAddressResponse from '../services/messages/Layer2Ledger/Responses/GetDepositAddressResponse';
+import { GetNodeInfoResponse } from '../services/messages/Layer2Ledger/Responses/GetNodeInfoResponse';
+import GetTransactionResponse from '../services/messages/Layer2Ledger/Responses/GetTransactionResponse';
 
-import { GetTransactionsResponse, TransactionGroup, GetTransactionsResponseTransaction } from '../services/messages/Responses/GetTransactionsResponse';
-import SearchResultsResponse from '../services/messages/Responses/SearchResultsResponse';
-import TransferTransactionResponse from '../services/messages/Responses/TransferTransactionResponse';
-import WithdrawalRequestResponse from '../services/messages/Responses/WithdrawalRequestResponse';
+import { GetTransactionsResponse, TransactionGroup, GetTransactionsResponseTransaction } from '../services/messages/Layer2Ledger/Responses/GetTransactionsResponse';
+import SearchResultsResponse from '../services/messages/Layer2Ledger/Responses/SearchResultsResponse';
+import TransferTransactionResponse from '../services/messages/Layer2Ledger/Responses/TransferTransactionResponse';
+import WithdrawalRequestResponse from '../services/messages/Layer2Ledger/Responses/WithdrawalRequestResponse';
+import { OAuthUser, UserKeys } from '../services/messages/Layer2OAuthManager/Response/OAuthResponse';
 
 import { Workspace } from '../state/Workspace';
 import { Wallet, MessageBuilder, Transaction } from '../utils/wallet';
@@ -47,13 +48,38 @@ class WorkspaceStateManager{
 
     newWallet(mneumonic: string){
         this.clearWallet();
-        this.workspace.wallet = new Wallet(mneumonic);
+        this.workspace.walletManager.createNewWallet(mneumonic);
         this.getWalletTransactions();
         this.getWalletBalance();
     }
 
+    addOAuthUser(oauthUser: OAuthUser, userKeys: UserKeys, setAsMainWallet: boolean = true){
+        this.workspace.walletManager.addOAuthUser(oauthUser, userKeys, setAsMainWallet);
+        this.getWalletTransactions();
+        this.getWalletBalance();
+        //this.setLatestWorkspaceState();
+    }
+
+    logoutOAuthUser(oauthUserId: string | null){
+        this.workspace.walletManager.logoutOAuthUser(oauthUserId);
+        //this.clearWallet();
+        this.setLatestWorkspaceState();
+    }
+
+    getMainWalletId(){
+        return this.workspace.walletManager.getMainWalletId();
+    }
+
+    getMainWallet(){
+        return this.workspace.walletManager.getMainWallet();
+    }
+
+    getMainWalletAddressPubKey(){
+        return this.getMainWallet()?.getMainAddress().getPublicKeyString();
+    }
+
     getWalletBalance(){
-        const layer2AddressPubKey = this.workspace.wallet?.getMainAddress().getPublicKeyString();
+        const layer2AddressPubKey = this.workspace.walletManager.getMainWalletAddressPubkey();
         if (layer2AddressPubKey){  
             const getBalanceRequest: GetBalanceRequest = {
                 public_keys: [layer2AddressPubKey]
@@ -94,23 +120,34 @@ class WorkspaceStateManager{
     }
 
 
-
     transfer(trxId: string, destinationAddress: string, amount: number, fee = 1){
-        if(this.workspace.wallet !== null && this.messageBuilder !== null){
-            const sourceAddress = this.workspace.wallet.getMainAddress();
-            const sourceAddressPubKey = sourceAddress.getPublicKeyString();
-            if(sourceAddressPubKey !== null){
-                const message = this.messageBuilder?.buildTransferMessage(sourceAddressPubKey, destinationAddress, amount, fee, trxId);
-                const signature = sourceAddress.signMessage(message);
-                const pushTransactionRequest: PushTransactionRequest = {
-                    amount: amount,
-                    fee: fee,
-                    source_address_public_key: sourceAddressPubKey,
-                    destination_address_public_key: destinationAddress,
-                    transaction_id: trxId,
-                    signature: signature
-                };
-                this.layer2LedgerAPI.pushTransaction(this.onTransferTransactionCompleted.bind(this), pushTransactionRequest);
+        if(this.workspace.walletManager.wallets.size > 0 && this.messageBuilder !== null){
+            const sourceAddress = this.workspace.walletManager.getMainWalletAddress();
+            if(sourceAddress !== null){
+                const sourceAddressPubKey = sourceAddress.getPublicKeyString();
+                if(sourceAddressPubKey !== null){
+                    const message = this.messageBuilder?.buildTransferMessage(sourceAddressPubKey, destinationAddress, amount, fee, trxId);
+                    const signature = sourceAddress.signMessage(message);
+                    const pushTransactionRequest: PushTransactionRequest = {
+                        amount: amount,
+                        fee: fee,
+                        source_address_public_key: sourceAddressPubKey,
+                        destination_address_public_key: destinationAddress,
+                        transaction_id: trxId,
+                        signature: signature
+                    };
+                    this.layer2LedgerAPI.pushTransaction(this.onTransferTransactionCompleted.bind(this), pushTransactionRequest);
+                }
+            }
+            else{
+                console.log('Source address is null. Possibly wallet is not loaded');
+            }
+        }else{
+            if(this.workspace.walletManager.wallets.size === 0){
+                console.log('No wallets found');
+            }
+            else{
+                console.log('Message builder is null');
             }
         }
     }
@@ -121,19 +158,33 @@ class WorkspaceStateManager{
     }
 
     getDepositAddress(trxId: string){
-        if(this.workspace.wallet !== null && this.messageBuilder !== null){
-            const layer2Address = this.workspace.wallet.getMainAddress();
-            const layer2AddressPubKey = layer2Address.getPublicKeyString();
-            if(layer2AddressPubKey !== null){
-                const message = this.messageBuilder?.buildGetDepositAddressMessage(layer2AddressPubKey, trxId);  
-                const signature = layer2Address.signMessage(message);
+        if(this.workspace.walletManager.wallets.size > 0 && this.messageBuilder !== null){
+            const layer2Address = this.workspace.walletManager.getMainWalletAddress();
+            if(layer2Address !== null){
+                const layer2AddressPubKey = layer2Address.getPublicKeyString();
+                if(layer2AddressPubKey !== null)
+                {
+                    const message = this.messageBuilder?.buildGetDepositAddressMessage(layer2AddressPubKey, trxId);  
+                    const signature = layer2Address.signMessage(message);
 
-                const getDepositAddressRequest: GetDepositAddressRequest = {
-                    layer2_address_pubkey: layer2AddressPubKey,
-                    nonce: trxId,
-                    signature: signature
-                };
-                this.layer2LedgerAPI.getDepositAddress(this.onGetDepositAddress.bind(this), getDepositAddressRequest);
+                    const getDepositAddressRequest: GetDepositAddressRequest = {
+                        layer2_address_pubkey: layer2AddressPubKey,
+                        nonce: trxId,
+                        signature: signature
+                    };
+                    this.layer2LedgerAPI.getDepositAddress(this.onGetDepositAddress.bind(this), getDepositAddressRequest);
+                }else{
+                    console.log('layer2AddressPubKey is null');
+                }
+            }else{
+                console.log('layer2Address is null');
+            }
+        }else{
+            if(this.workspace.walletManager.wallets.size === 0){
+                console.log('No wallets found');
+            }
+            else{
+                console.log('Message builder is null');
             }
         }
     }
@@ -145,21 +196,32 @@ class WorkspaceStateManager{
     }
 
     requestWithdrawal(trxId: string, layer1WithdrawalDestinatonAddress: string, amount: number){
-        if(this.workspace.wallet !== null && this.messageBuilder !== null){
+        if(this.workspace.walletManager.wallets.size > 0 && this.messageBuilder !== null){
 
-            const sourceAddress = this.workspace.wallet.getMainAddress();
-            const sourceAddressPubKey = sourceAddress.getPublicKeyString();
-            if(sourceAddressPubKey !== null){
-                const message = this.messageBuilder?.buildWithdrawalRequestMessage(sourceAddressPubKey, layer1WithdrawalDestinatonAddress, trxId, amount);
-                const signature = sourceAddress.signMessage(message);
-                const requestWithdrawalRequest: RequestWithdrawalRequest = {
-                    amount: amount,
-                    source_address_public_key: sourceAddressPubKey,
-                    layer1_withdrawal_address: layer1WithdrawalDestinatonAddress,
-                    nonce: trxId,
-                    signature: signature
-                };
-                this.layer2LedgerAPI.requestWithdrawal(this.onWithdrawalRequestCompleted.bind(this), requestWithdrawalRequest);
+            const sourceAddress = this.workspace.walletManager.getMainWalletAddress();
+            if(sourceAddress !== null){
+                const sourceAddressPubKey = sourceAddress.getPublicKeyString();
+                if(sourceAddressPubKey !== null){
+                    const message = this.messageBuilder?.buildWithdrawalRequestMessage(sourceAddressPubKey, layer1WithdrawalDestinatonAddress, trxId, amount);
+                    const signature = sourceAddress.signMessage(message);
+                    const requestWithdrawalRequest: RequestWithdrawalRequest = {
+                        amount: amount,
+                        source_address_public_key: sourceAddressPubKey,
+                        layer1_withdrawal_address: layer1WithdrawalDestinatonAddress,
+                        nonce: trxId,
+                        signature: signature
+                    };
+                    this.layer2LedgerAPI.requestWithdrawal(this.onWithdrawalRequestCompleted.bind(this), requestWithdrawalRequest);
+                }
+            }else{
+                console.log('Source address is null. Possibly wallet is not loaded');
+            }
+        }else{
+            if(this.workspace.walletManager.wallets.size === 0){
+                console.log('No wallets found');
+            }
+            else{
+                console.log('Message builder is null');
             }
         }
     }
@@ -170,7 +232,8 @@ class WorkspaceStateManager{
     }
 
     clearWallet(){
-        this.workspace.wallet = null;
+        //this.workspace.wallet = null;
+        //this.workspace.walletManager.clearWallets();
         this.workspace.transactions = new Map<string, Transaction[]>();
         this.workspace.addressBalances = new Map<string, number>();
         this.workspace.transactionResults = new Map<string, any>();
@@ -179,14 +242,16 @@ class WorkspaceStateManager{
     }
 
     getWalletTransactions(){
-        if(this.workspace.wallet !== null){
-            const layer2AddressPubKey = this.workspace.wallet.getMainAddress().getPublicKeyString();
+        if(this.workspace.walletManager.wallets.size > 0){
+            const layer2AddressPubKey = this.workspace.walletManager.getMainWalletAddressPubkey();
             if(layer2AddressPubKey !== null){
                 const getTransactionsRequest: GetTransactionsRequest = {
                     public_keys: [layer2AddressPubKey]
                 };
                 this.layer2LedgerAPI.getTransactions(this.onGetTransactions.bind(this), getTransactionsRequest);
             }
+        }else{
+            console.log('No wallets found');
         }
     }
 
@@ -268,7 +333,8 @@ class WorkspaceStateManager{
 
     setLatestWorkspaceState(){
         this.setWorkspaceState({
-            wallet: this.workspace.wallet,
+            //wallet: this.workspace.wallet,
+            walletManager: this.workspace.walletManager,
             transactions: this.workspace.transactions,
             addressBalances: this.workspace.addressBalances,
             transactionResults: this.workspace.transactionResults,

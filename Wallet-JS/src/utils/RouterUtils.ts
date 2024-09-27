@@ -2,6 +2,7 @@ const HomePath: string = '/';
 const WalletPath: string = '/wallet';
 const ExplorerPath: string = '/explorer';
 const AuditPath: string = '/audit';
+const OAuth2Path: string = '/oauth2';
 
 const ExplorerLayer2AddressPathSegment: string = 'address';
 const ExplorerLayer2TransactionPathSegment: string = 'transaction';
@@ -30,6 +31,7 @@ export {
     WalletPath,
     ExplorerPath,
     AuditPath,
+    OAuth2Path,
     ExplorerLayer2AddressPathSegment,
     ExplorerLayer2TransactionPathSegment,
     ExplorerLayer1DepositAddressPathSegment,

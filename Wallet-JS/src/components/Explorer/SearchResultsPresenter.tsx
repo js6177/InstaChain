@@ -10,7 +10,7 @@ import { WorkspaceContext } from '../../context/WorkspaceContext';
 import { ExplorerContext } from '../../context/ExplorerStateContext';
 import { useParams } from 'react-router-dom';
 import { Transaction } from '../../utils/wallet';
-import { GetTransactionsResponseTransaction } from '../../services/messages/Responses/GetTransactionsResponse';
+import { GetTransactionsResponseTransaction } from '../../services/messages/Layer2Ledger/Responses/GetTransactionsResponse';
 
 import { AddressPresenter } from './AddressPresenter';
 import { TransactionPresenter } from './TransactionPresenter';

@@ -1,5 +1,5 @@
-import CommonResponse from "../services/messages/Responses/CommonResponse";
-import { GetBalanceResponse } from "../services/messages/Responses/GetBalanceResponse";
+import CommonResponse from "../services/messages/Layer2Ledger/Responses/CommonResponse";
+import { GetBalanceResponse } from "../services/messages/Layer2Ledger/Responses/GetBalanceResponse";
 
 export function IsSuccessResponse(response: CommonResponse): boolean {
     return response.error_code === 0;

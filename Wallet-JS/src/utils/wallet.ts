@@ -1,5 +1,6 @@
-import { GetTransactionsResponseTransaction } from "../services/messages/Responses/GetTransactionsResponse";
+import { GetTransactionsResponseTransaction } from "../services/messages/Layer2Ledger/Responses/GetTransactionsResponse";
 import { TransactionTimestampToDate } from "./DateUtils";
+import { OAuthUser, UserKeys} from "../services/messages/Layer2OAuthManager/Response/OAuthResponse";
 
 const { base58_to_binary, binary_to_base58 } = require('base58-js')
 const secp256k1 = require('secp256k1')
@@ -7,11 +8,11 @@ const secp256k1 = require('secp256k1')
 const default_hashing_algorithm = 'sha256'
 const crypto = require('crypto-browserify')
 
-function SHA256(s: string): string {
+export function SHA256(s: string): string {
     return crypto.createHash(default_hashing_algorithm).update(s, 'utf8').digest('hex');
 }
 
-function SHA256Raw(s: string): Buffer {
+export function SHA256Raw(s: string): Buffer {
     return crypto.createHash(default_hashing_algorithm).update(s, 'utf8').digest();
 }
 
@@ -151,9 +152,13 @@ class Wallet {
     layer2address: Layer2Address;
     uid: string;
 
-    constructor(mneumonic: string) {
+    constructor(mneumonic: string, walletId: string = ''){
         this.layer2address = new Layer2Address(mneumonic);
-        this.uid = crypto.randomBytes(20).toString('hex');
+        if(walletId != ''){
+            this.uid = walletId;
+        }else{
+            this.uid = crypto.randomBytes(20).toString('hex');
+        }
     }
 
     getMainAddress(): Layer2Address {

@@ -17,23 +17,44 @@ import { BrowserRouter, RouterProvider} from "react-router-dom";
 
 
 function UiController(props: any) {
-    const [layer2LedgerState, setLayer2LedgerState] = useState( new Layer2LedgerState() );
-    const layer2LedgerStateManager = new Layer2LedgerStateManager(setLayer2LedgerState);
+    console.log("UiController");
+    const [initialized, setInitialized] = useState(false);
+    const [layer2LedgerState, setLayer2LedgerState] = useState<Layer2LedgerState | null>(null);
+    const [layer2LedgerStateManager, setLayer2LedgerStateManager] = useState<Layer2LedgerStateManager | null>(null);
 
-    const [workspace, setWorkSpace] = useState(new Workspace());
-    const [workspaceStateManager, setWorkspaceStateManagerState] = useState(new WorkspaceStateManager(setWorkSpace));
+    const [workspace, setWorkSpace] = useState<Workspace | null>(null);
+    const [workspaceStateManager, setWorkspaceStateManagerState] = useState<WorkspaceStateManager | null>(null);
 
-    const [settingsState, setSettingsState] = useState(new SettingsState());
-    const settingsManager = new SettingsManager(setSettingsState);
+    const [settingsState, setSettingsState] = useState<SettingsState | null>(null);
+    const [settingsManager, setSettingsManager] = useState<SettingsManager | null>(null);
 
-    const [explorerState, setExplorerState] = useState(new ExplorerState());
-    const explorerStateManager = new ExplorerStateManager(setExplorerState);
+    const [explorerState, setExplorerState] = useState<ExplorerState | null>(null);
+    const [explorerStateManager, setExplorerStateManager] = useState<ExplorerStateManager | null>(null);
 
     useEffect(() => {
-        layer2LedgerStateManager.fetchLayer2LedgerState();
-    }, []);
+        if (!initialized) {
+            console.log("UiController: Initializing");
+            setLayer2LedgerState(new Layer2LedgerState());
+            setLayer2LedgerStateManager(new Layer2LedgerStateManager(setLayer2LedgerState));
 
-    return (        
+            setWorkSpace(new Workspace());
+            setWorkspaceStateManagerState(new WorkspaceStateManager(setWorkSpace));
+
+            setSettingsState(new SettingsState());
+            setSettingsManager(new SettingsManager(setSettingsState));
+
+            setExplorerState(new ExplorerState());
+            setExplorerStateManager(new ExplorerStateManager(setExplorerState));
+
+            layer2LedgerStateManager?.fetchLayer2LedgerState();
+
+            setInitialized(true);
+        }
+    }, [initialized]);
+
+
+    return (       
+        {initialized} && 
         <div>
             <Layer2LedgerContext.Provider value={{layer2LedgerState, layer2LedgerStateManager}}>
                 <WorkspaceContext.Provider value={{workspace, workspaceStateManager}}>
@@ -47,6 +68,7 @@ function UiController(props: any) {
                 </WorkspaceContext.Provider>
             </Layer2LedgerContext.Provider>
         </div>
+        
     );
 
 }

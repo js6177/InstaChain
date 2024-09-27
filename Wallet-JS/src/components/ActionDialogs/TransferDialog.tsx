@@ -11,7 +11,7 @@ export function TransferDialogBody(props: any){
     const [amount, setAmount] = useState(0);
     const [trxId, setTrxId] = useState('');
     const [transactionState, setTransactionState] = useState('');
-    const mainWalletAddressPubkey =  workspace?.wallet?.getMainAddressPubkey();
+    const mainWalletAddressPubkey =  workspace?.walletManager.getMainWalletAddressPubkey();
     if(mainWalletAddressPubkey === null || mainWalletAddressPubkey === undefined){
       return <div>Wallet not loaded</div>
     }

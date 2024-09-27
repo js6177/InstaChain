@@ -15,7 +15,7 @@ import AuditUI from './AuditUI';
 import WalletUI from './WalletUI';
 import ExplorerUI from './ExplorerUI';
 import { Link, Route, Routes } from 'react-router-dom';
-import { AuditPath, ExplorerPath, HomePath, WalletPath } from '../utils/RouterUtils';
+import { AuditPath, ExplorerPath, HomePath, WalletPath, OAuth2Path } from '../utils/RouterUtils';
 
 
 
@@ -96,6 +96,7 @@ export default function MyApp(props: any) {
               <Route path={WalletPath} element={<WalletUI />} />
               <Route path={`${ExplorerPath}/*`} element={<ExplorerUI />} />
               <Route path={AuditPath} element={<AuditUI />} />
+              <Route path={`${OAuth2Path}/*`} element={<div/>} />
             </Routes>
           </Stack>
         </ThemeProvider>

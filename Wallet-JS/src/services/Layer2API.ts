@@ -1,4 +1,3 @@
-//import { node } from "webpack"
 
 const ERROR_SUCCESS = 0
 const ERROR_UNKNOWN = 1
@@ -13,24 +12,24 @@ const ERROR_DUPLICATE_NONCE = 17
 const ERROR_COULD_NOT_FIND_WITHDRAWAL_REQUEST = 18
 const ERROR_DATABASE_TRANSACTIONAL_ERROR = 19
 
-const DEFAULT_LAYER2_HOSTNAME = 'https://testnet.instachain.io/' //if user has not added any nodes, get the default one
+const DEFAULT_LAYER2_LEDGER_HOSTNAME = 'https://testnet.instachain.io/' //if user has not added any nodes, get the default one
 
-import GetBalanceRequest from './messages/Requests/GetBalanceRequest'
-import GetDepositAddressRequest from './messages/Requests/GetDepositAddressRequest'
-import GetTransactionRequest from './messages/Requests/GetTransactionRequest'
-import GetTransactionsRequest from './messages/Requests/GetTransactionsRequest'
-import PushTransactionRequest from './messages/Requests/PushTransactionRequest'
-import RequestWithdrawalRequest from './messages/Requests/RequestWithdrawalRequest'
-import SearchRequest from './messages/Requests/SearchRequest'
-import { GetBalanceResponse } from './messages/Responses/GetBalanceResponse'
-import GetDepositAddressResponse from './messages/Responses/GetDepositAddressResponse'
-import { GetNodeInfoResponse } from './messages/Responses/GetNodeInfoResponse'
-import GetTransactionResponse from './messages/Responses/GetTransactionResponse'
-import { GetTransactionsResponse } from './messages/Responses/GetTransactionsResponse';
-import { Layer1AuditReportResponse } from './messages/Responses/Layer1AuditReportResponse'
-import SearchResultsResponse from './messages/Responses/SearchResultsResponse'
-import TransferTransactionResponse from './messages/Responses/TransferTransactionResponse'
-import WithdrawalRequestResponse from './messages/Responses/WithdrawalRequestResponse'
+import GetBalanceRequest from './messages/Layer2Ledger/Requests/GetBalanceRequest'
+import GetDepositAddressRequest from './messages/Layer2Ledger/Requests/GetDepositAddressRequest'
+import GetTransactionRequest from './messages/Layer2Ledger/Requests/GetTransactionRequest'
+import GetTransactionsRequest from './messages/Layer2Ledger/Requests/GetTransactionsRequest'
+import PushTransactionRequest from './messages/Layer2Ledger/Requests/PushTransactionRequest'
+import RequestWithdrawalRequest from './messages/Layer2Ledger/Requests/RequestWithdrawalRequest'
+import SearchRequest from './messages/Layer2Ledger/Requests/SearchRequest'
+import { GetBalanceResponse } from './messages/Layer2Ledger/Responses/GetBalanceResponse'
+import GetDepositAddressResponse from './messages/Layer2Ledger/Responses/GetDepositAddressResponse'
+import { GetNodeInfoResponse } from './messages/Layer2Ledger/Responses/GetNodeInfoResponse'
+import GetTransactionResponse from './messages/Layer2Ledger/Responses/GetTransactionResponse'
+import { GetTransactionsResponse } from './messages/Layer2Ledger/Responses/GetTransactionsResponse';
+import { Layer1AuditReportResponse } from './messages/Layer2Ledger/Responses/Layer1AuditReportResponse'
+import SearchResultsResponse from './messages/Layer2Ledger/Responses/SearchResultsResponse'
+import TransferTransactionResponse from './messages/Layer2Ledger/Responses/TransferTransactionResponse'
+import WithdrawalRequestResponse from './messages/Layer2Ledger/Responses/WithdrawalRequestResponse'
 
 class Layer2LedgerNodeInfo {
     layer2LedgerNodeUrl: string;
@@ -85,11 +84,11 @@ class Layer2LedgerAPI{
         return jsonData['error_message'];
     }
 
-    constructor(layer2LedgerNodeHostname = DEFAULT_LAYER2_HOSTNAME){
+    constructor(layer2LedgerNodeHostname = DEFAULT_LAYER2_LEDGER_HOSTNAME){
         this.layer2LedgerNodeHostname = layer2LedgerNodeHostname;
     }
 
-    @throttle
+    
     getNodeInfo(callback: (response: GetNodeInfoResponse) => void){
         const _url = this.layer2LedgerNodeHostname + 'getNodeInfo';
         $.ajax({
@@ -270,4 +269,4 @@ class Layer2LedgerAPI{
 }
 
 //export default getNodeInfo
-export {DEFAULT_LAYER2_HOSTNAME, Layer2LedgerNodeInfo, Layer2LedgerAPI}
+export {DEFAULT_LAYER2_LEDGER_HOSTNAME as DEFAULT_LAYER2_HOSTNAME, Layer2LedgerNodeInfo, Layer2LedgerAPI}

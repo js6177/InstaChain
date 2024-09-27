@@ -1,0 +1,35 @@
+{
+    "data": {
+        "subscription_type": "None",
+        "protected": false,
+        "created_at": "2020-11-02T01:38:14.000Z",
+        "profile_banner_url": "https://pbs.twimg.com/profile_banners/1323076818413395968/1623945781",
+        "name": "James Smith",
+        "profile_image_url": "https://pbs.twimg.com/profile_images/1509405499074121729/XzQltghY_normal.jpg",
+        "entities": {
+            "description": {
+                "hashtags": [
+                    {
+                        "start": 0,
+                        "end": 8,
+                        "tag": "bitcoin"
+                    }
+                ]
+            }
+        },
+        "most_recent_tweet_id": "1830711224629370884",
+        "username": "jamessmith6177",
+        "verified_type": "none",
+        "verified": false,
+        "id": "1323076818413395968",
+        "description": "#bitcoin",
+        "public_metrics": {
+            "followers_count": 71,
+            "following_count": 123,
+            "tweet_count": 30,
+            "listed_count": 0,
+            "like_count": 19
+        },
+        "receives_your_dm": true
+    }
+}

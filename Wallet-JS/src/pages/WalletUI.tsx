@@ -13,15 +13,15 @@ import ListIcon from '@mui/icons-material/List';
 import GridViewIcon from '@mui/icons-material/GridView';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { AvailableBalance } from "../components/AvailableBalance";
-
+import { GithubLoginWithOAuth2Login, GoogleLoginWithOAuth2Login, TwitterLoginWithOAuth2Login } from "../components/OAuth2/OAuth2LoginButton";
+import { OAuthUser } from "../services/messages/Layer2OAuthManager/Response/OAuthResponse";
 
 
 export default function WalletUI(props: any){
 
-    //use workspac context here
     const {workspace, workspaceStateManager} = React.useContext(WorkspaceContext);
     //If wallet it null, then it is not loaded
-    const isWalletLoaded = workspace?.wallet != null;
+    const isWalletLoaded = workspace ? (workspace.walletManager.getWalletCount() > 0) : false;
     ////console.log("isWalletLoaded: " + isWalletLoaded);
 
     const [createOpenWalletDialogIsOpen, setCreateOpenWalletDialogIsOpen] = React.useState(false);
@@ -36,15 +36,16 @@ export default function WalletUI(props: any){
 
     const [transactionsViewMode, setTransactionsViewMode] = React.useState("list");
 
+    let loggedInOAuthUser: OAuthUser | null = null;
+
     let mainLayer2AddressPubkey = "";
     let mainLayer2AddressBalance = 0;
     if(isWalletLoaded){
-      mainLayer2AddressPubkey = workspace?.wallet?.getMainAddressPubkey() || "";
+      mainLayer2AddressPubkey = workspace?.walletManager.getMainWalletAddressPubkey() || "";
       mainLayer2AddressBalance = workspace?.addressBalances.get(mainLayer2AddressPubkey) || 0;
-      //console.log("WalletUI addressBalances: " + JSON.stringify(workSpace.addressBalances));
+
+      loggedInOAuthUser = workspace?.walletManager.getMainWalletOAuthUser() || null;
     }
-    //console.log("WalletUI mainAddressPubkey: " + mainAddressPubkey);
-    //console.log("WalletUI mainAddressBalance: " + mainAddressBalance);
 
   
     const handleClickCreateOpenWalletDialogOpen = () => {
@@ -101,80 +102,89 @@ export default function WalletUI(props: any){
                 dialogTitle="Create/Open L2 Wallet"
                 dialogBody={<CreateOpenWalletDialogBody />}
               />
-              <Button variant="contained" onClick={handleClickCreateOpenWalletDialogOpen}>
-                Create/Open L2 Wallet
-              </Button>
+              {!isWalletLoaded &&
+                <Stack direction={"column"}>
+                  <GoogleLoginWithOAuth2Login/>
+                  <GithubLoginWithOAuth2Login/>
+                  <TwitterLoginWithOAuth2Login/>
+                  <Button variant="contained" onClick={handleClickCreateOpenWalletDialogOpen}>
+                    Create/Open L2 Wallet
+                  </Button>
+                </Stack>
+              }
               {isWalletLoaded &&
               <Box display="block" >
                 <Card variant="outlined" sx={{p:2, bgcolor:'#FEFAE0' }}>
-                  <MainAddressBalanceView  mainAddressPubkey={mainLayer2AddressPubkey} manAddressBalance={mainLayer2AddressBalance}/>
+                  <MainAddressBalanceView  mainAddressPubkey={mainLayer2AddressPubkey} manAddressBalance={mainLayer2AddressBalance} oauthUser={loggedInOAuthUser}/>
                 </Card>
               </Box>}
             </Stack>
+            {isWalletLoaded && <div>
+              <Stack direction="row" spacing={2}>
+                <Tooltip title="Send funds to another Layer 2 address">
+                  <Button variant="contained"  onClick={handleClickTransferDialogOpen} disabled={!isWalletLoaded}>
+                    Transfer (L2-{'>'}L2)
+                  </Button>
+                  </Tooltip>
+                  <ActionDialog
+                    dialogErrorCode={transferDialogStatus}
+                    isOpen={transferDialogIsOpen}
+                    onClose={handleTransferDialogClose}
+                    dialogTitle="Transfer (L2->L2)"
+                    dialogBody={<TransferDialogBody />}
+                  />
+                
 
-            <Stack direction="row" spacing={2}>
-              <Tooltip title="Send funds to another Layer 2 address">
-                <Button variant="contained"  onClick={handleClickTransferDialogOpen} disabled={!isWalletLoaded}>
-                  Transfer (L2-{'>'}L2)
-                </Button>
-                </Tooltip>
-                <ActionDialog
-                  dialogErrorCode={transferDialogStatus}
-                  isOpen={transferDialogIsOpen}
-                  onClose={handleTransferDialogClose}
-                  dialogTitle="Transfer (L2->L2)"
-                  dialogBody={<TransferDialogBody />}
-                />
-              
+                <Tooltip title="Deposit funds from your Layer 1 bitcoin address to your Layer 2 address">
+                  <Button variant="contained"  onClick={handleDepositDialogOpen} disabled={!isWalletLoaded}>
+                    Deposit (L1-{'>'}L2)
+                  </Button>
+                  </Tooltip>
+                  <ActionDialog
+                    isOpen={getDepositAddressDialogIsOpen}
+                    onClose={handleDepositDialogClose}
+                    dialogTitle="Deposit (L1->L2)"
+                    dialogBody={<DepositDialogBody/>}
+                  />
+                
 
-              <Tooltip title="Deposit funds from your Layer 1 bitcoin address to your Layer 2 address">
-                <Button variant="contained"  onClick={handleDepositDialogOpen} disabled={!isWalletLoaded}>
-                  Deposit (L1-{'>'}L2)
-                </Button>
-                </Tooltip>
-                <ActionDialog
-                  isOpen={getDepositAddressDialogIsOpen}
-                  onClose={handleDepositDialogClose}
-                  dialogTitle="Deposit (L1->L2)"
-                  dialogBody={<DepositDialogBody/>}
-                />
-              
+                <Tooltip title="Withdraw funds from your Layer 2 address to you Layer 1 bitcoin address">
+                  <Button variant="contained" onClick={handleWihdrawalDialogOpen} disabled={!isWalletLoaded}>
+                    Withdraw (L2-{'>'}L1)
+                  </Button>
+                  </Tooltip>
+                  <ActionDialog
+                    isOpen={withdrawalDialogIsOpen}
+                    onClose={handleWithdrawalDialogClose}
+                    dialogTitle="Withdraw (L2->L1)"
+                    dialogBody={<WithdrawalDialogBody/>}
+                  />
+                
+              </Stack>
 
-              <Tooltip title="Withdraw funds from your Layer 2 address to you Layer 1 bitcoin address">
-                <Button variant="contained" onClick={handleWihdrawalDialogOpen} disabled={!isWalletLoaded}>
-                  Withdraw (L2-{'>'}L1)
-                </Button>
-                </Tooltip>
-                <ActionDialog
-                  isOpen={withdrawalDialogIsOpen}
-                  onClose={handleWithdrawalDialogClose}
-                  dialogTitle="Withdraw (L2->L1)"
-                  dialogBody={<WithdrawalDialogBody/>}
-                />
-              
-            </Stack>
-
-            <Stack direction="row" spacing={2}>
-              <ToggleButtonGroup
-                value={transactionsViewMode}
-                exclusive
-                onChange={handleTransactionsViewModeChange}>
-                <ToggleButton value="list" aria-label="list">
-                  <ListIcon />
-                </ToggleButton>
-                <ToggleButton value="grid" aria-label="grid">
-                  <GridViewIcon />
-                </ToggleButton>
-              </ToggleButtonGroup>
-              <IconButton onClick={() => workspaceStateManager?.refreshWallet()}>
-                <RefreshIcon />
-              </IconButton>
-            </Stack>
-            {
-              isWalletLoaded && transactionsViewMode == "list" && <TransactionsAccordionList transactions={workspace.transactions} myAddresses={[mainLayer2AddressPubkey]} />
+              <Stack direction="row" spacing={2}>
+                <ToggleButtonGroup
+                  value={transactionsViewMode}
+                  exclusive
+                  onChange={handleTransactionsViewModeChange}>
+                  <ToggleButton value="list" aria-label="list">
+                    <ListIcon />
+                  </ToggleButton>
+                  <ToggleButton value="grid" aria-label="grid">
+                    <GridViewIcon />
+                  </ToggleButton>
+                </ToggleButtonGroup>
+                <IconButton onClick={() => workspaceStateManager?.refreshWallet()}>
+                  <RefreshIcon />
+                </IconButton>
+              </Stack>
+              </div>
             }
             {
-              isWalletLoaded && transactionsViewMode == "grid" && <TransactionDataGrid transactions={workspace.transactions.get(mainLayer2AddressPubkey) ?? []} />
+              workspace && isWalletLoaded && transactionsViewMode == "list" && <TransactionsAccordionList transactions={workspace.transactions} myAddresses={[mainLayer2AddressPubkey]} />
+            }
+            {
+              workspace && isWalletLoaded && transactionsViewMode == "grid" && <TransactionDataGrid transactions={workspace.transactions.get(mainLayer2AddressPubkey) ?? []} />
             }
 
             </Stack>
@@ -182,16 +192,29 @@ export default function WalletUI(props: any){
       ); 
   }
 
-function MainAddressBalanceView(props: any){
-    const { mainAddressPubkey, manAddressBalance } = props;
+class MainAddressBalanceViewProps {
+    mainAddressPubkey: string = "";
+    manAddressBalance: number = 0;
+    oauthUser?: OAuthUser | null = null;
+}
 
+function MainAddressBalanceView(props: MainAddressBalanceViewProps){
+    const {workspace, workspaceStateManager} = React.useContext(WorkspaceContext);
+    const { mainAddressPubkey, manAddressBalance, oauthUser = null } = props;
+    const handleLogout = () => {
+      workspaceStateManager?.logoutOAuthUser(null);
+    };
     return(
       <div>
+        <Stack direction="row" spacing={2}>
+          {oauthUser !==null && <div>Logged in with {oauthUser.profile_url ?? oauthUser.username }</div>}
+          {oauthUser !==null && <Button variant="outlined" onClick={handleLogout}>Logout</Button>}
+        </Stack>
         Main L2 Address: {mainAddressPubkey}
         <br/>
         {manAddressBalance > 0 && <AvailableBalance walletBalance={manAddressBalance}/>}
 
-        
       </div>
     );
   }
+

@@ -1,4 +1,4 @@
-import { GetNodeInfoResponse } from "../services/messages/Responses/GetNodeInfoResponse";
+import { GetNodeInfoResponse } from "../services/messages/Layer2Ledger/Responses/GetNodeInfoResponse";
 import { Layer2LedgerState } from "../state/Layer2LedgerState";
 
 import { DEFAULT_LAYER2_HOSTNAME } from '../services/Layer2API';
