@@ -57,7 +57,7 @@ class WorkspaceStateManager{
         this.workspace.walletManager.addOAuthUser(oauthUser, userKeys, setAsMainWallet);
         this.getWalletTransactions();
         this.getWalletBalance();
-        //this.setLatestWorkspaceState();
+        this.setLatestWorkspaceState();
     }
 
     logoutOAuthUser(oauthUserId: string | null){

@@ -8,6 +8,8 @@ import { GithubOAuthManager } from 'OAuthInterfaces/GithubOAuthManager';
 import type { OAuthRequest } from 'models/http_server_models/OAuthRequest';
 import type { OAuthResponse } from 'models/http_server_models/OAuthResponse';
 import { type OAuthUser } from 'models/db_models/OAuthUser';
+import type { AuthorizeWithLayer2AuthTokenRequest } from 'models/http_server_models/AuthorizeWithLayer2AuthTokenRequest';
+import type { UserKeys } from 'models/db_models/UserKeys';
 
 const config: ConfigInterface = loadConfig('../config.json');
 
@@ -74,6 +76,37 @@ app.post('/oauth/exchange', async (req: Request<{}, {}, OAuthRequest>, res: Resp
 
   return res.status(400).json({ error: 'Unsupported service' });
   //return res.status(400).json({ error: 'Unknown Error' });
+});
+
+app.post('/oauth/l2_token_authorize', async (req: Request<{}, {}, AuthorizeWithLayer2AuthTokenRequest>, res: Response) => {  
+  try{
+    const { layer2_oauth_token } = req.body;
+    const [user, user_keys] = await mongoDb.authorizeOAuthUserWithLayer2Token(layer2_oauth_token);
+    if(user){
+      let oauthResponse: OAuthResponse = {
+        error_response: { 
+          error_code: 0,
+          error_message: 'Success'
+        },
+        user: user,
+        user_keys: user_keys
+      }
+      return res.status(200).json(oauthResponse);
+    }else{
+      let oauthResponse: OAuthResponse = {
+        error_response: { 
+          error_code: 1,
+          error_message: 'Error'
+        },
+        user: user,
+        user_keys: user_keys
+      }
+      return res.status(400).json({ error: 'Could not find user' });
+    }
+  }
+  catch(error){
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
 app.listen(port, host, () => {

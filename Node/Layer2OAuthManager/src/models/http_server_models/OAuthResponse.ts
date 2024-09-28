@@ -4,6 +4,6 @@ import { type UserKeys } from "models/db_models/UserKeys";
 
 export interface OAuthResponse {
     error_response: ErrorResponse;
-    user: OAuthUser;
+    user: OAuthUser | null;
     user_keys: UserKeys | null;
 }

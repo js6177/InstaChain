@@ -73,7 +73,7 @@ export class TwitterOAuthManager {
         userKeys = await mongoDb.createNewUserKeys(user._id);
       }
       //Save the user to the database
-      await mongoDb.saveOAuthUser(user);
+      await mongoDb.saveOAuthUser(user, true);
       return [user, userKeys];
     } catch (error) {
       console.error("Error in getTwitterUserInfo:", error);

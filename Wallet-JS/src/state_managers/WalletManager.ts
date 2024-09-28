@@ -3,6 +3,8 @@
 
 import { Wallet } from "../utils/wallet";
 import { OAuthUser, UserKeys } from "../services/messages/Layer2OAuthManager/Response/OAuthResponse";
+import { removeLayer2OAuthAuthorizationTokenFromLocalStorage, saveLayer2OAuthAuthorizationTokenToLocalStorage} from "../state_managers/LocalStorageManager";
+import { Layer2OAuthToken } from "../services/messages/Layer2OAuthManager/Request/AuthorizeWithLayer2AuthTokenRequest";
 
 export class WalletManager {
     public wallets: Map<string, Wallet>;
@@ -41,7 +43,10 @@ export class WalletManager {
         }
         else{
             console.log("setOAuthUser: user_keys is null");
-        }   
+        }
+        //Store layer2_authorization_token in local storage
+        const layer2OAuthToken: Layer2OAuthToken = { layer2_authorization_token: oauthUser.layer2_authorization_token, oauth_service: oauthUser.service_name };
+        saveLayer2OAuthAuthorizationTokenToLocalStorage(layer2OAuthToken);
     }
 
     // Remove the OAuth user and wallet associated with the oauthUserId
@@ -52,6 +57,7 @@ export class WalletManager {
         }
         this.oauthusers.delete(oauthUserId);
         this.wallets.delete(oauthUserId);
+        removeLayer2OAuthAuthorizationTokenFromLocalStorage();
 
         // If the main wallet is removed, set the main wallet to the first wallet in the wallets map
         if (this.getMainWalletId() === oauthUserId) {

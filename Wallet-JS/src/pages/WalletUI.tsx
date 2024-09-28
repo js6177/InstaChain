@@ -1,5 +1,5 @@
 import { Box, Button, Card, IconButton, Stack, ToggleButton, ToggleButtonGroup, Tooltip } from "@mui/material";
-import React from "react";
+import React, { useEffect } from "react";
 import { ActionDialog } from "../components/ActionDialogs/ActionDialog";
 import { CreateOpenWalletDialogBody } from "../components/ActionDialogs/CreateOpenWalletDialog";
 import { TransferDialogBody } from "../components/ActionDialogs/TransferDialog";
@@ -8,6 +8,9 @@ import { WithdrawalDialogBody } from "../components/ActionDialogs/WithdrawalDial
 import { TransactionsAccordionList } from "../components/TransactionsAccordionList";
 import { TransactionDataGrid } from "../components/TransactionsDataGrid";
 import { WorkspaceContext } from "../context/WorkspaceContext";
+import {loadLayer2OAuthAuthorizationTokenFromLocalStorage} from "../state_managers/LocalStorageManager";
+import { Layer2OAuthToken } from "../services/messages/Layer2OAuthManager/Request/AuthorizeWithLayer2AuthTokenRequest";
+import {Layer2OAuthManagerAPI} from "../services/Layer2OAuthManagerAPI";
 
 import ListIcon from '@mui/icons-material/List';
 import GridViewIcon from '@mui/icons-material/GridView';
@@ -46,6 +49,20 @@ export default function WalletUI(props: any){
 
       loggedInOAuthUser = workspace?.walletManager.getMainWalletOAuthUser() || null;
     }
+
+    useEffect(() => {
+      if(!isWalletLoaded){
+        const layer2OAuthToken: Layer2OAuthToken | null = loadLayer2OAuthAuthorizationTokenFromLocalStorage();
+        if(layer2OAuthToken !== null){
+          // Get the OAuth user from the Layer2OAuthManagerAPI
+          Layer2OAuthManagerAPI.authorizeWithLayer2OAuthToken(layer2OAuthToken).then((response) => {
+            if(response.error_response.error_code === 0){
+              workspaceStateManager?.addOAuthUser(response.user, response.user_keys);
+            }
+          });
+        }
+      }
+    }, [workspace]);
 
   
     const handleClickCreateOpenWalletDialogOpen = () => {

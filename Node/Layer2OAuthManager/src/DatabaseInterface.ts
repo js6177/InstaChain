@@ -4,6 +4,7 @@ import { type MongoDbConfig } from 'models/config_models/Config';
 import {OAuthUserModel, type OAuthUser} from 'models/db_models/OAuthUser';
 import {UserKeysModel, type UserKeys} from 'models/db_models/UserKeys';
 import {GenerateMneumonic} from 'utils/mneumonic';
+import { type Layer2OAuthToken } from 'models/http_server_models/AuthorizeWithLayer2AuthTokenRequest';
 
 export interface UserInfo {
     [key: string]: any;
@@ -40,7 +41,15 @@ export class DatabaseInterface {
         user.buildPrimaryKey();
         const newUser = new OAuthUserModel(user);
         try {
-            await newUser.save().then(() => console.log('OAuthUser saved successfully'));
+            if (updateIfExists) {
+                await OAuthUserModel.findOneAndUpdate(
+                    { _id: user._id },
+                    user,
+                    { upsert: true, new: true }
+                ).then(() => console.log('OAuthUser updated successfully'));
+            } else {
+                await newUser.save().then(() => console.log('OAuthUser saved successfully'));
+            }
         } catch (error) {
             console.error('Error saving OAuthUser:', error);
         }   
@@ -67,8 +76,18 @@ export class DatabaseInterface {
         }
     }
 
+    async authorizeOAuthUserWithLayer2Token(layer2Token: Layer2OAuthToken): Promise<[OAuthUser | null, UserKeys | null]> {
+        const user = await OAuthUserModel.findOne({ layer2_authorization_token: layer2Token.layer2_authorization_token });
+        if(!user) {
+            return [null, null];
+        }
+        const keys = await this.getOAuthUserKeys(user._id);
+        return [user, keys];
+    }
+
     // Create a new UserKeys object with the given userId and insert it into the UserKeys collection.
     // It only creates a UserKeys object, it does not update an existing UserKeys object.
+    // userId is the primary key (_id) of the OAuthUser object
     async createNewUserKeys(userId: string): Promise<UserKeys> {
         const userKeys = new UserKeysModel();
         userKeys.oauth_user_id = userId;
