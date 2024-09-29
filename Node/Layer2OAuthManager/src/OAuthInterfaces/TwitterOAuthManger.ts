@@ -5,6 +5,7 @@ import { type DatabaseInterface } from "DatabaseInterface";
 import { GenerateUUID, MillisecondsInMonth } from "utils/utils";
 import { type TwitterUserInfoData, type TwitterUserInfo } from "models/oauth2_models/Twitter";
 import type { UserKeys } from "models/db_models/UserKeys";
+import {standardizeProfileUrl, buildTwitterUrl } from "utils/OAuthHelpers";
 
 const TWITTER_TOKEN_URL: string = "https://api.twitter.com/2/oauth2/token";
 const TWITTER_USER_URL: string =
@@ -92,7 +93,7 @@ export class TwitterOAuthManager {
     user.first_login_date = new Date();
     user.last_login_date = new Date();
     user.profile_pic_url = twitterUserInfo.profile_image_url;
-    user.profile_url = twitterUserInfo.url;
+    user.profile_url = standardizeProfileUrl(buildTwitterUrl(twitterUserInfo.username));
     user.buildPrimaryKey();
     return user;
   } 

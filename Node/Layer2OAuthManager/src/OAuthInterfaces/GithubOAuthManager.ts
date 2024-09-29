@@ -5,6 +5,7 @@ import { type DatabaseInterface } from "DatabaseInterface";
 import { GenerateUUID, MillisecondsInMonth } from "utils/utils";
 import { type GithubUserInfo } from "models/oauth2_models/Github";
 import type { UserKeys } from "models/db_models/UserKeys";
+import { standardizeProfileUrl } from "utils/OAuthHelpers";
 
 const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token';
 const GITHUB_USER_URL = 'https://api.github.com/user';
@@ -59,7 +60,7 @@ export class GithubOAuthManager {
         user.first_login_date = new Date();
         user.last_login_date = new Date();
         user.profile_pic_url = githubUserInfo.avatar_url;
-        user.profile_url = githubUserInfo.html_url;
+        user.profile_url = standardizeProfileUrl(githubUserInfo.html_url);
         user.buildPrimaryKey();
         return user;
       }
