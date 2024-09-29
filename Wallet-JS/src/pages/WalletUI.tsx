@@ -23,9 +23,7 @@ import { OAuthUser } from "../services/messages/Layer2OAuthManager/Response/OAut
 export default function WalletUI(props: any){
 
     const {workspace, workspaceStateManager} = React.useContext(WorkspaceContext);
-    //If wallet it null, then it is not loaded
     const isWalletLoaded = workspace ? (workspace.walletManager.getWalletCount() > 0) : false;
-    ////console.log("isWalletLoaded: " + isWalletLoaded);
 
     const [createOpenWalletDialogIsOpen, setCreateOpenWalletDialogIsOpen] = React.useState(false);
     const [createOpenWalletDialogStatus, setCreateOpenWalletDialogStatus] = React.useState("");

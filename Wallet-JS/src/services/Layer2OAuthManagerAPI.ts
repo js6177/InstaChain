@@ -1,15 +1,17 @@
 const DEFAULT_LAYER2_OAUTHMANAGER_HOSTNAME = 'http://127.0.0.1:4000/';
 import { OAuthResponse } from "../services/messages/Layer2OAuthManager/Response/OAuthResponse";
 import { AuthorizeWithLayer2AuthTokenRequest, Layer2OAuthToken } from "../services/messages/Layer2OAuthManager/Request/AuthorizeWithLayer2AuthTokenRequest";
+import { OAuthRequest } from "./messages/Layer2OAuthManager/Request/OAuthRequest";
 
 export class Layer2OAuthManagerAPI {
-  static async exchangeOAuthCode(code: string, service: string, code_verifier: string): Promise<OAuthResponse> {
+  static async exchangeOAuthCode(code: string, service: string, code_verifier: string | null): Promise<OAuthResponse> {
+    const body: OAuthRequest = { code, service, code_verifier };
     const response = await fetch(DEFAULT_LAYER2_OAUTHMANAGER_HOSTNAME + 'oauth/exchange', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ code, service, code_verifier }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {

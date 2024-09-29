@@ -38,11 +38,11 @@ if(!connected) {
 }
 
 app.post('/oauth/exchange', async (req: Request<{}, {}, OAuthRequest>, res: Response) => {
-  const { code, service, code_verifier } = req.body;
+  const requestBody: OAuthRequest = req.body;
   let accessToken = '';
-  if (service === 'twitter' && twitterOAuthManager) {
+  if (requestBody.service === 'twitter' && twitterOAuthManager && requestBody.code_verifier) {
     try {
-      accessToken = await twitterOAuthManager.getTwitterAccessToken(code, code_verifier);
+      accessToken = await twitterOAuthManager.getTwitterAccessToken(requestBody.code, requestBody.code_verifier);
       let [userInfo, userKeys] = await twitterOAuthManager.getTwitterUserInfo(accessToken, mongoDb);
       let oauthResponse: OAuthResponse = {
         error_response: { 
@@ -56,9 +56,9 @@ app.post('/oauth/exchange', async (req: Request<{}, {}, OAuthRequest>, res: Resp
     } catch (error) {
       return res.status(500).json({ error: 'Internal Server Error' });
     }
-  }else if (service === 'github' && githubOAuthManager) {
+  }else if (requestBody.service === 'github' && githubOAuthManager) {
     try {
-      accessToken = await githubOAuthManager.getGithubAccessToken(code);
+      accessToken = await githubOAuthManager.getGithubAccessToken(requestBody.code);
       let [userInfo, userKeys] = await githubOAuthManager.getGithubUserInfo(accessToken, mongoDb);
       let oauthResponse: OAuthResponse = {
         error_response: { 
@@ -75,13 +75,12 @@ app.post('/oauth/exchange', async (req: Request<{}, {}, OAuthRequest>, res: Resp
   }
 
   return res.status(400).json({ error: 'Unsupported service' });
-  //return res.status(400).json({ error: 'Unknown Error' });
 });
 
 app.post('/oauth/l2_token_authorize', async (req: Request<{}, {}, AuthorizeWithLayer2AuthTokenRequest>, res: Response) => {  
   try{
-    const { layer2_oauth_token } = req.body;
-    const [user, user_keys] = await mongoDb.authorizeOAuthUserWithLayer2Token(layer2_oauth_token);
+    const requestBody: AuthorizeWithLayer2AuthTokenRequest = req.body;
+    const [user, user_keys] = await mongoDb.authorizeOAuthUserWithLayer2Token(requestBody.layer2_oauth_token);
     if(user){
       let oauthResponse: OAuthResponse = {
         error_response: { 

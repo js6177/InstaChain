@@ -1,14 +1,20 @@
-import { random, set } from "lodash";
+import { random } from "lodash";
 import React, { useEffect, useState } from "react";
 import OAuth2Login  from 'react-simple-oauth2-login';
 import { SHA256 } from "../../utils/wallet";
 import { WorkspaceContext } from "../../context/WorkspaceContext";
 import { OAuthResponse } from "../../services/messages/Layer2OAuthManager/Response/OAuthResponse";
+import { Layer2OAuthManagerAPI } from "../../services/Layer2OAuthManagerAPI";
 
 const GOOGLE_OAuth2_CLIENT_ID: string = "639252016244-74f6is7u2ultdb4g1cn248pn1090k19t.apps.googleusercontent.com";
 const GITHUB_OAuth2_CLIENT_ID: string = "Ov23likC7DPlra38cJvQ";
 const TWITTER_OAuth2_CLIENT_ID: string = "MlZNU3FNYWVta2hBN2xYSG9XR2w6MTpjaQ";
 
+const GITHUB_AUTHORIZATION_URL = "https://github.com/login/oauth/authorize";
+const GITHUB_REDIRECT_URL = "http://localhost:3000/oauth2/github/callback";
+
+const TWITTER_AUTHORIZATION_URL = "https://twitter.com/i/oauth2/authorize";
+const TWITTER_REDIRECT_URL = "http://localhost:3000/oauth2/twitter/callback";
 
 export function TwitterLoginWithOAuth2Login(){
   const {workspace, workspaceStateManager} = React.useContext(WorkspaceContext);
@@ -30,19 +36,7 @@ export function TwitterLoginWithOAuth2Login(){
   const handleOAuthExchange = async (code: string, service: string) => {
     try {
       console.log("handleOAuthExchange code: " + code);
-      const response = await fetch('http://127.0.0.1:4000/oauth/exchange', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code, service, code_verifier: PKCE_code }),
-      });
-
-      if (!response.ok) {
-        throw new Error('OAuth exchange failed');
-      }
-
-      const data: OAuthResponse = await response.json();
+      const data: OAuthResponse = await Layer2OAuthManagerAPI.exchangeOAuthCode(code, service, PKCE_code);
       console.log("handleOAuthExchange data: " + JSON.stringify(data));
       setUserData(data);
       setError(null);
@@ -56,10 +50,10 @@ export function TwitterLoginWithOAuth2Login(){
 
 return (
   <OAuth2Login
-    authorizationUrl="https://twitter.com/i/oauth2/authorize"
+    authorizationUrl={TWITTER_AUTHORIZATION_URL}
     responseType="code"
     clientId={TWITTER_OAuth2_CLIENT_ID}
-    redirectUri="http://localhost:3000/oauth2/twitter/callback"
+    redirectUri={TWITTER_REDIRECT_URL}
     scope="tweet.read users.read"
     state={random(1000, 9999).toString()}
     buttonText="Login with X"
@@ -145,19 +139,7 @@ export function GithubLoginWithOAuth2Login(){
 
   const handleOAuthExchange = async (code: string, service: 'github' | 'google') => {
       try {
-        const response = await fetch('http://127.0.0.1:4000/oauth/exchange', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ code, service }),
-        });
-  
-        if (!response.ok) {
-          throw new Error('OAuth exchange failed');
-        }
-  
-        const data: OAuthResponse = await response.json() as OAuthResponse;
+        const data: OAuthResponse = await Layer2OAuthManagerAPI.exchangeOAuthCode(code, service, null);
         console.log("handleOAuthExchange data: " + JSON.stringify(data));
         setUserData(data);
         setError(null);
@@ -170,10 +152,10 @@ export function GithubLoginWithOAuth2Login(){
     
   return(
     <OAuth2Login
-      authorizationUrl="https://github.com/login/oauth/authorize"
+      authorizationUrl={GITHUB_AUTHORIZATION_URL}
       responseType="code"
       clientId={GITHUB_OAuth2_CLIENT_ID}
-      redirectUri="http://localhost:3000/oauth2/github/callback"
+      redirectUri={GITHUB_REDIRECT_URL}
       scope=""
       buttonText="Login with Github"
       isCrossOrigin={false}
