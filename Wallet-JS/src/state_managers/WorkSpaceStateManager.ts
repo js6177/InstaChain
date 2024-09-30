@@ -15,10 +15,14 @@ import { GetTransactionsResponse, TransactionGroup, GetTransactionsResponseTrans
 import SearchResultsResponse from '../services/messages/Layer2Ledger/Responses/SearchResultsResponse';
 import TransferTransactionResponse from '../services/messages/Layer2Ledger/Responses/TransferTransactionResponse';
 import WithdrawalRequestResponse from '../services/messages/Layer2Ledger/Responses/WithdrawalRequestResponse';
+import { SearchUserRequest } from '../services/messages/Layer2OAuthManager/Request/SearchUserRequest';
 import { OAuthUser, UserKeys } from '../services/messages/Layer2OAuthManager/Response/OAuthResponse';
+import {Layer2OAuthManagerAPI} from '../services/Layer2OAuthManagerAPI';
 
 import { Workspace } from '../state/Workspace';
 import { Wallet, MessageBuilder, Transaction } from '../utils/wallet';
+import { SearchUserResponse } from '../services/messages/Layer2OAuthManager/Response/SearchUserResponse';
+import { UnifiedSearchResults } from '../services/messages/Common/UnifiedSearchResults';
 
 class WorkspaceStateManager{
 
@@ -309,6 +313,31 @@ class WorkspaceStateManager{
         this.getWalletBalance();
     }
 
+    searchOAuthUser(searchText: string){
+        Layer2OAuthManagerAPI.searchOAuthUser(searchText, this.onSearchOAuthUser.bind(this));
+    }
+
+    onSearchOAuthUser(searchUserRequest: SearchUserRequest,  searchUserResponse: SearchUserResponse){
+        console.log('searchUserRequest: ', searchUserResponse);
+        // Create or update a UnifiedSearchResults result with the oauthUserSearchResults as searchUserResponse, and update workspace.searchResults with it
+        let unifiedSearchResults: UnifiedSearchResults = this.workspace.searchResults.get(searchUserRequest.keyword) as UnifiedSearchResults;
+        if(unifiedSearchResults === null || unifiedSearchResults === undefined){
+            unifiedSearchResults = {
+                layer2SearchResults: null,
+                oauthUserSearchResults: searchUserResponse
+            };
+        }
+        else{
+            unifiedSearchResults.oauthUserSearchResults = searchUserResponse;
+        }
+        this.workspace.searchResults.set(searchUserRequest.keyword, unifiedSearchResults);
+        
+        if(searchUserResponse.users !== null){
+            this.workspace.searchedOAuthUsers.set(searchUserRequest.keyword, searchUserResponse.users);
+        }
+        this.setLatestWorkspaceState();
+    }
+
     search(searchText: string){
         const searchRequest: SearchRequest = {
             search_string: searchText,
@@ -319,7 +348,17 @@ class WorkspaceStateManager{
 
     onSearchResults(searchResults: SearchResultsResponse){
         console.log('searchResults: ', searchResults);
-        this.workspace.searchResults.set(searchResults.search_string, searchResults);
+        let unifiedSearchResults: UnifiedSearchResults = this.workspace.searchResults.get(searchResults.search_string) as UnifiedSearchResults;
+        if(unifiedSearchResults === null || unifiedSearchResults === undefined){
+            unifiedSearchResults = {
+                layer2SearchResults: searchResults,
+                oauthUserSearchResults: null
+            };
+        }else{
+            unifiedSearchResults.layer2SearchResults = searchResults;
+        }
+        this.workspace.searchResults.set(searchResults.search_string, unifiedSearchResults);
+
         if(searchResults.l2_address !== null){
             this.workspace.searchedAddressBalances.set(searchResults.search_string, searchResults.l2_address.balance);
         }
@@ -343,6 +382,7 @@ class WorkspaceStateManager{
             searchedAddressBalances: this.workspace.searchedAddressBalances,
             searchedAdressTransactions: this.workspace.searchedAdressTransactions,
             searchedTransaction: this.workspace.searchedTransaction,
+            searchedOAuthUsers: this.workspace.searchedOAuthUsers,
             searchResults: this.workspace.searchResults
         });
     }

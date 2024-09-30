@@ -106,5 +106,9 @@ export class DatabaseInterface {
         
         return userKeys;
     }
+
+    async findUser(username: string): Promise<OAuthUser | null> {
+        return await OAuthUserModel.findOne({ username }) || null;
+    }
 }
 

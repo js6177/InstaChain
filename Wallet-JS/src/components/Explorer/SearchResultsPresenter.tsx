@@ -14,6 +14,7 @@ import { GetTransactionsResponseTransaction } from '../../services/messages/Laye
 
 import { AddressPresenter } from './AddressPresenter';
 import { TransactionPresenter } from './TransactionPresenter';
+import SearchResultsResponse  from '../../services/messages/Layer2Ledger/Responses/SearchResultsResponse';
 
 class SearchResultsPresenterProps {
     searchString: string = "";
@@ -43,6 +44,7 @@ export function SearchResultsPresenter(props: SearchResultsPresenterProps) {
     function loadSearchResults() {
         if (workspace?.searchResults.get(searchString) == null) {
             workspaceStateManager?.search(searchString);
+            workspaceStateManager?.searchOAuthUser(searchString);
         }
     }
 
@@ -50,20 +52,30 @@ export function SearchResultsPresenter(props: SearchResultsPresenterProps) {
         if(workspace?.searchResults.get(searchString) != null){
             const searchResults = workspace?.searchResults.get(searchString);
             if(searchResults != null){
-                setIsSearchFinishedLoading(true);
-            
-                const _isAddressFound = searchResults?.l2_address != null;
-                setAddressFound(_isAddressFound);
-                const _isTransactionFound = searchResults?.l2_transaction != null;
-                setTransactionFound(_isTransactionFound);
+                if(searchResults.layer2SearchResults != null){
+                    const layer2SearchResults: SearchResultsResponse = searchResults.layer2SearchResults;
+                    setIsSearchFinishedLoading(true);
+                
+                    const _isAddressFound = layer2SearchResults.l2_address != null;
+                    setAddressFound(_isAddressFound);
+                    const _isTransactionFound = layer2SearchResults.l2_transaction != null;
+                    setTransactionFound(_isTransactionFound);
 
-                if(_isAddressFound){
-                    setFoundAddressBalance(searchResults?.l2_address?.balance as number);
+                    if(_isAddressFound){
+                        setFoundAddressBalance(layer2SearchResults.l2_address?.balance as number);
+                    }
+                    if(_isTransactionFound){
+                        const transaction = new Transaction();
+                        transaction.fromGetTransactionsResponseTransaction(layer2SearchResults.l2_transaction as GetTransactionsResponseTransaction);
+                        setFoundTransaction(transaction);
+                    }
                 }
-                if(_isTransactionFound){
-                    const transaction = new Transaction();
-                    transaction.fromGetTransactionsResponseTransaction(searchResults?.l2_transaction as GetTransactionsResponseTransaction);
-                    setFoundTransaction(transaction);
+                if(searchResults.oauthUserSearchResults != null){
+                    const oauthUserSearchResults = searchResults.oauthUserSearchResults;
+                    setIsSearchFinishedLoading(true);
+                    if(oauthUserSearchResults.users != null && oauthUserSearchResults.users.length > 0){
+                        console.log(oauthUserSearchResults.users);
+                    }
                 }
             }
         }

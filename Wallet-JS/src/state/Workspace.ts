@@ -5,6 +5,9 @@ import { GetBalanceResponse } from '../services/messages/Layer2Ledger/Responses/
 import GetTransactionResponse from '../services/messages/Layer2Ledger/Responses/GetTransactionResponse';
 import SearchResultsResponse from '../services/messages/Layer2Ledger/Responses/SearchResultsResponse';
 import {WalletManager} from '../state_managers/WalletManager';
+import { OAuthUser } from '../services/messages/Layer2OAuthManager/Response/OAuthResponse';
+import { SearchUserResponse } from '../services/messages/Layer2OAuthManager/Response/SearchUserResponse';
+import { UnifiedSearchResults } from '../services/messages/Common/UnifiedSearchResults';
 class Workspace {
     public layer2ledgerNodeUrl: string;
     //public mneumonic: string | null;
@@ -21,8 +24,9 @@ class Workspace {
     public searchedAddressBalances: Map<string, number>; // Key: Layer2 address, Value: balance
     public searchedAdressTransactions: Map<string, Transaction[]>; // Key: Layer2 address, Value: List of transactions
     public searchedTransaction: Map<string, Transaction>; // Key: Layer2 transaction id, Value: Transaction
+    public searchedOAuthUsers: Map<string, OAuthUser[]>; // Key: Search text, Value: OAuthUser
 
-    public searchResults: Map<string, SearchResultsResponse>; // Key: Search text, Value: Results of the search
+    public searchResults: Map<string, UnifiedSearchResults>; // Key: Search text, Value: Results of the search
 
 
     constructor(layer2ledgerNodeUrl: string = DEFAULT_LAYER2_HOSTNAME) {
@@ -38,6 +42,7 @@ class Workspace {
         this.searchedAddressBalances = new Map();
         this.searchedAdressTransactions = new Map();
         this.searchedTransaction = new Map();
+        this.searchedOAuthUsers = new Map();
 
         this.searchResults = new Map();
     }

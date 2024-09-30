@@ -10,6 +10,8 @@ import type { OAuthResponse } from 'models/http_server_models/OAuthResponse';
 import { type OAuthUser } from 'models/db_models/OAuthUser';
 import type { AuthorizeWithLayer2AuthTokenRequest } from 'models/http_server_models/AuthorizeWithLayer2AuthTokenRequest';
 import type { UserKeys } from 'models/db_models/UserKeys';
+import type {SearchUserRequest} from 'models/http_server_models/SearchUserRequest';
+import type {SearchUserResponse} from 'models/http_server_models/SearchUserResponse';
 
 const config: ConfigInterface = loadConfig('../config.json');
 
@@ -100,6 +102,28 @@ app.post('/oauth/l2_token_authorize', async (req: Request<{}, {}, AuthorizeWithL
         user: user,
         user_keys: user_keys
       }
+      return res.status(400).json({ error: 'Could not find user' });
+    }
+  }
+  catch(error){
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.post('/user/search', async (req: Request<{}, {}, SearchUserRequest>, res: Response) => {
+  try{
+    const requestBody: SearchUserRequest = req.body;
+    const user = await mongoDb.findUser(requestBody.keyword);
+    if(user){
+      let searchUserResponse: SearchUserResponse = {
+        error_response: { 
+          error_code: 0,
+          error_message: 'Success'
+        },
+        users: [user]
+      }
+      return res.status(200).json(searchUserResponse);
+    }else{
       return res.status(400).json({ error: 'Could not find user' });
     }
   }
