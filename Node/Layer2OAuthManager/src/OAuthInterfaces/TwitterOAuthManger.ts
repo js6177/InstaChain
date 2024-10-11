@@ -5,7 +5,7 @@ import { type DatabaseInterface } from "DatabaseInterface";
 import { GenerateUUID, MillisecondsInMonth } from "utils/utils";
 import { type TwitterUserInfoData, type TwitterUserInfo } from "models/oauth2_models/Twitter";
 import type { UserKeys } from "models/db_models/UserKeys";
-import {standardizeProfileUrl, buildTwitterUrl } from "utils/OAuthHelpers";
+import {standardizeProfileUrl, buildTwitterUrl } from "utils/OAuthHelperUtils";
 
 const TWITTER_TOKEN_URL: string = "https://api.twitter.com/2/oauth2/token";
 const TWITTER_USER_URL: string =

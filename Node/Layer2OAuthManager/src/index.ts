@@ -12,6 +12,8 @@ import type { AuthorizeWithLayer2AuthTokenRequest } from 'models/http_server_mod
 import type { UserKeys } from 'models/db_models/UserKeys';
 import type {SearchUserRequest} from 'models/http_server_models/SearchUserRequest';
 import type {SearchUserResponse} from 'models/http_server_models/SearchUserResponse';
+import type { FindOauthUserRequest } from 'models/http_server_models/FindOauthUserRequest';
+import type { FindOAuthUserResponse } from 'models/http_server_models/FindOauthUserResponse';
 
 const config: ConfigInterface = loadConfig('../config.json');
 
@@ -113,7 +115,12 @@ app.post('/oauth/l2_token_authorize', async (req: Request<{}, {}, AuthorizeWithL
 app.post('/user/search', async (req: Request<{}, {}, SearchUserRequest>, res: Response) => {
   try{
     const requestBody: SearchUserRequest = req.body;
-    const user = await mongoDb.findUser(requestBody.keyword);
+    let user: OAuthUser | null = null;
+    if(requestBody.username){
+      user = await mongoDb.searchUser(requestBody.keyword, null);
+    }else if(requestBody.profile_url){
+      user = await mongoDb.searchUser(null, requestBody.keyword);
+    }
     if(user){
       let searchUserResponse: SearchUserResponse = {
         error_response: { 
@@ -128,6 +135,27 @@ app.post('/user/search', async (req: Request<{}, {}, SearchUserRequest>, res: Re
     }
   }
   catch(error){
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.post('/user/find', async (req: Request<{}, {}, FindOauthUserRequest>, res: Response) => {
+  try{
+    const requestBody: FindOauthUserRequest = req.body;
+    const user = await mongoDb.findUser(null, requestBody.profile_url, true);
+    if(user){
+      let searchUserResponse: FindOAuthUserResponse = {
+        error_response: { 
+          error_code: 0,
+          error_message: 'Success'
+        },
+        user: user,
+      }
+      return res.status(200).json(searchUserResponse);
+    }else{
+      return res.status(400).json({ error: 'Could not find user' });
+    }
+  }catch(error){
     return res.status(500).json({ error: 'Internal Server Error' });
   }
 });

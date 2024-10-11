@@ -8,6 +8,7 @@ import {WalletManager} from '../state_managers/WalletManager';
 import { OAuthUser } from '../services/messages/Layer2OAuthManager/Response/OAuthResponse';
 import { SearchUserResponse } from '../services/messages/Layer2OAuthManager/Response/SearchUserResponse';
 import { UnifiedSearchResults } from '../services/messages/Common/UnifiedSearchResults';
+import { OAuthUserAuxillaryInfo } from '../services/messages/Layer2OAuthManager/Common/OAuthUserAuxillaryInfo';
 class Workspace {
     public layer2ledgerNodeUrl: string;
     //public mneumonic: string | null;
@@ -25,6 +26,7 @@ class Workspace {
     public searchedAdressTransactions: Map<string, Transaction[]>; // Key: Layer2 address, Value: List of transactions
     public searchedTransaction: Map<string, Transaction>; // Key: Layer2 transaction id, Value: Transaction
     public searchedOAuthUsers: Map<string, OAuthUser[]>; // Key: Search text, Value: OAuthUser
+    public foundOAuthUsers: Map<string, OAuthUserAuxillaryInfo>; // key: profile_url, Value: OAuthUserAuxillaryInfo
 
     public searchResults: Map<string, UnifiedSearchResults>; // Key: Search text, Value: Results of the search
 
@@ -43,6 +45,7 @@ class Workspace {
         this.searchedAdressTransactions = new Map();
         this.searchedTransaction = new Map();
         this.searchedOAuthUsers = new Map();
+        this.foundOAuthUsers = new Map();
 
         this.searchResults = new Map();
     }

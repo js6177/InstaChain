@@ -4,6 +4,8 @@ import { AuthorizeWithLayer2AuthTokenRequest, Layer2OAuthToken } from "../servic
 import { OAuthRequest } from "./messages/Layer2OAuthManager/Request/OAuthRequest";
 import {SearchUserRequest} from "./messages/Layer2OAuthManager/Request/SearchUserRequest";
 import { SearchUserResponse } from "./messages/Layer2OAuthManager/Response/SearchUserResponse";
+import { FindOAuthUserResponse } from "./messages/Layer2OAuthManager/Response/FindOauthUserResponse";
+import { FindOauthUserRequest } from "./messages/Layer2OAuthManager/Request/FindOauthUserRequest";
 
 export class Layer2OAuthManagerAPI {
   static async exchangeOAuthCode(code: string, service: string, code_verifier: string | null): Promise<OAuthResponse> {
@@ -64,4 +66,25 @@ export class Layer2OAuthManagerAPI {
     callback(body, data);
     return data;
   }
+
+  static async findOAuthUser(profile_url: string, callback: (findOAuthUserRequest: FindOauthUserRequest,  findOAuthUserResponse: FindOAuthUserResponse) => void): Promise<FindOAuthUserResponse> {
+      
+      const url: string = DEFAULT_LAYER2_OAUTHMANAGER_HOSTNAME + 'user/find'
+      const body : FindOauthUserRequest = {username: null, profile_url: profile_url};
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+  
+      if (!response.ok) {
+        throw new Error('OAuth search failed');
+      }
+
+      const data: FindOAuthUserResponse = await response.json();
+      callback(body, data);
+      return data;
+    }
 }

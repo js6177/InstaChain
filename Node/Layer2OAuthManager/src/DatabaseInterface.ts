@@ -1,16 +1,19 @@
 export const db_name: string = "my_db";
+import mongoose from 'mongoose';
+
 
 import { type MongoDbConfig } from 'models/config_models/Config';
 import {OAuthUserModel, type OAuthUser} from 'models/db_models/OAuthUser';
-import {UserKeysModel, type UserKeys} from 'models/db_models/UserKeys';
+import {UserKeys, UserKeysModel} from 'models/db_models/UserKeys';
 import {GenerateMneumonic} from 'utils/mneumonic';
 import { type Layer2OAuthToken } from 'models/http_server_models/AuthorizeWithLayer2AuthTokenRequest';
+import type { OAuthUserAuxillaryInfo } from 'models/http_server_models/Common/OAuthUserAuxillaryInfo';
+import {createLayer2AddressPubkey} from 'utils/WalletUtils';
+import {standardizeProfileUrl} from 'utils/OAuthHelperUtils';
 
 export interface UserInfo {
     [key: string]: any;
 }
-
-import mongoose from 'mongoose';
 
 
 //Create a DatabaseInterface class that connect to a db with the params given through MongoDbConfig, and would save and read OAuthUser objects
@@ -38,7 +41,7 @@ export class DatabaseInterface {
     }
 
     async saveOAuthUser(user: OAuthUser, updateIfExists: boolean = false): Promise<void> {
-        user.buildPrimaryKey();
+        //user.buildPrimaryKey();
         const newUser = new OAuthUserModel(user);
         try {
             if (updateIfExists) {
@@ -92,6 +95,7 @@ export class DatabaseInterface {
         const userKeys = new UserKeysModel();
         userKeys.oauth_user_id = userId;
         userKeys.l2_address_mneumonic = GenerateMneumonic();
+        userKeys.l2_address_public_key = createLayer2AddressPubkey(userKeys.l2_address_mneumonic);
 
         try{
             const existingUserKeys = await UserKeysModel.findOne({ oauth_user_id: userId });
@@ -107,8 +111,48 @@ export class DatabaseInterface {
         return userKeys;
     }
 
-    async findUser(username: string): Promise<OAuthUser | null> {
-        return await OAuthUserModel.findOne({ username }) || null;
+    async searchUser(username: string | null, profile_url: string | null): Promise<OAuthUser | null> {
+        if(profile_url) {
+            return await OAuthUserModel.findOne({ profile_url }) || null;
+        }else if(username){
+            return await OAuthUserModel.findOne({ username }) || null;
+        }else{
+            return null;
+        }
+    }
+
+    async findUser(username: string | null, profile_url: string | null, createTemporaryUserIfNotFound: boolean = false): Promise<OAuthUserAuxillaryInfo | null> {
+        let user: OAuthUser | null = null;
+        if(profile_url) {
+            profile_url = standardizeProfileUrl(profile_url);
+            user = await OAuthUserModel.findOne({ profile_url})
+        }else if(username){
+            user = await OAuthUserModel.findOne({ username})
+        }
+        let keys: UserKeys | null = null;
+
+        if(user){
+            keys = await this.getOAuthUserKeys(user._id);
+        }
+
+        if(!user && profile_url && createTemporaryUserIfNotFound){
+            user = new OAuthUserModel();
+            user.profile_url = profile_url;
+            user.buildPrimaryKey(true);
+            await this.saveOAuthUser(user);
+
+            keys = await this.createNewUserKeys(user._id);
+        }
+        let oauthUserAuxillaryInfo: OAuthUserAuxillaryInfo  | null = null;
+        if(user && keys){
+            oauthUserAuxillaryInfo = {
+                user: user,
+                layer2_address_pubkey: keys.l2_address_public_key,
+                placeholder_user: !user.hasSignedInBefore()
+            }
+        }
+
+        return oauthUserAuxillaryInfo;
     }
 }
 

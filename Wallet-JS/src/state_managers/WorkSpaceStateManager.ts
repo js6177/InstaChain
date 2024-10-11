@@ -23,6 +23,8 @@ import { Workspace } from '../state/Workspace';
 import { Wallet, MessageBuilder, Transaction } from '../utils/wallet';
 import { SearchUserResponse } from '../services/messages/Layer2OAuthManager/Response/SearchUserResponse';
 import { UnifiedSearchResults } from '../services/messages/Common/UnifiedSearchResults';
+import { FindOAuthUserResponse } from '../services/messages/Layer2OAuthManager/Response/FindOauthUserResponse';
+import { FindOauthUserRequest } from '../services/messages/Layer2OAuthManager/Request/FindOauthUserRequest';
 
 class WorkspaceStateManager{
 
@@ -313,6 +315,20 @@ class WorkspaceStateManager{
         this.getWalletBalance();
     }
 
+    findOAuthUser(profile_url: string){
+        Layer2OAuthManagerAPI.findOAuthUser(profile_url, this.onFindOAuthUser.bind(this));
+    }
+
+    onFindOAuthUser(findOAuthUserRequest: FindOauthUserRequest,  findOAuthUserResponse: FindOAuthUserResponse){
+        console.log('oauthUser: ', findOAuthUserResponse.user);
+        if(findOAuthUserResponse.error_response.error_code == 0){
+            this.workspace.searchedOAuthUsers.set(findOAuthUserResponse.user.user._id, [findOAuthUserResponse.user.user]);
+            this.workspace.foundOAuthUsers.set(findOAuthUserResponse.user.user.profile_url, findOAuthUserResponse.user);
+        }
+        this.setLatestWorkspaceState();
+        
+    }
+
     searchOAuthUser(searchText: string){
         Layer2OAuthManagerAPI.searchOAuthUser(searchText, this.onSearchOAuthUser.bind(this));
     }
@@ -331,7 +347,7 @@ class WorkspaceStateManager{
             unifiedSearchResults.oauthUserSearchResults = searchUserResponse;
         }
         this.workspace.searchResults.set(searchUserRequest.keyword, unifiedSearchResults);
-        
+
         if(searchUserResponse.users !== null){
             this.workspace.searchedOAuthUsers.set(searchUserRequest.keyword, searchUserResponse.users);
         }
@@ -383,6 +399,7 @@ class WorkspaceStateManager{
             searchedAdressTransactions: this.workspace.searchedAdressTransactions,
             searchedTransaction: this.workspace.searchedTransaction,
             searchedOAuthUsers: this.workspace.searchedOAuthUsers,
+            foundOAuthUsers: this.workspace.foundOAuthUsers,
             searchResults: this.workspace.searchResults
         });
     }
