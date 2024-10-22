@@ -35,6 +35,9 @@ export class OAuthUser {
     public profile_url!: string;
 
     @prop()
+    public profile_description!: string | null; // Can be the bio/description of the user in the social media service
+
+    @prop()
     public first_login_date!: Date; // Date when the user first signed up with OAuth2 to Layer2
 
     @prop()

@@ -90,6 +90,7 @@ export class TwitterOAuthManager {
     user.layer2_authorization_token_expiration_timestamp = new Date().getTime() + MillisecondsInMonth; // Set expiration to 1 month from now
     user.username = twitterUserInfo.username;
     user.name = twitterUserInfo.name;
+    user.profile_description = twitterUserInfo.description;
     user.first_login_date = new Date();
     user.last_login_date = new Date();
     user.profile_pic_url = twitterUserInfo.profile_image_url;

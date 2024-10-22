@@ -57,6 +57,8 @@ export class GithubOAuthManager {
         user.layer2_authorization_token_expiration_timestamp = new Date().getTime() + MillisecondsInMonth; // Set expiration to 1 month from now
         user.username = githubUserInfo.login;
         user.name = githubUserInfo.name;
+        user.profile_description = githubUserInfo.bio;
+
         user.first_login_date = new Date();
         user.last_login_date = new Date();
         user.profile_pic_url = githubUserInfo.avatar_url;

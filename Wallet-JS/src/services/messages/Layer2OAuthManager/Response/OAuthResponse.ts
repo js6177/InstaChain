@@ -8,6 +8,7 @@ export interface OAuthUser {
     layer2_authorization_token_expiration_timestamp: number; // The expiration timestamp of the token in epoch time
     username: string;
     name: string;
+    profile_description: string;
     first_login_date: Date; // Date when the user first signed up with OAuth2 to Layer2
     last_login_date: Date;
     profile_pic_url: string;
