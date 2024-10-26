@@ -19,6 +19,8 @@ import { AvailableBalance } from "../components/AvailableBalance";
 import { OAuth2UserProfileCard } from "../components/OAuth2UserDisplays/OAuth2UserProfileCard";
 import { GithubLoginWithOAuth2Login, GoogleLoginWithOAuth2Login, TwitterLoginWithOAuth2Login } from "../components/OAuth2/OAuth2LoginButton";
 import { OAuthUser } from "../services/messages/Layer2OAuthManager/Response/OAuthResponse";
+import TextboxWithCopyAndQR from "../components/Explorer/TextboxWithCopyAndQR";
+import { OAuth2SingleLineUserProfileCard } from "../components/OAuth2UserDisplays/OAuth2SingleLineUserProfileCard";
 
 
 export default function WalletUI(props: any){
@@ -210,7 +212,7 @@ export default function WalletUI(props: any){
 
 class MainAddressBalanceViewProps {
     mainAddressPubkey: string = "";
-    manAddressBalance: number = 0;
+    manAddressBalance: number | null = 0;
     oauthUser?: OAuthUser | null = null;
 }
 
@@ -226,9 +228,8 @@ function MainAddressBalanceView(props: MainAddressBalanceViewProps){
           {oauthUser !==null && <OAuth2UserProfileCard user={oauthUser}/>}
           {oauthUser !==null && <Button variant="outlined" onClick={handleLogout}>Logout</Button>}
         </Stack>
-        Main L2 Address: {mainAddressPubkey}
-        <br/>
-        {manAddressBalance > 0 && <AvailableBalance walletBalance={manAddressBalance}/>}
+        <TextboxWithCopyAndQR text={mainAddressPubkey}/>
+        {manAddressBalance != null && <AvailableBalance walletBalance={manAddressBalance}/>}
 
       </div>
     );

@@ -40,7 +40,7 @@ export function OAuth2UserProfileCard(props: OAuth2UserProfileCardProps) {
         }
         subheader={           
           <a href={"https://" + props.user.profile_url} target="_blank" rel="noopener noreferrer">
-            @${props.user.username}
+            @{props.user.username}
           </a>
         }
       />
