@@ -77,24 +77,12 @@ export function TransactionAccordionListViewItem(props: {transaction: Transactio
                             <Box>
                                 {transaction.transaction_type_desc}
                             </Box>
-                            <CopyableTextDisplay label="Tx ID:" text={transaction.transaction_id} childElement={
-                                <Link to={ExplorerLinkBuilder.buildLayer2TransactionLink(transaction.transaction_id)}>
-                                    <Box>{transaction.transaction_id}</Box>
-                                </Link>
-                                } />
+                            <CopyableTextDisplay label="Tx ID:" text={transaction.transaction_id} linkTo={ExplorerLinkBuilder.buildLayer2TransactionLink(transaction.transaction_id)} />
                         </Stack>
                         <Stack direction="column" spacing={0} alignItems="flex-end" justifyContent="space-between">
-                            <CopyableTextDisplay label="From:" text={transaction.source_address} childElement={
-                                <Link to={ExplorerLinkBuilder.buildLayer2AddressLink(transaction.source_address)}>
-                                    <Box>{transaction.source_address}</Box>
-                                </Link>
-                            } />
+                            <CopyableTextDisplay label="From:" text={transaction.source_address} linkTo={ExplorerLinkBuilder.buildLayer2AddressLink(transaction.source_address)}  />
 
-                            <CopyableTextDisplay label="To:" text={transaction.destination_address} childElement={
-                                <Link to={ExplorerLinkBuilder.buildLayer2AddressLink(transaction.destination_address)}>
-                                    <Box>{transaction.destination_address}</Box>
-                                </Link>
-                            } />
+                            <CopyableTextDisplay label="To:" text={transaction.destination_address} linkTo={ExplorerLinkBuilder.buildLayer2AddressLink(transaction.destination_address)} />
                         </Stack>
 
                         <Stack direction="column" spacing={0} alignItems="flex-end" justifyContent="space-between">

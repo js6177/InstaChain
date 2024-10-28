@@ -12,7 +12,7 @@ import TextboxWithCopyAndQR from './TextboxWithCopyAndQR';
 class CopyableTextDisplayProps {
     label: string = "";
     text: string = "";
-    childElement: React.ReactElement = <div></div>;
+    linkTo?: string = "";
 }
 
 export function CopyableTextDisplay(props: CopyableTextDisplayProps){
@@ -30,7 +30,7 @@ export function CopyableTextDisplay(props: CopyableTextDisplayProps){
         <div>
             <Stack direction="row" spacing={0} alignItems={"center"}>
                 <Box>{props.label}</Box>
-                <TextboxWithCopyAndQR text={props.text} childElement={props.childElement} truncateText={true} />
+                <TextboxWithCopyAndQR text={props.text} truncateText={true} linkTo={props.linkTo} />
             </Stack>
             <Snackbar open={isCopied} message="Copied" />
         </div>

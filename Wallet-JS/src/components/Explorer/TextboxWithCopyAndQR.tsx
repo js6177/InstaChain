@@ -12,6 +12,7 @@ import {
   Typography
 } from '@mui/material'
 import { styled } from '@mui/material/styles'
+import { Link } from 'react-router-dom'
 
 const StyledTextField = styled(TextField)(({ theme }) => ({
   '& .MuiInputBase-root': {
@@ -45,14 +46,14 @@ const RightButtonWrapper = styled(ButtonWrapper)({
 export class TextboxWithCopyAndQRProps {
     label?: string = "";
     text: string = "";
+    linkTo?: string;
     readonly?: boolean = false;
     truncateText?: boolean = false; // If true, would only display the first and last n characters of the string
     truncatedCharacterCount?: number = 4; // If truncateText is true, this value represents the number of characters to display at the beginning and end of the string
-    childElement?: React.ReactElement = <div></div>;
 }
 
 export default function TextboxWithCopyAndQR(props: TextboxWithCopyAndQRProps) {
-    const {text, truncateText = true, truncatedCharacterCount = 4} = props;
+    const {text, linkTo = null, readonly = true, truncateText = true, truncatedCharacterCount = 4} = props;
     let textBoxValue = text;
     if (truncateText) {
         textBoxValue = textBoxValue.slice(0, truncatedCharacterCount) + "..." + textBoxValue.slice(-truncatedCharacterCount);
@@ -84,14 +85,28 @@ export default function TextboxWithCopyAndQR(props: TextboxWithCopyAndQRProps) {
 
   return (
     <div style={{ position: 'relative', maxWidth: '400px' }}>
-      <StyledTextField
+      {linkTo !== null ? 
+      (   
+      <Link to={linkTo}>
+        <StyledTextField
         fullWidth
         value={textBoxValue}
         InputProps={{
-          readOnly: true,
+          readOnly: readonly,
         }}
         variant="outlined"
       />
+      </Link>) : (
+        <StyledTextField
+        fullWidth
+        value={textBoxValue}
+        InputProps={{
+          readOnly: readonly,
+        }}
+        variant="outlined"
+      />)
+      }
+
       <LeftButtonWrapper>
         <IconButton
           onClick={() => setIsQRDialogOpen(true)}

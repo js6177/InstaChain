@@ -50,11 +50,7 @@ function AddressBalanceView(props: AddressBalanceViewProps) {
                 { ownerOAuthUser && <Alert severity="info">This address is owned by {ownerOAuthUser.username}</Alert>}
                 {enableAddressLink ? (
                     <Stack direction="row" spacing={0}>
-                            <CopyableTextDisplay label="Address:" text={address} childElement={
-                                <Link to={ExplorerLinkBuilder.buildLayer2AddressLink(address)}>
-                                    <Box>{address}</Box>
-                                </Link>
-                                } />
+                            <CopyableTextDisplay label="Address:" text={address}  linkTo={ExplorerLinkBuilder.buildLayer2AddressLink(address)} />
                         
                     </Stack>                    
                 ) : (
