@@ -6,10 +6,12 @@ const OAuth2Path: string = '/oauth2';
 
 const ExplorerLayer2AddressPathSegment: string = 'address';
 const ExplorerLayer2TransactionPathSegment: string = 'transaction';
+const ExplorerLayer2OAuthUserPathSegment: string = 'user';
 const ExplorerLayer1DepositAddressPathSegment: string = 'deposit';
 
 const ExplorerLayer2AddressPath: string = `${ExplorerPath}/${ExplorerLayer2AddressPathSegment}`;
 const ExplorerLayer2TransactionPath: string = `${ExplorerPath}/${ExplorerLayer2TransactionPathSegment}`;
+const ExplorerLayer2OAuthUserPath: string = `${ExplorerPath}/${ExplorerLayer2OAuthUserPathSegment}`;
 const ExplorerLayer1DepositAddressPath: string = `${ExplorerPath}/${ExplorerLayer1DepositAddressPathSegment}`;
 
 export class ExplorerLinkBuilder {
@@ -19,6 +21,10 @@ export class ExplorerLinkBuilder {
 
     static buildLayer2TransactionLink(transactionID: string): string {
         return `${ExplorerLayer2TransactionPath}/${transactionID}`;
+    }
+
+    static buildLayer2OAuthUserLink(serviceName: string, serviceSpecificID: string): string {
+        return `${ExplorerLayer2OAuthUserPath}/${serviceName}/${serviceSpecificID}`;
     }
 
     static buildLayer1DepositAddressLink(address: string): string {

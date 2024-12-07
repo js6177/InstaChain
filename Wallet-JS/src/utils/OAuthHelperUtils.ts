@@ -9,3 +9,23 @@ export function standardizeProfileUrl(url: string): string {
 export function buildTwitterUrl(username: string): string {
     return `https://x.com/${username}`;
 }
+
+export function buildGithubUrl(username: string): string {
+    return `https://github.com/${username}`;
+}
+
+export function buildProfileUrl(service: string, username: string): string {
+    switch (service) {
+        case 'twitter':
+            return buildTwitterUrl(username);
+        case 'github':
+            return buildGithubUrl(username);
+        default:
+            return '';
+    }
+}
+
+export function buildStandardizedProfileUrl(service: string, username: string): string {
+    return standardizeProfileUrl(buildProfileUrl(service, username));
+}
+

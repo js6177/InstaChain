@@ -10,6 +10,7 @@ import { Transaction } from "../utils/wallet";
 import { IsGetAddressBalanceFound, IsSuccessResponse } from "../utils/MessageUtils";
 import { ExplorerContext } from "../context/ExplorerStateContext";
 import { AddressPresenter, AddressPresenterFromRoute } from "../components/Explorer/AddressPresenter";
+import { OAuth2UserProfilePresenterFromRoute } from "../components/Explorer/OAuth2UserProfilePresenter";
 import {ErrorPresenter} from "../components/Explorer/ErrorPresenter";
 
 import { Routes, Route, useNavigate } from 'react-router-dom';
@@ -50,6 +51,7 @@ export default function ExplorerUI(props: any){
         <Route path="/search/:searchString" element={<SearchResultsPresenterFromRoute />} />
         <Route path="/address/:address" element={<AddressPresenterFromRoute />} />
         <Route path="/transaction/:transactionID" element={<TransactionPresenterFromRoute />} />
+        <Route path="/user/:service/:username" element={<OAuth2UserProfilePresenterFromRoute />} />
       </Routes>
     </div>
   );

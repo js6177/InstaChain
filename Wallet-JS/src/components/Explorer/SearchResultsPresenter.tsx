@@ -15,6 +15,8 @@ import { GetTransactionsResponseTransaction } from '../../services/messages/Laye
 import { AddressPresenter } from './AddressPresenter';
 import { TransactionPresenter } from './TransactionPresenter';
 import SearchResultsResponse  from '../../services/messages/Layer2Ledger/Responses/SearchResultsResponse';
+import { OAuthUser } from '../../services/messages/Layer2OAuthManager/Response/OAuthResponse';
+import { OAuth2UserSearchResultPresenter } from './OAuth2UserSearchResultPresenter';
 
 class SearchResultsPresenterProps {
     searchString: string = "";
@@ -35,9 +37,11 @@ export function SearchResultsPresenter(props: SearchResultsPresenterProps) {
 
     const [isAddressFound, setAddressFound] = useState<boolean>(false);
     const [isTransactionFound, setTransactionFound] = useState<boolean>(false);
+    const [isOAuthUserFound, setOAuthUserFound] = useState<boolean>(false);
 
     const [foundAddressBalance, setFoundAddressBalance] = useState<number>(0);
     const [foundTransaction, setFoundTransaction] = useState<Transaction | null>(null);
+    const [foundOAuthUsers, setFoundOAuthUsers] = useState<OAuthUser[]>([]);
 
     loadSearchResults();
 
@@ -74,6 +78,8 @@ export function SearchResultsPresenter(props: SearchResultsPresenterProps) {
                     const oauthUserSearchResults = searchResults.oauthUserSearchResults;
                     setIsSearchFinishedLoading(true);
                     if(oauthUserSearchResults.users != null && oauthUserSearchResults.users.length > 0){
+                        setOAuthUserFound(true);
+                        setFoundOAuthUsers(oauthUserSearchResults.users);
                         console.log(oauthUserSearchResults.users);
                     }
                 }
@@ -88,7 +94,8 @@ export function SearchResultsPresenter(props: SearchResultsPresenterProps) {
             <div>
                 {isAddressFound && <AddressPresenter address={searchString} />}
                 {isTransactionFound && foundTransaction != null && <TransactionPresenter transactionID={searchString} />}
-                {!isAddressFound && !isTransactionFound && <div>No results found for search string: {searchString}</div>}
+                {isOAuthUserFound && foundOAuthUsers.length > 0 && <OAuth2UserSearchResultPresenter searchString={searchString} />}
+                {!isAddressFound && !isTransactionFound && !isOAuthUserFound && <div>No results found for search string: {searchString}</div>}
             </div>
         ) : (
             <div>
