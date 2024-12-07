@@ -67,6 +67,10 @@ export class DatabaseInterface {
         try {
             const userKeys = await UserKeysModel.findOne({ oauth_user_id: userId });
             if (userKeys) {
+                if(!userKeys.l2_address_public_key){
+                    userKeys.l2_address_public_key = createLayer2AddressPubkey(userKeys.l2_address_mneumonic);
+                    await userKeys.save();
+                }
                 return userKeys;
             } 
             else {

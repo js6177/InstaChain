@@ -139,6 +139,7 @@ app.post('/user/search', async (req: Request<{}, {}, SearchUserRequest>, res: Re
   }
 });
 
+// Finds a single user by their profile URL
 app.post('/user/find', async (req: Request<{}, {}, FindOauthUserRequest>, res: Response) => {
   try{
     const requestBody: FindOauthUserRequest = req.body;
