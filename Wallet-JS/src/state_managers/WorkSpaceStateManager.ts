@@ -324,6 +324,7 @@ class WorkspaceStateManager{
         if(findOAuthUserResponse.error_response.error_code == 0){
             this.workspace.searchedOAuthUsers.set(findOAuthUserResponse.user.user._id, [findOAuthUserResponse.user.user]);
             this.workspace.foundOAuthUsers.set(findOAuthUserResponse.user.user.profile_url, findOAuthUserResponse.user);
+            this.workspace.layer2AddressToOAuthUser.set(findOAuthUserResponse.user.layer2_address_pubkey, findOAuthUserResponse.user);
         }
         this.setLatestWorkspaceState();
         
@@ -400,7 +401,8 @@ class WorkspaceStateManager{
             searchedTransaction: this.workspace.searchedTransaction,
             searchedOAuthUsers: this.workspace.searchedOAuthUsers,
             foundOAuthUsers: this.workspace.foundOAuthUsers,
-            searchResults: this.workspace.searchResults
+            searchResults: this.workspace.searchResults,
+            layer2AddressToOAuthUser: this.workspace.layer2AddressToOAuthUser
         });
     }
 

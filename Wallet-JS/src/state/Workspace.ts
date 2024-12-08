@@ -27,6 +27,7 @@ class Workspace {
     public searchedTransaction: Map<string, Transaction>; // Key: Layer2 transaction id, Value: Transaction
     public searchedOAuthUsers: Map<string, OAuthUser[]>; // Key: Search text, Value: OAuthUser
     public foundOAuthUsers: Map<string, OAuthUserAuxillaryInfo>; // key: profile_url, Value: OAuthUserAuxillaryInfo
+    public layer2AddressToOAuthUser: Map<string, OAuthUserAuxillaryInfo>; // Key: Layer2 address, Value: OAuthUserAuxillaryInfo
 
     public searchResults: Map<string, UnifiedSearchResults>; // Key: Search text, Value: Results of the search
 
@@ -46,6 +47,7 @@ class Workspace {
         this.searchedTransaction = new Map();
         this.searchedOAuthUsers = new Map();
         this.foundOAuthUsers = new Map();
+        this.layer2AddressToOAuthUser = new Map();
 
         this.searchResults = new Map();
     }

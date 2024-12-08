@@ -82,6 +82,7 @@ export function AddressPresenter(props: AddressPresenterProps) {
                     transactions={new Map([[address, addressTransactions]])}
                     myAddresses={[]}
                     enableAddressLink={true}
+                    ownerOAuthUser={workspace?.layer2AddressToOAuthUser.get(address)}
                 />
                 )
             ) : 

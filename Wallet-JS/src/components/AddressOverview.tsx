@@ -8,7 +8,7 @@ import { Transaction } from '../utils/wallet';
 import { AddressAdditionalInfo } from './AddressAdditionalInfo';
 import { Card } from '@mui/material';
 import { TRX_WITHDRAWAL_INITIATED } from "../utils/wallet";
-import { OAuthUser } from '../services/messages/Layer2OAuthManager/Response/OAuthResponse';
+import { OAuthUserAuxillaryInfo } from '../services/messages/Layer2OAuthManager/Common/OAuthUserAuxillaryInfo';
 
 
 class AddressOverviewProps {
@@ -17,13 +17,13 @@ class AddressOverviewProps {
     transactions: Map<string, Transaction[]> = new Map();
     myAddresses: string[] = [];
     enableAddressLink?: boolean = true;
-    signedInOAuthUser?: OAuthUser | null = null;
+    ownerOAuthUser?: OAuthUserAuxillaryInfo | null = null;
 }
 
 export function AddressOverview(props: AddressOverviewProps) {
     
     const transactions: Transaction[] = props.transactions.get(props.address) ? props.transactions.get(props.address) as Transaction[] : [];
-    const signedInOAuthUser = props.signedInOAuthUser;
+    const ownerOAuthUser = props.ownerOAuthUser;
     let isLayer1WithdrawalAddress = false;
     transactions.forEach(transaction => { 
         if(transaction.transaction_type == TRX_WITHDRAWAL_INITIATED && transaction.destination_address == props.address){
@@ -38,7 +38,7 @@ export function AddressOverview(props: AddressOverviewProps) {
                     balance={props.balance}
                     enableAddressLink={props.enableAddressLink}
                     isLayer1WithdrawalAddress={isLayer1WithdrawalAddress}
-                    ownerOAuthUser={signedInOAuthUser}
+                    ownerOAuthUser={ownerOAuthUser}
                 />
                 <AddressAdditionalInfo transactions={transactions} address={props.address} />
             </Card>
