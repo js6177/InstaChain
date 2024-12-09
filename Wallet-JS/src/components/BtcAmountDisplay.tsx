@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Chip from '@mui/material/Chip'; 
 import { CurrencyUnits } from '../state/SettingsState';
 import { SettingsContext } from '../context/SettingsContext';
@@ -9,26 +9,39 @@ type BtcAmountDisplayProps = {
 };
 
 const BtcAmountDisplay: React.FC<BtcAmountDisplayProps> = ({ amount, color }) => {
-    const { settingsState, settingsManager } = React.useContext(SettingsContext);
-    const currencyUnits = settingsState?.currencyUnits;
-    let currencyAmount: number = amount;
-    if(currencyUnits === CurrencyUnits.BTC) {
-        currencyAmount = currencyAmount / 100000000;
+    const { settingsState, settingsManager } = React.useContext(SettingsContext);    
+    const [currencyAmount,setCurrencyAmount] = useState<number>(amount);
+    const [currencyUnitsString, setCurrencyUnitsString] = useState<string>("");
+    
+    function refresh(){  
+        const currencyUnits = settingsState?.currencyUnits; 
+        if(currencyUnits){
+            if(currencyUnits === CurrencyUnits.BTC) {
+                setCurrencyAmount(amount / 100000000);
+            }else if(currencyUnits === CurrencyUnits.SATS){
+                setCurrencyAmount(amount);
+            }
+            setCurrencyUnitsString(currencyUnits);
+        }
     }
 
+    useEffect(() => {
+        refresh();
+    }, [settingsState]);
+
     const handleClick = () => {
-        if(currencyUnits === CurrencyUnits.BTC) {
+        if(settingsState?.currencyUnits === CurrencyUnits.BTC) {
             settingsManager?.setCurrencyUnits(CurrencyUnits.SATS);
-        }else if(currencyUnits === CurrencyUnits.SATS){
+        }else if(settingsState?.currencyUnits === CurrencyUnits.SATS){
             settingsManager?.setCurrencyUnits(CurrencyUnits.BTC);
         }
     };
 
     return (
         <Chip
-        label={`${currencyAmount} ${currencyUnits}`}
+        label={`${currencyAmount} ${currencyUnitsString}`}
         style={{ backgroundColor: color, color: 'white' }}
-        onClick={handleClick}
+        //onClick={handleClick}
         />
     );
 };
