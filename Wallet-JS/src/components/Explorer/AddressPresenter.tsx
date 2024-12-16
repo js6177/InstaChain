@@ -32,13 +32,12 @@ export function AddressPresenter(props: AddressPresenterProps) {
     const { address,  showTransactions = false} = props;
 
     const {workspace, workspaceStateManager} = React.useContext(WorkspaceContext);
-    const {explorerState, explorerStateManager} = React.useContext(ExplorerContext);
-    const [isSearchFinishedLoading, setIsSearchFinishedLoading] = useState<boolean>(false);
+    const [isAddressBalanceSearchFinishedLoading, setIsAddressBalanceSearchFinishedLoading] = useState<boolean>(false);
+    const [isAddressTransactionsSearchFinishedLoading, setIsAddressTransactionsSearchFinishedLoading] = useState<boolean>(false);
     
     const [addressBalance, setAddressBalance] = useState<number>(0);
     const [addressTransactions, setAddressTransactions] = useState<Transaction[] | null>(null);
 
-    loadAddress();
 
     function loadAddress(){
         // Fetch the address's balance and transactions
@@ -46,7 +45,7 @@ export function AddressPresenter(props: AddressPresenterProps) {
         if(newAddressBalance != null){
             if(addressBalance != newAddressBalance){
                 setAddressBalance(workspace?.searchedAddressBalances?.get(address) as number);
-                setIsSearchFinishedLoading(true);
+                setIsAddressBalanceSearchFinishedLoading(true);
             }
         }else{
             workspaceStateManager?.getAddressBalance(address);
@@ -57,7 +56,7 @@ export function AddressPresenter(props: AddressPresenterProps) {
             if(newAddressTransactions != null){
                 if(!AreTransactionArraysEqual(newAddressTransactions, addressTransactions as Transaction[])){
                     setAddressTransactions(newAddressTransactions);
-                    setIsSearchFinishedLoading(true);
+                    setIsAddressTransactionsSearchFinishedLoading(true);
                 }
             }
             else{
@@ -73,8 +72,8 @@ export function AddressPresenter(props: AddressPresenterProps) {
     // If showTransactions is true, display AddressOverview.
     // Otherwise, return display AddressBalance
     return (
-        isSearchFinishedLoading ? (
-            showTransactions ? (
+        (isAddressBalanceSearchFinishedLoading) ? (
+            (showTransactions && isAddressTransactionsSearchFinishedLoading) ? (
                 (addressBalance != null && addressTransactions != null) && (
                 <AddressOverview
                     address={address}
