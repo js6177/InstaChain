@@ -26,7 +26,6 @@ import { OAuth2SingleLineUserProfileCard } from "../components/OAuth2UserDisplay
 export default function WalletUI(props: any){
 
     const {workspace, workspaceStateManager} = React.useContext(WorkspaceContext);
-    const isWalletLoaded = workspace ? (workspace.walletManager.getWalletCount() > 0) : false;
 
     const [createOpenWalletDialogIsOpen, setCreateOpenWalletDialogIsOpen] = React.useState(false);
     const [createOpenWalletDialogStatus, setCreateOpenWalletDialogStatus] = React.useState("");
@@ -40,19 +39,17 @@ export default function WalletUI(props: any){
 
     const [transactionsViewMode, setTransactionsViewMode] = React.useState("list");
 
-    let loggedInOAuthUser: OAuthUser | null = null;
+    const [isWalletLoaded, setIsWalletLoaded] = React.useState(false); 
 
-    let mainLayer2AddressPubkey = "";
-    let mainLayer2AddressBalance = 0;
-    if(isWalletLoaded){
-      mainLayer2AddressPubkey = workspace?.walletManager.getMainWalletAddressPubkey() || "";
-      mainLayer2AddressBalance = workspace?.addressBalances.get(mainLayer2AddressPubkey) || 0;
 
-      loggedInOAuthUser = workspace?.walletManager.getMainWalletOAuthUser() || null;
-    }
+    const [loggedInOAuthUser, setLoggedInOAuthUser] = React.useState<OAuthUser | null>(null);
+    const [mainLayer2AddressPubkey, setMainLayer2AddressPubkey] = React.useState<string | null>(null);
+    const [mainLayer2AddressBalance, setMainLayer2AddressBalance] = React.useState<number | null>(null);
 
     useEffect(() => {
-      if(!isWalletLoaded){
+      const walletLoaded: boolean = workspace ? (workspace.walletManager.getWalletCount() > 0) : false;
+      setIsWalletLoaded(walletLoaded);
+      if(!walletLoaded){
         const layer2OAuthToken: Layer2OAuthToken | null = loadLayer2OAuthAuthorizationTokenFromLocalStorage();
         if(layer2OAuthToken !== null){
           // Get the OAuth user from the Layer2OAuthManagerAPI
@@ -62,6 +59,20 @@ export default function WalletUI(props: any){
             }
           });
         }
+      }else{
+        const mainWalletAddress = workspace?.walletManager.getMainWalletAddressPubkey();
+        if(mainWalletAddress){
+          setMainLayer2AddressPubkey(mainWalletAddress);
+          const mainWalletBalance = workspace?.addressBalances.get(mainWalletAddress);
+          if(mainWalletBalance){
+            setMainLayer2AddressBalance(mainWalletBalance);
+          }
+        }else{
+          console.log("WalletUI: mainWalletAddress is null");
+        }
+        
+  
+        setLoggedInOAuthUser(workspace?.walletManager.getMainWalletOAuthUser() || null);      
       }
     }, [workspace]);
 
@@ -130,7 +141,7 @@ export default function WalletUI(props: any){
                   </Button>
                 </Stack>
               }
-              {isWalletLoaded &&
+              {isWalletLoaded && mainLayer2AddressPubkey && 
               <Box display="block" >
                 <Card variant="outlined" sx={{p:2, bgcolor:'#FEFAE0' }}>
                   <MainAddressBalanceView  mainAddressPubkey={mainLayer2AddressPubkey} manAddressBalance={mainLayer2AddressBalance} oauthUser={loggedInOAuthUser}/>
@@ -199,10 +210,10 @@ export default function WalletUI(props: any){
               </div>
             }
             {
-              workspace && isWalletLoaded && transactionsViewMode == "list" && <TransactionsAccordionList transactions={workspace.transactions} myAddresses={[mainLayer2AddressPubkey]} />
+              workspace && isWalletLoaded && mainLayer2AddressPubkey && transactionsViewMode == "list" && <TransactionsAccordionList transactions={workspace.transactions} myAddresses={[mainLayer2AddressPubkey]} />
             }
             {
-              workspace && isWalletLoaded && transactionsViewMode == "grid" && <TransactionDataGrid transactions={workspace.transactions.get(mainLayer2AddressPubkey) ?? []} />
+              workspace && isWalletLoaded && mainLayer2AddressPubkey && transactionsViewMode == "grid" && <TransactionDataGrid transactions={workspace.transactions.get(mainLayer2AddressPubkey) ?? []} />
             }
 
             </Stack>
