@@ -1,5 +1,3 @@
-from google.cloud import ndb
-from google.cloud import logging
 from flask import Flask
 from flask_cors import CORS
 import InstaChainAPI
@@ -9,14 +7,15 @@ import OnboardingAPI
 import AuditAPI
 import ExplorerAPI
 import GlobalLogging
+from database import Base, engine
+from Transaction import Transaction, TotalFees, AddressLock, AddressBalanceCache
+from Onboarding import WithdrawalRequests, ConfirmedWithdrawals, DepositAddresses, MasterPublicKeyIndex
+from DebugLogger import TransactionDuration
 
 import SuperUser #delete this in production
 
-GlobalLogging.logging_client = logging.Client()
-GlobalLogging.logging_client.get_default_handler()
-GlobalLogging.logging_client.setup_logging()
-GlobalLogging.logger = GlobalLogging.logging_client.logger('log')
-
+# Create all tables if they don't exist
+Base.metadata.create_all(bind=engine)
 
 app = Flask(__name__)
 CORS(app)
@@ -43,6 +42,8 @@ app.add_url_rule(r'/getLayer1AuditReport', 'getLayer1AuditReport', AuditAPI.getL
 
 app.add_url_rule(r'/search', 'search', ExplorerAPI.search.initializeRequest)
 
-
 # Remove from production, the /delete is only for deleting all the tables when dev/testing
 #app.add_url_rule(r'/delete', 'delete', SuperUser.Delete.initializeRequest)
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8080, debug=True, threaded=True)

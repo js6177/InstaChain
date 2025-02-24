@@ -1,10 +1,8 @@
-from google.cloud import ndb
 from flask import request
 import ErrorMessage
 import logging
 import json
 import datetime
-from google.cloud import logging
 import GlobalLogging
 
 class FlaskRequestHandler():
@@ -45,7 +43,5 @@ class InstachainRequestHandler(FlaskRequestHandler):
     @classmethod
     def initializeRequest(cls):
         handler = cls()
-        client = ndb.Client()
-        with client.context():
-            handler.handleRequest()
+        handler.handleRequest()
         return handler.result

@@ -1,24 +1,32 @@
 from Transaction import Transaction, AddressBalanceCache, AddressLock
 from Onboarding import WithdrawalRequests, DepositAddresses, MasterPublicKeyIndex, ConfirmedWithdrawals
-from google.cloud import ndb
+from database import get_db
 from InstaChainAPI import InstachainRequestHandler
-import RedisInterface
 
-MAX_TRANSACTIONS_TO_DEETE_PER_REQUEST = 10000
+MAX_TRANSACTIONS_TO_DELETE_PER_REQUEST = 10000
 
 class Delete(InstachainRequestHandler):
     def getParameters(self):
-        RedisInterface.clearDatabase()
-        ndb.delete_multi(WithdrawalRequests.query().fetch(keys_only=True))
-        ndb.delete_multi(ConfirmedWithdrawals.query().fetch(keys_only=True))
-        ndb.delete_multi(AddressLock.query().fetch(keys_only=True))  
-        ndb.delete_multi(DepositAddresses.query().fetch(keys_only=True))
-        ndb.delete_multi(MasterPublicKeyIndex.query().fetch(keys_only=True))
-        ndb.delete_multi(AddressBalanceCache.query().fetch(keys_only=True))
+        db = next(get_db())
+        try:
+            # Delete all records from each table
+            db.query(WithdrawalRequests).delete()
+            db.query(ConfirmedWithdrawals).delete()
+            db.query(AddressLock).delete()
+            db.query(DepositAddresses).delete()
+            db.query(MasterPublicKeyIndex).delete()
+            db.query(AddressBalanceCache).delete()
 
-        q = Transaction.query().fetch(MAX_TRANSACTIONS_TO_DEETE_PER_REQUEST, keys_only=True)
-        count = len(q)
-        while(count > 0):
-            ndb.delete_multi(q)
-            q = Transaction.query().fetch(MAX_TRANSACTIONS_TO_DEETE_PER_REQUEST, keys_only=True)
-            count = len(q)
+            # Delete transactions in batches to avoid memory issues
+            while True:
+                count = db.query(Transaction).limit(MAX_TRANSACTIONS_TO_DELETE_PER_REQUEST).delete(synchronize_session=False)
+                if count == 0:
+                    break
+                db.commit()
+
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise e
+        finally:
+            db.close()
