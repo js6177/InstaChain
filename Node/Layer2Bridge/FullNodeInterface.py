@@ -113,6 +113,38 @@ class BitcoinRPC:
         except Exception as e:
             OnboardingLogger(e)
 
+    def importMultipleDescriptors(self, seed, startingIndex, numberOfKeysToGenerate, testnet):
+        seed_bytes = binascii.unhexlify(seed)
+        pubkey_version = Bip32Conf.KEY_NET_VER.Test() if testnet else Bip32Conf.KEY_NET_VER.Main()
+        privkey_version = BitcoinConf.WIF_NET_VER.Test() if testnet else BitcoinConf.WIF_NET_VER.Main()
+
+        master_bip32_ctx = Bip32.FromSeed(seed_bytes, pubkey_version)
+        OnboardingLogger("Master Private key: " + master_bip32_ctx.PrivateKey().ToExtended())
+        wif = WifEncoder.Encode(master_bip32_ctx.PrivateKey().Raw().ToBytes(), True, privkey_version)
+        descriptors = []
+        master_pubkey = master_bip32_ctx.PublicKey().ToExtended()
+        OnboardingLogger("Master Public key: " + master_pubkey)
+        for i in range(startingIndex, startingIndex+numberOfKeysToGenerate):
+            divisor = math.floor(i/BIP32_MAX_INDEX)
+            remainder = i % BIP32_MAX_INDEX
+            bip32_ctx = master_bip32_ctx.ChildKey(44).ChildKey(1).ChildKey(divisor).ChildKey(remainder)
+            wif = WifEncoder.Encode(bip32_ctx.PrivateKey().Raw().ToBytes(), True, privkey_version)
+
+            bip32_ctx = Bip32.FromExtendedKey(master_pubkey, pubkey_version)
+            bip32_ctx = bip32_ctx.ChildKey(44).ChildKey(1).ChildKey(divisor).ChildKey(remainder)
+
+            descriptor = f"pkh({wif})"
+            descriptor_checksum = checksum.AddChecksum(descriptor) #see getdescriptorinfo
+            pubkey_bytes = bip32_ctx.PublicKey().RawCompressed().ToBytes()
+            address = P2PKH.ToAddress(pubkey_bytes, BitcoinConf.P2PKH_NET_VER.Test())
+            importmultiCmd = {'desc': descriptor_checksum, "timestamp": "now", "label": address}
+            descriptors.append(importmultiCmd)
+        try:
+            status = self.rpc_connection.importdescriptors(descriptors)
+            OnboardingLogger(status)
+        except Exception as e:
+            OnboardingLogger(e)
+
     def broadcastTransaction(self, pendingWithdrawals) -> BitcoinRpcSendManyResponse:
         sendmanyCmd = {}
         subtractfeefrom = set()

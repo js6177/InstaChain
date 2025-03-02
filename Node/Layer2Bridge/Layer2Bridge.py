@@ -30,7 +30,7 @@ from OnboardingLogger import OnboardingLogger
 SATOSHI_PER_BITCOIN = 100000000
 MAX_NUMBER_OF_KEYS_TO_IMPORT_PER_RPC_REQUEST = 1000
 
-DEFAULT_WORKING_DIRECTORY = os.path.expanduser('~') + "/.Layer2Bridge/"
+DEFAULT_WORKING_DIRECTORY = os.path.expanduser('~') + "/.IC/Layer2Bridge/"
 CONFIG_FILE_PATH = DEFAULT_WORKING_DIRECTORY + "config.json"
 LOCKFILE_PATH = DEFAULT_WORKING_DIRECTORY + 'Layer2Bridge.lock'
 
@@ -54,6 +54,7 @@ def main():
 class Layer2Bridge():
     #required config_variables
     database_layer2bridge_name: string = DEFAULT_LAYER2BRIDGE_DB_NAME
+    database_layer2bridge_full_path: string = None
     rpc_ip: string = None
     rpc_port: string = None
     rpc_user: string = None
@@ -76,6 +77,7 @@ class Layer2Bridge():
 
     #database names
     database_audit_name: string = DEFAULT_AUDIT_DB_NAME
+    database_audit_full_path: string = None
 
     def loadConfig(self):
         requiredConfigKeysLoaded = False
@@ -84,7 +86,7 @@ class Layer2Bridge():
                 data = json.load(config_file)
                 #these throw exceptions if key is not found
                 self.database_layer2bridge_name = data["database_layer2bridge_name"]
-                #self.database_layer2bridge_name = data.get("database_layer2bridge_name") or DEFAULT_LAYER2BRIDGE_DB_NAME
+                self.database_layer2bridge_full_path = DEFAULT_WORKING_DIRECTORY + self.database_layer2bridge_name
 
                 self.rpc_ip = data["rpc_ip"]
                 self.rpc_port = data["rpc_port"]
@@ -101,6 +103,7 @@ class Layer2Bridge():
                 self.import_wallet_privkey_startup_count = data.get("import_wallet_privkey_startup_count")
                 self.import_wallet_privkey_loop_count = data.get("import_wallet_privkey_loop_count")
                 self.database_audit_name = data.get("database_audit_name") or DEFAULT_AUDIT_DB_NAME
+                self.database_audit_full_path = DEFAULT_WORKING_DIRECTORY + self.database_audit_name
 
         except FileNotFoundError as e:
             OnboardingLogger("Fatal Error: " + CONFIG_FILE_PATH + " not found. Exiting.")
@@ -109,7 +112,7 @@ class Layer2Bridge():
             OnboardingLogger("Error: Cound not find key " + str(e) + " in " + CONFIG_FILE_PATH + " , Exiting.")
             exit(1)
 
-    def import_private_keys(self, count: int, db, nh):
+    def import_private_keys(self, count: int, db, nh: BitcoinRPC):
         number_of_keys_left_to_import = count
         t1 = time.time()
         while(number_of_keys_left_to_import > 0):
@@ -119,7 +122,7 @@ class Layer2Bridge():
             m = hashlib.sha256()
             m.update(self.wallet_private_key_seed_mneumonic.encode("utf-8"))
             wallet_private_key_seed = m.hexdigest()
-            nh.importMultiplePrivkeys(wallet_private_key_seed, privkeyBip32Index, number_of_keys_to_import, True)
+            nh.importMultipleDescriptors(wallet_private_key_seed, privkeyBip32Index, number_of_keys_to_import, True)
             db.setImportPrivkeyBip32Index(privkeyBip32Index + number_of_keys_to_import)
             number_of_keys_left_to_import -= number_of_keys_to_import
 
@@ -132,10 +135,10 @@ class Layer2Bridge():
         termination_called = False
         self.loadConfig()
 
-        self.layer2BridgeDB = DatabaseInterface.DB(self.database_layer2bridge_name)
+        self.layer2BridgeDB = DatabaseInterface.DB(self.database_layer2bridge_full_path)
         self.layer2BridgeDB.openOrCreateDB()
 
-        self.auditDB = AuditDatabaseInterface.AuditDatabaseInterface(self.database_audit_name)
+        self.auditDB = AuditDatabaseInterface.AuditDatabaseInterface(self.database_audit_full_path)
 
         # start bitcoin full node, or attach if it already started
         self.bitcoinRPC = BitcoinRPC(self.rpc_ip, self.rpc_port, self.rpc_user, self.rpc_password, self.wallet_name, self.testnet)

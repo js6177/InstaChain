@@ -31,7 +31,7 @@ def generate_btc_testnet_address(master_public_key: str, address_index: int) -> 
         public_key = derived_key.PublicKey().RawCompressed().ToBytes()
 
         # Generate the testnet address
-        address = P2PKHAddrEncoder.EncodeKey(public_key, net_ver=CoinsConf.BitcoinTestNet.ParamByKey("p2sh_net_ver"))
+        address = P2PKHAddrEncoder.EncodeKey(public_key, net_ver=CoinsConf.BitcoinTestNet.ParamByKey("p2pkh_net_ver"))
 
         return address
 
