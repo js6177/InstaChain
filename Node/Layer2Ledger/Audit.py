@@ -79,7 +79,7 @@ def processLayer1AuditReport(blockheight: int, layer1AddressBalances: dict, tota
         db.commit()
     except Exception as e:
         db.rollback()
-        GlobalLogging.logger.log_text("processLayer1AuditReport: " + str(e))
+        GlobalLogging.log_text("processLayer1AuditReport: " + str(e))
         status = ErrorMessage.ERROR_FAILED_TO_WRITE_TO_DATABASE
     finally:
         db.close()

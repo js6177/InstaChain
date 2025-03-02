@@ -24,7 +24,7 @@ class InstachainRequestHandler(FlaskRequestHandler):
         pass
     def handleRequest(self):
         self.preProcessRequest() #to do anything before processing the request, such as logging time
-        GlobalLogging.logger.log_text(request.get_data().decode('UTF-8'))
+        GlobalLogging.log_text(request.get_data().decode('UTF-8'))
         self.getParameters()
 
         self.processRequest()

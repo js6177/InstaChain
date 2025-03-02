@@ -46,4 +46,4 @@ app.add_url_rule(r'/search', 'search', ExplorerAPI.search.initializeRequest)
 #app.add_url_rule(r'/delete', 'delete', SuperUser.Delete.initializeRequest)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080, debug=True, threaded=True)
+    app.run(host='0.0.0.0', port=8084, debug=True, threaded=True)

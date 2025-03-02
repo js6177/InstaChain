@@ -18,7 +18,7 @@ MAX_NUMBER_OF_GETTRANSACTIONS_ADDRESSES = 10
 
 class pushTransaction(InstachainRequestHandler):
     def getParameters(self):
-        GlobalLogging.logger.log_text("getParameters() called")
+        GlobalLogging.log_text("getParameters() called")
         self.amount = int(self.getPostRequestParams('amount') or 0)
         self.fee = int(self.getPostRequestParams('fee') or 0)
         self.source_address_public_key = self.getPostRequestParams('source_address_public_key')
@@ -34,7 +34,7 @@ class pushTransaction(InstachainRequestHandler):
         else:
             self.result = ErrorMessage.build_error_message(ErrorMessage.ERROR_CANNOT_TRANSFER_USING_ONBOARDING_KEY)
 
-        GlobalLogging.logger.log_text("response: " + json.dumps(self.result))
+        GlobalLogging.log_text("response: " + json.dumps(self.result))
 
 class getTransaction(InstachainRequestHandler):
     def getParameters(self):

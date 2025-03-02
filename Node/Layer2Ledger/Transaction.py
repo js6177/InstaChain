@@ -224,7 +224,7 @@ class Transaction(Base):
                     try:
                         status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _nonce, _layer1_transaction_id)
                     except Exception as ex:
-                        GlobalLogging.logger.log_text(traceback.format_exc())
+                        GlobalLogging.log_text(traceback.format_exc())
                     finally:
                         AddressLock.unlock(_source, _destination)
                 else:
@@ -232,7 +232,7 @@ class Transaction(Base):
             elif(TRANSACTION_MODE == TransactionMode.TRANSACTION_PUTTRANSACTION):
                 status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _nonce, _layer1_transaction_id)
         except Exception as ex:
-            GlobalLogging.logger.log_text(traceback.format_exc())
+            GlobalLogging.log_text(traceback.format_exc())
             return ErrorMessage.ERROR_DATABASE_TRANSACTIONAL_ERROR
 
         if((_transaction_type == Transaction.TRX_WITHDRAWAL_INITIATED) and (status == ErrorMessage.ERROR_SUCCESS)):
@@ -274,7 +274,7 @@ class Transaction(Base):
                     status = ErrorMessage.ERROR_INSUFFICIENT_FUNDS
         except Exception as e:
             db.rollback()
-            GlobalLogging.logger.log_text("put_transaction: Failed to insert transaction")
+            GlobalLogging.log_text("put_transaction: Failed to insert transaction")
             status = ErrorMessage.ERROR_FAILED_TO_WRITE_TO_DATABASE
         finally:
             db.close()

@@ -48,7 +48,7 @@ class ackWithdrawalRequests(InstachainRequestHandler):
 class withdrawalBroadcasted(InstachainRequestHandler):
     def getParameters(self):
         self.jsonParam = self.getPostJsonParams()
-        GlobalLogging.logger.log_text("Request: " + json.dumps(self.jsonParam))
+        GlobalLogging.log_text("Request: " + json.dumps(self.jsonParam))
     def processRequest(self):
         transactionResults = []
         request = json.loads(json.dumps(self.jsonParam), object_hook=lambda d: SimpleNamespace(**d))

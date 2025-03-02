@@ -88,7 +88,7 @@ class WithdrawalRequests(Base):
             if trx:
                 trx.layer2_withdrawal_id = w.layer2_withdrawal_id
                 Transaction.Transaction.put(trx)
-            GlobalLogging.logger.log_text("WithdrawalRequest id " + str(w.id))
+            GlobalLogging.log_text("WithdrawalRequest id " + str(w.id))
         except Exception as e:
             db.rollback()
             raise e
@@ -241,14 +241,8 @@ def getDepositAddress(_layer2_address, nonce, signature):
     if(deposit_adress):
         return status, deposit_adress.layer1_address
 
-    #bip32_ctx = Bip32.FromExtendedKey(DEPOSIT_WALLET_MASTER_PUBKEY, Bip32Conf.KEY_NET_VER.Test())
     index = MasterPublicKeyIndex.getIndexAndAtomicallyIncrement()
-    GlobalLogging.logger.log_text("getDepositAddress index: " + str(index))
-    #divisor = math.floor(index/BIP32_MAX_INDEX)
-    #remainder = index % BIP32_MAX_INDEX
-    #bip32_ctx = bip32_ctx.ChildKey(44).ChildKey(1).ChildKey(divisor).ChildKey(remainder)
-    #pubkey_bytes = bip32_ctx.PublicKey().RawCompressed().ToBytes()
-    #deposit_layer1_address = P2PKH.ToAddress(pubkey_bytes, BitcoinConf.P2PKH_NET_VER.Test())
+    GlobalLogging.log_text("getDepositAddress index: " + str(index))
 
     deposit_layer1_address = generate_btc_testnet_address(DEPOSIT_WALLET_MASTER_PUBKEY, index)
 
