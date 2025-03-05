@@ -1,9 +1,10 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 # Replace with your database URL
-DATABASE_PATH = "/home/js/Workspaces/IC/db/Layer2Ledger"
+DATABASE_PATH = os.path.expanduser('~') + "/.IC/Layer2Ledger"
 DATABASE_URL = f"sqlite:///{DATABASE_PATH}/Layer2Ledger.db"  # Using SQLite for example
 
 engine = create_engine(DATABASE_URL)

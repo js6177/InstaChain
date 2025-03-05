@@ -124,7 +124,7 @@ class AddressBalanceCache(Base):
         try:
             hit = db.query(AddressBalanceCache).filter(AddressBalanceCache.address == _address).first()
             if not hit:
-                (_balance, _) = Transaction.get_balance(_address, False, False, transactionIdToIgnore)
+                (_balance, _) = Transaction.get_balance(_address, False, transactionIdToIgnore)
                 hit = AddressBalanceCache(address=_address, balance=_balance)
                 db.add(hit)
             hit.balance += _balance
@@ -152,14 +152,13 @@ class AddressBalanceCache(Base):
 class Transaction(Base):
     __tablename__ = "transactions"
 
-    id = Column(BigInteger, primary_key=True, index=True)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
     amount = Column(Integer)
     fee = Column(Integer)
     source_address_pubkey = Column(String, index=True)
     destination_address_pubkey = Column(String, index=True)
     transaction_type = Column(Integer)
-    transaction_id = Column(String, unique=True, index=True)
+    transaction_id = Column(String, primary_key=True, index=True)
     signature = Column(Text)
     signature_date = Column(Integer)
     layer1_transaction_id = Column(String)
@@ -266,8 +265,8 @@ class Transaction(Base):
 
                     updateAdressBalanceCache = (ADDRESS_BALANCE_CACHE_ENABLED and _transaction_type != Transaction.TRX_WITHDRAWAL_CONFIRMED)
                     if updateAdressBalanceCache:
-                        AddressBalanceCache.updateBalance(source.pubkey, -_amount, trx.id)
-                        AddressBalanceCache.updateBalance(_destination, _amount-_fee, trx.id)
+                        AddressBalanceCache.updateBalance(source.pubkey, -_amount, trx.transaction_id)
+                        AddressBalanceCache.updateBalance(_destination, _amount-_fee, trx.transaction_id)
                     TotalFees.add_fee(_fee)
                     status = ErrorMessage.ERROR_SUCCESS
                 else:
@@ -305,8 +304,8 @@ class Transaction(Base):
                 input_query = db.query(Transaction).filter(Transaction.destination_address_pubkey == address.pubkey)
 
                 if transactionIdToIgnore is not None:
-                    output_query = output_query.filter(Transaction.id != transactionIdToIgnore)
-                    input_query = input_query.filter(Transaction.id != transactionIdToIgnore)
+                    output_query = output_query.filter(Transaction.transaction_id != transactionIdToIgnore)
+                    input_query = input_query.filter(Transaction.transaction_id != transactionIdToIgnore)
 
                 for output in output_query.all():
                     balance -= output.amount

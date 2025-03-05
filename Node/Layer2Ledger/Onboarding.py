@@ -11,11 +11,11 @@ import random
 import string
 import datetime
 import math
-import os
 from utils import generate_btc_testnet_address
 import GlobalLogging
+from config import get_config
 
-DEPOSIT_WALLET_MASTER_PUBKEY = os.environ.get('DEPOSIT_WALLET_MASTER_PUBKEY')
+DEPOSIT_WALLET_MASTER_PUBKEY = get_config('DEPOSIT_WALLET_MASTER_PUBKEY')
 
 
 class MasterPublicKeyIndex(Base):

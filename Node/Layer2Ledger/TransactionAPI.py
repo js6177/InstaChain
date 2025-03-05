@@ -76,7 +76,7 @@ class getBalance(InstachainRequestHandler):
         for public_key in request.public_keys[:MAX_NUMBER_OF_GETBALANCE_ADDRESSES]:
             balance = type('', (), {})()
             balance.public_key = public_key
-            (balance.balance, balance.address_found) = Transaction.get_balance(public_key, True, True)
+            (balance.balance, balance.address_found) = Transaction.get_balance(public_key, True)
             balances.append(balance)
         self.result['balance'] = [{'public_key': balance.public_key, 'balance': balance.balance, 'address_found': balance.address_found } for balance in balances]
 

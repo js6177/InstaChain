@@ -38,7 +38,7 @@ class search(InstachainRequestHandler):
                 self.result["l2_transaction"] = transaction.to_dict()
         if((self.search_type == SearchType.L2_ADDRESS) or (self.search_type == SearchType.SEARCH_ALL.value)):
             GlobalLogging.log_text("search... L2_ADDRESS")
-            (address_balance, address_found) = Transaction.get_balance(self.search_string, True, True)
+            (address_balance, address_found) = Transaction.get_balance(self.search_string, True)
             GlobalLogging.log_text("search... L2_ADDRESS found : " + str(address_found))
             if(address_found):
                 self.result["l2_address"] = {'public_key': self.search_string, 'balance': address_balance, 'address_found': address_found }
