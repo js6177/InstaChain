@@ -8,9 +8,10 @@ import AuditAPI
 import ExplorerAPI
 import GlobalLogging
 from database import Base, engine
-from Transaction import Transaction, TotalFees, AddressLock, AddressBalanceCache
+from Transaction import Transaction, AddressLock, AddressBalanceCache
 from Onboarding import WithdrawalRequests, ConfirmedWithdrawals, DepositAddresses, MasterPublicKeyIndex
 from DebugLogger import TransactionDuration
+from KeyValueStore import KeyValueStore
 
 import SuperUser #delete this in production
 

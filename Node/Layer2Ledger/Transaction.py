@@ -15,6 +15,7 @@ import signing_keys
 import GlobalLogging
 import Onboarding
 from NodeInfoAPI import MINIMUM_LAYER1_TRANSACTION_AMOUNT
+from KeyValueStore import KeyValueStore
 
 class TransactionMode(PyEnum):
     ADDRESSLOCK = auto() # source and destination addresses are locked, preventing duplicates
@@ -24,27 +25,9 @@ class TransactionMode(PyEnum):
 TRANSACTION_MODE = TransactionMode.ADDRESSLOCK
 ADDRESS_BALANCE_CACHE_ENABLED = True
 
-class TotalFees(Base):
-    __tablename__ = "total_fees"
-
-    id = Column(Integer, primary_key=True, index=True)
-    amount = Column(Integer, default=0)
-
-    @staticmethod
-    def add_fee(fee: int):
-        db = next(get_db())
-        try:
-            row = db.query(TotalFees).first()
-            if not row:
-                row = TotalFees()
-                db.add(row)
-            row.amount += fee
-            db.commit()
-        except Exception as e:
-            db.rollback()
-            raise e
-        finally:
-            db.close()
+def add_fee(fee: int):
+    """Add fee to the total fees stored in KeyValueStore."""
+    return KeyValueStore.increment_int('fees', fee, 0)
 
 class AddressLock(Base):
     __tablename__ = "address_locks"
@@ -118,16 +101,22 @@ class AddressBalanceCache(Base):
             db.close()
 
     @staticmethod
-    def updateBalance(_address, _balance, transactionIdToIgnore=None):
+    def updateBalance(_address, amount, transactionIdToIgnore=None):
         t1 = datetime.datetime.now()
         db = next(get_db())
         try:
             hit = db.query(AddressBalanceCache).filter(AddressBalanceCache.address == _address).first()
             if not hit:
-                (_balance, _) = Transaction.get_balance(_address, False, transactionIdToIgnore)
-                hit = AddressBalanceCache(address=_address, balance=_balance)
+                final_balance = 0
+                (balance, balance_found) = Transaction.get_balance(_address, False, transactionIdToIgnore)
+                if(balance_found):
+                    final_balance = balance + amount
+                else:
+                    final_balance = amount
+                hit = AddressBalanceCache(address=_address, balance=final_balance)
                 db.add(hit)
-            hit.balance += _balance
+            else:
+                hit.balance += amount
             db.commit()
             DebugLogger.TransactionDuration.logDuration(t1, _address, 'updateBalance')
         except Exception as e:
@@ -159,7 +148,7 @@ class Transaction(Base):
     destination_address_pubkey = Column(String, index=True)
     transaction_type = Column(Integer)
     transaction_id = Column(String, primary_key=True, index=True)
-    signature = Column(Text)
+    signature = Column(String)
     signature_date = Column(Integer)
     layer1_transaction_id = Column(String)
     layer2_withdrawal_id = Column(String)
@@ -267,7 +256,7 @@ class Transaction(Base):
                     if updateAdressBalanceCache:
                         AddressBalanceCache.updateBalance(source.pubkey, -_amount, trx.transaction_id)
                         AddressBalanceCache.updateBalance(_destination, _amount-_fee, trx.transaction_id)
-                    TotalFees.add_fee(_fee)
+                    add_fee(_fee)
                     status = ErrorMessage.ERROR_SUCCESS
                 else:
                     status = ErrorMessage.ERROR_INSUFFICIENT_FUNDS
@@ -338,7 +327,7 @@ class Transaction(Base):
             db.close()
 
     @staticmethod
-    def get_all_transactions(public_key):
+    def get_all_transactions(public_key: str):
         t1 = datetime.datetime.now()
         db = next(get_db())
         try:

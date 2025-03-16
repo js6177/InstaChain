@@ -269,7 +269,7 @@ def depositConfirmed(layer1_transaction_id, layer1_transaction_vout, layer1_addr
     nonce = _nonce
     onboarding_transaction_signing_address = Address.Address.fromPrivateKey(signing_keys.ONBOARDING_DEPOSIT_SIGNING_KEY_PRIVKEY)
     message = str(Transaction.Transaction.TRX_DEPOSIT) + " " + source + " " + destination_pubkey + " " + str(amount) + " " + str(fee) + " " + nonce
-    signature = onboarding_transaction_signing_address.sign(message)
+    signature = onboarding_transaction_signing_address.sign(message).decode("utf-8")
     status = Transaction.Transaction.process_transaction(Transaction.Transaction.TRX_DEPOSIT, amount, fee, source, destination_pubkey, message, signature, nonce, layer1_transaction_id)
 
     return status
