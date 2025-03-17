@@ -4,5 +4,13 @@
     "MINIMUM_LAYER1_TRANSACTION_AMOUNT": 1000,
     "FULLNODE_SIGNING_KEY_PUBKEY": "",
     "ONBOARDING_DEPOSIT_SIGNING_KEY_PRIVKEY": "",
-    "ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY": ""
+    "ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY": "",
+    "FULLNODE_SIGNING_KEY_USES_FUNCTIONAL_TEST_KEYS": true,
+    "Functional_Tests": {
+        "Onboarding_Deposit_Address": {
+            "mneumonic": "robust plastic tuition similar maid salad cushion cook domain royal clog thunder stereo history walk afford",
+            "private_key": "H1BeqNGp1zozxiv8hwqmdCgQVdL3kfQ8NCo6JQnqQP8M",
+            "public_key":  "R1jTXdifeXp7uK6LiXUPoD8EpwakdEgFFdn7KqMG7a8xXLTRhuFWw64Jccao5u2oBYtKgUdsuYgmeaKwxRAJvPqe"
+        }
+    }
 } 

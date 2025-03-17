@@ -188,7 +188,7 @@ class MessageBuilder{
     }
 
     buildGetDepositAddressMessage(layer2AddressPubKey: string, transactionIdNonce: string){
-        const message = (this.layer2LedgerNodeId + " " + this.layer2LedgerNodeAssetId + " " + INSTRUCTION_GET_DEPOSIT_ADDRESS + layer2AddressPubKey + " " + transactionIdNonce);
+        const message = (this.layer2LedgerNodeId + " " + this.layer2LedgerNodeAssetId + " " + INSTRUCTION_GET_DEPOSIT_ADDRESS + " " + layer2AddressPubKey + " " + transactionIdNonce);
         ////console.log('buildGetDepositAddressMessage: ' + message);
         return message;
     }

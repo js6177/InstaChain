@@ -14,9 +14,9 @@ import math
 from utils import generate_btc_testnet_address
 import GlobalLogging
 from config import get_config
+import json
 
 DEPOSIT_WALLET_MASTER_PUBKEY = get_config('DEPOSIT_WALLET_MASTER_PUBKEY')
-
 
 class MasterPublicKeyIndex(Base):
     __tablename__ = "master_public_key_indices"
