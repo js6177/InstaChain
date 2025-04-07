@@ -1,4 +1,3 @@
-
 const ERROR_SUCCESS = 0
 const ERROR_UNKNOWN = 1
 const ERROR_CANNOT_VERIFY_SIGNATURE = 10
@@ -12,7 +11,7 @@ const ERROR_DUPLICATE_NONCE = 17
 const ERROR_COULD_NOT_FIND_WITHDRAWAL_REQUEST = 18
 const ERROR_DATABASE_TRANSACTIONAL_ERROR = 19
 
-const DEFAULT_LAYER2_LEDGER_HOSTNAME = 'https://testnet.instachain.io/' //if user has not added any nodes, get the default one
+const DEFAULT_LAYER2_LEDGER_HOSTNAME = 'http://127.0.0.1:8084/' //if user has not added any nodes, get the default one
 
 import GetBalanceRequest from './messages/Layer2Ledger/Requests/GetBalanceRequest'
 import GetDepositAddressRequest from './messages/Layer2Ledger/Requests/GetDepositAddressRequest'
@@ -105,20 +104,20 @@ class Layer2LedgerAPI{
         });
     }
 
-    getDepositAddress(callback: (getDepositAddressResponse: GetDepositAddressResponse, layer2AddressPubKey: string, trxID: string) => void, getDepositAddressRequest: GetDepositAddressRequest){
+    getDepositAddress(callback: (getDepositAddressResponse: GetDepositAddressResponse, layer2AddressPubKey: string, trxID: string) => void, getDepositAddressRequest: GetDepositAddressRequest) {
         const _url = this.layer2LedgerNodeHostname + 'getNewDepositAddress';
         $.ajax({
             url: _url,
-            type: 'get',
-            contentType: 'application/x-www-form-urlencoded',
-            data: getDepositAddressRequest,
-            success: function( data: any, textStatus: any, jQxhr: any ){
+            type: 'post',
+            contentType: 'application/json',
+            data: JSON.stringify(getDepositAddressRequest),
+            success: function(data: any, textStatus: any, jQxhr: any) {
                 const getDepositAddressResponse: GetDepositAddressResponse = JSON.parse((JSON.stringify(data, null, 2)));
                 callback(getDepositAddressResponse, getDepositAddressRequest.layer2_address_pubkey, getDepositAddressRequest.nonce);
             },
-            error: function( jqXhr: any, textStatus: any, errorThrown: any ){
-                ////console.log( errorThrown );
-            }   
+            error: function(jqXhr: any, textStatus: any, errorThrown: any) {
+                ////console.log(errorThrown);
+            }
         });
     }
 
@@ -127,8 +126,8 @@ class Layer2LedgerAPI{
         $.ajax({
             url: _url,
             type: 'post',
-            data: pushTransactionRequest,
-            contentType: 'application/x-www-form-urlencoded',
+            data: JSON.stringify(pushTransactionRequest),
+            contentType: 'application/json',
             success: function( data: any, textStatus: any, jQxhr: any ){
                 //console.log('pushTransaction (data): ' + JSON.stringify(data, null, 2));
                 ////console.log('pushTransaction (textStatus): ' + textStatus);
@@ -148,8 +147,8 @@ class Layer2LedgerAPI{
         $.ajax({
             url: _url,
             type: 'post',
-            data: requestWithdrawalRequest,
-            contentType: 'application/x-www-form-urlencoded',
+            data: JSON.stringify(requestWithdrawalRequest),
+            contentType: 'application/json',
             success: function( data: any, textStatus: any, jQxhr: any ){
                 //console.log('requestWithdrawal (data): ' + JSON.stringify(data, null, 2));
                 ////console.log('requestWithdrawal (textStatus): ' + textStatus);
@@ -185,26 +184,20 @@ class Layer2LedgerAPI{
     }
 
     @throttle
-    getTransaction(callback: (response: GetTransactionResponse, fromSearch: boolean) => void, getTransactionRequest: GetTransactionRequest, fromSearch: boolean = false){
+    getTransaction(callback: (response: GetTransactionResponse, fromSearch: boolean) => void, getTransactionRequest: GetTransactionRequest, fromSearch: boolean = false) {
         const _url = this.layer2LedgerNodeHostname + 'getTransaction';
         $.ajax({
             url: _url,
-            type: 'get',
-            data: getTransactionRequest,
-            contentType: 'application/x-www-form-urlencoded',
-            success: function( data: any, textStatus: any, jQxhr: any ){
-                ////console.log('getTransaction (data): ' + JSON.stringify(data, null, 2));
-                ////console.log('getTransaction (textStatus): ' + textStatus);
-                ////console.log('getTransaction (jQxhr): ' + jQxhr);
+            type: 'post',
+            contentType: 'application/json',
+            data: JSON.stringify(getTransactionRequest),
+            success: function(data: any, textStatus: any, jQxhr: any) {
                 const getTransactionResponse: GetTransactionResponse = JSON.parse((JSON.stringify(data, null, 2)));
                 callback(getTransactionResponse, fromSearch);
             },
-            error: function( jqXhr: any, textStatus: any, errorThrown: any ){
-                ////console.log( errorThrown );
-
-                console.log('Error: ' + errorThrown );
-                
-            } 
+            error: function(jqXhr: any, textStatus: any, errorThrown: any) {
+                console.log('Error: ' + errorThrown);
+            }
         });
     }
 

@@ -3,7 +3,7 @@ const path = require('path');
 
 const app = express();
 
-let dirName = "/home/js/Projects/IC/InstaChain/Wallet-JS";
+let dirName = path.join(__dirname, "../Wallet-JS");
 let distName = "dist";
 let fileName = "index.html";
 

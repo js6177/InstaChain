@@ -173,7 +173,7 @@ class Transaction(Base):
         try:
             db.add(instance)
             db.commit()
-            return instance.id
+            return instance.transaction_id
         except Exception as e:
             db.rollback()
             raise e

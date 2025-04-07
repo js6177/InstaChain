@@ -17,11 +17,11 @@ class Address:
         return {'pubkey': self.pubkey, 'privkey': self.privkey, 'description': self.description}
 
     @staticmethod
-    def fromPrivateKey(privatekey, description = ''):
+    def fromPrivateKey(privatekey, publickey = None, description = ''):
         address = Address('')
         address.privkey = privatekey
+        address.pubkey = publickey
         address.description = description
-        address.pubkey = ''
         return address
 
     # This function verifies that the privake key that encrypted the message belongs to the public key (aka the source of the transaction)

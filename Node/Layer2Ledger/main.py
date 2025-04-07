@@ -35,7 +35,7 @@ app.add_url_rule(r'/withdrawalBroadcasted', 'withdrawalBroadcasted', OnboardingA
 app.add_url_rule(r'/withdrawalConfirmed', 'withdrawalConfirmed', OnboardingAPI.withdrawalConfirmed.initializeRequest, methods=['POST'])
 app.add_url_rule(r'/getWithdrawalRequests', 'getWithdrawalRequests', OnboardingAPI.getWithdrawalRequests.initializeRequest)
 app.add_url_rule(r'/ackWithdrawalRequests', 'ackWithdrawalRequests', OnboardingAPI.ackWithdrawalRequests.initializeRequest, methods=['POST'])
-app.add_url_rule(r'/getNewDepositAddress', 'getNewDepositAddress', OnboardingAPI.getNewDepositAddress.initializeRequest) # get a new address to deposit mainnet coins into
+app.add_url_rule(r'/getNewDepositAddress', 'getNewDepositAddress', OnboardingAPI.getNewDepositAddress.initializeRequest, methods=['POST']) # get a new address to deposit mainnet coins into
 app.add_url_rule(r'/depositFunds', 'depositFunds', OnboardingAPI.depositConfirmed.initializeRequest, methods=['POST']) #this transaction will be signed by the deposited addresses public key. This API will only be called by the full node
 
 app.add_url_rule(r'/postLayer1AuditReport', 'postLayer1AuditReport', AuditAPI.postLayer1AuditReport.initializeRequest, methods=['POST'])
