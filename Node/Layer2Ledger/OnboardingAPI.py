@@ -2,6 +2,7 @@ from Transaction import Transaction
 import ErrorMessage
 import Onboarding
 from services.messages.Layer2Ledger.Requests import AckWithdrawalRequestsRequest, GetWithdrawalRequestsRequest, WithdrawalCanceledRequest
+from services.messages.Layer2Ledger.Responses.GetDepositAddressResponse import GetDepositAddressResponse
 import signing_keys
 import Address
 import time
@@ -113,15 +114,14 @@ class getNewDepositAddress(InstachainRequestHandler):
     def getParameters(self):
         request_dict = self.getPostJsonParams()
         self.request = GetDepositAddressRequest(**request_dict)
-        print(self.request)
 
     def processRequest(self):
         rslt, address = Onboarding.getDepositAddress(self.request.layer2_address_pubkey, self.request.nonce, self.request.signature)
-        self.result = ErrorMessage.build_error_message(rslt)
-        if(rslt == ErrorMessage.ERROR_SUCCESS):
-            self.result['layer1_deposit_address'] = address
-        else:
-            self.result['layer1_deposit_address'] = ''
+        self.result = GetDepositAddressResponse(
+            **ErrorMessage.build_error_message(rslt),
+            layer1_deposit_address=address if rslt == 0 else ""
+        )
+        print("getNewDepositAddress: ", self.result)
 
 class verifyDepositAddress(InstachainRequestHandler):
     def getParameters(self):

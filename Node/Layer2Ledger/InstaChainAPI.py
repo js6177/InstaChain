@@ -1,9 +1,11 @@
-from flask import request
+from flask import request, jsonify
 import ErrorMessage
 import logging
 import json
 import datetime
 import GlobalLogging
+from pydantic.main import BaseModel as PydanticBaseModel  # Import the base class
+
 
 class FlaskRequestHandler():
     def getRequestParams(self, param_name):
@@ -44,4 +46,9 @@ class InstachainRequestHandler(FlaskRequestHandler):
     def initializeRequest(cls):
         handler = cls()
         handler.handleRequest()
-        return handler.result
+        # Check if handler.result is an instance of PydanticBaseModel
+        # If it is, dump it to a dictionary, otherwise return it as is
+        if (isinstance(handler.result, PydanticBaseModel)):
+            return jsonify(handler.result.model_dump())
+        else:
+            return jsonify(handler.result)

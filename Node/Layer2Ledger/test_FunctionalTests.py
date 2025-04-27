@@ -15,6 +15,9 @@ from services.messages.Layer2Ledger.Requests.RequestWithdrawalRequest import Req
 from services.messages.Layer2Ledger.Requests.GetBalanceRequest import GetBalanceRequest
 from services.messages.Layer2Ledger.Requests.GetDepositAddressRequest import GetDepositAddressRequest
 from services.messages.Layer2Ledger.Requests.DepositFundsRequest import DepositFundsRequest
+from services.messages.Layer2Ledger.Responses.GetBalanceResponse import GetBalanceResponse
+from services.messages.Layer2Ledger.Responses.GetDepositAddressResponse import GetDepositAddressResponse
+
 
 def generate_new_keypair() -> tuple[str, str]:
     sk = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
@@ -75,7 +78,8 @@ def test_deposit_and_check_balance(client):
     )
     response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
-    deposit_address = response.json['layer1_deposit_address']
+    deposit_address_response = GetDepositAddressResponse(**response.json)
+    deposit_address = deposit_address_response.layer1_deposit_address
     
     # Simulate Layer1 deposit
     deposit_nonce = generate_nonce()
@@ -103,11 +107,12 @@ def test_deposit_and_check_balance(client):
     balance_request = GetBalanceRequest(public_keys=[l2_address.pubkey])
     response = client.post('/getBalance', json=balance_request.dict(), content_type='application/json')
     assert is_successful_response(response)
-    balance = response.json['balance']
+    balance_response = GetBalanceResponse(**response.json)
+    balance = list(balance_response.balance)  # Ensure balance is a list
     assert len(balance) > 0
-    assert balance[0]['address_found'] == True
-    assert balance[0]['public_key'] == l2_address.pubkey
-    assert balance[0]['balance'] == deposit_amount
+    assert balance[0].address_found is True
+    assert balance[0].public_key == l2_address.pubkey
+    assert balance[0].balance == deposit_amount
 
     print(f"Balance of L2 address {l2_address.pubkey}: {balance}")
 
@@ -139,7 +144,8 @@ def test_deposit_and_transfer(client):
     )
     response = client.post('/getNewDepositAddress', json=get_deposit_address_request.dict(), content_type='application/json')
     assert is_successful_response(response)
-    deposit_address = response.json['layer1_deposit_address']
+    deposit_address_response = GetDepositAddressResponse(**response.json)
+    deposit_address = deposit_address_response.layer1_deposit_address
     
     # Simulate Layer1 deposit
     deposit_nonce = generate_nonce()
@@ -167,11 +173,12 @@ def test_deposit_and_transfer(client):
     balance_request = GetBalanceRequest(public_keys=[l2_address_1.pubkey])
     response = client.post('/getBalance', json=balance_request.dict(), content_type='application/json')
     assert is_successful_response(response)
-    balance = response.json['balance']
+    balance_response = GetBalanceResponse(**response.json)
+    balance = list(balance_response.balance)
     assert len(balance) > 0
-    assert balance[0]['address_found'] == True
-    assert balance[0]['public_key'] == l2_address_1.pubkey
-    assert balance[0]['balance'] == deposit_amount
+    assert balance[0].address_found is True
+    assert balance[0].public_key == l2_address_1.pubkey
+    assert balance[0].balance == deposit_amount
 
     # Transfer funds to L2 address 2
     transfer_nonce = generate_nonce()
@@ -195,11 +202,12 @@ def test_deposit_and_transfer(client):
     balance_request = GetBalanceRequest(public_keys=[l2_address_2.pubkey])
     response = client.post('/getBalance', json=balance_request.dict(), content_type='application/json')
     assert is_successful_response(response)
-    balance = response.json['balance']
+    balance_response = GetBalanceResponse(**response.json)
+    balance = list(balance_response.balance)
     assert len(balance) > 0
-    assert balance[0]['address_found'] == True
-    assert balance[0]['public_key'] == l2_address_2.pubkey
-    assert balance[0]['balance'] == transfer_amount - transfer_fee  # Ensure balance is transfer amount minus fees
+    assert balance[0].address_found is True
+    assert balance[0].public_key == l2_address_2.pubkey
+    assert balance[0].balance == transfer_amount - transfer_fee  # Ensure balance is transfer amount minus fees
 
     print(f"Balance of L2 address 2 {l2_address_2.pubkey}: {balance}")
 
@@ -228,7 +236,8 @@ def test_deposit_and_withdraw(client):
     )
     response = client.post('/getNewDepositAddress', json=get_deposit_address_request.dict(), content_type='application/json')
     assert is_successful_response(response)
-    deposit_address = response.json['layer1_deposit_address']
+    deposit_address_response = GetDepositAddressResponse(**response.json)
+    deposit_address = deposit_address_response.layer1_deposit_address
     
     # Simulate Layer1 deposit
     deposit_nonce = generate_nonce()
@@ -256,11 +265,12 @@ def test_deposit_and_withdraw(client):
     balance_request = GetBalanceRequest(public_keys=[l2_address.pubkey])
     response = client.post('/getBalance', json=balance_request.dict(), content_type='application/json')
     assert is_successful_response(response)
-    balance = response.json['balance']
+    balance_response = GetBalanceResponse(**response.json)
+    balance = list(balance_response.balance)  # Ensure balance is a list
     assert len(balance) > 0
-    assert balance[0]['address_found'] == True
-    assert balance[0]['public_key'] == l2_address.pubkey
-    assert balance[0]['balance'] == deposit_amount
+    assert balance[0].address_found is True
+    assert balance[0].public_key == l2_address.pubkey
+    assert balance[0].balance == deposit_amount
 
     # Simulate withdrawal to L1 address
     withdrawal_nonce = generate_nonce()
@@ -282,11 +292,12 @@ def test_deposit_and_withdraw(client):
     # Check final balance of L2 address
     response = client.post('/getBalance', json=balance_request.dict(), content_type='application/json')
     assert is_successful_response(response)
-    balance = response.json['balance']
+    balance_response = GetBalanceResponse(**response.json)
+    balance = list(balance_response.balance)
     assert len(balance) > 0
-    assert balance[0]['address_found'] == True
-    assert balance[0]['public_key'] == l2_address.pubkey
-    assert balance[0]['balance'] == deposit_amount - withdrawal_amount # Ensure balance is correct
+    assert balance[0].address_found is True
+    assert balance[0].public_key == l2_address.pubkey
+    assert balance[0].balance == deposit_amount - withdrawal_amount # Ensure balance is correct
 
     print(f"Final balance of L2 address {l2_address.pubkey}: {balance}")
 

@@ -1,6 +1,7 @@
 import os
 import ErrorMessage
 from InstaChainAPI import InstachainRequestHandler
+from services.messages.Layer2Ledger.Responses.GetNodeInfoResponse import GetNodeInfoResponse, NodeInfo, Layer1NetworkInfo, Version
 import json
 from config import get_config, get_int_config
 
@@ -29,14 +30,22 @@ from signing_keys import ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY
 
 class getNodeInfo(InstachainRequestHandler):
     def getParameters(self):
-        self.result = {
-            'nodeId': NODE_ID,
-            'minimumLayer1TransactionAmount': MINIMUM_LAYER1_TRANSACTION_AMOUNT
-        }
+        # Retain the getParameters function
+        pass
 
     def processRequest(self):
-        version = {'major_version': 1, 'minor_version': 0, 'patch_version': 0, 'API_version': 1}
-        layer1_network_info = {'minimum_transaction_amount': MINIMUM_LAYER1_TRANSACTION_AMOUNT}
-        deposit_address_derivation_path = "pkh(" + DEPOSIT_WALLET_MASTER_PUBKEY + "/44/1/(i/2147483647)/(i%2147483647))"
-        self.result = ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS)
-        self.result['node_info'] = {'node_id': NODE_ID, 'node_name': 'Tesnet Node', 'asset_id': NODE_ASSET_ID, 'deposit_address_derivation_path': deposit_address_derivation_path, 'onboarding_deposit_signing_key_pubkey': ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY, 'version': version, 'layer1_network_info': layer1_network_info}
+        version = Version(major_version=1, minor_version=0, patch_version=0, API_version=1)
+        layer1_network_info = Layer1NetworkInfo(minimum_transaction_amount=MINIMUM_LAYER1_TRANSACTION_AMOUNT)
+        node_info = NodeInfo(
+            node_id=NODE_ID,
+            node_name='Tesnet Node',
+            asset_id=NODE_ASSET_ID,
+            deposit_address_derivation_path="pkh(" + DEPOSIT_WALLET_MASTER_PUBKEY + "/44/1/(i/2147483647)/(i%2147483647))",
+            onboarding_deposit_signing_key_pubkey=ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY,
+            version=version,
+            layer1_network_info=layer1_network_info
+        )
+        self.result = GetNodeInfoResponse(
+            **ErrorMessage.build_error_message(0),
+            node_info=node_info
+        )

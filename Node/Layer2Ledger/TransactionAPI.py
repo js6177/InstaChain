@@ -9,6 +9,8 @@ import types
 from types import SimpleNamespace
 from InstaChainAPI import InstachainRequestHandler
 from NodeInfoAPI import NODE_ID
+from services.messages.Layer2Ledger.Responses.GetBalanceResponse import GetBalanceResponse, GetBalanceResponseBalance
+from services.messages.Layer2Ledger.Responses.GetTransactionResponse import GetTransactionResponse
 from signing_keys import ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY
 import GlobalLogging
 import KeyVerification
@@ -17,6 +19,7 @@ from services.messages.Layer2Ledger.Requests.GetBalanceRequest import GetBalance
 from services.messages.Layer2Ledger.Requests.GetTransactionsRequest import GetTransactionsRequest
 from services.messages.Layer2Ledger.Requests.GetTransactionRequest import GetTransactionRequest
 from services.messages.Layer2Ledger.Requests.GetFeeRequest import GetFeeRequest
+
 
 MAX_NUMBER_OF_GETBALANCE_ADDRESSES = 10
 MAX_NUMBER_OF_GETTRANSACTIONS_ADDRESSES = 10
@@ -42,11 +45,12 @@ class getTransaction(InstachainRequestHandler):
         self.request: GetTransactionRequest = GetTransactionRequest(**request_dict)
 
     def processRequest(self):
-        rslt, transaction = Transaction.get_transaction(self.request.transaction_id)  # Access field directly
-        self.result = ErrorMessage.build_error_message(rslt)
-        self.result['transaction_id'] = self.request.transaction_id  # Access field directly
-        if transaction is not None:
-            self.result['transaction'] = transaction.to_dict()
+        rslt, transaction = Transaction.get_transaction(self.request.transaction_id)
+        self.result = GetTransactionResponse(
+            **ErrorMessage.build_error_message(rslt),
+            transaction=transaction.to_dict() if transaction else None,
+            transaction_id=self.request.transaction_id
+        )
 
 class getAllTransactionsOfPublicKey(InstachainRequestHandler):
     def getParameters(self):
@@ -55,7 +59,7 @@ class getAllTransactionsOfPublicKey(InstachainRequestHandler):
 
     def processRequest(self):
         transactions_list = []
-        for public_key in self.request.public_keys[:MAX_NUMBER_OF_GETTRANSACTIONS_ADDRESSES]:
+        for public_key in list(self.request.public_keys)[:MAX_NUMBER_OF_GETTRANSACTIONS_ADDRESSES]:
             transactions = Transaction.get_all_transactions(public_key)
             transaction_dict = {}
             transaction_dict['public_key'] = public_key
@@ -74,13 +78,17 @@ class getBalance(InstachainRequestHandler):
     def getParameters(self):
         request_dict = self.getPostJsonParams()
         self.request: GetBalanceRequest = GetBalanceRequest(**request_dict)
+
     def processRequest(self):
-        balances = []
-        for public_key in self.request.public_keys[:MAX_NUMBER_OF_GETBALANCE_ADDRESSES]:
-            balance = type('', (), {})()
+        balances: list[GetBalanceResponseBalance] = []
+        for public_key in list(self.request.public_keys)[:MAX_NUMBER_OF_GETBALANCE_ADDRESSES]:
+            balance: GetBalanceResponseBalance = GetBalanceResponseBalance()
             balance.public_key = public_key
             (balance.balance, balance.address_found) = Transaction.get_balance(public_key, True)
             balances.append(balance)
-        self.result['balance'] = [{'public_key': balance.public_key, 'balance': balance.balance, 'address_found': balance.address_found } for balance in balances]
+        self.result = GetBalanceResponse(
+            **ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS),
+            balance=balances
+        )
 
 

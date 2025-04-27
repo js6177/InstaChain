@@ -10,4 +10,4 @@ from pydantic import BaseModel
 
 
 class GetTransactionsRequest(BaseModel):
-    public_keys: List[str] = None
+    public_keys: list[str] = None
