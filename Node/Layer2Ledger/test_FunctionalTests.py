@@ -43,13 +43,6 @@ def client():
     with app.test_client() as client:
         yield client
 
-# Interface to model the inputs for withdrawalRequest
-class WithdrawalRequest(TypedDict):
-    source_address_public_key: str
-    nonce: str
-    layer1_withdrawal_address: str
-    amount: int
-    signature: str
 
 # This test will generate a new L2 address, get a new deposit address for it, simulate a deposit, and check the balance of the L2 address
 def test_deposit_and_check_balance(client):
@@ -100,12 +93,12 @@ def test_deposit_and_check_balance(client):
             'signature': signature.decode('utf-8')}
         ]
     )
-    response = client.post('/depositFunds', json=deposit_data.dict(), content_type='application/json')
+    response = client.post('/depositFunds', json=deposit_data.model_dump(), content_type='application/json')
     assert is_successful_response(response)
     
     # Check balance of L2 address
     balance_request = GetBalanceRequest(public_keys=[l2_address.pubkey])
-    response = client.post('/getBalance', json=balance_request.dict(), content_type='application/json')
+    response = client.post('/getBalance', json=balance_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
     balance_response = GetBalanceResponse(**response.json)
     balance = list(balance_response.balance)  # Ensure balance is a list
@@ -142,7 +135,7 @@ def test_deposit_and_transfer(client):
         nonce=nonce,
         signature=signature
     )
-    response = client.post('/getNewDepositAddress', json=get_deposit_address_request.dict(), content_type='application/json')
+    response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
     deposit_address_response = GetDepositAddressResponse(**response.json)
     deposit_address = deposit_address_response.layer1_deposit_address
@@ -166,12 +159,12 @@ def test_deposit_and_transfer(client):
             'signature': signature.decode('utf-8')}
         ]
     )
-    response = client.post('/depositFunds', json=deposit_data.dict(), content_type='application/json')
+    response = client.post('/depositFunds', json=deposit_data.model_dump(), content_type='application/json')
     assert is_successful_response(response)
     
     # Check balance of L2 address 1
     balance_request = GetBalanceRequest(public_keys=[l2_address_1.pubkey])
-    response = client.post('/getBalance', json=balance_request.dict(), content_type='application/json')
+    response = client.post('/getBalance', json=balance_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
     balance_response = GetBalanceResponse(**response.json)
     balance = list(balance_response.balance)
@@ -195,12 +188,12 @@ def test_deposit_and_transfer(client):
         transaction_id=transfer_nonce,
         signature=transfer_signature
     )
-    response = client.post('/pushTransaction', json=transfer_request.dict(), content_type='application/json')
+    response = client.post('/pushTransaction', json=transfer_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
     
     # Check balance of L2 address 2
     balance_request = GetBalanceRequest(public_keys=[l2_address_2.pubkey])
-    response = client.post('/getBalance', json=balance_request.dict(), content_type='application/json')
+    response = client.post('/getBalance', json=balance_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
     balance_response = GetBalanceResponse(**response.json)
     balance = list(balance_response.balance)
@@ -234,7 +227,7 @@ def test_deposit_and_withdraw(client):
         nonce=nonce,
         signature=signature
     )
-    response = client.post('/getNewDepositAddress', json=get_deposit_address_request.dict(), content_type='application/json')
+    response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
     deposit_address_response = GetDepositAddressResponse(**response.json)
     deposit_address = deposit_address_response.layer1_deposit_address
@@ -258,12 +251,12 @@ def test_deposit_and_withdraw(client):
             'signature': signature.decode('utf-8')}
         ]
     )
-    response = client.post('/depositFunds', json=deposit_data.dict(), content_type='application/json')
+    response = client.post('/depositFunds', json=deposit_data.model_dump(), content_type='application/json')
     assert is_successful_response(response)
     
     # Check balance of L2 address
     balance_request = GetBalanceRequest(public_keys=[l2_address.pubkey])
-    response = client.post('/getBalance', json=balance_request.dict(), content_type='application/json')
+    response = client.post('/getBalance', json=balance_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
     balance_response = GetBalanceResponse(**response.json)
     balance = list(balance_response.balance)  # Ensure balance is a list
@@ -286,11 +279,11 @@ def test_deposit_and_withdraw(client):
         amount=withdrawal_amount,
         signature=withdrawal_signature
     )
-    response = client.post('/withdrawalRequest', json=withdrawal_request.dict(), content_type='application/json')
+    response = client.post('/withdrawalRequest', json=withdrawal_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
     
     # Check final balance of L2 address
-    response = client.post('/getBalance', json=balance_request.dict(), content_type='application/json')
+    response = client.post('/getBalance', json=balance_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
     balance_response = GetBalanceResponse(**response.json)
     balance = list(balance_response.balance)
