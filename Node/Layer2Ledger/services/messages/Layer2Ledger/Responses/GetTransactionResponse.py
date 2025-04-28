@@ -25,5 +25,5 @@ class GetTransactionsResponseTransaction(BaseModel):
 
 
 class GetTransactionResponse(CommonResponse):
-    transaction: GetTransactionsResponseTransaction = None
+    transaction: GetTransactionsResponseTransaction | None = None
     transaction_id: str = None

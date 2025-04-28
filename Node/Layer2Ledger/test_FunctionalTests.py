@@ -14,7 +14,7 @@ from services.messages.Layer2Ledger.Requests.PushTransactionRequest import PushT
 from services.messages.Layer2Ledger.Requests.RequestWithdrawalRequest import RequestWithdrawalRequest
 from services.messages.Layer2Ledger.Requests.GetBalanceRequest import GetBalanceRequest
 from services.messages.Layer2Ledger.Requests.GetDepositAddressRequest import GetDepositAddressRequest
-from services.messages.Layer2Ledger.Requests.DepositFundsRequest import DepositFundsRequest
+from services.messages.Layer2Ledger.Requests.DepositFundsRequest import DepositFundsRequest, DepositTransaction
 from services.messages.Layer2Ledger.Responses.GetBalanceResponse import GetBalanceResponse
 from services.messages.Layer2Ledger.Responses.GetDepositAddressResponse import GetDepositAddressResponse
 
@@ -84,13 +84,15 @@ def test_deposit_and_check_balance(client):
     signature = onboarding_transaction_signing_address.sign(deposit_message)
     
     deposit_data = DepositFundsRequest(
-        transactions=[{
-            'layer1_transaction_id': layer1_transaction_id,
-            'layer1_transaction_vout': layer1_transaction_vout,
-            'layer1_address': deposit_address,
-            'amount': deposit_amount,
-            'nonce': deposit_nonce,
-            'signature': signature.decode('utf-8')}
+        transactions=[
+            DepositTransaction(
+                layer1_transaction_id=layer1_transaction_id,
+                layer1_transaction_vout=layer1_transaction_vout,
+                layer1_address=deposit_address,
+                amount=deposit_amount,
+                nonce=deposit_nonce,
+                signature=signature.decode('utf-8')
+            )
         ]
     )
     response = client.post('/depositFunds', json=deposit_data.model_dump(), content_type='application/json')
@@ -150,13 +152,15 @@ def test_deposit_and_transfer(client):
     signature = onboarding_transaction_signing_address.sign(deposit_message)
     
     deposit_data = DepositFundsRequest(
-        transactions=[{
-            'layer1_transaction_id': layer1_transaction_id,
-            'layer1_transaction_vout': layer1_transaction_vout,
-            'layer1_address': deposit_address,
-            'amount': deposit_amount,
-            'nonce': deposit_nonce,
-            'signature': signature.decode('utf-8')}
+        transactions=[
+            DepositTransaction(
+                layer1_transaction_id=layer1_transaction_id,
+                layer1_transaction_vout=layer1_transaction_vout,
+                layer1_address=deposit_address,
+                amount=deposit_amount,
+                nonce=deposit_nonce,
+                signature=signature.decode('utf-8')
+            )
         ]
     )
     response = client.post('/depositFunds', json=deposit_data.model_dump(), content_type='application/json')
@@ -242,13 +246,15 @@ def test_deposit_and_withdraw(client):
     signature = onboarding_transaction_signing_address.sign(deposit_message)
     
     deposit_data = DepositFundsRequest(
-        transactions=[{
-            'layer1_transaction_id': layer1_transaction_id,
-            'layer1_transaction_vout': layer1_transaction_vout,
-            'layer1_address': deposit_address,
-            'amount': deposit_amount,
-            'nonce': deposit_nonce,
-            'signature': signature.decode('utf-8')}
+        transactions=[
+            DepositTransaction(
+                layer1_transaction_id=layer1_transaction_id,
+                layer1_transaction_vout=layer1_transaction_vout,
+                layer1_address=deposit_address,
+                amount=deposit_amount,
+                nonce=deposit_nonce,
+                signature=signature.decode('utf-8')
+            )
         ]
     )
     response = client.post('/depositFunds', json=deposit_data.model_dump(), content_type='application/json')
