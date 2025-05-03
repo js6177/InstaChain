@@ -1,6 +1,6 @@
 from Transaction import Transaction
 import ErrorMessage
-import Address
+import Address as Address
 import time
 import logging
 import json

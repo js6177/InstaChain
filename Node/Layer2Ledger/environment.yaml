@@ -7,7 +7,8 @@ dependencies:
   - _openmp_mutex=5.1=1_gnu
   - annotated-types=0.7.0=pyhd8ed1ab_1
   - bzip2=1.0.8=h5eee18b_6
-  - ca-certificates=2025.1.31=hbcca054_0
+  - ca-certificates=2025.2.25=h06a4308_0
+  - coverage=7.6.9=py312h5eee18b_0
   - expat=2.6.4=h6a678d5_0
   - ld_impl_linux-64=2.40=h12ee557_0
   - libffi=3.4.4=h6a678d5_1

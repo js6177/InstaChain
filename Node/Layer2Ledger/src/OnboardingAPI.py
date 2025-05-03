@@ -4,7 +4,7 @@ import Onboarding
 from services.messages.Layer2Ledger.Requests import AckWithdrawalRequestsRequest, GetWithdrawalRequestsRequest, WithdrawalCanceledRequest
 from services.messages.Layer2Ledger.Responses.GetDepositAddressResponse import GetDepositAddressResponse
 import signing_keys
-import Address
+import Address as Address
 import time
 import logging
 import json

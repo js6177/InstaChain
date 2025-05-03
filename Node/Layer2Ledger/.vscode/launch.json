@@ -15,14 +15,14 @@
             "name": "Python Debugger: main.py",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/main.py",
+            "program": "${workspaceFolder}/src/main.py",
             "console": "integratedTerminal"
         },
         {
             "name": "Run Functional Tests",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/test_FunctionalTests.py",
+            "program": "${workspaceFolder}/src/test_FunctionalTests.py",
             "console": "integratedTerminal"
         }
     ]

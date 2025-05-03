@@ -1,5 +1,5 @@
 #file to verify various transactions' digital signatures
-import Address
+import Address as Address
 import Transaction
 import logging
 import signing_keys

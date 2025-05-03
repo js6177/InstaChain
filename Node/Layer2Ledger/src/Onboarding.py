@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, BigInteger, String, DateTime, Boolean, T
 from sqlalchemy.sql import func
 from database import Base, get_db
 import ErrorMessage
-import Address
+import Address as Address
 import signing_keys
 import Transaction
 import KeyVerification
