@@ -20,7 +20,7 @@ from services.messages.Layer2Ledger.Requests.GetBalanceRequest import GetBalance
 from services.messages.Layer2Ledger.Requests.GetTransactionsRequest import GetTransactionsRequest
 from services.messages.Layer2Ledger.Requests.GetTransactionRequest import GetTransactionRequest
 from services.messages.Layer2Ledger.Requests.GetFeeRequest import GetFeeRequest
-
+from services.messages.Layer2Ledger.Responses.GetFeeResponse import GetFeeResponse
 
 
 MAX_NUMBER_OF_GETBALANCE_ADDRESSES = 10
@@ -36,14 +36,35 @@ class pushTransaction(InstachainRequestHandler):
         self.request = PushTransactionRequest(**request_dict)
 
     def processRequest(self):
-        if(self.request.source_address_public_key != ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY):
-            message = KeyVerification.buildTransferMessage(self.request.source_address_public_key, self.request.destination_address_public_key, self.request.amount, self.request.fee, self.request.transaction_id)
-            status = Transaction.process_transaction(Transaction.TRX_TRANSFER, self.request.amount, self.request.fee, self.request.source_address_public_key, self.request.destination_address_public_key, message, self.request.signature, self.request.transaction_id)
-            self.result = ErrorMessage.build_error_message(status)
+        if self.request.source_address_public_key != ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY:
+            message = KeyVerification.buildTransferMessage(
+                self.request.source_address_public_key,
+                self.request.destination_address_public_key,
+                self.request.amount,
+                self.request.fee,
+                self.request.transaction_id
+            )
+            status = Transaction.process_transaction(
+                Transaction.TRX_TRANSFER,
+                self.request.amount,
+                self.request.fee,
+                self.request.source_address_public_key,
+                self.request.destination_address_public_key,
+                message,
+                self.request.signature,
+                self.request.transaction_id
+            )
+            self.result = GetTransactionResponse(
+                **ErrorMessage.build_error_message(status),
+                transaction_id=self.request.transaction_id
+            )
         else:
-            self.result = ErrorMessage.build_error_message(ErrorMessage.ERROR_CANNOT_TRANSFER_USING_ONBOARDING_KEY)
+            self.result = GetTransactionResponse(
+                **ErrorMessage.build_error_message(ErrorMessage.ERROR_CANNOT_TRANSFER_USING_ONBOARDING_KEY),
+                transaction_id=self.request.transaction_id
+            )
 
-        GlobalLogging.log_text("response: " + json.dumps(self.result))
+        GlobalLogging.log_text("response: " + str(self.result))
 
 class getTransaction(InstachainRequestHandler):
     def __init__(self):
@@ -108,8 +129,12 @@ class getFee(InstachainRequestHandler):
     def getParameters(self):
         request_dict = self.getPostJsonParams()
         self.request = GetFeeRequest(**request_dict)
+
     def processRequest(self):
-        self.result['fee'] = 1
+        self.result = GetFeeResponse(
+            **ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS),
+            fee=1
+        )
 
 class getBalance(InstachainRequestHandler):
     def __init__(self):

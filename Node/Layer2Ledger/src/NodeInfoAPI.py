@@ -46,6 +46,6 @@ class getNodeInfo(InstachainRequestHandler):
             layer1_network_info=layer1_network_info
         )
         self.result = GetNodeInfoResponse(
-            **ErrorMessage.build_error_message(0),
+            **ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS),
             node_info=node_info
         )

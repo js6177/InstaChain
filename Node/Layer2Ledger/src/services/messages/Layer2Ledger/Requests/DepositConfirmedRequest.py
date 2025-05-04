@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import List
 
 class DepositsConfirmed(BaseModel):
     layer1_transaction_id: str
@@ -8,6 +9,5 @@ class DepositsConfirmed(BaseModel):
     nonce: str
     signature: str
 
-
 class DepositConfirmedRequest(BaseModel):
-    transactions: list[DepositsConfirmed]
+    transactions: List[DepositsConfirmed]

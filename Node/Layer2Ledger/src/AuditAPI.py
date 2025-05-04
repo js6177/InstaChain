@@ -44,7 +44,7 @@ class getLayer1AuditReport(InstachainRequestHandler):
             )
         else:
             self.result = Layer1AuditReportResponse(
-                **ErrorMessage.build_error_message(0),
+                **ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS),
                 addressBalances=[address_balance.to_dict() for address_balance in address_balances],
                 blockHeight=report.block_height,
                 ready=True,
