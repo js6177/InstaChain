@@ -16,7 +16,7 @@ class Layer1AddressBalance(BaseModel):
     layer1Address: str = None
 
 
-class Layer1AuditReportResponse(CommonResponse):
+class GetLayer1AuditReportResponse(CommonResponse):
     addressBalances: List[Layer1AddressBalance] = None
     blockHeight: int = None
     ready: bool = None

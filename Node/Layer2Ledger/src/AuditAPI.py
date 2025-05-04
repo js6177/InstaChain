@@ -8,9 +8,10 @@ from NodeInfoAPI import NODE_ID
 import GlobalLogging
 import KeyVerification
 import ErrorMessage
-from services.messages.Layer2Ledger.Responses.Layer1AuditReportResponse import Layer1AuditReportResponse
+from services.messages.Layer2Ledger.Responses.GetLayer1AuditReportResponse import GetLayer1AuditReportResponse
 from services.messages.Layer2Ledger.Requests.PostLayer1AuditReportRequest import PostLayer1AuditReportRequest
 from services.messages.Layer2Ledger.Responses.PostLayer1AuditReportResponse import PostLayer1AuditReportResponse
+from services.messages.Layer2Ledger.Requests.GetLayer1AuditReportRequest import GetLayer1AuditReportRequest
 
 #called from the node
 class postLayer1AuditReport(InstachainRequestHandler):
@@ -36,13 +37,14 @@ class postLayer1AuditReport(InstachainRequestHandler):
 
 class getLayer1AuditReport(InstachainRequestHandler):
     def getParameters(self):
-        self.block_height = int(self.getRequestParams('block_height') or 0)
+        request_dict = {'block_height': int(self.getRequestParams('block_height') or 0)}
+        self.request = GetLayer1AuditReportRequest(**request_dict)
 
     def processRequest(self):
-        report = Audit.getLayer1AuditReport(self.block_height)
+        report = Audit.getLayer1AuditReport(self.request.block_height)
         address_balances = Audit.getLayer1AddressBalances()
         if report is None:
-            self.result = Layer1AuditReportResponse(
+            self.result = GetLayer1AuditReportResponse(
                 **ErrorMessage.build_error_message(ErrorMessage.ERROR_AUDIT_REPORT_DOES_NOT_EXIST),
                 addressBalances=[],
                 blockHeight=0,
@@ -50,7 +52,7 @@ class getLayer1AuditReport(InstachainRequestHandler):
                 totalBalance=0
             )
         else:
-            self.result = Layer1AuditReportResponse(
+            self.result = GetLayer1AuditReportResponse(
                 **ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS),
                 addressBalances=[address_balance.to_dict() for address_balance in address_balances],
                 blockHeight=report.block_height,
