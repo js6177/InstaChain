@@ -9,23 +9,30 @@ import GlobalLogging
 import KeyVerification
 import ErrorMessage
 from services.messages.Layer2Ledger.Responses.Layer1AuditReportResponse import Layer1AuditReportResponse
+from services.messages.Layer2Ledger.Requests.PostLayer1AuditReportRequest import PostLayer1AuditReportRequest
+from services.messages.Layer2Ledger.Responses.PostLayer1AuditReportResponse import PostLayer1AuditReportResponse
 
 #called from the node
 class postLayer1AuditReport(InstachainRequestHandler):
     def getParameters(self):
-        self.jsonParam = self.getPostJsonParams()
+        request_dict = self.getPostJsonParams()
+        self.request = PostLayer1AuditReportRequest(**request_dict)
 
     def processRequest(self):
-        layer1AddressBalances = {}
-        totalBalance = 0
-        blockHeight = 0
-        request = json.loads(json.dumps(self.jsonParam), object_hook=lambda d: SimpleNamespace(**d))
-        blockHeight = request.block_height
-        for layer1AddressBalance in request.layer1_address_balances:
-            layer1AddressBalances[layer1AddressBalance.layer1_address] = layer1AddressBalance.balance
-            totalBalance += layer1AddressBalance.balance
-        status = Audit.processLayer1AuditReport(blockHeight, layer1AddressBalances, totalBalance, request.signature)
-        self.result = ErrorMessage.build_error_message(status)
+        layer1AddressBalances = {
+            balance.layer1_address: balance.balance
+            for balance in self.request.layer1_address_balances
+        }
+        totalBalance = sum(balance.balance for balance in self.request.layer1_address_balances)
+        status = Audit.processLayer1AuditReport(
+            self.request.block_height,
+            layer1AddressBalances,
+            totalBalance,
+            self.request.signature
+        )
+        self.result = PostLayer1AuditReportResponse(
+            **ErrorMessage.build_error_message(status)
+        )
 
 class getLayer1AuditReport(InstachainRequestHandler):
     def getParameters(self):
