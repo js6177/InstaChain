@@ -98,7 +98,7 @@ def getLayer1AuditReport(blockHeight: int):
     finally:
         db.close()
 
-def getLayer1AddressBalances(includeZeroBalances: bool = True):
+def getLayer1AddressBalances(includeZeroBalances: bool = True) -> list[Layer1Addresses]:
     db = next(get_db())
     try:
         query = db.query(Layer1Addresses).order_by(Layer1Addresses.balance.desc())

@@ -8,7 +8,7 @@ from NodeInfoAPI import NODE_ID
 import GlobalLogging
 import KeyVerification
 import ErrorMessage
-from services.messages.Layer2Ledger.Responses.GetLayer1AuditReportResponse import GetLayer1AuditReportResponse
+from services.messages.Layer2Ledger.Responses.GetLayer1AuditReportResponse import GetLayer1AuditReportResponse, Layer1AddressBalance
 from services.messages.Layer2Ledger.Requests.PostLayer1AuditReportRequest import PostLayer1AuditReportRequest
 from services.messages.Layer2Ledger.Responses.PostLayer1AuditReportResponse import PostLayer1AuditReportResponse
 from services.messages.Layer2Ledger.Requests.GetLayer1AuditReportRequest import GetLayer1AuditReportRequest
@@ -42,7 +42,13 @@ class getLayer1AuditReport(InstachainRequestHandler):
 
     def processRequest(self):
         report = Audit.getLayer1AuditReport(self.request.block_height)
-        address_balances = Audit.getLayer1AddressBalances()
+        address_balances = [
+            Layer1AddressBalance(
+                layer1Address=layer1AddressBalance.layer1Address,
+                balance=layer1AddressBalance.balance
+            )
+            for layer1AddressBalance in Audit.getLayer1AddressBalances()
+        ]
         if report is None:
             self.result = GetLayer1AuditReportResponse(
                 **ErrorMessage.build_error_message(ErrorMessage.ERROR_AUDIT_REPORT_DOES_NOT_EXIST),
@@ -54,8 +60,8 @@ class getLayer1AuditReport(InstachainRequestHandler):
         else:
             self.result = GetLayer1AuditReportResponse(
                 **ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS),
-                addressBalances=[address_balance.to_dict() for address_balance in address_balances],
-                blockHeight=report.block_height,
+                addressBalances=address_balances,
+                blockHeight=report.blockHeight,
                 ready=True,
-                totalBalance=report.total_balance
+                totalBalance=report.balance
             )

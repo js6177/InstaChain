@@ -17,6 +17,9 @@ from services.messages.Layer2Ledger.Requests.GetDepositAddressRequest import Get
 from services.messages.Layer2Ledger.Requests.DepositFundsRequest import DepositFundsRequest, DepositTransaction
 from services.messages.Layer2Ledger.Responses.GetBalanceResponse import GetBalanceResponse
 from services.messages.Layer2Ledger.Responses.GetDepositAddressResponse import GetDepositAddressResponse
+from services.messages.Layer2Ledger.Requests.PostLayer1AuditReportRequest import PostLayer1AuditReportRequest, Layer1AddressBalance
+from services.messages.Layer2Ledger.Responses.GetLayer1AuditReportResponse import GetLayer1AuditReportResponse
+import signing_keys
 
 
 def generate_new_keypair() -> tuple[str, str]:
@@ -299,6 +302,48 @@ def test_deposit_and_withdraw(client):
     assert balance[0].balance == deposit_amount - withdrawal_amount # Ensure balance is correct
 
     print(f"Final balance of L2 address {l2_address.pubkey}: {balance}")
+
+# Test for postLayer1AuditReport and getLayer1AuditReport
+# Updated test to use the message building logic from verifyLayer1AuditReportSignature
+def test_layer1_audit_report(client):
+    # Load config
+    config = load_config()
+
+    # Generate test data for postLayer1AuditReport
+    layer1_address_balances = [
+        Layer1AddressBalance(layer1_address="1TestAddress1", balance=1000),
+        Layer1AddressBalance(layer1_address="1TestAddress2", balance=2000)
+    ]
+
+    # Build the message using the logic from verifyLayer1AuditReportSignature
+    block_height = random.randint(1, 1000)  # Random block height for testing
+    total_balance = sum(balance.balance for balance in layer1_address_balances)
+    message = f"{NODE_ID} {Transaction.INSTRUCTION_LAYER1_AUDIT} {block_height} {total_balance}"
+
+    # Generate the signature using the signing key
+    onboarding_transaction_signing_address = Address.fromPrivateKey(config['Functional_Tests']['Onboarding_Deposit_Address']['private_key'])
+    signature = onboarding_transaction_signing_address.sign(message).decode('utf-8')
+
+    post_audit_request = PostLayer1AuditReportRequest(
+        block_height=block_height,
+        layer1_address_balances=layer1_address_balances,
+        signature=signature
+    )
+
+    # Post Layer1 Audit Report
+    response = client.post('/postLayer1AuditReport', json=post_audit_request.model_dump(), content_type='application/json')
+    assert is_successful_response(response)
+
+    # Get Layer1 Audit Report
+    response = client.get(f"/getLayer1AuditReport?block_height={post_audit_request.block_height}", content_type='application/json')
+    assert is_successful_response(response)
+
+    # Validate response using Pydantic model
+    audit_report_response = GetLayer1AuditReportResponse(**response.json)
+    assert audit_report_response.blockHeight == post_audit_request.block_height
+    assert audit_report_response.totalBalance == total_balance
+
+    print(f"Audit report validated successfully: {audit_report_response}")
 
 if __name__ == '__main__':
     pytest.main()
