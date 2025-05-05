@@ -20,6 +20,7 @@ from services.messages.Layer2Ledger.Responses.GetDepositAddressResponse import G
 from services.messages.Layer2Ledger.Requests.PostLayer1AuditReportRequest import PostLayer1AuditReportRequest, Layer1AddressBalance
 from services.messages.Layer2Ledger.Responses.GetLayer1AuditReportResponse import GetLayer1AuditReportResponse
 import signing_keys
+import KeyVerification
 
 
 def generate_new_keypair() -> tuple[str, str]:
@@ -61,7 +62,7 @@ def test_deposit_and_check_balance(client):
     nonce = generate_nonce()
     
     # Generate message to sign for /getNewDepositAddress
-    message = f"{NODE_ID} {NODE_ASSET_ID} {Transaction.INSTRUCTION_GET_DEPOSIT_ADDRESS} {l2_address.pubkey} {nonce}"
+    message = KeyVerification.buildGetDepositAddressMessage(l2_address.pubkey, nonce)
     signature = l2_address.sign(message)
     print(f"getNewDepositAddress Message: {message}")
     print(f"getNewDepositAddress Signature: {signature}")
@@ -82,7 +83,7 @@ def test_deposit_and_check_balance(client):
     deposit_amount = 1000
     layer1_transaction_id = generate_nonce()
     layer1_transaction_vout = 0
-    deposit_message = f"{NODE_ID} {Transaction.TRX_DEPOSIT} {layer1_transaction_id} {layer1_transaction_vout} {deposit_address} {deposit_amount} {deposit_nonce}"
+    deposit_message = KeyVerification.buildDepositMessage(layer1_transaction_id, layer1_transaction_vout, deposit_address, deposit_amount, deposit_nonce)
     onboarding_transaction_signing_address = Address.fromPrivateKey(config['Functional_Tests']['Onboarding_Deposit_Address']['private_key'])
     signature = onboarding_transaction_signing_address.sign(deposit_message)
     
@@ -131,7 +132,7 @@ def test_deposit_and_transfer(client):
     nonce = generate_nonce()
     
     # Generate message to sign for /getNewDepositAddress
-    message = f"{NODE_ID} {NODE_ASSET_ID} {Transaction.INSTRUCTION_GET_DEPOSIT_ADDRESS} {l2_address_1.pubkey} {nonce}"
+    message = KeyVerification.buildGetDepositAddressMessage(l2_address_1.pubkey, nonce)
     signature = l2_address_1.sign(message)
     
     # Get L1 deposit address
@@ -150,7 +151,7 @@ def test_deposit_and_transfer(client):
     deposit_amount = 1000
     layer1_transaction_id = generate_nonce()
     layer1_transaction_vout = 0
-    deposit_message = f"{NODE_ID} {Transaction.TRX_DEPOSIT} {layer1_transaction_id} {layer1_transaction_vout} {deposit_address} {deposit_amount} {deposit_nonce}"
+    deposit_message = KeyVerification.buildDepositMessage(layer1_transaction_id, layer1_transaction_vout, deposit_address, deposit_amount, deposit_nonce)
     onboarding_transaction_signing_address = Address.fromPrivateKey(config['Functional_Tests']['Onboarding_Deposit_Address']['private_key'])
     signature = onboarding_transaction_signing_address.sign(deposit_message)
     
@@ -184,8 +185,8 @@ def test_deposit_and_transfer(client):
     transfer_nonce = generate_nonce()
     transfer_amount = 500
     transfer_fee = 10
-    transfer_message = f"{NODE_ID} {NODE_ASSET_ID} {Transaction.TRX_TRANSFER} {l2_address_1.pubkey} {l2_address_2.pubkey} {transfer_amount} {transfer_fee} {transfer_nonce}"
-    transfer_signature = l2_address_1.sign(transfer_message).decode('utf-8')  # Decode the signature to a string
+    transfer_message = KeyVerification.buildTransferMessage(l2_address_1.pubkey, l2_address_2.pubkey, transfer_amount, transfer_fee, transfer_nonce)
+    transfer_signature = l2_address_1.sign(transfer_message).decode('utf-8')
     
     transfer_request = PushTransactionRequest(
         source_address_public_key=l2_address_1.pubkey,
@@ -225,7 +226,7 @@ def test_deposit_and_withdraw(client):
     nonce = generate_nonce()
     
     # Generate message to sign for /getNewDepositAddress
-    message = f"{NODE_ID} {NODE_ASSET_ID} {Transaction.INSTRUCTION_GET_DEPOSIT_ADDRESS} {l2_address.pubkey} {nonce}"
+    message = KeyVerification.buildGetDepositAddressMessage(l2_address.pubkey, nonce)
     signature = l2_address.sign(message)
     
     # Get L1 deposit address
@@ -244,7 +245,7 @@ def test_deposit_and_withdraw(client):
     deposit_amount = 10000
     layer1_transaction_id = generate_nonce()
     layer1_transaction_vout = 0
-    deposit_message = f"{NODE_ID} {Transaction.TRX_DEPOSIT} {layer1_transaction_id} {layer1_transaction_vout} {deposit_address} {deposit_amount} {deposit_nonce}"
+    deposit_message = KeyVerification.buildDepositMessage(layer1_transaction_id, layer1_transaction_vout, deposit_address, deposit_amount, deposit_nonce)
     onboarding_transaction_signing_address = Address.fromPrivateKey(config['Functional_Tests']['Onboarding_Deposit_Address']['private_key'])
     signature = onboarding_transaction_signing_address.sign(deposit_message)
     
@@ -278,7 +279,7 @@ def test_deposit_and_withdraw(client):
     withdrawal_nonce = generate_nonce()
     withdrawal_amount = 5000
     layer1_withdrawal_address = "1NewL1AddressForTest"  # Replace with a valid L1 address
-    withdrawal_message = f"{NODE_ID} {NODE_ASSET_ID} {Transaction.TRX_WITHDRAWAL_INITIATED} {l2_address.pubkey} {layer1_withdrawal_address} {withdrawal_nonce} {withdrawal_amount}"
+    withdrawal_message = KeyVerification.buildWithdrawalRequestMessage(l2_address.pubkey, layer1_withdrawal_address, withdrawal_nonce, withdrawal_amount)
     withdrawal_signature = l2_address.sign(withdrawal_message).decode('utf-8')
     
     withdrawal_request = RequestWithdrawalRequest(
@@ -318,7 +319,7 @@ def test_layer1_audit_report(client):
     # Build the message using the logic from verifyLayer1AuditReportSignature
     block_height = random.randint(1, 1000)  # Random block height for testing
     total_balance = sum(balance.balance for balance in layer1_address_balances)
-    message = f"{NODE_ID} {Transaction.INSTRUCTION_LAYER1_AUDIT} {block_height} {total_balance}"
+    message = KeyVerification.buildLayer1AuditReportMessage(block_height, total_balance)
 
     # Generate the signature using the signing key
     onboarding_transaction_signing_address = Address.fromPrivateKey(config['Functional_Tests']['Onboarding_Deposit_Address']['private_key'])
