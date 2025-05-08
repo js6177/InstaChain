@@ -25,7 +25,7 @@ import GetDepositAddressResponse from './messages/Layer2Ledger/Responses/GetDepo
 import { GetNodeInfoResponse } from './messages/Layer2Ledger/Responses/GetNodeInfoResponse'
 import GetTransactionResponse from './messages/Layer2Ledger/Responses/GetTransactionResponse'
 import { GetTransactionsResponse } from './messages/Layer2Ledger/Responses/GetTransactionsResponse';
-import { Layer1AuditReportResponse } from './messages/Layer2Ledger/Responses/Layer1AuditReportResponse'
+import { GetLayer1AuditReportResponse } from './messages/Layer2Ledger/Responses/Layer1AuditReportResponse'
 import SearchResultsResponse from './messages/Layer2Ledger/Responses/SearchResultsResponse'
 import TransferTransactionResponse from './messages/Layer2Ledger/Responses/TransferTransactionResponse'
 import WithdrawalRequestResponse from './messages/Layer2Ledger/Responses/WithdrawalRequestResponse'
@@ -223,7 +223,7 @@ class Layer2LedgerAPI{
     }
 
     @throttle
-    getLayer1AuditReport(callback: (response: Layer1AuditReportResponse) => void){
+    getLayer1AuditReport(callback: (response: GetLayer1AuditReportResponse) => void){
         const _url = this.layer2LedgerNodeHostname + 'getLayer1AuditReport';
         $.ajax({
             url: _url,

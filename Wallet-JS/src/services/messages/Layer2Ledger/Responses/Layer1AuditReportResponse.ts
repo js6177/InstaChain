@@ -17,7 +17,7 @@ class Layer1AddressBalance {
 }
 
 
-class Layer1AuditReportResponse {
+class GetLayer1AuditReportResponse {
     public addressBalances: Layer1AddressBalance[];
     public errorCode: number;
     public errorMessage: string;
@@ -55,4 +55,4 @@ class Layer1AuditReportResponse {
     }
 }
 
-export {Layer1AuditReportResponse, Layer1AddressBalance};
+export {GetLayer1AuditReportResponse, Layer1AddressBalance};
