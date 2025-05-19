@@ -50,5 +50,8 @@ ERROR_SEARCH_TYPE_NOT_SUPPORTED: "The search type is not supported",
 ERROR_INVALID_SIGNATURE: "The signature is invalid"
 }
 
-def build_error_message(error_code, error_message = ''):
+def build_error_message(error_code: int, error_message: str = ''):
     return {'error_code': error_code, 'error_message': error_message or error_mapping[error_code]}
+
+def get_error_message(error_code: int) -> str:
+    return error_mapping.get(error_code, "Unknown error")

@@ -20,15 +20,6 @@ class Layer1AuditReport(Base):
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
     signature = Column(Text)
 
-    def to_dict(self):
-        result = {
-            'id': self.id,
-            'blockHeight': self.blockHeight,
-            'balance': self.balance,
-            'timestamp': self.timestamp,
-            'signature': self.signature
-        }
-        return result
 
 class Layer1Addresses(Base):
     __tablename__ = "layer1_addresses"

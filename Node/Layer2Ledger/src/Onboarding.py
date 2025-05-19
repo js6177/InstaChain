@@ -1,3 +1,4 @@
+from typing import List
 from sqlalchemy import Column, Integer, BigInteger, String, DateTime, Boolean, Text, ForeignKey
 from sqlalchemy.sql import func
 from database import Base, get_db
@@ -58,9 +59,10 @@ class WithdrawalRequests(Base):
     withdrawal_requested_timestamp = Column(Integer)  # unix time in seconds
     withdrawal_requested_timestamp_str = Column(DateTime(timezone=True), server_default=func.now())
 
-    WITHDRAWAL_STATUS_PENDING = 1  # the node has not queries this request
-    WITHDRAWAL_STATUS_IN_PROGRESS = 2  # the node has queried, but the transaction has not been broadcasted
-    WITHDRAWAL_STATUS_CONFIRMED = 3  # the transaction has been confirmed
+    WITHDRAWAL_STATUS_PENDING = 1  # the Layer2Bridge has not queried this request
+    WITHDRAWAL_STATUS_ACKNOWLEDGED = 2  # the Layer2Bridge has queried and ack'ed, but the transaction has not been broadcasted to the layer1 network
+    WITHDRAWAL_STATUS_BROADCASTED = 3  # the transaction has been broadcasted to the layer1 network but not confirmed
+    WITHDRAWAL_STATUS_CONFIRMED = 4  # the transaction has been confirmed on the layer1 network
 
     def to_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
@@ -126,7 +128,7 @@ class WithdrawalRequests(Base):
                     WithdrawalRequests.layer2_withdrawal_id == layer2_withdrawal_id
                 ).first()
                 if withdrawal:
-                    withdrawal.status = WithdrawalRequests.WITHDRAWAL_STATUS_IN_PROGRESS
+                    withdrawal.status = WithdrawalRequests.WITHDRAWAL_STATUS_ACKNOWLEDGED
             db.commit()
         except Exception as e:
             db.rollback()
@@ -278,7 +280,7 @@ def withdrawalBroadcasted(_layer1_transaction_id, _layer1_transaction_vout, _lay
     if(not KeyVerification.verifyWithdrawalBroadcasted(_layer1_transaction_id, _layer1_transaction_vout, _layer1_address, _amount, _layer2_withdrawal_id, _signature)):
         return ErrorMessage.ERROR_CANNOT_VERIFY_SIGNATURE
      
-    withdrawalConfirmation = ConfirmedWithdrawals(layer1_transaction_id = _layer1_transaction_id, layer1_transaction_vout =_layer1_transaction_vout, layer1_address = _layer1_address, amount = _amount, layer2_withdrawal_id = _layer2_withdrawal_id, broadcasted_signature = _signature)
+    withdrawalConfirmation = ConfirmedWithdrawals(confirmed = False, layer1_transaction_id = _layer1_transaction_id, layer1_transaction_vout =_layer1_transaction_vout, layer1_address = _layer1_address, amount = _amount, layer2_withdrawal_id = _layer2_withdrawal_id, broadcasted_signature = _signature)
     ConfirmedWithdrawals.put(withdrawalConfirmation)
     return ErrorMessage.ERROR_SUCCESS
 
