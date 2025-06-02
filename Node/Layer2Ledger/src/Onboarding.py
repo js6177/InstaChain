@@ -1,3 +1,4 @@
+import time
 from typing import List
 from sqlalchemy import Column, Integer, BigInteger, String, DateTime, Boolean, Text, ForeignKey
 from sqlalchemy.sql import func
@@ -79,7 +80,7 @@ class WithdrawalRequests(Base):
                 layer2_transaction_id=_layer2_transaction_id,
                 status=WithdrawalRequests.WITHDRAWAL_STATUS_PENDING,
                 amount=_amount,
-                withdrawal_requested_timestamp=int(datetime.datetime.now().timestamp())
+                withdrawal_requested_timestamp=int(time.time_ns() / 1e6)
             )
             w.layer2_withdrawal_id = ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for _ in range(16))
             w.server_signature = w.sign_withdrawal_request()

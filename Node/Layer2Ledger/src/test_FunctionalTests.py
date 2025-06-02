@@ -1,4 +1,6 @@
+import datetime
 import json
+import time
 import pytest
 import random
 import string
@@ -11,16 +13,19 @@ from main import app
 from NodeInfoAPI import NODE_ID, NODE_ASSET_ID
 from Transaction import Transaction
 from typing import TypedDict
+from services.messages.Layer2Ledger.Requests.GetWithdrawalRequestsRequest import GetWithdrawalRequestsRequest
 from services.messages.Layer2Ledger.Requests.WithdrawalBroadcastedRequest import WithdrawalBroadcastedRequest, Layer1BroadcastedWithdrawalTransaction
 from services.messages.Layer2Ledger.Requests.PushTransactionRequest import PushTransactionRequest
 from services.messages.Layer2Ledger.Requests.RequestWithdrawalRequest import RequestWithdrawalRequest
 from services.messages.Layer2Ledger.Requests.GetBalanceRequest import GetBalanceRequest
 from services.messages.Layer2Ledger.Requests.GetDepositAddressRequest import GetDepositAddressRequest
 from services.messages.Layer2Ledger.Requests.DepositFundsRequest import DepositFundsRequest, DepositTransaction
+from services.messages.Layer2Ledger.Requests.WithdrawalConfirmedRequest import Layer1WithdrawalConfirmedTransaction, WithdrawalConfirmedRequest
 from services.messages.Layer2Ledger.Responses.GetBalanceResponse import GetBalanceResponse
 from services.messages.Layer2Ledger.Responses.GetDepositAddressResponse import GetDepositAddressResponse
 from services.messages.Layer2Ledger.Requests.PostLayer1AuditReportRequest import PostLayer1AuditReportRequest, Layer1AddressBalance
 from services.messages.Layer2Ledger.Responses.GetLayer1AuditReportResponse import GetLayer1AuditReportResponse
+from services.messages.Layer2Ledger.Responses.GetWithdrawalRequestsResponse import GetWithdrawalRequestsResponse, WithdrawalRequest
 import signing_keys
 import KeyVerification
 
@@ -175,7 +180,7 @@ def test_deposit_and_transfer(client):
     )
     response = client.post('/depositFunds', json=deposit_data.model_dump(), content_type='application/json')
     assert is_successful_response(response)
-    
+      
     # Check balance of L2 address 1
     balance_request = GetBalanceRequest(public_keys=[l2_address_1.pubkey])
     response = client.post('/getBalance', json=balance_request.model_dump(), content_type='application/json')
@@ -290,7 +295,7 @@ def test_deposit_and_withdraw(client):
     
     withdrawal_request = RequestWithdrawalRequest(
         source_address_public_key=l2_address.pubkey,
-        nonce=withdrawal_nonce,
+        layer2_transaction_id=withdrawal_nonce,
         layer1_withdrawal_address=layer1_withdrawal_address,
         amount=withdrawal_amount,
         signature=withdrawal_signature
@@ -371,7 +376,7 @@ def test_deposit_and_withdraw_broadcast(client):
 
     withdrawal_request = RequestWithdrawalRequest(
         source_address_public_key=l2_address.pubkey,
-        nonce=withdrawal_nonce,
+        layer2_transaction_id=withdrawal_nonce,
         layer1_withdrawal_address=layer1_withdrawal_address,
         amount=withdrawal_amount,
         signature=withdrawal_signature
@@ -411,6 +416,155 @@ def test_deposit_and_withdraw_broadcast(client):
 
     # Check to see that it is not confirmed on layer1
     assert withdrawal_entry.confirmed is False
+
+# This test generates a new L2 address, gets a deposit address, simulates a deposit, and withdraws to a new L1 address.
+# Then simulates a Layer2Bridge Layer1 withdrawal broadcast.
+# Then simulates a Layer2Bridge Layer1 withdrawal confirmed and checks to see if the withdrawal was added to ConfirmedWithdrawals with confirmed = True, and the layer2 Transaction.layer1_transaction_id is transaction_id of the confirmed withdrawal
+def test_deposit_and_withdraw_broadcast_confirmed(client):
+    # Load config
+    config = load_config()
+
+    # Generate L2 address
+    l2_address = generate_new_address('L2 Address for deposit and withdrawal broadcast')
+    print(f"Generated L2 address: {l2_address.pubkey}")
+
+    # Generate nonce for deposit address
+    nonce = generate_nonce()
+
+    # Generate message to sign for /getNewDepositAddress
+    message = KeyVerification.buildGetDepositAddressMessage(l2_address.pubkey, nonce)
+    signature = l2_address.sign(message)
+
+    # Get L1 deposit address
+    get_deposit_address_request = GetDepositAddressRequest(
+        layer2_address_pubkey=l2_address.pubkey,
+        nonce=nonce,
+        signature=signature
+    )
+    response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
+    assert is_successful_response(response)
+    deposit_address_response = GetDepositAddressResponse(**response.json)
+    deposit_address = deposit_address_response.layer1_deposit_address
+
+    # Simulate Layer1 deposit
+    deposit_nonce = generate_nonce()
+    deposit_amount = 10000
+    layer1_transaction_id = generate_nonce()
+    layer1_transaction_vout = 0
+    deposit_message = KeyVerification.buildDepositMessage(layer1_transaction_id, layer1_transaction_vout, deposit_address, deposit_amount, deposit_nonce)
+    onboarding_transaction_signing_address = Address.fromPrivateKey(config['Functional_Tests']['Onboarding_Deposit_Address']['private_key'])
+    signature = onboarding_transaction_signing_address.sign(deposit_message)
+
+    deposit_data = DepositFundsRequest(
+        transactions=[
+            DepositTransaction(
+                layer1_transaction_id=layer1_transaction_id,
+                layer1_transaction_vout=layer1_transaction_vout,
+                layer1_address=deposit_address,
+                amount=deposit_amount,
+                nonce=deposit_nonce,
+                signature=signature.decode('utf-8')
+            )
+        ]
+    )
+    response = client.post('/depositFunds', json=deposit_data.model_dump(), content_type='application/json')
+    assert is_successful_response(response)
+
+    timestamp_before_withdrawal = int(time.time_ns() / 1e6) # Store the timestamp before withdrawal, so we can query the WithdrawalRequests after this timestamp
+
+    # Simulate withdrawal to L1 address
+    withdrawal_layer2_transaction_id_nonce = generate_nonce()
+    withdrawal_amount = 5000
+    layer1_withdrawal_address = "1NewL1AddressForTest"  # Replace with a valid L1 address
+    withdrawal_message = KeyVerification.buildWithdrawalRequestMessage(l2_address.pubkey, layer1_withdrawal_address, withdrawal_layer2_transaction_id_nonce, withdrawal_amount)
+    withdrawal_signature = l2_address.sign(withdrawal_message).decode('utf-8')
+
+    withdrawal_request = RequestWithdrawalRequest(
+        source_address_public_key=l2_address.pubkey,
+        layer2_transaction_id=withdrawal_layer2_transaction_id_nonce,
+        layer1_withdrawal_address=layer1_withdrawal_address,
+        amount=withdrawal_amount,
+        signature=withdrawal_signature
+    )
+    response = client.post('/withdrawalRequest', json=withdrawal_request.model_dump(), content_type='application/json')
+    assert is_successful_response(response)
+
+    #Simulate the Layer2Bridge querying the withdrawal request
+    get_withdrawal_requests: GetWithdrawalRequestsRequest = GetWithdrawalRequestsRequest(
+        latest_timestamp=timestamp_before_withdrawal
+    )
+    response = client.post('/getWithdrawalRequests', json=get_withdrawal_requests.model_dump(), content_type='application/json')
+    assert is_successful_response(response)
+    withdrawal_requests_response: GetWithdrawalRequestsResponse = GetWithdrawalRequestsResponse(**response.json)
+    assert len(withdrawal_requests_response.withdrawal_requests) == 1 # If you have more than one withdrawal request, you should make sure the timestamp does not capture extra requests from previous tests running in the same testing session.
+    withdrawal_request: WithdrawalRequest = withdrawal_requests_response.withdrawal_requests[0]
+    assert withdrawal_request.layer2_transaction_id == withdrawal_layer2_transaction_id_nonce
+    
+    # Simulate Layer2Bridge Layer1 withdrawal broadcast
+    withdrawal_broadcasted_message =  KeyVerification.buildWithdrawalBroadcastedMessage(
+            layer1_transaction_id, layer1_transaction_vout, layer1_withdrawal_address, withdrawal_amount, withdrawal_request.layer2_withdrawal_id
+        )
+    broadcast_signature = onboarding_transaction_signing_address.sign(withdrawal_broadcasted_message).decode('utf-8')
+
+    broadcast_request = WithdrawalBroadcastedRequest(
+        transactions=[
+            Layer1BroadcastedWithdrawalTransaction(
+                layer1_transaction_id=layer1_transaction_id,
+                layer1_transaction_vout=layer1_transaction_vout,
+                layer1_address=layer1_withdrawal_address,
+                amount=withdrawal_amount,
+                layer2_withdrawal_id=withdrawal_request.layer2_withdrawal_id,
+                signature=broadcast_signature
+            )
+        ]
+    )
+    response = client.post('/withdrawalBroadcasted', json=broadcast_request.model_dump(), content_type='application/json')
+    assert is_successful_response(response)
+
+    db = next(get_db())
+    # Check if the broadcasted withdrawal was added to the database
+    withdrawal_entry: Onboarding.ConfirmedWithdrawals = db.query(Onboarding.ConfirmedWithdrawals).filter(
+        Onboarding.ConfirmedWithdrawals.layer1_transaction_id == layer1_transaction_id,
+        Onboarding.ConfirmedWithdrawals.layer1_transaction_vout == layer1_transaction_vout,
+    ).first()
+    assert withdrawal_entry is not None
+
+    # Check to see that it is not confirmed on layer1
+    assert withdrawal_entry.confirmed is False
+
+    # Simulate Layer2Bridge Layer1 withdrawal confirmed
+    confirmed_signature = onboarding_transaction_signing_address.sign(
+        KeyVerification.buildWithdrawalConfirmedMessage(
+            layer1_transaction_id, layer1_transaction_vout, layer1_withdrawal_address, withdrawal_amount
+        )
+    ).decode('utf-8')
+
+    confirmed_request = WithdrawalConfirmedRequest(
+        transactions=[
+            Layer1WithdrawalConfirmedTransaction(
+                layer1_transaction_id=layer1_transaction_id,
+                layer1_transaction_vout=layer1_transaction_vout,
+                layer1_address=layer1_withdrawal_address,
+                amount=withdrawal_amount,
+                signature=confirmed_signature
+            )
+        ]
+    )
+    response = client.post('/withdrawalConfirmed', json=confirmed_request.model_dump(), content_type='application/json')
+    assert is_successful_response(response)
+
+    db.close()
+    db = next(get_db())
+
+    # Check if the confirmed withdrawal was updated in the database
+    withdrawal_entry: Onboarding.ConfirmedWithdrawals = db.query(Onboarding.ConfirmedWithdrawals).filter(
+        Onboarding.ConfirmedWithdrawals.layer1_transaction_id == layer1_transaction_id,
+        Onboarding.ConfirmedWithdrawals.layer1_transaction_vout == layer1_transaction_vout,
+    ).first()
+    assert withdrawal_entry is not None
+
+    # Check to see that it is confirmed on layer1
+    assert withdrawal_entry.confirmed is True
 
 # Test for postLayer1AuditReport and getLayer1AuditReport
 # Updated test to use the message building logic from verifyLayer1AuditReportSignature

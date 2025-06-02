@@ -38,7 +38,7 @@ class withdrawalRequest(InstachainRequestHandler):
         message = KeyVerification.buildWithdrawalRequestMessage(
             self.request.source_address_public_key,  
             self.request.layer1_withdrawal_address,  
-            self.request.nonce,  
+            self.request.layer2_transaction_id,  
             amount
         )
         status = Transaction.process_transaction(
@@ -49,7 +49,7 @@ class withdrawalRequest(InstachainRequestHandler):
             self.request.layer1_withdrawal_address,  
             message,
             self.request.signature,  
-            self.request.nonce
+            self.request.layer2_transaction_id
         )
 
         self.result = ErrorMessage.build_error_message(status)
@@ -72,7 +72,7 @@ class getWithdrawalRequests(InstachainRequestHandler):
                 server_signature=req.server_signature,
                 layer2_transaction_id=req.layer2_transaction_id,
                 withdrawal_requested_timestamp=req.withdrawal_requested_timestamp,
-                withdrawal_requested_timestamp_str=req.withdrawal_requested_timestamp_str
+                withdrawal_requested_timestamp_str="" #TODO convert SQLAlchemy DateTime to string
             ) for req in withdrawalRequests
         ]
         self.result = GetWithdrawalRequestsResponse(

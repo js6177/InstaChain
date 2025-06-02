@@ -16,6 +16,7 @@ import GlobalLogging
 import Onboarding
 from NodeInfoAPI import MINIMUM_LAYER1_TRANSACTION_AMOUNT
 from KeyValueStore import KeyValueStore
+from managers.Layer2AddressLock import layer2_address_lock
 
 class TransactionMode(PyEnum):
     ADDRESSLOCK = auto() # source and destination addresses are locked, preventing duplicates
@@ -147,7 +148,7 @@ class Transaction(Base):
     source_address_pubkey = Column(String, index=True)
     destination_address_pubkey = Column(String, index=True)
     transaction_type = Column(Integer)
-    transaction_id = Column(String, primary_key=True, index=True)
+    layer2_transaction_id = Column(String, primary_key=True, index=True) # unique identifier for the transaction in layer 2
     signature = Column(String)
     signature_date = Column(Integer)
     layer1_transaction_id = Column(String)
@@ -173,7 +174,7 @@ class Transaction(Base):
         try:
             db.add(instance)
             db.commit()
-            return instance.transaction_id
+            return instance.layer2_transaction_id
         except Exception as e:
             db.rollback()
             raise e
@@ -181,7 +182,7 @@ class Transaction(Base):
             db.close()
 
     @staticmethod
-    def process_transaction(_transaction_type, _amount, _fee, _source, _destination, _message, _signature, _nonce, _layer1_transaction_id = None):
+    def process_transaction(_transaction_type, _amount, _fee, _source, _destination, _message, _signature, _layer2_transaction_id, _layer1_transaction_id = None):
         status = ErrorMessage.ERROR_UNKNOWN
 
         if(_amount < 0 or _fee < 0):
@@ -190,7 +191,7 @@ class Transaction(Base):
         if(_amount <= _fee):
             return ErrorMessage.ERROR_AMOUNT_LESS_THAN_FEE
 
-        if(not _nonce.isalnum()):
+        if(not _layer2_transaction_id.isalnum()):
             return ErrorMessage.ERROR_NOT_ALPHANUMERIC
         
         if(_transaction_type == Transaction.TRX_WITHDRAWAL_INITIATED and (_amount < MINIMUM_LAYER1_TRANSACTION_AMOUNT)):
@@ -208,32 +209,34 @@ class Transaction(Base):
 
         try:
             if(TRANSACTION_MODE == TransactionMode.ADDRESSLOCK):
-                if(AddressLock.lock(_source, _destination)):
+                with layer2_address_lock.acquire([source.pubkey, _destination]) as acquired:
+                    if not acquired:
+                        return ErrorMessage.ERROR_ADDRESS_LOCKED
+                    # If the lock was successful, proceed with the transaction
+                    # This ensures that the transaction is not processed if the addresses are locked
+                    # and prevents duplicate transactions for the same addresses.
+                    # The lock will be released automatically when the context manager exits or an exception occurs.
                     try:
-                        status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _nonce, _layer1_transaction_id)
+                        status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _layer2_transaction_id, _layer1_transaction_id)
                     except Exception as ex:
                         GlobalLogging.log_text(traceback.format_exc())
-                    finally:
-                        AddressLock.unlock(_source, _destination)
-                else:
-                    return ErrorMessage.ERROR_ADDRESS_LOCKED
             elif(TRANSACTION_MODE == TransactionMode.TRANSACTION_PUTTRANSACTION):
-                status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _nonce, _layer1_transaction_id)
+                status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _layer2_transaction_id, _layer1_transaction_id)
         except Exception as ex:
             GlobalLogging.log_text(traceback.format_exc())
             return ErrorMessage.ERROR_DATABASE_TRANSACTIONAL_ERROR
 
         if((_transaction_type == Transaction.TRX_WITHDRAWAL_INITIATED) and (status == ErrorMessage.ERROR_SUCCESS)):
-            Onboarding.WithdrawalRequests.addWithdrawalRequest(_destination, _nonce, _amount)
+            Onboarding.WithdrawalRequests.addWithdrawalRequest(_destination, _layer2_transaction_id, _amount)
         return status
 
     @staticmethod
-    def put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _transaction_id, _layer1_transaction_id = None):
+    def put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _layer2_transaction_id, _layer1_transaction_id = None):
         t1 = datetime.datetime.now()
         status = ErrorMessage.ERROR_UNKNOWN
         db = next(get_db())
         try:
-            nonce_exists = db.query(Transaction).filter(Transaction.transaction_id == _transaction_id).first()
+            nonce_exists = db.query(Transaction).filter(Transaction.layer2_transaction_id == _layer2_transaction_id).first()
             if nonce_exists:
                 status = ErrorMessage.ERROR_DUPLICATE_TRANSACTION_ID
             else:
@@ -246,7 +249,7 @@ class Transaction(Base):
                         destination_address_pubkey=_destination,
                         transaction_type=_transaction_type,
                         signature=_signature,
-                        transaction_id=_transaction_id,
+                        layer2_transaction_id=_layer2_transaction_id,
                         layer1_transaction_id=_layer1_transaction_id
                     )
                     db.add(trx)
@@ -254,8 +257,8 @@ class Transaction(Base):
 
                     updateAdressBalanceCache = (ADDRESS_BALANCE_CACHE_ENABLED and _transaction_type != Transaction.TRX_WITHDRAWAL_CONFIRMED)
                     if updateAdressBalanceCache:
-                        AddressBalanceCache.updateBalance(source.pubkey, -_amount, trx.transaction_id)
-                        AddressBalanceCache.updateBalance(_destination, _amount-_fee, trx.transaction_id)
+                        AddressBalanceCache.updateBalance(source.pubkey, -_amount, trx.layer2_transaction_id)
+                        AddressBalanceCache.updateBalance(_destination, _amount-_fee, trx.layer2_transaction_id)
                     add_fee(_fee)
                     status = ErrorMessage.ERROR_SUCCESS
                 else:
@@ -266,7 +269,7 @@ class Transaction(Base):
             status = ErrorMessage.ERROR_FAILED_TO_WRITE_TO_DATABASE
         finally:
             db.close()
-        DebugLogger.TransactionDuration.logDuration(t1, _transaction_id, 'put_transaction')
+        DebugLogger.TransactionDuration.logDuration(t1, _layer2_transaction_id, 'put_transaction')
         return status
 
     @staticmethod
@@ -293,8 +296,8 @@ class Transaction(Base):
                 input_query = db.query(Transaction).filter(Transaction.destination_address_pubkey == address.pubkey)
 
                 if transactionIdToIgnore is not None:
-                    output_query = output_query.filter(Transaction.transaction_id != transactionIdToIgnore)
-                    input_query = input_query.filter(Transaction.transaction_id != transactionIdToIgnore)
+                    output_query = output_query.filter(Transaction.layer2_transaction_id != transactionIdToIgnore)
+                    input_query = input_query.filter(Transaction.layer2_transaction_id != transactionIdToIgnore)
 
                 for output in output_query.all():
                     balance -= output.amount
@@ -318,7 +321,7 @@ class Transaction(Base):
         db = next(get_db())
         try:
             result = ErrorMessage.ERROR_SUCCESS
-            transaction = db.query(Transaction).filter(Transaction.transaction_id == transaction_id).first()
+            transaction = db.query(Transaction).filter(Transaction.layer2_transaction_id == transaction_id).first()
             if not transaction:
                 result = ErrorMessage.ERROR_TRANSACTION_ID_NOT_FOUND
             DebugLogger.TransactionDuration.logDuration(t1, transaction_id, 'get_transaction')

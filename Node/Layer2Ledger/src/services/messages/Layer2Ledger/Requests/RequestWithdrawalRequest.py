@@ -10,6 +10,6 @@ from pydantic import BaseModel
 class RequestWithdrawalRequest(BaseModel):
     amount: int = None
     layer1_withdrawal_address: str = None
-    nonce: str = None
+    layer2_transaction_id: str = None # Client generated
     signature: str = None
     source_address_public_key: str = None

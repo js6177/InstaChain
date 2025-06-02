@@ -24,6 +24,22 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/test_FunctionalTests.py",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Run Unit Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/test_Layer2AddressLock.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Debug All Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "purpose": ["debug-test"],
+            "console": "integratedTerminal",
+            "justMyCode": false
         }
     ]
 }
