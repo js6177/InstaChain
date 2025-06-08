@@ -22,6 +22,8 @@ ERROR_AUDIT_REPORT_DOES_NOT_EXIST = 28
 ERROR_AMOUNT_LESS_THAN_MINIMUM_WITHDRAWAL_AMOUNT = 29
 ERROR_SEARCH_TYPE_NOT_SUPPORTED = 30
 ERROR_INVALID_SIGNATURE = 31
+ERROR_TRANSACTION_LOCK_MODE_NOT_SUPPORTED = 32
+ERROR_FAILED_TO_READ_FROM_DATABASE = 33
 
 error_mapping = {
 ERROR_SUCCESS: "Success",
@@ -47,7 +49,9 @@ ERROR_AUDIT_REPORT_ALREADY_EXISTS: "An audit report already exists for this bloc
 ERROR_AUDIT_REPORT_DOES_NOT_EXIST: "An audit report does not exist for this block height",
 ERROR_AMOUNT_LESS_THAN_MINIMUM_WITHDRAWAL_AMOUNT: "The amount must be greater than the minimum withdrawal amount",
 ERROR_SEARCH_TYPE_NOT_SUPPORTED: "The search type is not supported",
-ERROR_INVALID_SIGNATURE: "The signature is invalid"
+ERROR_INVALID_SIGNATURE: "The signature is invalid",
+ERROR_TRANSACTION_LOCK_MODE_NOT_SUPPORTED: "The transaction locking mode is not supported. Config error",
+ERROR_FAILED_TO_READ_FROM_DATABASE: "Failed to read an entity from the database",
 }
 
 def build_error_message(error_code: int, error_message: str = ''):

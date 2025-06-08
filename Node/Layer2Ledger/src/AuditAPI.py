@@ -8,6 +8,7 @@ from NodeInfoAPI import NODE_ID
 import GlobalLogging
 import KeyVerification
 import ErrorMessage
+from database import get_db
 from services.messages.Layer2Ledger.Responses.GetLayer1AuditReportResponse import GetLayer1AuditReportResponse, Layer1AddressBalance
 from services.messages.Layer2Ledger.Requests.PostLayer1AuditReportRequest import PostLayer1AuditReportRequest
 from services.messages.Layer2Ledger.Responses.PostLayer1AuditReportResponse import PostLayer1AuditReportResponse
@@ -41,17 +42,23 @@ class getLayer1AuditReport(InstachainRequestHandler):
         self.request = GetLayer1AuditReportRequest(**request_dict)
 
     def processRequest(self):
-        report = Audit.getLayer1AuditReport(self.request.block_height)
-        address_balances = [
-            Layer1AddressBalance(
-                layer1Address=layer1AddressBalance.layer1Address,
-                balance=layer1AddressBalance.balance
-            )
-            for layer1AddressBalance in Audit.getLayer1AddressBalances()
-        ]
+        (result, report) = (ErrorMessage.ERROR_SUCCESS, None)
+        address_balances = []
+        with get_db() as db:
+            try:
+                (result, report) = Audit.getLayer1AuditReport(db, self.request.block_height)
+                address_balances = [
+                    Layer1AddressBalance(
+                        layer1Address=layer1AddressBalance.layer1Address,
+                        balance=layer1AddressBalance.balance
+                    )
+                    for layer1AddressBalance in Audit.getLayer1AddressBalances(db)
+                ]
+            except Exception as e:
+                result = ErrorMessage.ERROR_FAILED_TO_READ_FROM_DATABASE
         if report is None:
             self.result = GetLayer1AuditReportResponse(
-                **ErrorMessage.build_error_message(ErrorMessage.ERROR_AUDIT_REPORT_DOES_NOT_EXIST),
+                **ErrorMessage.build_error_message(result),
                 addressBalances=[],
                 blockHeight=0,
                 ready=False,
@@ -59,7 +66,7 @@ class getLayer1AuditReport(InstachainRequestHandler):
             )
         else:
             self.result = GetLayer1AuditReportResponse(
-                **ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS),
+                **ErrorMessage.build_error_message(result),
                 addressBalances=address_balances,
                 blockHeight=report.blockHeight,
                 ready=True,

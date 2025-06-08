@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, BigInteger, String, DateTime, Boolean, Text, JSON, Enum
 from sqlalchemy.sql import func
-from database import Base, get_db
+from database import Base, DatabaseSession, get_db
 import logging
 from Address import Address
 import ErrorMessage
@@ -26,9 +26,9 @@ class TransactionMode(PyEnum):
 TRANSACTION_MODE = TransactionMode.ADDRESSLOCK
 ADDRESS_BALANCE_CACHE_ENABLED = True
 
-def add_fee(fee: int):
+def add_fee(db: DatabaseSession, fee: int):
     """Add fee to the total fees stored in KeyValueStore."""
-    return KeyValueStore.increment_int('fees', fee, 0)
+    return KeyValueStore.increment_int(db, 'fees', fee, 0)
 
 class AddressBalanceCache(Base):
     __tablename__ = "address_balance_cache"
@@ -39,22 +39,21 @@ class AddressBalanceCache(Base):
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
     @staticmethod
-    def get(_address):
-        db = next(get_db())
+    def get(db: DatabaseSession, _address):
         try:
             return db.query(AddressBalanceCache).filter(AddressBalanceCache.address == _address).first()
-        finally:
-            db.close()
+        except Exception as e:
+            logging.error(f"Error getting address balance cache for {_address}: {e}")
+            raise
 
     @staticmethod
-    def updateBalance(_address, amount, transactionIdToIgnore=None):
+    def updateBalance(db: DatabaseSession, _address, amount, transactionIdToIgnore=None):
         t1 = datetime.datetime.now()
-        db = next(get_db())
         try:
             hit = db.query(AddressBalanceCache).filter(AddressBalanceCache.address == _address).first()
             if not hit:
                 final_balance = 0
-                (balance, balance_found) = Transaction.get_balance(_address, False, transactionIdToIgnore)
+                (balance, balance_found) = Transaction.get_balance(db, _address, False, transactionIdToIgnore)
                 if(balance_found):
                     final_balance = balance + amount
                 else:
@@ -63,26 +62,18 @@ class AddressBalanceCache(Base):
                 db.add(hit)
             else:
                 hit.balance += amount
-            db.commit()
             DebugLogger.TransactionDuration.logDuration(t1, _address, 'updateBalance')
         except Exception as e:
-            db.rollback()
-            raise e
-        finally:
-            db.close()
+            raise
+
 
     @staticmethod
-    def put(instance):
-        db = next(get_db())
+    def put(db: DatabaseSession, instance):
         try:
             db.add(instance)
-            db.commit()
             return instance.id
         except Exception as e:
-            db.rollback()
-            raise e
-        finally:
-            db.close()
+            raise
 
 class Transaction(Base):
     __tablename__ = "transactions"
@@ -108,23 +99,13 @@ class Transaction(Base):
     INSTRUCTION_GET_DEPOSIT_ADDRESS = 7 # instruction to get a deposit address
     INSTRUCTION_LAYER1_AUDIT = 8
 
-    def to_dict(self):
-        result = {c.name: getattr(self, c.name) for c in self.__table__.columns}
-        result['timestamp'] = int(self.timestamp.timestamp())
-        return result
-
     @staticmethod
-    def put(instance):
-        db = next(get_db())
+    def put(db: DatabaseSession, instance):
         try:
             db.add(instance)
-            db.commit()
             return instance.layer2_transaction_id
         except Exception as e:
-            db.rollback()
-            raise e
-        finally:
-            db.close()
+            raise
 
     @staticmethod
     def process_transaction(_transaction_type, _amount, _fee, _source, _destination, _message, _signature, _layer2_transaction_id, _layer1_transaction_id = None):
@@ -161,31 +142,35 @@ class Transaction(Base):
                     # This ensures that the transaction is not processed if the addresses are locked
                     # and prevents duplicate transactions for the same addresses.
                     # The lock will be released automatically when the context manager exits or an exception occurs.
-                    try:
-                        status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _layer2_transaction_id, _layer1_transaction_id)
-                    except Exception as ex:
-                        GlobalLogging.log_text(traceback.format_exc())
+                    with get_db() as db:
+                        try:
+                            status = Transaction.put_transaction(db, _transaction_type, source, _amount, _fee, _destination, _message, _signature, _layer2_transaction_id, _layer1_transaction_id)
+                            if((_transaction_type == Transaction.TRX_WITHDRAWAL_INITIATED) and (status == ErrorMessage.ERROR_SUCCESS)):
+                                Onboarding.WithdrawalRequests.addWithdrawalRequest(db, _destination, _layer2_transaction_id, _amount)
+                            db.commit()
+                        except Exception as ex:
+                            db.rollback()
+                            status = ErrorMessage.ERROR_FAILED_TO_WRITE_TO_DATABASE
+                            GlobalLogging.log_text(traceback.format_exc())                   
             elif(TRANSACTION_MODE == TransactionMode.TRANSACTION_PUTTRANSACTION):
-                status = Transaction.put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _layer2_transaction_id, _layer1_transaction_id)
+                return ErrorMessage.ERROR_TRANSACTION_LOCK_MODE_NOT_SUPPORTED
+                #status = Transaction.put_transaction(db, _transaction_type, source, _amount, _fee, _destination, _message, _signature, _layer2_transaction_id, _layer1_transaction_id)
         except Exception as ex:
             GlobalLogging.log_text(traceback.format_exc())
             return ErrorMessage.ERROR_DATABASE_TRANSACTIONAL_ERROR
 
-        if((_transaction_type == Transaction.TRX_WITHDRAWAL_INITIATED) and (status == ErrorMessage.ERROR_SUCCESS)):
-            Onboarding.WithdrawalRequests.addWithdrawalRequest(_destination, _layer2_transaction_id, _amount)
         return status
 
     @staticmethod
-    def put_transaction(_transaction_type, source, _amount, _fee, _destination, _message, _signature, _layer2_transaction_id, _layer1_transaction_id = None):
+    def put_transaction(db: DatabaseSession, _transaction_type, source, _amount, _fee, _destination, _message, _signature, _layer2_transaction_id, _layer1_transaction_id = None):
         t1 = datetime.datetime.now()
         status = ErrorMessage.ERROR_UNKNOWN
-        db = next(get_db())
         try:
             nonce_exists = db.query(Transaction).filter(Transaction.layer2_transaction_id == _layer2_transaction_id).first()
             if nonce_exists:
                 status = ErrorMessage.ERROR_DUPLICATE_TRANSACTION_ID
             else:
-                (balance, _) = Transaction.get_balance(source.pubkey, ADDRESS_BALANCE_CACHE_ENABLED)
+                (balance, _) = Transaction.get_balance(db, source.pubkey, ADDRESS_BALANCE_CACHE_ENABLED)
                 if balance >= _amount or _transaction_type == Transaction.TRX_DEPOSIT:
                     trx = Transaction(
                         amount=_amount,
@@ -198,27 +183,25 @@ class Transaction(Base):
                         layer1_transaction_id=_layer1_transaction_id
                     )
                     db.add(trx)
-                    db.commit()
 
                     updateAdressBalanceCache = (ADDRESS_BALANCE_CACHE_ENABLED and _transaction_type != Transaction.TRX_WITHDRAWAL_CONFIRMED)
                     if updateAdressBalanceCache:
-                        AddressBalanceCache.updateBalance(source.pubkey, -_amount, trx.layer2_transaction_id)
-                        AddressBalanceCache.updateBalance(_destination, _amount-_fee, trx.layer2_transaction_id)
-                    add_fee(_fee)
+                        AddressBalanceCache.updateBalance(db, source.pubkey, -_amount, trx.layer2_transaction_id)
+                        AddressBalanceCache.updateBalance(db,_destination, _amount-_fee, trx.layer2_transaction_id)
+                    add_fee(db, _fee)
                     status = ErrorMessage.ERROR_SUCCESS
                 else:
                     status = ErrorMessage.ERROR_INSUFFICIENT_FUNDS
         except Exception as e:
-            db.rollback()
             GlobalLogging.log_text("put_transaction: Failed to insert transaction")
             status = ErrorMessage.ERROR_FAILED_TO_WRITE_TO_DATABASE
-        finally:
-            db.close()
+            raise
+
         DebugLogger.TransactionDuration.logDuration(t1, _layer2_transaction_id, 'put_transaction')
         return status
 
     @staticmethod
-    def get_balance(pubkey, useCache=True, transactionIdToIgnore=None) -> Tuple[int, bool]:
+    def get_balance(db: DatabaseSession, pubkey, useCache=True, transactionIdToIgnore=None) -> Tuple[int, bool]:
         t1 = datetime.datetime.now()
         trx_count: int = 0
         address_found: bool = False
@@ -227,57 +210,52 @@ class Transaction(Base):
         balance = 0
         balance_found_from_cache = False
 
-        db = next(get_db())
-        try:
-            if useCache:
-                hit = AddressBalanceCache.get(address.pubkey)
-                if hit:
-                    balance = hit.balance
-                    balance_found_from_cache = True
-                    address_found = True
+        if useCache:
+            hit = AddressBalanceCache.get(db, address.pubkey)
+            if hit:
+                balance = hit.balance
+                balance_found_from_cache = True
+                address_found = True
 
-            if not balance_found_from_cache:
-                output_query = db.query(Transaction).filter(Transaction.source_address_pubkey == address.pubkey)
-                input_query = db.query(Transaction).filter(Transaction.destination_address_pubkey == address.pubkey)
+        if not balance_found_from_cache:
+            output_query = db.query(Transaction).filter(Transaction.source_address_pubkey == address.pubkey)
+            input_query = db.query(Transaction).filter(Transaction.destination_address_pubkey == address.pubkey)
 
-                if transactionIdToIgnore is not None:
-                    output_query = output_query.filter(Transaction.layer2_transaction_id != transactionIdToIgnore)
-                    input_query = input_query.filter(Transaction.layer2_transaction_id != transactionIdToIgnore)
+            if transactionIdToIgnore is not None:
+                output_query = output_query.filter(Transaction.layer2_transaction_id != transactionIdToIgnore)
+                input_query = input_query.filter(Transaction.layer2_transaction_id != transactionIdToIgnore)
 
-                for output in output_query.all():
-                    balance -= output.amount
+            for output in output_query.all():
+                balance -= output.amount
+                trx_count += 1
+                address_found = True
+
+            for input in input_query.all():
+                if input.transaction_type != Transaction.TRX_WITHDRAWAL_CONFIRMED:
+                    balance += input.amount - input.fee
                     trx_count += 1
                     address_found = True
-
-                for input in input_query.all():
-                    if input.transaction_type != Transaction.TRX_WITHDRAWAL_CONFIRMED:
-                        balance += input.amount - input.fee
-                        trx_count += 1
-                        address_found = True
-        finally:
-            db.close()
 
         DebugLogger.TransactionDuration.logDuration(t1, address.pubkey, 'get_balance', trx_count)
         return (balance, address_found)
 
     @staticmethod
-    def get_transaction(transaction_id):
+    def get_transaction(db: DatabaseSession, transaction_id):
         t1 = datetime.datetime.now()
-        db = next(get_db())
+        result = ErrorMessage.ERROR_SUCCESS
         try:
-            result = ErrorMessage.ERROR_SUCCESS
             transaction = db.query(Transaction).filter(Transaction.layer2_transaction_id == transaction_id).first()
             if not transaction:
                 result = ErrorMessage.ERROR_TRANSACTION_ID_NOT_FOUND
-            DebugLogger.TransactionDuration.logDuration(t1, transaction_id, 'get_transaction')
-            return result, transaction
-        finally:
-            db.close()
+        except Exception as e:
+            raise
+        DebugLogger.TransactionDuration.logDuration(t1, transaction_id, 'get_transaction')
+        return result, transaction
+
 
     @staticmethod
-    def get_all_transactions(public_key: str):
+    def get_all_transactions(db: DatabaseSession, public_key: str):
         t1 = datetime.datetime.now()
-        db = next(get_db())
         try:
             transactions = []
             output_transactions = db.query(Transaction).filter(Transaction.source_address_pubkey == public_key).all()
@@ -286,7 +264,7 @@ class Transaction(Base):
             transactions.extend(input_transactions)
             DebugLogger.TransactionDuration.logDuration(t1, public_key, 'get_all_transactions', len(transactions))
             return transactions
-        finally:
-            db.close()
+        except Exception as e:
+            raise
 
 

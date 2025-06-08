@@ -9,6 +9,7 @@ import types
 from types import SimpleNamespace
 from InstaChainAPI import InstachainRequestHandler
 from NodeInfoAPI import NODE_ID
+from database import get_db
 from signing_keys import ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY
 import GlobalLogging
 import KeyVerification
@@ -150,7 +151,13 @@ class getBalance(InstachainRequestHandler):
         for public_key in list(self.request.public_keys)[:MAX_NUMBER_OF_GETBALANCE_ADDRESSES]:
             balance: GetBalanceResponseBalance = GetBalanceResponseBalance()
             balance.public_key = public_key
-            (balance.balance, balance.address_found) = Transaction.get_balance(public_key, True)
+            (balance.balance, balance.address_found) = (0, False)
+            with get_db() as db:
+                try:
+                   (balance.balance, balance.address_found) = Transaction.get_balance(db, public_key, True)
+                except Exception as e:
+                    logging.error(f"Error getting balance for {public_key}: {e}")
+
             balances.append(balance)
         self.result = GetBalanceResponse(
             **ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS),

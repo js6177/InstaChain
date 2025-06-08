@@ -406,16 +406,16 @@ def test_deposit_and_withdraw_broadcast(client):
     response = client.post('/withdrawalBroadcasted', json=broadcast_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
 
-    db = next(get_db())
-    # Check if the broadcasted withdrawal was added to the database
-    withdrawal_entry: Onboarding.ConfirmedWithdrawals = db.query(Onboarding.ConfirmedWithdrawals).filter(
-        Onboarding.ConfirmedWithdrawals.layer1_transaction_id == layer1_transaction_id,
-        Onboarding.ConfirmedWithdrawals.layer1_transaction_vout == layer1_transaction_vout,
-    ).first()
-    assert withdrawal_entry is not None
+    with get_db() as db:
+        # Check if the broadcasted withdrawal was added to the database
+        withdrawal_entry: Onboarding.ConfirmedWithdrawals = db.query(Onboarding.ConfirmedWithdrawals).filter(
+            Onboarding.ConfirmedWithdrawals.layer1_transaction_id == layer1_transaction_id,
+            Onboarding.ConfirmedWithdrawals.layer1_transaction_vout == layer1_transaction_vout,
+        ).first()
+        assert withdrawal_entry is not None
 
-    # Check to see that it is not confirmed on layer1
-    assert withdrawal_entry.confirmed is False
+        # Check to see that it is not confirmed on layer1
+        assert withdrawal_entry.confirmed is False
 
 # This test generates a new L2 address, gets a deposit address, simulates a deposit, and withdraws to a new L1 address.
 # Then simulates a Layer2Bridge Layer1 withdrawal broadcast.
@@ -521,16 +521,16 @@ def test_deposit_and_withdraw_broadcast_confirmed(client):
     response = client.post('/withdrawalBroadcasted', json=broadcast_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
 
-    db = next(get_db())
-    # Check if the broadcasted withdrawal was added to the database
-    withdrawal_entry: Onboarding.ConfirmedWithdrawals = db.query(Onboarding.ConfirmedWithdrawals).filter(
-        Onboarding.ConfirmedWithdrawals.layer1_transaction_id == layer1_transaction_id,
-        Onboarding.ConfirmedWithdrawals.layer1_transaction_vout == layer1_transaction_vout,
-    ).first()
-    assert withdrawal_entry is not None
+    with get_db() as db:
+        # Check if the broadcasted withdrawal was added to the database
+        withdrawal_entry: Onboarding.ConfirmedWithdrawals = db.query(Onboarding.ConfirmedWithdrawals).filter(
+            Onboarding.ConfirmedWithdrawals.layer1_transaction_id == layer1_transaction_id,
+            Onboarding.ConfirmedWithdrawals.layer1_transaction_vout == layer1_transaction_vout,
+        ).first()
+        assert withdrawal_entry is not None
 
-    # Check to see that it is not confirmed on layer1
-    assert withdrawal_entry.confirmed is False
+        # Check to see that it is not confirmed on layer1
+        assert withdrawal_entry.confirmed is False
 
     # Simulate Layer2Bridge Layer1 withdrawal confirmed
     confirmed_signature = onboarding_transaction_signing_address.sign(
@@ -552,19 +552,17 @@ def test_deposit_and_withdraw_broadcast_confirmed(client):
     )
     response = client.post('/withdrawalConfirmed', json=confirmed_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
-
-    db.close()
-    db = next(get_db())
-
-    # Check if the confirmed withdrawal was updated in the database
-    withdrawal_entry: Onboarding.ConfirmedWithdrawals = db.query(Onboarding.ConfirmedWithdrawals).filter(
-        Onboarding.ConfirmedWithdrawals.layer1_transaction_id == layer1_transaction_id,
-        Onboarding.ConfirmedWithdrawals.layer1_transaction_vout == layer1_transaction_vout,
-    ).first()
-    assert withdrawal_entry is not None
-
-    # Check to see that it is confirmed on layer1
-    assert withdrawal_entry.confirmed is True
+    
+    with get_db() as db:
+        # Check if the confirmed withdrawal was updated in the database
+        withdrawal_entry: Onboarding.ConfirmedWithdrawals = db.query(Onboarding.ConfirmedWithdrawals).filter(
+            Onboarding.ConfirmedWithdrawals.layer1_transaction_id == layer1_transaction_id,
+            Onboarding.ConfirmedWithdrawals.layer1_transaction_vout == layer1_transaction_vout,
+        ).first()
+        assert withdrawal_entry is not None
+    
+        # Check to see that it is confirmed on layer1
+        assert withdrawal_entry.confirmed is True
 
 # Test for postLayer1AuditReport and getLayer1AuditReport
 # Updated test to use the message building logic from verifyLayer1AuditReportSignature

@@ -21,31 +21,17 @@ class TransactionDuration(Base):
         if TRANSACTION_DURATION_LOGGING_ENABLED:
             t2 = datetime.datetime.now()
             delta = t2 - previousTimestamp
-            db = next(get_db())
-            try:
-                log = TransactionDuration(
-                    action=_action,
-                    item_count=_item_count,
-                    duration=round(delta.total_seconds() * 1000, TIMER_PRECISION),
-                    transaction_id=_transaction_id
-                )
-                db.add(log)
-                db.commit()
-            except Exception as e:
-                db.rollback()
-                raise e
-            finally:
-                db.close()
+            with get_db() as db:
+                try:
+                    log = TransactionDuration(
+                        action=_action,
+                        item_count=_item_count,
+                        duration=round(delta.total_seconds() * 1000, TIMER_PRECISION),
+                        transaction_id=_transaction_id
+                    )
+                    db.add(log)
+                    db.commit()
+                except Exception as e:
+                    db.rollback()
+                    # No need to raise an exception here, this is not a critical operation
 
-    @staticmethod
-    def put(instance):
-        db = next(get_db())
-        try:
-            db.add(instance)
-            db.commit()
-            return instance.id
-        except Exception as e:
-            db.rollback()
-            raise e
-        finally:
-            db.close()

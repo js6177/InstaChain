@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String
-from database import Base, get_db
+from database import Base, DatabaseSession
 
 class KeyValueStore(Base):
     __tablename__ = "key_value_store"
@@ -8,19 +8,15 @@ class KeyValueStore(Base):
     value = Column(String, nullable=False)
 
     @staticmethod
-    def get(key: str, default: str = None) -> str:
+    def get(db: DatabaseSession, key: str, default: str = None) -> str:
         """Get a value from the store by key."""
-        db = next(get_db())
-        try:
-            row = db.query(KeyValueStore).filter(KeyValueStore.key == key).first()
-            return row.value if row else default
-        finally:
-            db.close()
+        row = db.query(KeyValueStore).filter(KeyValueStore.key == key).first()
+        return row.value if row else default
+
 
     @staticmethod
-    def set(key: str, value: str):
+    def set(db: DatabaseSession, key: str, value: str):
         """Set a value in the store by key."""
-        db = next(get_db())
         try:
             row = db.query(KeyValueStore).filter(KeyValueStore.key == key).first()
             if not row:
@@ -28,17 +24,13 @@ class KeyValueStore(Base):
                 db.add(row)
             else:
                 row.value = value
-            db.commit()
         except Exception as e:
-            db.rollback()
-            raise e
-        finally:
-            db.close()
+            raise
+
 
     @staticmethod
-    def increment_int(key: str, increment: int = 1, default: int = 0) -> int:
+    def increment_int(db: DatabaseSession, key: str, increment: int = 1, default: int = 0) -> int:
         """Increment an integer value in the store."""
-        db = next(get_db())
         try:
             row = db.query(KeyValueStore).filter(KeyValueStore.key == key).first()
             if not row:
@@ -50,10 +42,6 @@ class KeyValueStore(Base):
             
             new_value = current_value + increment
             row.value = str(new_value)
-            db.commit()
             return new_value
         except Exception as e:
-            db.rollback()
-            raise e
-        finally:
-            db.close() 
+            raise

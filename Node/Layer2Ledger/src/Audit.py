@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, JSON, Text
 from sqlalchemy.sql import func
-from database import Base, get_db
+from database import Base, DatabaseSession, get_db
 import ErrorMessage
 import KeyVerification
 import logging
@@ -37,64 +37,65 @@ def processLayer1AuditReport(blockheight: int, layer1AddressBalances: dict, tota
         status = ErrorMessage.ERROR_INVALID_SIGNATURE
         return status
 
-    db = next(get_db())
-    try:
-        # Check if report already exists
-        existing_report = db.query(Layer1AuditReport).filter(Layer1AuditReport.blockHeight == blockheight).first()
-        if existing_report is not None:
-            status = ErrorMessage.ERROR_AUDIT_REPORT_ALREADY_EXISTS
-            return status
+    with get_db() as db:
+        try:
+            # Check if report already exists
+            existing_report = db.query(Layer1AuditReport).filter(Layer1AuditReport.blockHeight == blockheight).first()
+            if existing_report is not None:
+                status = ErrorMessage.ERROR_AUDIT_REPORT_ALREADY_EXISTS
+                return status
 
-        # Create new report
-        report = Layer1AuditReport(
-            blockHeight=blockheight,
-            layer1AddressBalances=layer1AddressBalances,
-            signature=signature,
-            balance=totalBalance
-        )
-        
-        db.add(report)
-        
-        # Update or create Layer1Addresses
-        for layer1Address, balance in layer1AddressBalances.items():
-            address = db.query(Layer1Addresses).filter(Layer1Addresses.layer1Address == layer1Address).first()
-            if address is None:
-                address = Layer1Addresses(
-                    layer1Address=layer1Address,
-                    balance=balance
-                )
-                db.add(address)
-            else:
-                address.balance = balance
-        
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        GlobalLogging.log_text("processLayer1AuditReport: " + str(e))
-        status = ErrorMessage.ERROR_FAILED_TO_WRITE_TO_DATABASE
-    finally:
-        db.close()
+            # Create new report
+            report = Layer1AuditReport(
+                blockHeight=blockheight,
+                layer1AddressBalances=layer1AddressBalances,
+                signature=signature,
+                balance=totalBalance
+            )
+            
+            db.add(report)
+            
+            # Update or create Layer1Addresses
+            for layer1Address, balance in layer1AddressBalances.items():
+                address = db.query(Layer1Addresses).filter(Layer1Addresses.layer1Address == layer1Address).first()
+                if address is None:
+                    address = Layer1Addresses(
+                        layer1Address=layer1Address,
+                        balance=balance
+                    )
+                    db.add(address)
+                else:
+                    address.balance = balance
+            
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            GlobalLogging.log_text("processLayer1AuditReport: " + str(e))
+            status = ErrorMessage.ERROR_FAILED_TO_WRITE_TO_DATABASE
     
     return status
 
-def getLayer1AuditReport(blockHeight: int):
-    db = next(get_db())
+def getLayer1AuditReport(db: DatabaseSession, blockHeight: int) -> tuple[int, Layer1AuditReport | None]:
+    result = ErrorMessage.ERROR_SUCCESS
     try:
         if blockHeight == 0:
             # Return the latest audit report
             report = db.query(Layer1AuditReport).order_by(Layer1AuditReport.blockHeight.desc()).first()
         else:
             report = db.query(Layer1AuditReport).filter(Layer1AuditReport.blockHeight == blockHeight).first()
-        return report
-    finally:
-        db.close()
+        if report is None:
+            result = ErrorMessage.ERROR_AUDIT_REPORT_DOES_NOT_EXIST
+        return result, report
+    except Exception as e:
+        logging.error(f"Error retrieving Layer1AuditReport for blockHeight {blockHeight}: {e}")
+        raise
 
-def getLayer1AddressBalances(includeZeroBalances: bool = True) -> list[Layer1Addresses]:
-    db = next(get_db())
+def getLayer1AddressBalances(db: DatabaseSession, includeZeroBalances: bool = True) -> list[Layer1Addresses]:
     try:
         query = db.query(Layer1Addresses).order_by(Layer1Addresses.balance.desc())
         if not includeZeroBalances:
             query = query.filter(Layer1Addresses.balance > 0)
         return query.all()
-    finally:
-        db.close()
+    except Exception as e:
+        logging.error(f"Error retrieving Layer1Addresses: {e}")
+        raise
