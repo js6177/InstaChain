@@ -30,61 +30,6 @@ def add_fee(fee: int):
     """Add fee to the total fees stored in KeyValueStore."""
     return KeyValueStore.increment_int('fees', fee, 0)
 
-class AddressLock(Base):
-    __tablename__ = "address_locks"
-
-    id = Column(Integer, primary_key=True, index=True)
-    address = Column(String, unique=True, index=True)
-    locked = Column(Boolean, default=False)
-
-    @staticmethod
-    def lock(address1: str, address2: str):
-        t1 = datetime.datetime.now()
-        db = next(get_db())
-        try:
-            address1Hit = db.query(AddressLock).filter(AddressLock.address == address1).with_for_update().first()
-            address2Hit = db.query(AddressLock).filter(AddressLock.address == address2).with_for_update().first()
-
-            address1Free = not address1Hit or not address1Hit.locked
-            address2Free = not address2Hit or not address2Hit.locked
-
-            if address1Free and address2Free:
-                if not address1Hit:
-                    address1Hit = AddressLock(address=address1)
-                    db.add(address1Hit)
-                if not address2Hit:
-                    address2Hit = AddressLock(address=address2)
-                    db.add(address2Hit)
-                address1Hit.locked = True
-                address2Hit.locked = True
-                db.commit()
-                DebugLogger.TransactionDuration.logDuration(t1, address1 + '-' + address2, 'AddressLock.lock()')
-                return True
-            db.rollback()
-            return False
-        except Exception as e:
-            db.rollback()
-            raise e
-        finally:
-            db.close()
-
-    @staticmethod
-    def unlock(address1: str, address2: str):
-        db = next(get_db())
-        try:
-            address1Hit = db.query(AddressLock).filter(AddressLock.address == address1).first()
-            if address1Hit:
-                address1Hit.locked = False
-            address2Hit = db.query(AddressLock).filter(AddressLock.address == address2).first()
-            if address2Hit:
-                address2Hit.locked = False
-            db.commit()
-        except Exception as e:
-            db.rollback()
-            raise e
-        finally:
-            db.close()
-
 class AddressBalanceCache(Base):
     __tablename__ = "address_balance_cache"
 

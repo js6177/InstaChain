@@ -1,4 +1,4 @@
-from Transaction import Transaction, AddressBalanceCache, AddressLock
+from Transaction import Transaction, AddressBalanceCache
 from Onboarding import WithdrawalRequests, DepositAddresses, MasterPublicKeyIndex, ConfirmedWithdrawals
 from database import get_db
 from InstaChainAPI import InstachainRequestHandler
@@ -12,7 +12,6 @@ class Delete(InstachainRequestHandler):
             # Delete all records from each table
             db.query(WithdrawalRequests).delete()
             db.query(ConfirmedWithdrawals).delete()
-            db.query(AddressLock).delete()
             db.query(DepositAddresses).delete()
             db.query(MasterPublicKeyIndex).delete()
             db.query(AddressBalanceCache).delete()
