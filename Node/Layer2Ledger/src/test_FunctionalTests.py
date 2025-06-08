@@ -30,9 +30,10 @@ import signing_keys
 import KeyVerification
 
 #Imports for SQLAlchemy db classes
-from database import get_db
+from database import DatabaseSession, get_db
 import Onboarding
 
+#Helper functions for generating keys, addresses, nonces, etc...
 def generate_new_keypair() -> tuple[str, str]:
     sk = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
     vk = sk.get_verifying_key()
@@ -52,6 +53,28 @@ def generate_nonce(length=16) -> str:
 def is_successful_response(response) -> bool:
     return response.status_code == 200 and response.json['error_code'] == 0
 
+#Helper functions for verifying procedures
+def verify_withdrawal_request_procedure(db: DatabaseSession, withdrawal_request: RequestWithdrawalRequest):
+    # Check to see if the withrawal request was processed correctly
+    with get_db() as db:
+        # Check if the withdrawal request was added to the database
+        withdrawal_entry: Onboarding.WithdrawalRequests = db.query(Onboarding.WithdrawalRequests).filter(
+            Onboarding.WithdrawalRequests.layer1_address == withdrawal_request.layer1_withdrawal_address,
+            Onboarding.WithdrawalRequests.layer2_transaction_id == withdrawal_request.layer2_transaction_id,       
+        ).first()
+        assert withdrawal_entry is not None
+
+        # Check to see that the Transaction's layer1_transaction_id is null (not yet broadcasted)
+        assert withdrawal_entry.layer1_transaction_id is None
+
+        # Check to see if a Transaction's layer2_withdrawal_id is the WithdrawalRequest's layer2_transaction_id
+        layer2_transaction: Transaction = db.query(Transaction).filter(
+            Transaction.layer2_transaction_id == withdrawal_entry.layer2_transaction_id,
+        ).first()
+
+        assert layer2_transaction is not None
+        assert layer2_transaction.layer1_transaction_id is None  # Ensure it is not broadcasted yet
+        assert layer2_transaction.layer2_withdrawal_id == withdrawal_entry.layer2_withdrawal_id
 
 @pytest.fixture
 def client():
@@ -302,6 +325,10 @@ def test_deposit_and_withdraw(client):
     )
     response = client.post('/withdrawalRequest', json=withdrawal_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
+
+    with get_db() as db:
+        verify_withdrawal_request_procedure(db, withdrawal_request)
+
     
     # Check final balance of L2 address
     response = client.post('/getBalance', json=balance_request.model_dump(), content_type='application/json')
@@ -383,6 +410,9 @@ def test_deposit_and_withdraw_broadcast(client):
     )
     response = client.post('/withdrawalRequest', json=withdrawal_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
+
+    with get_db() as db:
+        verify_withdrawal_request_procedure(db, withdrawal_request)
 
     # Simulate Layer2Bridge Layer1 withdrawal broadcast using the correct API
     broadcast_signature = onboarding_transaction_signing_address.sign(
@@ -488,6 +518,9 @@ def test_deposit_and_withdraw_broadcast_confirmed(client):
     )
     response = client.post('/withdrawalRequest', json=withdrawal_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
+
+    with get_db() as db:
+        verify_withdrawal_request_procedure(db, withdrawal_request)
 
     #Simulate the Layer2Bridge querying the withdrawal request
     get_withdrawal_requests: GetWithdrawalRequestsRequest = GetWithdrawalRequestsRequest(

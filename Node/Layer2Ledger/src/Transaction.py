@@ -145,6 +145,7 @@ class Transaction(Base):
                     with get_db() as db:
                         try:
                             status = Transaction.put_transaction(db, _transaction_type, source, _amount, _fee, _destination, _message, _signature, _layer2_transaction_id, _layer1_transaction_id)
+                            db.flush()  # Ensure the Transaction is written to the database
                             if((_transaction_type == Transaction.TRX_WITHDRAWAL_INITIATED) and (status == ErrorMessage.ERROR_SUCCESS)):
                                 Onboarding.WithdrawalRequests.addWithdrawalRequest(db, _destination, _layer2_transaction_id, _amount)
                             db.commit()
