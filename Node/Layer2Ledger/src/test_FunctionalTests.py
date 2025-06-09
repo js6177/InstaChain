@@ -13,13 +13,13 @@ from main import app
 from NodeInfoAPI import NODE_ID, NODE_ASSET_ID
 from Transaction import Transaction
 from typing import TypedDict
+from services.messages.Layer2Ledger.Requests.DepositConfirmedRequest import DepositConfirmedRequest, DepositsConfirmed
 from services.messages.Layer2Ledger.Requests.GetWithdrawalRequestsRequest import GetWithdrawalRequestsRequest
 from services.messages.Layer2Ledger.Requests.WithdrawalBroadcastedRequest import WithdrawalBroadcastedRequest, Layer1BroadcastedWithdrawalTransaction
 from services.messages.Layer2Ledger.Requests.PushTransactionRequest import PushTransactionRequest
 from services.messages.Layer2Ledger.Requests.RequestWithdrawalRequest import RequestWithdrawalRequest
 from services.messages.Layer2Ledger.Requests.GetBalanceRequest import GetBalanceRequest
 from services.messages.Layer2Ledger.Requests.GetDepositAddressRequest import GetDepositAddressRequest
-from services.messages.Layer2Ledger.Requests.DepositFundsRequest import DepositFundsRequest, DepositTransaction
 from services.messages.Layer2Ledger.Requests.WithdrawalConfirmedRequest import Layer1WithdrawalConfirmedTransaction, WithdrawalConfirmedRequest
 from services.messages.Layer2Ledger.Responses.GetBalanceResponse import GetBalanceResponse
 from services.messages.Layer2Ledger.Responses.GetDepositAddressResponse import GetDepositAddressResponse
@@ -54,6 +54,24 @@ def is_successful_response(response) -> bool:
     return response.status_code == 200 and response.json['error_code'] == 0
 
 #Helper functions for verifying procedures
+
+def verify_get_new_deposit_address_procedure(layer2_address_pubkey: str):
+    with get_db() as db:
+        # Check if the deposit was added to the database
+        deposit_entry: Onboarding.DepositAddresses = db.query(Onboarding.DepositAddresses).filter(
+            Onboarding.DepositAddresses.layer2_address == layer2_address_pubkey,
+        ).first()
+        assert deposit_entry is not None
+
+def verify_deposit_confirmed(deposit_confirmed: DepositConfirmedRequest):
+    with get_db() as db:
+        for deposit in deposit_confirmed.transactions:
+            layer2_transaction = db.query(Transaction).filter(
+                Transaction.layer2_transaction_id == deposit.nonce
+            ).first()
+
+            assert layer2_transaction is not None
+
 def verify_withdrawal_request_procedure(db: DatabaseSession, withdrawal_request: RequestWithdrawalRequest):
     # Check to see if the withrawal request was processed correctly
     with get_db() as db:
@@ -75,6 +93,52 @@ def verify_withdrawal_request_procedure(db: DatabaseSession, withdrawal_request:
         assert layer2_transaction is not None
         assert layer2_transaction.layer1_transaction_id is None  # Ensure it is not broadcasted yet
         assert layer2_transaction.layer2_withdrawal_id == withdrawal_entry.layer2_withdrawal_id
+
+def verify_withdrawal_confirmed_procedure(withdrawal_confirmed: WithdrawalConfirmedRequest):
+    with get_db() as db:
+        for withdrawal in withdrawal_confirmed.transactions:
+            layer2_withdrawal_ids = set()
+            # Check if the withdrawal was added to the database
+            withdrawal_entry: Onboarding.ConfirmedWithdrawals = db.query(Onboarding.ConfirmedWithdrawals).filter(
+                Onboarding.ConfirmedWithdrawals.layer1_transaction_id == withdrawal.layer1_transaction_id,
+                Onboarding.ConfirmedWithdrawals.layer1_transaction_vout == withdrawal.layer1_transaction_vout,
+            ).first()
+            assert withdrawal_entry is not None
+            assert withdrawal_entry.confirmed is True
+            layer2_withdrawal_ids.add(withdrawal_entry.layer2_withdrawal_id)
+
+            for layer2_withdrawal_id in layer2_withdrawal_ids:
+
+                withdrawalRequest: Onboarding.WithdrawalRequests = db.query(Onboarding.WithdrawalRequests).filter(
+                    Onboarding.WithdrawalRequests.layer2_withdrawal_id == layer2_withdrawal_id
+                ).first()
+                assert withdrawalRequest is not None
+                assert withdrawalRequest.layer1_transaction_id == withdrawal.layer1_transaction_id
+                assert withdrawalRequest.status == Onboarding.WithdrawalRequests.WITHDRAWAL_STATUS_CONFIRMED
+
+                # Check if the Transaction's layer1_transaction_id matches the confirmed withdrawal's layer1_transaction_id
+                transaction_entry: Transaction = db.query(Transaction).filter(
+                    Transaction.layer2_transaction_id == withdrawalRequest.layer2_transaction_id,
+                ).first()
+                assert transaction_entry is not None
+                assert transaction_entry.layer1_transaction_id == withdrawal.layer1_transaction_id
+
+def verify_layer2_transaction_procedure(layer2_transaction: PushTransactionRequest):
+    with get_db() as db:
+        # Check if the transaction was added to the database
+        transaction_entry: Transaction = db.query(Transaction).filter(
+            Transaction.layer2_transaction_id == layer2_transaction.transaction_id
+        ).first()
+        assert transaction_entry is not None
+
+        # Check if the transaction's, source, destination, amount and fee match
+        assert transaction_entry.source_address_pubkey == layer2_transaction.source_address_public_key
+        assert transaction_entry.destination_address_pubkey == layer2_transaction.destination_address_public_key
+        assert transaction_entry.amount == layer2_transaction.amount
+        assert transaction_entry.fee == layer2_transaction.fee
+
+        # Check if the transaction's signature matches
+        assert transaction_entry.signature == layer2_transaction.signature
 
 @pytest.fixture
 def client():
@@ -109,6 +173,7 @@ def test_deposit_and_check_balance(client):
     )
     response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
+    verify_get_new_deposit_address_procedure(l2_address.pubkey)
     deposit_address_response = GetDepositAddressResponse(**response.json)
     deposit_address = deposit_address_response.layer1_deposit_address
     
@@ -121,9 +186,9 @@ def test_deposit_and_check_balance(client):
     onboarding_transaction_signing_address = Address.fromPrivateKey(config['Functional_Tests']['Onboarding_Deposit_Address']['private_key'])
     signature = onboarding_transaction_signing_address.sign(deposit_message)
     
-    deposit_data = DepositFundsRequest(
+    deposit_data = DepositConfirmedRequest(
         transactions=[
-            DepositTransaction(
+            DepositsConfirmed(
                 layer1_transaction_id=layer1_transaction_id,
                 layer1_transaction_vout=layer1_transaction_vout,
                 layer1_address=deposit_address,
@@ -135,6 +200,8 @@ def test_deposit_and_check_balance(client):
     )
     response = client.post('/depositFunds', json=deposit_data.model_dump(), content_type='application/json')
     assert is_successful_response(response)
+
+    verify_deposit_confirmed(deposit_data)
     
     # Check balance of L2 address
     balance_request = GetBalanceRequest(public_keys=[l2_address.pubkey])
@@ -189,9 +256,9 @@ def test_deposit_and_transfer(client):
     onboarding_transaction_signing_address = Address.fromPrivateKey(config['Functional_Tests']['Onboarding_Deposit_Address']['private_key'])
     signature = onboarding_transaction_signing_address.sign(deposit_message)
     
-    deposit_data = DepositFundsRequest(
+    deposit_data = DepositConfirmedRequest(
         transactions=[
-            DepositTransaction(
+            DepositsConfirmed(
                 layer1_transaction_id=layer1_transaction_id,
                 layer1_transaction_vout=layer1_transaction_vout,
                 layer1_address=deposit_address,
@@ -203,6 +270,7 @@ def test_deposit_and_transfer(client):
     )
     response = client.post('/depositFunds', json=deposit_data.model_dump(), content_type='application/json')
     assert is_successful_response(response)
+    verify_deposit_confirmed(deposit_data)
       
     # Check balance of L2 address 1
     balance_request = GetBalanceRequest(public_keys=[l2_address_1.pubkey])
@@ -232,6 +300,7 @@ def test_deposit_and_transfer(client):
     )
     response = client.post('/pushTransaction', json=transfer_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
+    verify_layer2_transaction_procedure(transfer_request)
     
     # Check balance of L2 address 2
     balance_request = GetBalanceRequest(public_keys=[l2_address_2.pubkey])
@@ -271,6 +340,7 @@ def test_deposit_and_withdraw(client):
     )
     response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
+    verify_get_new_deposit_address_procedure(l2_address.pubkey)
     deposit_address_response = GetDepositAddressResponse(**response.json)
     deposit_address = deposit_address_response.layer1_deposit_address
     
@@ -283,9 +353,9 @@ def test_deposit_and_withdraw(client):
     onboarding_transaction_signing_address = Address.fromPrivateKey(config['Functional_Tests']['Onboarding_Deposit_Address']['private_key'])
     signature = onboarding_transaction_signing_address.sign(deposit_message)
     
-    deposit_data = DepositFundsRequest(
+    deposit_data = DepositConfirmedRequest(
         transactions=[
-            DepositTransaction(
+            DepositsConfirmed(
                 layer1_transaction_id=layer1_transaction_id,
                 layer1_transaction_vout=layer1_transaction_vout,
                 layer1_address=deposit_address,
@@ -297,6 +367,7 @@ def test_deposit_and_withdraw(client):
     )
     response = client.post('/depositFunds', json=deposit_data.model_dump(), content_type='application/json')
     assert is_successful_response(response)
+    verify_deposit_confirmed(deposit_data)
     
     # Check balance of L2 address
     balance_request = GetBalanceRequest(public_keys=[l2_address.pubkey])
@@ -367,6 +438,7 @@ def test_deposit_and_withdraw_broadcast(client):
     )
     response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
+    verify_get_new_deposit_address_procedure(l2_address.pubkey)
     deposit_address_response = GetDepositAddressResponse(**response.json)
     deposit_address = deposit_address_response.layer1_deposit_address
 
@@ -379,9 +451,9 @@ def test_deposit_and_withdraw_broadcast(client):
     onboarding_transaction_signing_address = Address.fromPrivateKey(config['Functional_Tests']['Onboarding_Deposit_Address']['private_key'])
     signature = onboarding_transaction_signing_address.sign(deposit_message)
 
-    deposit_data = DepositFundsRequest(
+    deposit_data = DepositConfirmedRequest(
         transactions=[
-            DepositTransaction(
+            DepositsConfirmed(
                 layer1_transaction_id=layer1_transaction_id,
                 layer1_transaction_vout=layer1_transaction_vout,
                 layer1_address=deposit_address,
@@ -393,6 +465,7 @@ def test_deposit_and_withdraw_broadcast(client):
     )
     response = client.post('/depositFunds', json=deposit_data.model_dump(), content_type='application/json')
     assert is_successful_response(response)
+    verify_deposit_confirmed(deposit_data)
 
     # Simulate withdrawal to L1 address
     withdrawal_nonce = generate_nonce()
@@ -473,8 +546,11 @@ def test_deposit_and_withdraw_broadcast_confirmed(client):
     )
     response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
+    verify_get_new_deposit_address_procedure(l2_address.pubkey)
     deposit_address_response = GetDepositAddressResponse(**response.json)
     deposit_address = deposit_address_response.layer1_deposit_address
+
+    verify_get_new_deposit_address_procedure(l2_address.pubkey)
 
     # Simulate Layer1 deposit
     deposit_nonce = generate_nonce()
@@ -485,9 +561,9 @@ def test_deposit_and_withdraw_broadcast_confirmed(client):
     onboarding_transaction_signing_address = Address.fromPrivateKey(config['Functional_Tests']['Onboarding_Deposit_Address']['private_key'])
     signature = onboarding_transaction_signing_address.sign(deposit_message)
 
-    deposit_data = DepositFundsRequest(
+    deposit_data = DepositConfirmedRequest(
         transactions=[
-            DepositTransaction(
+            DepositsConfirmed(
                 layer1_transaction_id=layer1_transaction_id,
                 layer1_transaction_vout=layer1_transaction_vout,
                 layer1_address=deposit_address,
@@ -499,6 +575,7 @@ def test_deposit_and_withdraw_broadcast_confirmed(client):
     )
     response = client.post('/depositFunds', json=deposit_data.model_dump(), content_type='application/json')
     assert is_successful_response(response)
+    verify_deposit_confirmed(deposit_data)
 
     timestamp_before_withdrawal = int(time.time_ns() / 1e6) # Store the timestamp before withdrawal, so we can query the WithdrawalRequests after this timestamp
 
@@ -585,17 +662,8 @@ def test_deposit_and_withdraw_broadcast_confirmed(client):
     )
     response = client.post('/withdrawalConfirmed', json=confirmed_request.model_dump(), content_type='application/json')
     assert is_successful_response(response)
+    verify_withdrawal_confirmed_procedure(confirmed_request)
     
-    with get_db() as db:
-        # Check if the confirmed withdrawal was updated in the database
-        withdrawal_entry: Onboarding.ConfirmedWithdrawals = db.query(Onboarding.ConfirmedWithdrawals).filter(
-            Onboarding.ConfirmedWithdrawals.layer1_transaction_id == layer1_transaction_id,
-            Onboarding.ConfirmedWithdrawals.layer1_transaction_vout == layer1_transaction_vout,
-        ).first()
-        assert withdrawal_entry is not None
-    
-        # Check to see that it is confirmed on layer1
-        assert withdrawal_entry.confirmed is True
 
 # Test for postLayer1AuditReport and getLayer1AuditReport
 # Updated test to use the message building logic from verifyLayer1AuditReportSignature
