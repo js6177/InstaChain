@@ -141,6 +141,12 @@ def verify_layer2_transaction_procedure(layer2_transaction: PushTransactionReque
         # Check if the transaction's signature matches
         assert transaction_entry.signature == layer2_transaction.signature
 
+def drop_MasterPublicKeyIndex_DepositAddresses_tables():
+    with get_db() as db:
+        db.query(Onboarding.MasterPublicKeyIndex).delete()
+        db.query(Onboarding.DepositAddresses).delete()
+        db.commit()
+
 @pytest.fixture
 def client():
     with app.test_client() as client:
@@ -800,6 +806,75 @@ def test_layer1_audit_report(client):
 
     print(f"Audit report validated successfully: {audit_report_response}")
 
+#Tests to make sure the first MPK/DepositAddress is generated correctly
+def test_delete_mpk_table_get_deposit_address(client):
+    # Load config
+    config = load_config()
+
+    # Delete the MPK table
+    drop_MasterPublicKeyIndex_DepositAddresses_tables()
+
+    # Generate a new L2 address
+    l2_address = generate_new_address('L2 Address for deposit')
+    print(f"Generated L2 address: {l2_address.pubkey}")
+
+    # Generate nonce
+    nonce = generate_nonce()
+
+    # Generate message to sign for /getNewDepositAddress
+    message = KeyVerification.buildGetDepositAddressMessage(l2_address.pubkey, nonce)
+    signature = l2_address.sign(message)
+
+    # Get L1 deposit address
+    get_deposit_address_request = GetDepositAddressRequest(
+        layer2_address_pubkey=l2_address.pubkey,
+        nonce=nonce,
+        signature=signature
+    )
+    response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
+    assert is_successful_response(response)
+    verify_get_new_deposit_address_procedure(l2_address.pubkey)
+    deposit_address_response = GetDepositAddressResponse(**response.json)
+
+# This tests getting a deposit address twice for the same L2 address. 
+# Ensure that the second call returns the same Layer 1 deposit address as the first call.
+def test_generate_deposit_address_twice(client):
+    # Load config
+    config = load_config()
+
+    # Generate a new L2 address
+    l2_address = generate_new_address('L2 Address for deposit')
+    print(f"Generated L2 address: {l2_address.pubkey}")
+
+    # Generate nonce
+    nonce = generate_nonce()
+
+    # Generate message to sign for /getNewDepositAddress
+    message = KeyVerification.buildGetDepositAddressMessage(l2_address.pubkey, nonce)
+    signature = l2_address.sign(message)
+
+    # Get L1 deposit address for the first time
+    get_deposit_address_request = GetDepositAddressRequest(
+        layer2_address_pubkey=l2_address.pubkey,
+        nonce=nonce,
+        signature=signature
+    )
+    response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
+    assert is_successful_response(response)
+    verify_get_new_deposit_address_procedure(l2_address.pubkey)
+    
+    deposit_address_response_1 = GetDepositAddressResponse(**response.json)
+    deposit_address_1 = deposit_address_response_1.layer1_deposit_address
+
+    # Get L1 deposit address for the second time
+    response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
+    assert is_successful_response(response)
+    
+    deposit_address_response_2 = GetDepositAddressResponse(**response.json)
+    deposit_address_2 = deposit_address_response_2.layer1_deposit_address
+
+    # Ensure both responses have the same Layer 1 deposit address
+    assert deposit_address_1 == deposit_address_2
 
 if __name__ == '__main__':
     pytest.main()

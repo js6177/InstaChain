@@ -63,9 +63,6 @@ class WithdrawalRequests(Base):
     WITHDRAWAL_STATUS_BROADCASTED = 3  # the transaction has been broadcasted to the layer1 network but not confirmed
     WITHDRAWAL_STATUS_CONFIRMED = 4  # the transaction has been confirmed on the layer1 network
 
-    def to_dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
-
     def sign_withdrawal_request(self):
         message = self.layer1_address + ' ' + self.layer2_withdrawal_id + ' ' + self.layer2_transaction_id
 
