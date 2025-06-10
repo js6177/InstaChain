@@ -4,7 +4,7 @@ from database import Base, DatabaseSession, get_db
 import logging
 from Address import Address
 import ErrorMessage
-from typing import List
+from typing import List, Self
 from enum import Enum as PyEnum, auto
 from typing import Tuple
 import string
@@ -98,6 +98,9 @@ class Transaction(Base):
     TRX_WITHDRAWAL_CONFIRMED = 6  # when the withdrawal gets confirmed in the layer1 chain
     INSTRUCTION_GET_DEPOSIT_ADDRESS = 7 # instruction to get a deposit address
     INSTRUCTION_LAYER1_AUDIT = 8
+
+    def timestamp_as_unix_milliseconds(self):
+        return int(self.timestamp.timestamp() * 1000) #TODO: make actually accurate instead of rounding to 1000 milliseconds
 
     @staticmethod
     def put(db: DatabaseSession, instance):
@@ -255,7 +258,7 @@ class Transaction(Base):
 
 
     @staticmethod
-    def get_all_transactions(db: DatabaseSession, public_key: str):
+    def get_all_transactions(db: DatabaseSession, public_key: str) -> List['Transaction']:
         t1 = datetime.datetime.now()
         try:
             transactions = []

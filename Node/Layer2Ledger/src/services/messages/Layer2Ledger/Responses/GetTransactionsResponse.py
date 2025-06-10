@@ -15,10 +15,10 @@ class GetTransactionsResponseTransaction(BaseModel):
     amount: int = None
     destination_address_pubkey: str = None
     fee: int = None
-    layer1_transaction_id: str = None
-    layer2_withdrawal_id: str = None
+    layer1_transaction_id: str | None = None
+    layer2_withdrawal_id: str | None = None
     signature: str = None
-    signature_date: str = None
+    signature_date: str | None  = None
     source_address_pubkey: str = None
     timestamp: int = None
     transaction_id: str = None

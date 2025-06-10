@@ -96,7 +96,9 @@ class getAllTransactionsOfPublicKey(InstachainRequestHandler):
     def processRequest(self):
         transactions_list = []
         for public_key in list(self.request.public_keys)[:MAX_NUMBER_OF_GETTRANSACTIONS_ADDRESSES]:
-            transactions = Transaction.get_all_transactions(public_key)
+            all_transactions = []
+            with get_db() as db:
+                all_transactions = Transaction.get_all_transactions(db, public_key)
             transaction_group = TransactionGroup(
                 public_key=public_key,
                 transactions=[
@@ -109,10 +111,10 @@ class getAllTransactionsOfPublicKey(InstachainRequestHandler):
                         signature=transaction.signature,
                         signature_date=transaction.signature_date,
                         source_address_pubkey=transaction.source_address_pubkey,
-                        timestamp=transaction.timestamp,
-                        transaction_id=transaction.transaction_id,
+                        timestamp=transaction.timestamp_as_unix_milliseconds(),
+                        transaction_id=transaction.layer2_transaction_id,
                         transaction_type=transaction.transaction_type
-                    ) for transaction in transactions
+                    ) for transaction in all_transactions
                 ]
             )
             transactions_list.append(transaction_group)
