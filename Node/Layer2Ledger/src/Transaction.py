@@ -30,7 +30,7 @@ def add_fee(db: DatabaseSession, fee: int):
     """Add fee to the total fees stored in KeyValueStore."""
     return KeyValueStore.increment_int(db, 'fees', fee, 0)
 
-class AddressBalanceCache(Base):
+class Layer2AddressBalance(Base):
     __tablename__ = "address_balance_cache"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -41,7 +41,7 @@ class AddressBalanceCache(Base):
     @staticmethod
     def get(db: DatabaseSession, _address):
         try:
-            return db.query(AddressBalanceCache).filter(AddressBalanceCache.address == _address).first()
+            return db.query(Layer2AddressBalance).filter(Layer2AddressBalance.address == _address).first()
         except Exception as e:
             logging.error(f"Error getting address balance cache for {_address}: {e}")
             raise
@@ -50,7 +50,7 @@ class AddressBalanceCache(Base):
     def updateBalance(db: DatabaseSession, _address, amount, transactionIdToIgnore=None):
         t1 = datetime.datetime.now()
         try:
-            hit = db.query(AddressBalanceCache).filter(AddressBalanceCache.address == _address).first()
+            hit = db.query(Layer2AddressBalance).filter(Layer2AddressBalance.address == _address).first()
             if not hit:
                 final_balance = 0
                 (balance, balance_found) = Transaction.get_balance(db, _address, False, transactionIdToIgnore)
@@ -58,7 +58,7 @@ class AddressBalanceCache(Base):
                     final_balance = balance + amount
                 else:
                     final_balance = amount
-                hit = AddressBalanceCache(address=_address, balance=final_balance)
+                hit = Layer2AddressBalance(address=_address, balance=final_balance)
                 db.add(hit)
             else:
                 hit.balance += amount
@@ -190,8 +190,8 @@ class Transaction(Base):
 
                     updateAdressBalanceCache = (ADDRESS_BALANCE_CACHE_ENABLED and _transaction_type != Transaction.TRX_WITHDRAWAL_CONFIRMED)
                     if updateAdressBalanceCache:
-                        AddressBalanceCache.updateBalance(db, source.pubkey, -_amount, trx.layer2_transaction_id)
-                        AddressBalanceCache.updateBalance(db,_destination, _amount-_fee, trx.layer2_transaction_id)
+                        Layer2AddressBalance.updateBalance(db, source.pubkey, -_amount, trx.layer2_transaction_id)
+                        Layer2AddressBalance.updateBalance(db,_destination, _amount-_fee, trx.layer2_transaction_id)
                     add_fee(db, _fee)
                     status = ErrorMessage.ERROR_SUCCESS
                 else:
@@ -215,7 +215,7 @@ class Transaction(Base):
         balance_found_from_cache = False
 
         if useCache:
-            hit = AddressBalanceCache.get(db, address.pubkey)
+            hit = Layer2AddressBalance.get(db, address.pubkey)
             if hit:
                 balance = hit.balance
                 balance_found_from_cache = True
