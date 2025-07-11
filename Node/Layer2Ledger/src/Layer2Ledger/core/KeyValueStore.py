@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String
-from database import Base, DatabaseSession
+from Layer2Ledger.database.database import Base, DatabaseSession
 
 class KeyValueStore(Base):
     __tablename__ = "key_value_store"

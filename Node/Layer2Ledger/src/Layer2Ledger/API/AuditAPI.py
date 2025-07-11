@@ -8,7 +8,7 @@ from NodeInfoAPI import NODE_ID
 import GlobalLogging
 import KeyVerification
 import ErrorMessage
-from database import get_db
+from Layer2Ledger.database.database import get_db
 from services.messages.Layer2Ledger.Responses.GetLayer1AuditReportResponse import GetLayer1AuditReportResponse, Layer1AddressBalance
 from services.messages.Layer2Ledger.Requests.PostLayer1AuditReportRequest import PostLayer1AuditReportRequest
 from services.messages.Layer2Ledger.Responses.PostLayer1AuditReportResponse import PostLayer1AuditReportResponse

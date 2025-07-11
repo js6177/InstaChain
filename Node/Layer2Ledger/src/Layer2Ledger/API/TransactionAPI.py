@@ -9,7 +9,7 @@ import types
 from types import SimpleNamespace
 from InstaChainAPI import InstachainRequestHandler
 from NodeInfoAPI import NODE_ID
-from database import get_db
+from Layer2Ledger.database.database import get_db
 from signing_keys import ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY
 import GlobalLogging
 import KeyVerification

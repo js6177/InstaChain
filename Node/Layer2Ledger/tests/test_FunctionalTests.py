@@ -4,35 +4,35 @@ import time
 import pytest
 import random
 import string
-from Address import Address
-from config import load_config
+from Layer2Ledger.core import Address
+from Layer2Ledger.config import load_config
 import ecdsa
 import base58
-from main import app
+from Layer2Ledger.main import app
 
-from NodeInfoAPI import NODE_ID, NODE_ASSET_ID
-from Transaction import Transaction
+from Layer2Ledger.API.NodeInfoAPI import NODE_ID, NODE_ASSET_ID
+from Layer2Ledger.core.Transaction import Transaction
 from typing import TypedDict
-from services.messages.Layer2Ledger.Requests.DepositConfirmedRequest import DepositConfirmedRequest, DepositsConfirmed
-from services.messages.Layer2Ledger.Requests.GetTransactionsRequest import GetTransactionsRequest
-from services.messages.Layer2Ledger.Requests.GetWithdrawalRequestsRequest import GetWithdrawalRequestsRequest
-from services.messages.Layer2Ledger.Requests.WithdrawalBroadcastedRequest import WithdrawalBroadcastedRequest, Layer1BroadcastedWithdrawalTransaction
-from services.messages.Layer2Ledger.Requests.PushTransactionRequest import PushTransactionRequest
-from services.messages.Layer2Ledger.Requests.RequestWithdrawalRequest import RequestWithdrawalRequest
-from services.messages.Layer2Ledger.Requests.GetBalanceRequest import GetBalanceRequest
-from services.messages.Layer2Ledger.Requests.GetDepositAddressRequest import GetDepositAddressRequest
-from services.messages.Layer2Ledger.Requests.WithdrawalConfirmedRequest import Layer1WithdrawalConfirmedTransaction, WithdrawalConfirmedRequest
-from services.messages.Layer2Ledger.Responses.GetBalanceResponse import GetBalanceResponse
-from services.messages.Layer2Ledger.Responses.GetDepositAddressResponse import GetDepositAddressResponse
-from services.messages.Layer2Ledger.Requests.PostLayer1AuditReportRequest import PostLayer1AuditReportRequest, Layer1AddressBalance
-from services.messages.Layer2Ledger.Responses.GetLayer1AuditReportResponse import GetLayer1AuditReportResponse
-from services.messages.Layer2Ledger.Responses.GetWithdrawalRequestsResponse import GetWithdrawalRequestsResponse, WithdrawalRequest
-import signing_keys
-import KeyVerification
+from Layer2Ledger.services.messages.Layer2Ledger.Requests.DepositConfirmedRequest import DepositConfirmedRequest, DepositsConfirmed
+from Layer2Ledger.services.messages.Layer2Ledger.Requests.GetTransactionsRequest import GetTransactionsRequest
+from Layer2Ledger.services.messages.Layer2Ledger.Requests.GetWithdrawalRequestsRequest import GetWithdrawalRequestsRequest
+from Layer2Ledger.services.messages.Layer2Ledger.Requests.WithdrawalBroadcastedRequest import WithdrawalBroadcastedRequest, Layer1BroadcastedWithdrawalTransaction
+from Layer2Ledger.services.messages.Layer2Ledger.Requests.PushTransactionRequest import PushTransactionRequest
+from Layer2Ledger.services.messages.Layer2Ledger.Requests.RequestWithdrawalRequest import RequestWithdrawalRequest
+from Layer2Ledger.services.messages.Layer2Ledger.Requests.GetBalanceRequest import GetBalanceRequest
+from Layer2Ledger.services.messages.Layer2Ledger.Requests.GetDepositAddressRequest import GetDepositAddressRequest
+from Layer2Ledger.services.messages.Layer2Ledger.Requests.WithdrawalConfirmedRequest import Layer1WithdrawalConfirmedTransaction, WithdrawalConfirmedRequest
+from Layer2Ledger.services.messages.Layer2Ledger.Responses.GetBalanceResponse import GetBalanceResponse
+from Layer2Ledger.services.messages.Layer2Ledger.Responses.GetDepositAddressResponse import GetDepositAddressResponse
+from Layer2Ledger.services.messages.Layer2Ledger.Requests.PostLayer1AuditReportRequest import PostLayer1AuditReportRequest, Layer1AddressBalance
+from Layer2Ledger.services.messages.Layer2Ledger.Responses.GetLayer1AuditReportResponse import GetLayer1AuditReportResponse
+from Layer2Ledger.services.messages.Layer2Ledger.Responses.GetWithdrawalRequestsResponse import GetWithdrawalRequestsResponse, WithdrawalRequest
+import Layer2Ledger.core.signing_keys
+import Layer2Ledger.core.KeyVerification as KeyVerification
 
 #Imports for SQLAlchemy db classes
-from database import DatabaseSession, get_db
-import Onboarding
+from Layer2Ledger.database.database import DatabaseSession, get_db
+import Layer2Ledger.core.Onboarding as Onboarding
 
 #Helper functions for generating keys, addresses, nonces, etc...
 def generate_new_keypair() -> tuple[str, str]:

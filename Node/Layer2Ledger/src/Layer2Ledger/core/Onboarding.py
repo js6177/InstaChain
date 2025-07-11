@@ -2,7 +2,7 @@ import time
 from typing import List
 from sqlalchemy import Column, Integer, BigInteger, String, DateTime, Boolean, Text, ForeignKey
 from sqlalchemy.sql import func
-from database import Base, DatabaseSession, get_db
+from Layer2Ledger.database.database import Base, DatabaseSession, get_db
 import ErrorMessage
 import Address as Address
 import signing_keys
@@ -13,9 +13,9 @@ import random
 import string
 import datetime
 import math
-from utils import generate_btc_testnet_address
+from Layer2Ledger.utils.utils import generate_btc_testnet_address
 import GlobalLogging
-from config import get_config
+from Layer2Ledger.config import get_config
 import json
 
 DEPOSIT_WALLET_MASTER_PUBKEY = get_config('DEPOSIT_WALLET_MASTER_PUBKEY')

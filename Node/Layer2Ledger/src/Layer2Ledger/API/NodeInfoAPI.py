@@ -1,5 +1,5 @@
 import os
-import ErrorMessage
+import Layer2Ledger.core.ErrorMessage as ErrorMessage
 from InstaChainAPI import InstachainRequestHandler
 from services.messages.Layer2Ledger.Responses.GetNodeInfoResponse import GetNodeInfoResponse, NodeInfo, Layer1NetworkInfo, Version
 import json

@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, JSON, Text
 from sqlalchemy.sql import func
-from database import Base, DatabaseSession, get_db
+from Layer2Ledger.database.database import Base, DatabaseSession, get_db
 import ErrorMessage
 import KeyVerification
 import logging

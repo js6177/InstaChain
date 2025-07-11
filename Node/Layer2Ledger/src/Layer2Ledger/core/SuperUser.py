@@ -1,6 +1,6 @@
 from Transaction import Transaction, Layer2AddressBalance
 from Onboarding import WithdrawalRequests, DepositAddresses, MasterPublicKeyIndex, ConfirmedWithdrawals
-from database import get_db
+from Layer2Ledger.database.database import get_db
 from InstaChainAPI import InstachainRequestHandler
 
 MAX_TRANSACTIONS_TO_DELETE_PER_REQUEST = 10000

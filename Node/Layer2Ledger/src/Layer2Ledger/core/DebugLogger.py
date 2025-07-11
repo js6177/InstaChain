@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, Float
 from sqlalchemy.sql import func
-from database import Base, get_db
+from Layer2Ledger.database.database import Base, get_db
 import datetime
 
 TIMER_PRECISION = 3

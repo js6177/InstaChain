@@ -22,14 +22,14 @@
             "name": "Run Functional Tests",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/src/test_FunctionalTests.py",
+            "program": "${workspaceFolder}/tests/test_FunctionalTests.py",
             "console": "integratedTerminal"
         },
         {
             "name": "Run Unit Tests",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/src/test_Layer2AddressLock.py",
+            "program": "${workspaceFolder}/tests/test_Layer2AddressLock.py",
             "console": "integratedTerminal"
         },
         {

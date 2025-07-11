@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, BigInteger, String, DateTime, Boolean, Text, JSON, Enum
 from sqlalchemy.sql import func
-from database import Base, DatabaseSession, get_db
+from Layer2Ledger.database.database import Base, DatabaseSession, get_db
 import logging
 from Address import Address
 import ErrorMessage

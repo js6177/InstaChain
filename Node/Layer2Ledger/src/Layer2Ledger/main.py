@@ -1,11 +1,11 @@
 from flask import Flask
 from flask_cors import CORS
-import NodeInfoAPI
-import TransactionAPI
-import OnboardingAPI
-import AuditAPI
-import ExplorerAPI
-from database import Base, engine
+import Layer2Ledger.API.NodeInfoAPI as NodeInfoAPI
+import Layer2Ledger.API.TransactionAPI as TransactionAPI
+import Layer2Ledger.API.OnboardingAPI as OnboardingAPI
+import Layer2Ledger.API.AuditAPI as AuditAPI
+import Layer2Ledger.API.ExplorerAPI as ExplorerAPI
+from Layer2Ledger.database.database import Base, engine
 
 # Create all tables if they don't exist
 Base.metadata.create_all(bind=engine)
