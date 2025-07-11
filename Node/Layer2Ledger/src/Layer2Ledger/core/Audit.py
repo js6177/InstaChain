@@ -1,14 +1,14 @@
 from sqlalchemy import Column, Integer, String, DateTime, JSON, Text
 from sqlalchemy.sql import func
 from Layer2Ledger.database.database import Base, DatabaseSession, get_db
-import ErrorMessage
-import KeyVerification
+from Layer2Ledger.core import ErrorMessage
+from Layer2Ledger.core import KeyVerification
 import logging
 import random
 import string
 import datetime
 import math
-import GlobalLogging
+from Layer2Ledger.core import GlobalLogging
 
 class Layer1AuditReport(Base):
     __tablename__ = "layer1_audit_reports"

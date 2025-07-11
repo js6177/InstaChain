@@ -1,18 +1,16 @@
 import json
 from types import SimpleNamespace
-import Audit
-
-
-from InstaChainAPI import InstachainRequestHandler
-from NodeInfoAPI import NODE_ID
-import GlobalLogging
-import KeyVerification
-import ErrorMessage
+from Layer2Ledger.core import Audit
+from Layer2Ledger.API.InstaChainAPI import InstachainRequestHandler
+from Layer2Ledger.API.NodeInfoAPI import NODE_ID
+from Layer2Ledger.core import GlobalLogging
+from Layer2Ledger.core import KeyVerification
+from Layer2Ledger.core import ErrorMessage
 from Layer2Ledger.database.database import get_db
-from services.messages.Layer2Ledger.Responses.GetLayer1AuditReportResponse import GetLayer1AuditReportResponse, Layer1AddressBalance
-from services.messages.Layer2Ledger.Requests.PostLayer1AuditReportRequest import PostLayer1AuditReportRequest
-from services.messages.Layer2Ledger.Responses.PostLayer1AuditReportResponse import PostLayer1AuditReportResponse
-from services.messages.Layer2Ledger.Requests.GetLayer1AuditReportRequest import GetLayer1AuditReportRequest
+from Layer2Ledger.services.messages.Layer2Ledger.Responses.GetLayer1AuditReportResponse import GetLayer1AuditReportResponse, Layer1AddressBalance
+from Layer2Ledger.services.messages.Layer2Ledger.Requests.PostLayer1AuditReportRequest import PostLayer1AuditReportRequest
+from Layer2Ledger.services.messages.Layer2Ledger.Responses.PostLayer1AuditReportResponse import PostLayer1AuditReportResponse
+from Layer2Ledger.services.messages.Layer2Ledger.Requests.GetLayer1AuditReportRequest import GetLayer1AuditReportRequest
 
 #called from the node
 class postLayer1AuditReport(InstachainRequestHandler):

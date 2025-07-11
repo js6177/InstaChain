@@ -4,7 +4,7 @@ import time
 import pytest
 import random
 import string
-from Layer2Ledger.core import Address
+from Layer2Ledger.core.Address import Address
 from Layer2Ledger.config import load_config
 import ecdsa
 import base58

@@ -1,5 +1,5 @@
 import pytest
-from managers.Layer2AddressLock import layer2_address_lock
+from Layer2Ledger.managers.Layer2AddressLock import layer2_address_lock
 import threading
 
 def test_acquire_and_release():

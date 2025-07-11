@@ -1,9 +1,9 @@
 #file to verify various transactions' digital signatures
-import Address as Address
-import Transaction
+from Layer2Ledger.core import Address as Address
+from Layer2Ledger.core import Transaction
 import logging
-import signing_keys
-from NodeInfoAPI import NODE_ID, NODE_ASSET_ID
+from Layer2Ledger.core import signing_keys
+from Layer2Ledger.API.NodeInfoAPI import NODE_ID, NODE_ASSET_ID
 
 def verifyGetDepositAddress(source_pubkey, nonce, signature):
     message = buildGetDepositAddressMessage(source_pubkey, nonce)
