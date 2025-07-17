@@ -1,5 +1,6 @@
 annotated-types @ file:///home/conda/feedstock_root/build_artifacts/annotated-types_1733247046149/work
 asn1crypto==1.5.1
+astroid==3.3.10
 base58==2.1.1
 bip-utils==2.9.3
 blinker==1.9.0
@@ -11,29 +12,49 @@ click==8.1.8
 coincurve==20.0.0
 coverage @ file:///croot/coverage_1734018327576/work
 crcmod==1.7
+dill==0.4.0
 ecdsa==0.19.0
 ed25519-blake2b==1.4.1
+flake8==7.3.0
 Flask==3.1.0
 Flask-Cors==5.0.0
+gprof2dot==2025.4.14
 greenlet==3.1.1
 idna==3.10
 iniconfig==2.0.0
+isort==6.0.1
 itsdangerous==2.2.0
 Jinja2==3.1.5
+-e git+ssh://git@github.com/js6177/InstaChain.git@9f08ed624b33a62342dd2ca8101edd456481ade8#egg=layer2ledger&subdirectory=Node/Layer2Ledger
 MarkupSafe==3.0.2
+mccabe==0.7.0
+mypy==1.16.1
+mypy_extensions==1.1.0
 packaging==24.2
+pathspec==0.12.1
+platformdirs==4.3.8
 pluggy==1.5.0
+psycopg==3.2.9
+psycopg-binary==3.2.9
+psycopg-pool==3.2.6
 py-sr25519-bindings==0.2.1
+pycodestyle==2.14.0
 pycparser==2.22
 pycryptodome==3.21.0
 pydantic @ file:///home/conda/feedstock_root/build_artifacts/pydantic_1732286392017/work
 pydantic_core @ file:///croot/pydantic-core_1734726052986/work
+pyflakes==3.4.0
+pylint==3.3.7
 PyNaCl==1.5.0
 pytest==8.3.5
+pytest-profiling==1.8.1
 requests==2.32.3
 setuptools==75.8.0
 six==1.17.0
+snakeviz==2.2.2
 SQLAlchemy==2.0.38
+tomlkit==0.13.3
+tornado==6.5.1
 typing_extensions @ file:///home/conda/feedstock_root/build_artifacts/typing_extensions_1733188668063/work
 urllib3==2.3.0
 Werkzeug==3.1.3

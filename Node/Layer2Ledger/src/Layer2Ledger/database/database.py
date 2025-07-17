@@ -3,11 +3,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
+from Layer2Ledger.config.config import config
 
-
-# Replace with your database URL
-DATABASE_PATH = os.path.expanduser('~') + "/.IC/Layer2Ledger"
-DATABASE_URL = f"sqlite:///{DATABASE_PATH}/Layer2Ledger.db"  # Using SQLite for example
+# Construct the database URL from the configuration
+db_config = config.database_connection
+DATABASE_URL = f"{db_config.database_engine}+psycopg://{db_config.user}:{db_config.password}@{db_config.host}:{db_config.port}/{db_config.database_name}"
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

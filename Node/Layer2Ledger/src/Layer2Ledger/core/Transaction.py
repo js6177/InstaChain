@@ -86,7 +86,7 @@ class Transaction(Base):
     transaction_type = Column(Integer)
     layer2_transaction_id = Column(String, primary_key=True, index=True) # unique identifier for the transaction in layer 2
     signature = Column(String)
-    signature_date = Column(Integer)
+    signature_date = Column(BigInteger)
     layer1_transaction_id = Column(String)
     layer2_withdrawal_id = Column(String)
 

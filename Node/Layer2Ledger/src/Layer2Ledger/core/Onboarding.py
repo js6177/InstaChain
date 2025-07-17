@@ -55,7 +55,7 @@ class WithdrawalRequests(Base):
     layer2_withdrawal_id = Column(String, unique=True, index=True)
     server_signature = Column(String, nullable=True)  # signed with the onboarding key
     layer2_transaction_id = Column(String)  # transaction id that requested this withdrawal
-    withdrawal_requested_timestamp = Column(Integer)  # unix time in seconds
+    withdrawal_requested_timestamp = Column(BigInteger)  # unix time in seconds
     withdrawal_requested_timestamp_str = Column(DateTime(timezone=True), server_default=func.now())
 
     WITHDRAWAL_STATUS_PENDING = 1  # the Layer2Bridge has not queried this request
