@@ -1,6 +1,7 @@
 import time
 from typing import List
 from sqlalchemy import Column, Integer, BigInteger, String, DateTime, Boolean, Text, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 from Layer2Ledger.database.database import Base, DatabaseSession, get_db
 from Layer2Ledger.core import ErrorMessage
@@ -23,8 +24,8 @@ DEPOSIT_WALLET_MASTER_PUBKEY = config.DEPOSIT_WALLET_MASTER_PUBKEY
 class MasterPublicKeyIndex(Base):
     __tablename__ = "master_public_key_indices"
 
-    id = Column(Integer, primary_key=True, index=True)
-    mpk_index = Column(BigInteger, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    mpk_index: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
     @staticmethod
     def getIndexAndAtomicallyIncrement() -> int:
@@ -47,16 +48,16 @@ class MasterPublicKeyIndex(Base):
 class WithdrawalRequests(Base):
     __tablename__ = "withdrawal_requests"
 
-    id = Column(Integer, primary_key=True, index=True)
-    layer1_address = Column(String, index=True)  # layer1 address to withdraw to
-    layer1_transaction_id = Column(String, nullable=True)  # transaction id of the confirmed layer1 transaction
-    status = Column(Integer)  # status of this withdrawal
-    amount = Column(Integer)  # amount withdrawing
-    layer2_withdrawal_id = Column(String, unique=True, index=True)
-    server_signature = Column(String, nullable=True)  # signed with the onboarding key
-    layer2_transaction_id = Column(String)  # transaction id that requested this withdrawal
-    withdrawal_requested_timestamp = Column(BigInteger)  # unix time in seconds
-    withdrawal_requested_timestamp_str = Column(DateTime(timezone=True), server_default=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    layer1_address: Mapped[str] = mapped_column(String, index=True)
+    layer1_transaction_id: Mapped[str] = mapped_column(String, nullable=True)
+    status: Mapped[int] = mapped_column(Integer)
+    amount: Mapped[int] = mapped_column(Integer)
+    layer2_withdrawal_id: Mapped[str] = mapped_column(String, unique=True, index=True)
+    server_signature: Mapped[str] = mapped_column(String, nullable=True)
+    layer2_transaction_id: Mapped[str] = mapped_column(String)
+    withdrawal_requested_timestamp: Mapped[int] = mapped_column(BigInteger)
+    withdrawal_requested_timestamp_str: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     WITHDRAWAL_STATUS_PENDING = 1  # the Layer2Bridge has not queried this request
     WITHDRAWAL_STATUS_ACKNOWLEDGED = 2  # the Layer2Bridge has queried and ack'ed, but the transaction has not been broadcasted to the layer1 network
@@ -133,16 +134,16 @@ class WithdrawalRequests(Base):
 class ConfirmedWithdrawals(Base):
     __tablename__ = "confirmed_withdrawals"
 
-    id = Column(Integer, primary_key=True, index=True)
-    layer1_transaction_id = Column(String, index=True)
-    layer1_transaction_vout = Column(Integer)
-    layer1_address = Column(String, index=True)
-    amount = Column(Integer)
-    layer2_withdrawal_id = Column(String, unique=True, index=True)
-    broadcasted_signature = Column(String)
-    confirmed_signature = Column(String)
-    confirmed = Column(Boolean, default=False)
-    confirmation_timestamp_str = Column(DateTime(timezone=True), server_default=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    layer1_transaction_id: Mapped[str] = mapped_column(String, index=True)
+    layer1_transaction_vout: Mapped[int] = mapped_column(Integer)
+    layer1_address: Mapped[str] = mapped_column(String, index=True)
+    amount: Mapped[int] = mapped_column(Integer)
+    layer2_withdrawal_id: Mapped[str] = mapped_column(String, unique=True, index=True)
+    broadcasted_signature: Mapped[str] = mapped_column(String)
+    confirmed_signature: Mapped[str] = mapped_column(String)
+    confirmed: Mapped[bool] = mapped_column(Boolean, default=False)
+    confirmation_timestamp_str: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     @staticmethod
     def getWithdrawals(db: DatabaseSession, layer1_transaction_id, layer1_transaction_vout):
@@ -165,13 +166,13 @@ class ConfirmedWithdrawals(Base):
 class DepositAddresses(Base):
     __tablename__ = "deposit_addresses"
 
-    id = Column(Integer, primary_key=True, index=True)
-    layer2_address = Column(String, index=True)  # public key whose deposits should be credit towards
-    nonce = Column(String)
-    layer1_address = Column(String, unique=True, index=True)  # btc address they deposit funds into
-    signature = Column(String)  # when they get a deposit address, they will sign to verify that it belongs to them
-    date_requested = Column(DateTime(timezone=True), server_default=func.now())
-    mpk_index = Column(Integer)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    layer2_address: Mapped[str] = mapped_column(String, index=True)
+    nonce: Mapped[str] = mapped_column(String)
+    layer1_address: Mapped[str] = mapped_column(String, unique=True, index=True)
+    signature: Mapped[str] = mapped_column(String)
+    date_requested: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    mpk_index: Mapped[int] = mapped_column(Integer)
 
     @staticmethod
     def getLayer1DepositAddressFromLayer2AddressPubkey(db: DatabaseSession, _layer2_address):

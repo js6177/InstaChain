@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, Float
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 from Layer2Ledger.database.database import Base, get_db
 import datetime
@@ -9,12 +10,12 @@ TRANSACTION_DURATION_LOGGING_ENABLED = False
 class TransactionDuration(Base):
     __tablename__ = "transaction_durations"
 
-    id = Column(Integer, primary_key=True, index=True)
-    timestamp = Column(DateTime(timezone=True), server_default=func.now())
-    duration = Column(Float)
-    transaction_id = Column(String, index=True)
-    action = Column(String)
-    item_count = Column(Integer)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    timestamp: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    duration: Mapped[float] = mapped_column(Float)
+    transaction_id: Mapped[str] = mapped_column(String, index=True)
+    action: Mapped[str] = mapped_column(String)
+    item_count: Mapped[int] = mapped_column(Integer)
 
     @staticmethod
     def logDuration(previousTimestamp, _transaction_id, _action, _item_count = 0):

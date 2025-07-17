@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, JSON, Text
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 from Layer2Ledger.database.database import Base, DatabaseSession, get_db
 from Layer2Ledger.core import ErrorMessage
@@ -13,21 +14,21 @@ from Layer2Ledger.core import GlobalLogging
 class Layer1AuditReport(Base):
     __tablename__ = "layer1_audit_reports"
 
-    id = Column(Integer, primary_key=True, index=True)
-    blockHeight = Column(Integer, unique=True, index=True)
-    balance = Column(Integer)
-    layer1AddressBalances = Column(JSON)
-    timestamp = Column(DateTime(timezone=True), server_default=func.now())
-    signature = Column(Text)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    blockHeight: Mapped[int] = mapped_column(Integer, unique=True, index=True)
+    balance: Mapped[int] = mapped_column(Integer)
+    layer1AddressBalances: Mapped[dict] = mapped_column(JSON)
+    timestamp: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    signature: Mapped[str] = mapped_column(Text)
 
 
 class Layer1Addresses(Base):
     __tablename__ = "layer1_addresses"
 
-    id = Column(Integer, primary_key=True, index=True)
-    layer1Address = Column(String, unique=True, index=True)
-    balance = Column(Integer)
-    label = Column(Text)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    layer1Address: Mapped[str] = mapped_column(String, unique=True, index=True)
+    balance: Mapped[int] = mapped_column(Integer)
+    label: Mapped[str] = mapped_column(Text)
 
 def processLayer1AuditReport(blockheight: int, layer1AddressBalances: dict, totalBalance: int, signature: str):
     status = ErrorMessage.ERROR_SUCCESS

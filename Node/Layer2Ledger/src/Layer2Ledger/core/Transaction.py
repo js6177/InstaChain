@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, BigInteger, String, DateTime, Boolean, Text, JSON, Enum
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 from Layer2Ledger.database.database import Base, DatabaseSession, get_db
 import logging
@@ -33,10 +34,10 @@ def add_fee(db: DatabaseSession, fee: int):
 class Layer2AddressBalance(Base):
     __tablename__ = "address_balance_cache"
 
-    id = Column(Integer, primary_key=True, index=True)
-    address = Column(String, unique=True, index=True)
-    balance = Column(Integer)
-    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    address: Mapped[str] = mapped_column(String, unique=True, index=True)
+    balance: Mapped[int] = mapped_column(Integer)
+    timestamp: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     @staticmethod
     def get(db: DatabaseSession, _address):
@@ -78,17 +79,17 @@ class Layer2AddressBalance(Base):
 class Transaction(Base):
     __tablename__ = "transactions"
 
-    timestamp = Column(DateTime(timezone=True), server_default=func.now())
-    amount = Column(Integer)
-    fee = Column(Integer)
-    source_address_pubkey = Column(String, index=True)
-    destination_address_pubkey = Column(String, index=True)
-    transaction_type = Column(Integer)
-    layer2_transaction_id = Column(String, primary_key=True, index=True) # unique identifier for the transaction in layer 2
-    signature = Column(String)
-    signature_date = Column(BigInteger)
-    layer1_transaction_id = Column(String)
-    layer2_withdrawal_id = Column(String)
+    timestamp: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    amount: Mapped[int] = mapped_column(Integer)
+    fee: Mapped[int] = mapped_column(Integer)
+    source_address_pubkey: Mapped[str] = mapped_column(String, index=True)
+    destination_address_pubkey: Mapped[str] = mapped_column(String, index=True)
+    transaction_type: Mapped[int] = mapped_column(Integer)
+    layer2_transaction_id: Mapped[str] = mapped_column(String, primary_key=True, index=True)
+    signature: Mapped[str] = mapped_column(String)
+    signature_date: Mapped[int] = mapped_column(BigInteger)
+    layer1_transaction_id: Mapped[str] = mapped_column(String)
+    layer2_withdrawal_id: Mapped[str] = mapped_column(String)
 
     TRX_TRANSFER = 1  # regular 2nd layer transfer
     TRX_DEPOSIT = 2  # when a user deposits btc to a deposit address, then funds get credited to his pubkey

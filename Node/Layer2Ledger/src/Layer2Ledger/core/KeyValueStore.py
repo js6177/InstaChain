@@ -1,11 +1,12 @@
 from sqlalchemy import Column, String
+from sqlalchemy.orm import Mapped, mapped_column
 from Layer2Ledger.database.database import Base, DatabaseSession
 
 class KeyValueStore(Base):
     __tablename__ = "key_value_store"
 
-    key = Column(String, primary_key=True, index=True)
-    value = Column(String, nullable=False)
+    key: Mapped[str] = mapped_column(String, primary_key=True, index=True)
+    value: Mapped[str] = mapped_column(String, nullable=False)
 
     @staticmethod
     def get(db: DatabaseSession, key: str, default: str = None) -> str:
