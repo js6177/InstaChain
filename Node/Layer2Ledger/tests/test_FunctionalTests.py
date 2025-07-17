@@ -5,7 +5,7 @@ import pytest
 import random
 import string
 from Layer2Ledger.core.Address import Address
-from Layer2Ledger.config import load_config
+from Layer2Ledger.config.config import config
 import ecdsa
 import base58
 from Layer2Ledger.main import app
@@ -155,8 +155,7 @@ def client():
 
 # This test will generate a new L2 address, get a new deposit address for it, simulate a deposit, and check the balance of the L2 address
 def test_deposit_and_check_balance(client):
-    # Load config
-    config = load_config()
+
     
     # Generate L2 address
     #l2_address_priv_key, l2_address_pub_key = generate_new_keypair()
@@ -190,7 +189,7 @@ def test_deposit_and_check_balance(client):
     layer1_transaction_id = generate_nonce()
     layer1_transaction_vout = 0
     deposit_message = KeyVerification.buildDepositMessage(layer1_transaction_id, layer1_transaction_vout, deposit_address, deposit_amount, deposit_nonce)
-    onboarding_transaction_signing_address = Address.fromPrivateKey(config['Functional_Tests']['Onboarding_Deposit_Address']['private_key'])
+    onboarding_transaction_signing_address = Address.fromPrivateKey(config.Onboarding_Deposit_Address.private_key)
     signature = onboarding_transaction_signing_address.sign(deposit_message)
     
     deposit_data = DepositConfirmedRequest(
@@ -227,8 +226,7 @@ def test_deposit_and_check_balance(client):
 # and transfers funds from the first L2 address to the second L2 address.
 # The test ensures the final balance of the second L2 address is the transfer amount minus any fees.
 def test_deposit_and_transfer(client):
-    # Load config
-    config = load_config()
+
     
     # Generate L2 addresses
     l2_address_1 = generate_new_address('L2 Address 1 for deposit')
@@ -260,7 +258,7 @@ def test_deposit_and_transfer(client):
     layer1_transaction_id = generate_nonce()
     layer1_transaction_vout = 0
     deposit_message = KeyVerification.buildDepositMessage(layer1_transaction_id, layer1_transaction_vout, deposit_address, deposit_amount, deposit_nonce)
-    onboarding_transaction_signing_address = Address.fromPrivateKey(config['Functional_Tests']['Onboarding_Deposit_Address']['private_key'])
+    onboarding_transaction_signing_address = Address.fromPrivateKey(config.Onboarding_Deposit_Address.private_key)
     signature = onboarding_transaction_signing_address.sign(deposit_message)
     
     deposit_data = DepositConfirmedRequest(
@@ -324,8 +322,7 @@ def test_deposit_and_transfer(client):
 
 # This test transfers funds and tests to see if it gets the transactions of a L2 address
 def test_deposit_transfer_get_transactions(client):
-    # Load config
-    config = load_config()
+
     
     # Generate L2 addresses
     l2_address_1 = generate_new_address('L2 Address 1 for deposit')
@@ -357,7 +354,7 @@ def test_deposit_transfer_get_transactions(client):
     layer1_transaction_id = generate_nonce()
     layer1_transaction_vout = 0
     deposit_message = KeyVerification.buildDepositMessage(layer1_transaction_id, layer1_transaction_vout, deposit_address, deposit_amount, deposit_nonce)
-    onboarding_transaction_signing_address = Address.fromPrivateKey(config['Functional_Tests']['Onboarding_Deposit_Address']['private_key'])
+    onboarding_transaction_signing_address = Address.fromPrivateKey(config.Onboarding_Deposit_Address.private_key)
     signature = onboarding_transaction_signing_address.sign(deposit_message)
     
     deposit_data = DepositConfirmedRequest(
@@ -417,8 +414,7 @@ def test_deposit_transfer_get_transactions(client):
 # This test generates a new L2 address, gets a deposit address, simulates a deposit, and withdraws to a new L1 address.
 # The test ensures the final L2 balance is the deposit amount minus the withdrawal amount minus any fees.
 def test_deposit_and_withdraw(client):
-    # Load config
-    config = load_config()
+
     
     # Generate L2 address
     l2_address = generate_new_address('L2 Address for deposit and withdrawal')
@@ -449,7 +445,7 @@ def test_deposit_and_withdraw(client):
     layer1_transaction_id = generate_nonce()
     layer1_transaction_vout = 0
     deposit_message = KeyVerification.buildDepositMessage(layer1_transaction_id, layer1_transaction_vout, deposit_address, deposit_amount, deposit_nonce)
-    onboarding_transaction_signing_address = Address.fromPrivateKey(config['Functional_Tests']['Onboarding_Deposit_Address']['private_key'])
+    onboarding_transaction_signing_address = Address.fromPrivateKey(config.Onboarding_Deposit_Address.private_key)
     signature = onboarding_transaction_signing_address.sign(deposit_message)
     
     deposit_data = DepositConfirmedRequest(
@@ -515,8 +511,7 @@ def test_deposit_and_withdraw(client):
 # This test generates a new L2 address, gets a deposit address, simulates a deposit, and withdraws to a new L1 address.
 # Then simulates a Layer2Bridge Layer1 withdrawal broadcast, and checks to see if the withdrawal was added to ConfirmedWithdrawals with confirmed = False, and the layer2 Transaction.layer1_transaction_id is null
 def test_deposit_and_withdraw_broadcast(client):
-    # Load config
-    config = load_config()
+
 
     # Generate L2 address
     l2_address = generate_new_address('L2 Address for deposit and withdrawal broadcast')
@@ -547,7 +542,7 @@ def test_deposit_and_withdraw_broadcast(client):
     layer1_transaction_id = generate_nonce()
     layer1_transaction_vout = 0
     deposit_message = KeyVerification.buildDepositMessage(layer1_transaction_id, layer1_transaction_vout, deposit_address, deposit_amount, deposit_nonce)
-    onboarding_transaction_signing_address = Address.fromPrivateKey(config['Functional_Tests']['Onboarding_Deposit_Address']['private_key'])
+    onboarding_transaction_signing_address = Address.fromPrivateKey(config.Onboarding_Deposit_Address.private_key)
     signature = onboarding_transaction_signing_address.sign(deposit_message)
 
     deposit_data = DepositConfirmedRequest(
@@ -623,8 +618,7 @@ def test_deposit_and_withdraw_broadcast(client):
 # Then simulates a Layer2Bridge Layer1 withdrawal broadcast.
 # Then simulates a Layer2Bridge Layer1 withdrawal confirmed and checks to see if the withdrawal was added to ConfirmedWithdrawals with confirmed = True, and the layer2 Transaction.layer1_transaction_id is transaction_id of the confirmed withdrawal
 def test_deposit_and_withdraw_broadcast_confirmed(client):
-    # Load config
-    config = load_config()
+
 
     # Generate L2 address
     l2_address = generate_new_address('L2 Address for deposit and withdrawal broadcast')
@@ -657,7 +651,7 @@ def test_deposit_and_withdraw_broadcast_confirmed(client):
     layer1_transaction_id = generate_nonce()
     layer1_transaction_vout = 0
     deposit_message = KeyVerification.buildDepositMessage(layer1_transaction_id, layer1_transaction_vout, deposit_address, deposit_amount, deposit_nonce)
-    onboarding_transaction_signing_address = Address.fromPrivateKey(config['Functional_Tests']['Onboarding_Deposit_Address']['private_key'])
+    onboarding_transaction_signing_address = Address.fromPrivateKey(config.Onboarding_Deposit_Address.private_key)
     signature = onboarding_transaction_signing_address.sign(deposit_message)
 
     deposit_data = DepositConfirmedRequest(
@@ -767,8 +761,7 @@ def test_deposit_and_withdraw_broadcast_confirmed(client):
 # Test for postLayer1AuditReport and getLayer1AuditReport
 # Updated test to use the message building logic from verifyLayer1AuditReportSignature
 def test_layer1_audit_report(client):
-    # Load config
-    config = load_config()
+
 
     # Generate test data for postLayer1AuditReport
     layer1_address_balances = [
@@ -782,7 +775,7 @@ def test_layer1_audit_report(client):
     message = KeyVerification.buildLayer1AuditReportMessage(block_height, total_balance)
 
     # Generate the signature using the signing key
-    onboarding_transaction_signing_address = Address.fromPrivateKey(config['Functional_Tests']['Onboarding_Deposit_Address']['private_key'])
+    onboarding_transaction_signing_address = Address.fromPrivateKey(config.Onboarding_Deposit_Address.private_key)
     signature = onboarding_transaction_signing_address.sign(message).decode('utf-8')
 
     post_audit_request = PostLayer1AuditReportRequest(
@@ -808,8 +801,7 @@ def test_layer1_audit_report(client):
 
 #Tests to make sure the first MPK/DepositAddress is generated correctly
 def test_delete_mpk_table_get_deposit_address(client):
-    # Load config
-    config = load_config()
+
 
     # Delete the MPK table
     drop_MasterPublicKeyIndex_DepositAddresses_tables()
@@ -839,8 +831,7 @@ def test_delete_mpk_table_get_deposit_address(client):
 # This tests getting a deposit address twice for the same L2 address. 
 # Ensure that the second call returns the same Layer 1 deposit address as the first call.
 def test_generate_deposit_address_twice(client):
-    # Load config
-    config = load_config()
+
 
     # Generate a new L2 address
     l2_address = generate_new_address('L2 Address for deposit')

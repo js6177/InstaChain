@@ -3,13 +3,13 @@ import Layer2Ledger.core.ErrorMessage as ErrorMessage
 from Layer2Ledger.API.InstaChainAPI import InstachainRequestHandler
 from Layer2Ledger.services.messages.Layer2Ledger.Responses.GetNodeInfoResponse import GetNodeInfoResponse, NodeInfo, Layer1NetworkInfo, Version
 import json
-from Layer2Ledger.config import get_config, get_int_config
+from Layer2Ledger.config.config import config
 
 #unique randomly generated alphanumeric string valid for the lifetime of the node + ledger
 #used as a nonce for signing transactions to prevent cross-node relay attacks, has no cryptographic value 
-NODE_ID = get_config('NODE_ID')
+NODE_ID = config.NODE_ID
 
-DEPOSIT_WALLET_MASTER_PUBKEY = get_config('DEPOSIT_WALLET_MASTER_PUBKEY')
+DEPOSIT_WALLET_MASTER_PUBKEY = config.DEPOSIT_WALLET_MASTER_PUBKEY
 
 #lower 32 bits are used to specify the asset
 ASSET_BITCOIN = 1
@@ -19,7 +19,7 @@ ASSET_TESTNET_FLAG = (1 << 32) #bit 32 is the testnet flag
 ASSET_STABLECOIN_FLAG = (1 << 33)
 
 #minimum transaction amount for withdrawals
-MINIMUM_LAYER1_TRANSACTION_AMOUNT = get_int_config('MINIMUM_LAYER1_TRANSACTION_AMOUNT', 1000)
+MINIMUM_LAYER1_TRANSACTION_AMOUNT = config.MINIMUM_LAYER1_TRANSACTION_AMOUNT
 
 # variable that holds what asset the node supports
 # For now, a node can support only 1 asset, though in the future, multi-asset nodes are possible

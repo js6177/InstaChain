@@ -15,10 +15,10 @@ import datetime
 import math
 from Layer2Ledger.utils.utils import generate_btc_testnet_address
 from Layer2Ledger.core import GlobalLogging
-from Layer2Ledger.config import get_config
+from Layer2Ledger.config.config import config
 import json
 
-DEPOSIT_WALLET_MASTER_PUBKEY = get_config('DEPOSIT_WALLET_MASTER_PUBKEY')
+DEPOSIT_WALLET_MASTER_PUBKEY = config.DEPOSIT_WALLET_MASTER_PUBKEY
 
 class MasterPublicKeyIndex(Base):
     __tablename__ = "master_public_key_indices"
