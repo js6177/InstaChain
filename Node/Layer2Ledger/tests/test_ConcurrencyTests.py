@@ -11,17 +11,20 @@ from Layer2Ledger.services.messages.Layer2Ledger.Requests.PushTransactionRequest
 from Layer2Ledger.services.messages.Layer2Ledger.Requests.GetBalanceRequest import GetBalanceRequest
 from Layer2Ledger.core.Address import Address
 from Layer2Ledger.config.config import config
+from Layer2Ledger.services.messages.Layer2Ledger.Responses.GetDepositAddressResponse import GetDepositAddressResponse
+from Layer2Ledger.services.messages.Layer2Ledger.Responses.GetBalanceResponse import GetBalanceResponse
+from Layer2Ledger.services.messages.Layer2Ledger.Responses.CommonResponse import CommonResponse
 
 BASE_URL = "http://127.0.0.1:8084"
 
-def is_successful_response(response) -> bool:
-    return response.status_code == 200 and response.json()['error_code'] == 0
+def is_successful_response(response, response_model) -> bool:
+    return response.status_code == 200 and response_model.error_code == 0
 
 @pytest.mark.asyncio
 async def test_concurrent_transfers():
     num_receivers = 100
     amount_per_receiver = 100
-    fee_per_transfer = 2
+    fee_per_transfer = 1
     total_transfer_amount = num_receivers * amount_per_receiver
     deposit_amount = total_transfer_amount-1  # Sender will not have enough for fees
 
@@ -39,8 +42,9 @@ async def test_concurrent_transfers():
             signature=signature
         )
         response = await client.post(f"{BASE_URL}/getNewDepositAddress", json=get_deposit_address_request.model_dump())
-        assert is_successful_response(response)
-        deposit_address = response.json()['layer1_deposit_address']
+        deposit_address_response = GetDepositAddressResponse(**response.json())
+        assert is_successful_response(response, deposit_address_response)
+        deposit_address = deposit_address_response.layer1_deposit_address
 
         # 2. Deposit funds to sender
         deposit_nonce = generate_nonce()
@@ -61,7 +65,8 @@ async def test_concurrent_transfers():
             ]
         )
         response = await client.post(f"{BASE_URL}/depositFunds", json=deposit_data.model_dump())
-        assert is_successful_response(response)
+        deposit_response = CommonResponse(**response.json())
+        assert is_successful_response(response, deposit_response)
 
         # 3. Concurrently send funds to all receivers
         start_time = time.time()
@@ -90,12 +95,14 @@ async def test_concurrent_transfers():
         print(f"Concurrent transfers completed in {duration:.2f} seconds.")
 
         # 4. Verify at least one transaction failed
-        assert any(not is_successful_response(res) for res in responses)
+        parsed_responses = [CommonResponse(**res.json()) for res in responses]
+        assert any(res.error_code != 0 for res in parsed_responses)
 
         # 5. Verify sender's final balance is not negative
         balance_request = GetBalanceRequest(public_keys=[sender.pubkey])
         response = await client.post(f"{BASE_URL}/getBalance", json=balance_request.model_dump())
-        assert is_successful_response(response)
-        sender_balance = response.json()['balance'][0]['balance']
+        balance_response = GetBalanceResponse(**response.json())
+        assert is_successful_response(response, balance_response)
+        sender_balance = balance_response.balance[0].balance
         assert sender_balance >= 0
         print(f"Sender's final balance: {sender_balance}")
