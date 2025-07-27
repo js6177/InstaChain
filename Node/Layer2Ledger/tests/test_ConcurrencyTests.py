@@ -96,7 +96,13 @@ async def test_concurrent_transfers():
 
         # 4. Verify at least one transaction failed
         parsed_responses = [CommonResponse(**res.json()) for res in responses]
-        assert any(res.error_code != 0 for res in parsed_responses)
+        successful_transfers = sum(1 for res in parsed_responses if res.error_code == 0)
+        failed_transfers = len(parsed_responses) - successful_transfers
+
+        print(f"Successful transfers: {successful_transfers}")
+        print(f"Failed transfers: {failed_transfers}")
+
+        assert failed_transfers > 0
 
         # 5. Verify sender's final balance is not negative
         balance_request = GetBalanceRequest(public_keys=[sender.pubkey])
