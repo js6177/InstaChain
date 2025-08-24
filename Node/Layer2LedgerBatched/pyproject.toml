@@ -1,0 +1,22 @@
+[project]
+name = "layer2ledgerbatched"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "asyncpg>=0.30.0",
+    "base58>=2.1.1",
+    "fastapi>=0.116.1",
+    "fastecdsa>=3.0.1",
+    "httpx>=0.28.1",
+    "pydantic>=2.11.7",
+    "redis[hiredis]>=6.4.0",
+    "sqlalchemy[asyncio]>=2.0.43",
+    "uvicorn>=0.35.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.17.1",
+]
