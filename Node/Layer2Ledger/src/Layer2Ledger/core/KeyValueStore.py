@@ -1,6 +1,6 @@
-from sqlalchemy import Column, String
+from sqlalchemy import Column, String, select
 from sqlalchemy.orm import Mapped, mapped_column
-from Layer2Ledger.database.database import Base, DatabaseSession
+from Layer2Ledger.database.database import Base, AsyncSession
 
 class KeyValueStore(Base):
     __tablename__ = "key_value_store"
@@ -9,17 +9,19 @@ class KeyValueStore(Base):
     value: Mapped[str] = mapped_column(String, nullable=False)
 
     @staticmethod
-    def get(db: DatabaseSession, key: str, default: str = None) -> str:
+    async def get(db: AsyncSession, key: str, default: str = None) -> str:
         """Get a value from the store by key."""
-        row = db.query(KeyValueStore).filter(KeyValueStore.key == key).first()
+        result = await db.execute(select(KeyValueStore).filter(KeyValueStore.key == key))
+        row = result.scalars().first()
         return row.value if row else default
 
 
     @staticmethod
-    def set(db: DatabaseSession, key: str, value: str):
+    async def set(db: AsyncSession, key: str, value: str):
         """Set a value in the store by key."""
         try:
-            row = db.query(KeyValueStore).filter(KeyValueStore.key == key).first()
+            result = await db.execute(select(KeyValueStore).filter(KeyValueStore.key == key))
+            row = result.scalars().first()
             if not row:
                 row = KeyValueStore(key=key, value=value)
                 db.add(row)
@@ -30,10 +32,11 @@ class KeyValueStore(Base):
 
 
     @staticmethod
-    def increment_int(db: DatabaseSession, key: str, increment: int = 1, default: int = 0) -> int:
+    async def increment_int(db: AsyncSession, key: str, increment: int = 1, default: int = 0) -> int:
         """Increment an integer value in the store."""
         try:
-            row = db.query(KeyValueStore).filter(KeyValueStore.key == key).first()
+            result = await db.execute(select(KeyValueStore).filter(KeyValueStore.key == key))
+            row = result.scalars().first()
             if not row:
                 current_value = default
                 row = KeyValueStore(key=key, value=str(current_value))

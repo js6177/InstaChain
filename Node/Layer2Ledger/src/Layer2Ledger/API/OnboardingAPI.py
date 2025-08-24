@@ -12,8 +12,8 @@ import time
 import logging
 import json
 from types import SimpleNamespace
-from Layer2Ledger.API.NodeInfoAPI import NODE_ID
 from Layer2Ledger.API.InstaChainAPI import InstachainRequestHandler
+from Layer2Ledger.API.NodeInfoAPI import NODE_ID
 from Layer2Ledger.core import GlobalLogging
 from Layer2Ledger.core import KeyVerification
 from typing import List, TypedDict
@@ -26,14 +26,16 @@ from Layer2Ledger.services.messages.Layer2Ledger.Requests.WithdrawalConfirmedReq
 from Layer2Ledger.services.messages.Layer2Ledger.Requests.DepositConfirmedRequest import DepositConfirmedRequest
 from Layer2Ledger.services.messages.Layer2Ledger.Responses.GetWithdrawalRequestsResponse import GetWithdrawalRequestsResponse, WithdrawalRequest
 from Layer2Ledger.services.messages.Layer2Ledger.Responses.AckWithdrawalRequestsResponse import AckWithdrawalRequestsResponse
+from Layer2Ledger.database.database import get_db, AsyncSession
+from fastapi import Depends, Request
 
 # This API is called by the user to request a withdrawal to the layer1 address
 class withdrawalRequest(InstachainRequestHandler):
-    def getParameters(self):
-        request_dict = self.getPostJsonParams()
+    async def getParameters(self, request: Request):
+        request_dict = await self.getPostJsonParams(request)
         self.request: RequestWithdrawalRequest = RequestWithdrawalRequest(**request_dict)
 
-    def processRequest(self):
+    async def processRequest(self, db: AsyncSession = Depends(get_db)):
         amount = int(self.request.amount)  
         message = KeyVerification.buildWithdrawalRequestMessage(
             self.request.source_address_public_key,  
@@ -41,7 +43,8 @@ class withdrawalRequest(InstachainRequestHandler):
             self.request.layer2_transaction_id,  
             amount
         )
-        status = Transaction.process_transaction(
+        status = await Transaction.process_transaction(
+            db,
             Transaction.TRX_WITHDRAWAL_INITIATED,
             amount,
             0,
@@ -56,12 +59,12 @@ class withdrawalRequest(InstachainRequestHandler):
 
 # This API is called by the Layer2Bridge to get the withdrawals to withdraw funds to the layer1 address
 class getWithdrawalRequests(InstachainRequestHandler):
-    def getParameters(self):
-        request_dict = self.getPostJsonParams()
+    async def getParameters(self, request: Request):
+        request_dict = await self.getPostJsonParams(request)
         self.request: GetWithdrawalRequestsRequest = GetWithdrawalRequestsRequest(**request_dict)
 
-    def processRequest(self):
-        withdrawalRequests = Onboarding.getWithdrawalRequests(self.request.latest_timestamp)
+    async def processRequest(self, db: AsyncSession = Depends(get_db)):
+        withdrawalRequests = await Onboarding.getWithdrawalRequests(db, self.request.latest_timestamp)
         withdrawal_requests_data = [
             WithdrawalRequest(
                 layer1_address=req.layer1_address,
@@ -83,12 +86,12 @@ class getWithdrawalRequests(InstachainRequestHandler):
 
 # This API is called by the Layer2Bridge to signal that it has received the withdrawal requests 
 class ackWithdrawalRequests(InstachainRequestHandler):
-    def getParameters(self):
-        request_dict = self.getPostJsonParams()
+    async def getParameters(self, request: Request):
+        request_dict = await self.getPostJsonParams(request)
         self.request: AckWithdrawalRequestsRequest = AckWithdrawalRequestsRequest(**request_dict)
 
-    def processRequest(self):
-        Onboarding.ackWithdrawalRequests(self.request.layer2_withdrawal_ids)
+    async def processRequest(self, db: AsyncSession = Depends(get_db)):
+        await Onboarding.ackWithdrawalRequests(db, self.request.layer2_withdrawal_ids)
         self.result = AckWithdrawalRequestsResponse(
             error_code=ErrorMessage.ERROR_SUCCESS,
             error_message=ErrorMessage.get_error_message(ErrorMessage.ERROR_SUCCESS)
@@ -96,13 +99,13 @@ class ackWithdrawalRequests(InstachainRequestHandler):
 
 # This API is called by the Layer2Bridge to signal that the withdrawal requests have been broadcasted but not confirmed on the layer1
 class withdrawalBroadcasted(InstachainRequestHandler):
-    def getParameters(self):
-        request_dict = self.getPostJsonParams()
+    async def getParameters(self, request: Request):
+        request_dict = await self.getPostJsonParams(request)
         self.request: WithdrawalBroadcastedRequest = WithdrawalBroadcastedRequest(**request_dict)
-    def processRequest(self):
+    async def processRequest(self, db: AsyncSession = Depends(get_db)):
         transactionResults: List[Layer1BroadcastedWithdrawalTransactionStatus] = []
         for trx in self.request.transactions:
-            error = Onboarding.withdrawalBroadcasted(trx.layer1_transaction_id, trx.layer1_transaction_vout, trx.layer1_address, trx.amount, trx.layer2_withdrawal_id, trx.signature)
+            error = await Onboarding.withdrawalBroadcasted(db, trx.layer1_transaction_id, trx.layer1_transaction_vout, trx.layer1_address, trx.amount, trx.layer2_withdrawal_id, trx.signature)
             layer1TransactionResult = Layer1BroadcastedWithdrawalTransactionStatus(
                 layer2_withdrawal_id=trx.layer2_withdrawal_id,
                 error_code=error,
@@ -117,13 +120,13 @@ class withdrawalBroadcasted(InstachainRequestHandler):
 
 # This API is called by the Layer2Bridge to signal that the withdrawal requests have been confirmed on the layer1 network
 class withdrawalConfirmed(InstachainRequestHandler):
-    def getParameters(self):
-        request_dict = self.getPostJsonParams()
+    async def getParameters(self, request: Request):
+        request_dict = await self.getPostJsonParams(request)
         self.request: WithdrawalConfirmedRequest = WithdrawalConfirmedRequest(**request_dict)
-    def processRequest(self):
+    async def processRequest(self, db: AsyncSession = Depends(get_db)):
         transactionResults = []
         for trx in self.request.transactions:
-            error_code = Onboarding.withdrawalConfirmed(trx.layer1_transaction_id, trx.layer1_transaction_vout, trx.layer1_address, trx.amount, trx.signature)
+            error_code = await Onboarding.withdrawalConfirmed(db, trx.layer1_transaction_id, trx.layer1_transaction_vout, trx.layer1_address, trx.amount, trx.signature)
             layer1TransactionResult = Layer1WithdrawalConfirmedTransactionStatus(
                 layer1_transaction_id=trx.layer1_transaction_id,
                 layer1_transaction_vout=trx.layer1_transaction_vout,
@@ -141,20 +144,20 @@ class withdrawalConfirmed(InstachainRequestHandler):
 # This API is called by the Layer2Bridge to signal that the withdrawal requests have been canceled
 # Currenty, this is not used
 class withdrawalCanceled(InstachainRequestHandler):
-    def getParameters(self):
-        request_dict = self.getPostJsonParams()
+    async def getParameters(self, request: Request):
+        request_dict = await self.getPostJsonParams(request)
         self.request: WithdrawalCanceledRequest = WithdrawalCanceledRequest(**request_dict)
-    def processRequest(self):
-        rslt = Onboarding.withdrawalCanceled(self.request.source_address_public_key, self.request.transaction_id, self.request.amount, self.request.signature)
+    async def processRequest(self, db: AsyncSession = Depends(get_db)):
+        rslt = await Onboarding.withdrawalCanceled(db, self.request.source_address_public_key, self.request.transaction_id, self.request.amount, self.request.signature)
         self.result = ErrorMessage.build_error_message(rslt)
 
 class getNewDepositAddress(InstachainRequestHandler):
-    def getParameters(self):
-        request_dict = self.getPostJsonParams()
+    async def getParameters(self, request: Request):
+        request_dict = await self.getPostJsonParams(request)
         self.request = GetDepositAddressRequest(**request_dict)
 
-    def processRequest(self):
-        rslt, address = Onboarding.getDepositAddress(self.request.layer2_address_pubkey, self.request.nonce, self.request.signature)
+    async def processRequest(self, db: AsyncSession = Depends(get_db)):
+        rslt, address = await Onboarding.getDepositAddress(db, self.request.layer2_address_pubkey, self.request.nonce, self.request.signature)
         self.result = GetDepositAddressResponse(
             **ErrorMessage.build_error_message(rslt),
             layer1_deposit_address=address if rslt == ErrorMessage.ERROR_SUCCESS else ""
@@ -162,21 +165,22 @@ class getNewDepositAddress(InstachainRequestHandler):
         print("getNewDepositAddress: ", self.result)
 
 class verifyDepositAddress(InstachainRequestHandler):
-    def getParameters(self):
+    async def getParameters(self, request: Request):
         pass
-    def processRequest(self):
+    async def processRequest(self, db: AsyncSession = Depends(get_db)):
         pass
 
 # This API is called by the Layer2Bridge to signal that a new deposit has been received and confirmed on the layer1 network
 class depositConfirmed(InstachainRequestHandler):
-    def getParameters(self):
-        request_dict = self.getPostJsonParams()
+    async def getParameters(self, request: Request):
+        request_dict = await self.getPostJsonParams(request)
         self.request: DepositConfirmedRequest = DepositConfirmedRequest(**request_dict)
 
-    def processRequest(self):
+    async def processRequest(self, db: AsyncSession = Depends(get_db)):
         transactionResults = []
         for trx in self.request.transactions:
-            error_code = Onboarding.depositConfirmed(
+            error_code = await Onboarding.depositConfirmed(
+                    db,
                     trx.layer1_transaction_id,
                     trx.layer1_transaction_vout,
                     trx.layer1_address,

@@ -1,7 +1,7 @@
-from sqlalchemy import Column, Integer, BigInteger, String, DateTime, Boolean, Text, JSON, Enum
+from sqlalchemy import Column, Integer, BigInteger, String, DateTime, Boolean, Text, JSON, Enum, select
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
-from Layer2Ledger.database.database import Base, DatabaseSession, get_db
+from Layer2Ledger.database.database import Base, get_db, AsyncSession
 import logging
 from Layer2Ledger.core.Address import Address
 from Layer2Ledger.core import ErrorMessage
@@ -27,9 +27,9 @@ class TransactionMode(PyEnum):
 TRANSACTION_MODE = TransactionMode.ADDRESSLOCK
 ADDRESS_BALANCE_CACHE_ENABLED = True
 
-def add_fee(db: DatabaseSession, fee: int):
+async def add_fee(db: AsyncSession, fee: int):
     """Add fee to the total fees stored in KeyValueStore."""
-    return KeyValueStore.increment_int(db, 'fees', fee, 0)
+    return await KeyValueStore.increment_int(db, 'fees', fee, 0)
 
 class Layer2AddressBalance(Base):
     __tablename__ = "address_balance_cache"
@@ -40,21 +40,23 @@ class Layer2AddressBalance(Base):
     timestamp: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     @staticmethod
-    def get(db: DatabaseSession, _address):
+    async def get(db: AsyncSession, _address):
         try:
-            return db.query(Layer2AddressBalance).filter(Layer2AddressBalance.address == _address).first()
+            result = await db.execute(select(Layer2AddressBalance).filter(Layer2AddressBalance.address == _address))
+            return result.scalars().first()
         except Exception as e:
             logging.error(f"Error getting address balance cache for {_address}: {e}")
             raise
 
     @staticmethod
-    def updateBalance(db: DatabaseSession, _address, amount, transactionIdToIgnore=None):
+    async def updateBalance(db: AsyncSession, _address, amount, transactionIdToIgnore=None):
         t1 = datetime.datetime.now()
         try:
-            hit = db.query(Layer2AddressBalance).filter(Layer2AddressBalance.address == _address).first()
+            result = await db.execute(select(Layer2AddressBalance).filter(Layer2AddressBalance.address == _address))
+            hit = result.scalars().first()
             if not hit:
                 final_balance = 0
-                (balance, balance_found) = Transaction.get_balance(db, _address, False, transactionIdToIgnore)
+                (balance, balance_found) = await Transaction.get_balance(db, _address, False, transactionIdToIgnore)
                 if(balance_found):
                     final_balance = balance + amount
                 else:
@@ -69,9 +71,10 @@ class Layer2AddressBalance(Base):
 
 
     @staticmethod
-    def put(db: DatabaseSession, instance):
+    async def put(db: AsyncSession, instance):
         try:
             db.add(instance)
+            await db.flush()
             return instance.id
         except Exception as e:
             raise
@@ -104,15 +107,16 @@ class Transaction(Base):
         return int(self.timestamp.timestamp() * 1000) #TODO: make actually accurate instead of rounding to 1000 milliseconds
 
     @staticmethod
-    def put(db: DatabaseSession, instance):
+    async def put(db: AsyncSession, instance):
         try:
             db.add(instance)
+            await db.flush()
             return instance.layer2_transaction_id
         except Exception as e:
             raise
 
     @staticmethod
-    def process_transaction(_transaction_type, _amount, _fee, _source, _destination, _message, _signature, _layer2_transaction_id, _layer1_transaction_id = None):
+    async def process_transaction(db: AsyncSession, _transaction_type, _amount, _fee, _source, _destination, _message, _signature, _layer2_transaction_id, _layer1_transaction_id = None):
         status = ErrorMessage.ERROR_UNKNOWN
 
         if(_amount < 0 or _fee < 0):
@@ -139,27 +143,26 @@ class Transaction(Base):
 
         try:
             if(TRANSACTION_MODE == TransactionMode.ADDRESSLOCK):
-                with layer2_address_lock.acquire([source.pubkey, _destination]) as acquired:
+                async with layer2_address_lock.acquire([source.pubkey, _destination]) as acquired:
                     if not acquired:
                         return ErrorMessage.ERROR_ADDRESS_LOCKED
                     # If the lock was successful, proceed with the transaction
                     # This ensures that the transaction is not processed if the addresses are locked
                     # and prevents duplicate transactions for the same addresses.
                     # The lock will be released automatically when the context manager exits or an exception occurs.
-                    with get_db() as db:
-                        try:
-                            status = Transaction.put_transaction(db, _transaction_type, source, _amount, _fee, _destination, _message, _signature, _layer2_transaction_id, _layer1_transaction_id)
-                            db.flush()  # Ensure the Transaction is written to the database
-                            if((_transaction_type == Transaction.TRX_WITHDRAWAL_INITIATED) and (status == ErrorMessage.ERROR_SUCCESS)):
-                                Onboarding.WithdrawalRequests.addWithdrawalRequest(db, _destination, _layer2_transaction_id, _amount)
-                            db.commit()
-                        except Exception as ex:
-                            db.rollback()
-                            status = ErrorMessage.ERROR_FAILED_TO_WRITE_TO_DATABASE
-                            GlobalLogging.log_text(traceback.format_exc())                   
+                    try:
+                        status = await Transaction.put_transaction(db, _transaction_type, source, _amount, _fee, _destination, _message, _signature, _layer2_transaction_id, _layer1_transaction_id)
+                        await db.flush()  # Ensure the Transaction is written to the database
+                        if((_transaction_type == Transaction.TRX_WITHDRAWAL_INITIATED) and (status == ErrorMessage.ERROR_SUCCESS)):
+                            await Onboarding.WithdrawalRequests.addWithdrawalRequest(db, _destination, _layer2_transaction_id, _amount)
+                        await db.commit()
+                    except Exception as ex:
+                        await db.rollback()
+                        status = ErrorMessage.ERROR_FAILED_TO_WRITE_TO_DATABASE
+                        GlobalLogging.log_text(traceback.format_exc())                   
             elif(TRANSACTION_MODE == TransactionMode.TRANSACTION_PUTTRANSACTION):
                 return ErrorMessage.ERROR_TRANSACTION_LOCK_MODE_NOT_SUPPORTED
-                #status = Transaction.put_transaction(db, _transaction_type, source, _amount, _fee, _destination, _message, _signature, _layer2_transaction_id, _layer1_transaction_id)
+                #status = await Transaction.put_transaction(db, _transaction_type, source, _amount, _fee, _destination, _message, _signature, _layer2_transaction_id, _layer1_transaction_id)
         except Exception as ex:
             GlobalLogging.log_text(traceback.format_exc())
             return ErrorMessage.ERROR_DATABASE_TRANSACTIONAL_ERROR
@@ -167,15 +170,16 @@ class Transaction(Base):
         return status
 
     @staticmethod
-    def put_transaction(db: DatabaseSession, _transaction_type, source, _amount, _fee, _destination, _message, _signature, _layer2_transaction_id, _layer1_transaction_id = None):
+    async def put_transaction(db: AsyncSession, _transaction_type, source, _amount, _fee, _destination, _message, _signature, _layer2_transaction_id, _layer1_transaction_id = None):
         t1 = datetime.datetime.now()
         status = ErrorMessage.ERROR_UNKNOWN
         try:
-            nonce_exists = db.query(Transaction).filter(Transaction.layer2_transaction_id == _layer2_transaction_id).first()
+            result = await db.execute(select(Transaction).filter(Transaction.layer2_transaction_id == _layer2_transaction_id))
+            nonce_exists = result.scalars().first()
             if nonce_exists:
                 status = ErrorMessage.ERROR_DUPLICATE_TRANSACTION_ID
             else:
-                (balance, _) = Transaction.get_balance(db, source.pubkey, ADDRESS_BALANCE_CACHE_ENABLED)
+                (balance, _) = await Transaction.get_balance(db, source.pubkey, ADDRESS_BALANCE_CACHE_ENABLED)
                 if balance >= _amount or _transaction_type == Transaction.TRX_DEPOSIT:
                     trx = Transaction(
                         amount=_amount,
@@ -191,9 +195,9 @@ class Transaction(Base):
 
                     updateAdressBalanceCache = (ADDRESS_BALANCE_CACHE_ENABLED and _transaction_type != Transaction.TRX_WITHDRAWAL_CONFIRMED)
                     if updateAdressBalanceCache:
-                        Layer2AddressBalance.updateBalance(db, source.pubkey, -_amount, trx.layer2_transaction_id)
-                        Layer2AddressBalance.updateBalance(db,_destination, _amount-_fee, trx.layer2_transaction_id)
-                    add_fee(db, _fee)
+                        await Layer2AddressBalance.updateBalance(db, source.pubkey, -_amount, trx.layer2_transaction_id)
+                        await Layer2AddressBalance.updateBalance(db,_destination, _amount-_fee, trx.layer2_transaction_id)
+                    await add_fee(db, _fee)
                     status = ErrorMessage.ERROR_SUCCESS
                 else:
                     status = ErrorMessage.ERROR_INSUFFICIENT_FUNDS
@@ -206,7 +210,7 @@ class Transaction(Base):
         return status
 
     @staticmethod
-    def get_balance(db: DatabaseSession, pubkey, useCache=True, transactionIdToIgnore=None) -> Tuple[int, bool]:
+    async def get_balance(db: AsyncSession, pubkey, useCache=True, transactionIdToIgnore=None) -> Tuple[int, bool]:
         t1 = datetime.datetime.now()
         trx_count: int = 0
         address_found: bool = False
@@ -216,26 +220,28 @@ class Transaction(Base):
         balance_found_from_cache = False
 
         if useCache:
-            hit = Layer2AddressBalance.get(db, address.pubkey)
+            hit = await Layer2AddressBalance.get(db, address.pubkey)
             if hit:
                 balance = hit.balance
                 balance_found_from_cache = True
                 address_found = True
 
         if not balance_found_from_cache:
-            output_query = db.query(Transaction).filter(Transaction.source_address_pubkey == address.pubkey)
-            input_query = db.query(Transaction).filter(Transaction.destination_address_pubkey == address.pubkey)
+            output_query = select(Transaction).filter(Transaction.source_address_pubkey == address.pubkey)
+            input_query = select(Transaction).filter(Transaction.destination_address_pubkey == address.pubkey)
 
             if transactionIdToIgnore is not None:
                 output_query = output_query.filter(Transaction.layer2_transaction_id != transactionIdToIgnore)
                 input_query = input_query.filter(Transaction.layer2_transaction_id != transactionIdToIgnore)
 
-            for output in output_query.all():
+            output_result = await db.execute(output_query)
+            for output in output_result.scalars().all():
                 balance -= output.amount
                 trx_count += 1
                 address_found = True
 
-            for input in input_query.all():
+            input_result = await db.execute(input_query)
+            for input in input_result.scalars().all():
                 if input.transaction_type != Transaction.TRX_WITHDRAWAL_CONFIRMED:
                     balance += input.amount - input.fee
                     trx_count += 1
@@ -245,11 +251,12 @@ class Transaction(Base):
         return (balance, address_found)
 
     @staticmethod
-    def get_transaction(db: DatabaseSession, transaction_id):
+    async def get_transaction(db: AsyncSession, transaction_id):
         t1 = datetime.datetime.now()
         result = ErrorMessage.ERROR_SUCCESS
         try:
-            transaction = db.query(Transaction).filter(Transaction.layer2_transaction_id == transaction_id).first()
+            result = await db.execute(select(Transaction).filter(Transaction.layer2_transaction_id == transaction_id))
+            transaction = result.scalars().first()
             if not transaction:
                 result = ErrorMessage.ERROR_TRANSACTION_ID_NOT_FOUND
         except Exception as e:
@@ -259,12 +266,14 @@ class Transaction(Base):
 
 
     @staticmethod
-    def get_all_transactions(db: DatabaseSession, public_key: str) -> List['Transaction']:
+    async def get_all_transactions(db: AsyncSession, public_key: str) -> List['Transaction']:
         t1 = datetime.datetime.now()
         try:
             transactions = []
-            output_transactions = db.query(Transaction).filter(Transaction.source_address_pubkey == public_key).all()
-            input_transactions = db.query(Transaction).filter(Transaction.destination_address_pubkey == public_key).all()
+            output_result = await db.execute(select(Transaction).filter(Transaction.source_address_pubkey == public_key))
+            output_transactions = output_result.scalars().all()
+            input_result = await db.execute(select(Transaction).filter(Transaction.destination_address_pubkey == public_key))
+            input_transactions = input_result.scalars().all()
             transactions.extend(output_transactions)
             transactions.extend(input_transactions)
             DebugLogger.TransactionDuration.logDuration(t1, public_key, 'get_all_transactions', len(transactions))

@@ -1,42 +1,96 @@
-from flask import Flask
-from flask_cors import CORS
+from fastapi import FastAPI, Request, Depends
+from fastapi.middleware.cors import CORSMiddleware
 import Layer2Ledger.API.NodeInfoAPI as NodeInfoAPI
 import Layer2Ledger.API.TransactionAPI as TransactionAPI
 import Layer2Ledger.API.OnboardingAPI as OnboardingAPI
 import Layer2Ledger.API.AuditAPI as AuditAPI
 import Layer2Ledger.API.ExplorerAPI as ExplorerAPI
-from Layer2Ledger.database.database import Base, engine
+from Layer2Ledger.database.database import Base, engine, get_db, AsyncSession
 
-# Create all tables if they don't exist
-Base.metadata.create_all(bind=engine)
+from contextlib import asynccontextmanager
 
-app = Flask(__name__)
-CORS(app)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic: Create database tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    # Shutdown logic (if any)
 
-app.add_url_rule(r'/getNodeInfo', 'getNodeInfo', NodeInfoAPI.getNodeInfo.initializeRequest)
+app = FastAPI(lifespan=lifespan)
 
-app.add_url_rule(r'/pushTransaction', 'pushTransaction', TransactionAPI.pushTransaction.initializeRequest, methods=['POST'])
-app.add_url_rule(r'/getBalance', 'getBalance', TransactionAPI.getBalance.initializeRequest, methods=['POST'])
-app.add_url_rule(r'/getTransaction', 'getTransaction', TransactionAPI.getTransaction.initializeRequest)
-app.add_url_rule(r'/getAllTransactionsOfPublicKey', 'getAllTransactionsOfPublicKey', TransactionAPI.getAllTransactionsOfPublicKey.initializeRequest, methods=['POST'])
-app.add_url_rule(r'/getFee', 'getFee', TransactionAPI.getFee.initializeRequest)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
-app.add_url_rule(r'/withdrawalRequest', 'withdrawalRequest', OnboardingAPI.withdrawalRequest.initializeRequest, methods=['POST'])
-app.add_url_rule(r'/withdrawalCanceled', 'withdrawalCanceled', OnboardingAPI.withdrawalCanceled.initializeRequest)
-app.add_url_rule(r'/withdrawalBroadcasted', 'withdrawalBroadcasted', OnboardingAPI.withdrawalBroadcasted.initializeRequest, methods=['POST'])
-app.add_url_rule(r'/withdrawalConfirmed', 'withdrawalConfirmed', OnboardingAPI.withdrawalConfirmed.initializeRequest, methods=['POST'])
-app.add_url_rule(r'/getWithdrawalRequests', 'getWithdrawalRequests', OnboardingAPI.getWithdrawalRequests.initializeRequest, methods=['POST'])
-app.add_url_rule(r'/ackWithdrawalRequests', 'ackWithdrawalRequests', OnboardingAPI.ackWithdrawalRequests.initializeRequest, methods=['POST'])
-app.add_url_rule(r'/getNewDepositAddress', 'getNewDepositAddress', OnboardingAPI.getNewDepositAddress.initializeRequest, methods=['POST']) # get a new address to deposit mainnet coins into
-app.add_url_rule(r'/depositFunds', 'depositFunds', OnboardingAPI.depositConfirmed.initializeRequest, methods=['POST']) #this transaction will be signed by the deposited addresses public key. This API will only be called by the full node
+@app.get("/getNodeInfo")
+async def get_node_info(request: Request, db: AsyncSession = Depends(get_db)):
+    return await NodeInfoAPI.getNodeInfo.initializeRequest(request, db)
 
-app.add_url_rule(r'/postLayer1AuditReport', 'postLayer1AuditReport', AuditAPI.postLayer1AuditReport.initializeRequest, methods=['POST'])
-app.add_url_rule(r'/getLayer1AuditReport', 'getLayer1AuditReport', AuditAPI.getLayer1AuditReport.initializeRequest)
+@app.post("/pushTransaction")
+async def push_transaction(request: Request, db: AsyncSession = Depends(get_db)):
+    return await TransactionAPI.pushTransaction.initializeRequest(request, db)
 
-app.add_url_rule(r'/search', 'search', ExplorerAPI.search.initializeRequest)
+@app.post("/getBalance")
+async def get_balance(request: Request, db: AsyncSession = Depends(get_db)):
+    return await TransactionAPI.getBalance.initializeRequest(request, db)
 
-# Remove from production, the /delete is only for deleting all the tables when dev/testing
-#app.add_url_rule(r'/delete', 'delete', SuperUser.Delete.initializeRequest)
+@app.post("/getTransaction")
+async def get_transaction(request: Request, db: AsyncSession = Depends(get_db)):
+    return await TransactionAPI.getTransaction.initializeRequest(request, db)
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8084, debug=True, threaded=True)
+@app.post("/getAllTransactionsOfPublicKey")
+async def get_all_transactions_of_public_key(request: Request, db: AsyncSession = Depends(get_db)):
+    return await TransactionAPI.getAllTransactionsOfPublicKey.initializeRequest(request, db)
+
+@app.post("/getFee")
+async def get_fee(request: Request, db: AsyncSession = Depends(get_db)):
+    return await TransactionAPI.getFee.initializeRequest(request, db)
+
+@app.post("/withdrawalRequest")
+async def withdrawal_request(request: Request, db: AsyncSession = Depends(get_db)):
+    return await OnboardingAPI.withdrawalRequest.initializeRequest(request, db)
+
+@app.post("/withdrawalCanceled")
+async def withdrawal_canceled(request: Request, db: AsyncSession = Depends(get_db)):
+    return await OnboardingAPI.withdrawalCanceled.initializeRequest(request, db)
+
+@app.post("/withdrawalBroadcasted")
+async def withdrawal_broadcasted(request: Request, db: AsyncSession = Depends(get_db)):
+    return await OnboardingAPI.withdrawalBroadcasted.initializeRequest(request, db)
+
+@app.post("/withdrawalConfirmed")
+async def withdrawal_confirmed(request: Request, db: AsyncSession = Depends(get_db)):
+    return await OnboardingAPI.withdrawalConfirmed.initializeRequest(request, db)
+
+@app.post("/getWithdrawalRequests")
+async def get_withdrawal_requests(request: Request, db: AsyncSession = Depends(get_db)):
+    return await OnboardingAPI.getWithdrawalRequests.initializeRequest(request, db)
+
+@app.post("/ackWithdrawalRequests")
+async def ack_withdrawal_requests(request: Request, db: AsyncSession = Depends(get_db)):
+    return await OnboardingAPI.ackWithdrawalRequests.initializeRequest(request, db)
+
+@app.post("/getNewDepositAddress")
+async def get_new_deposit_address(request: Request, db: AsyncSession = Depends(get_db)):
+    return await OnboardingAPI.getNewDepositAddress.initializeRequest(request, db)
+
+@app.post("/depositFunds")
+async def deposit_funds(request: Request, db: AsyncSession = Depends(get_db)):
+    return await OnboardingAPI.depositConfirmed.initializeRequest(request, db)
+
+@app.post("/postLayer1AuditReport")
+async def post_layer1_audit_report(request: Request, db: AsyncSession = Depends(get_db)):
+    return await AuditAPI.postLayer1AuditReport.initializeRequest(request, db)
+
+@app.get("/getLayer1AuditReport")
+async def get_layer1_audit_report(request: Request, db: AsyncSession = Depends(get_db)):
+    return await AuditAPI.getLayer1AuditReport.initializeRequest(request, db)
+
+@app.post("/search")
+async def search(request: Request, db: AsyncSession = Depends(get_db)):
+    return await ExplorerAPI.search.initializeRequest(request, db)

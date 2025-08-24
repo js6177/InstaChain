@@ -9,7 +9,7 @@ import types
 from types import SimpleNamespace
 from Layer2Ledger.API.InstaChainAPI import InstachainRequestHandler
 from Layer2Ledger.API.NodeInfoAPI import NODE_ID
-from Layer2Ledger.database.database import get_db
+from Layer2Ledger.database.database import get_db, AsyncSession
 from Layer2Ledger.core.signing_keys import ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY
 from Layer2Ledger.core import GlobalLogging
 from Layer2Ledger.core import KeyVerification
@@ -22,6 +22,7 @@ from Layer2Ledger.services.messages.Layer2Ledger.Requests.GetTransactionsRequest
 from Layer2Ledger.services.messages.Layer2Ledger.Requests.GetTransactionRequest import GetTransactionRequest
 from Layer2Ledger.services.messages.Layer2Ledger.Requests.GetFeeRequest import GetFeeRequest
 from Layer2Ledger.services.messages.Layer2Ledger.Responses.GetFeeResponse import GetFeeResponse
+from fastapi import Depends, Request
 
 
 MAX_NUMBER_OF_GETBALANCE_ADDRESSES = 10
@@ -32,11 +33,11 @@ class pushTransaction(InstachainRequestHandler):
         super().__init__()
         self.request: PushTransactionRequest = None
 
-    def getParameters(self):
-        request_dict = self.getPostJsonParams()
+    async def getParameters(self, request: Request):
+        request_dict = await self.getPostJsonParams(request)
         self.request = PushTransactionRequest(**request_dict)
 
-    def processRequest(self):
+    async def processRequest(self, db: AsyncSession = Depends(get_db)):
         if self.request.source_address_public_key != ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY:
             message = KeyVerification.buildTransferMessage(
                 self.request.source_address_public_key,
@@ -45,7 +46,8 @@ class pushTransaction(InstachainRequestHandler):
                 self.request.fee,
                 self.request.transaction_id
             )
-            status = Transaction.process_transaction(
+            status = await Transaction.process_transaction(
+                db,
                 Transaction.TRX_TRANSFER,
                 self.request.amount,
                 self.request.fee,
@@ -72,12 +74,12 @@ class getTransaction(InstachainRequestHandler):
         super().__init__()
         self.request: GetTransactionRequest = None
 
-    def getParameters(self):
-        request_dict = self.getPostJsonParams()
+    async def getParameters(self, request: Request):
+        request_dict = await self.getPostJsonParams(request)
         self.request = GetTransactionRequest(**request_dict)
 
-    def processRequest(self):
-        rslt, transaction = Transaction.get_transaction(self.request.transaction_id)
+    async def processRequest(self, db: AsyncSession = Depends(get_db)):
+        rslt, transaction = await Transaction.get_transaction(db, self.request.transaction_id)
         self.result = GetTransactionResponse(
             **ErrorMessage.build_error_message(rslt),
             transaction=transaction.to_dict() if transaction else None,
@@ -89,16 +91,14 @@ class getAllTransactionsOfPublicKey(InstachainRequestHandler):
         super().__init__()
         self.request: GetTransactionsRequest = None
 
-    def getParameters(self):
-        request_dict = self.getPostJsonParams()
+    async def getParameters(self, request: Request):
+        request_dict = await self.getPostJsonParams(request)
         self.request = GetTransactionsRequest(**request_dict)
 
-    def processRequest(self):
+    async def processRequest(self, db: AsyncSession = Depends(get_db)):
         transactions_list = []
         for public_key in list(self.request.public_keys)[:MAX_NUMBER_OF_GETTRANSACTIONS_ADDRESSES]:
-            all_transactions = []
-            with get_db() as db:
-                all_transactions = Transaction.get_all_transactions(db, public_key)
+            all_transactions = await Transaction.get_all_transactions(db, public_key)
             transaction_group = TransactionGroup(
                 public_key=public_key,
                 transactions=[
@@ -129,11 +129,11 @@ class getFee(InstachainRequestHandler):
         super().__init__()
         self.request: GetFeeRequest = None
 
-    def getParameters(self):
-        request_dict = self.getPostJsonParams()
+    async def getParameters(self, request: Request):
+        request_dict = await self.getPostJsonParams(request)
         self.request = GetFeeRequest(**request_dict)
 
-    def processRequest(self):
+    async def processRequest(self):
         self.result = GetFeeResponse(
             **ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS),
             fee=1
@@ -144,26 +144,26 @@ class getBalance(InstachainRequestHandler):
         super().__init__()
         self.request: GetBalanceRequest = None
 
-    def getParameters(self):
-        request_dict = self.getPostJsonParams()
+    async def getParameters(self, request: Request):
+        request_dict = await self.getPostJsonParams(request)
         self.request = GetBalanceRequest(**request_dict)
 
-    def processRequest(self):
+    async def processRequest(self, db: AsyncSession = Depends(get_db)):
         balances: list[GetBalanceResponseBalance] = []
         for public_key in list(self.request.public_keys)[:MAX_NUMBER_OF_GETBALANCE_ADDRESSES]:
             balance: GetBalanceResponseBalance = GetBalanceResponseBalance()
             balance.public_key = public_key
             (balance.balance, balance.address_found) = (0, False)
-            with get_db() as db:
-                try:
-                   (balance.balance, balance.address_found) = Transaction.get_balance(db, public_key, True)
-                except Exception as e:
-                    logging.error(f"Error getting balance for {public_key}: {e}")
+            try:
+                (balance.balance, balance.address_found) = await Transaction.get_balance(db, public_key, True)
+            except Exception as e:
+                logging.error(f"Error getting balance for {public_key}: {e}")
 
             balances.append(balance)
         self.result = GetBalanceResponse(
             **ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS),
             balance=balances
         )
+
 
 

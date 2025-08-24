@@ -4,6 +4,8 @@ from Layer2Ledger.core import ErrorMessage
 from Layer2Ledger.API.InstaChainAPI import InstachainRequestHandler
 from Layer2Ledger.core import GlobalLogging
 from Layer2Ledger.core.Transaction import Transaction
+from Layer2Ledger.database.database import get_db, AsyncSession
+from fastapi import Depends, Request
 
 class SearchType(Enum):
     SEARCH_ALL: str = "*"
@@ -13,12 +15,12 @@ class SearchType(Enum):
 
 
 class search(InstachainRequestHandler):
-    def getParameters(self):
-        self.search_string = self.getRequestParams('search_string')
-        self.search_type = self.getRequestParams('search_type')
+    async def getParameters(self, request: Request):
+        self.search_string = self.getRequestParams(request, 'search_string')
+        self.search_type = self.getRequestParams(request, 'search_type')
         GlobalLogging.log_text("v1 search_string: " + self.search_string)
         GlobalLogging.log_text("v1 search_type: " + self.search_type)
-    def processRequest(self):
+    async def processRequest(self, db: AsyncSession = Depends(get_db)):
         GlobalLogging.log_text("starting search")
         self.result = ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS)
         self.result['search_string'] = self.search_string
@@ -31,13 +33,13 @@ class search(InstachainRequestHandler):
             return
         if((self.search_type == SearchType.L2_TRANSACTION) or (self.search_type == SearchType.SEARCH_ALL.value)):
             GlobalLogging.log_text("search... L2_TRANSACTION")
-            (error_code, transaction) = Transaction.get_transaction(self.search_string)
+            (error_code, transaction) = await Transaction.get_transaction(db, self.search_string)
             GlobalLogging.log_text("search... L2_TRANSACTION found : " + str(error_code))
             if(error_code == ErrorMessage.ERROR_SUCCESS):
                 self.result["l2_transaction"] = transaction.to_dict()
         if((self.search_type == SearchType.L2_ADDRESS) or (self.search_type == SearchType.SEARCH_ALL.value)):
             GlobalLogging.log_text("search... L2_ADDRESS")
-            (address_balance, address_found) = Transaction.get_balance(self.search_string, True)
+            (address_balance, address_found) = await Transaction.get_balance(db, self.search_string, True)
             GlobalLogging.log_text("search... L2_ADDRESS found : " + str(address_found))
             if(address_found):
                 self.result["l2_address"] = {'public_key': self.search_string, 'balance': address_balance, 'address_found': address_found }

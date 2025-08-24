@@ -50,7 +50,7 @@ class Layer2LedgerTransferUser(HttpUser):
     # The host should be configured when running locust, e.g.,
     # locust -f tests/test_LoadTesting.py --host http://localhost:8080
 
-    def on_start(self):
+    async def on_start(self):
         """
         Called when a new user is started.
         The first user will set up the test environment.
@@ -60,11 +60,11 @@ class Layer2LedgerTransferUser(HttpUser):
         with setup_lock:
             if not setup_done:
                 print("--- Setting up test environment for load testing ---")
-                self._setup_test_environment()
+                await self._setup_test_environment()
                 setup_done = True
                 print("--- Setup complete ---")
 
-    def _setup_test_environment(self):
+    async def _setup_test_environment(self):
         """
         Deposits funds to a source address and creates destination addresses.
         This should only be run once for all users.
@@ -93,7 +93,7 @@ class Layer2LedgerTransferUser(HttpUser):
             signature=signature,
         )
 
-        with self.client.post(
+        async with self.client.post(
             "/getNewDepositAddress",
             json=get_deposit_address_request.model_dump(),
             catch_response=True,
@@ -130,7 +130,7 @@ class Layer2LedgerTransferUser(HttpUser):
             ]
         )
 
-        with self.client.post(
+        async with self.client.post(
             "/depositFunds",
             json=deposit_data.model_dump(),
             catch_response=True,
@@ -149,7 +149,7 @@ class Layer2LedgerTransferUser(HttpUser):
         print(f"Created {len(destination_addresses)} destination addresses.")
 
     @task
-    def transfer_to_random_address(self):
+    async def transfer_to_random_address(self):
         """
         A task that simulates transferring funds from the source address
         to a randomly chosen destination address.
@@ -186,7 +186,7 @@ class Layer2LedgerTransferUser(HttpUser):
             signature=transfer_signature,
         )
 
-        self.client.post(
+        await self.client.post(
             "/pushTransaction",
             json=transfer_request.model_dump(),
             name="/pushTransaction",

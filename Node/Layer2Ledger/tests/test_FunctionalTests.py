@@ -4,11 +4,15 @@ import time
 import pytest
 import random
 import string
+from httpx import AsyncClient, ASGITransport
+from typing import AsyncGenerator, Generator, Any
+import pytest_asyncio
+from sqlalchemy import select
 from Layer2Ledger.core.Address import Address
 from Layer2Ledger.config.config import config
 import ecdsa
 import base58
-from Layer2Ledger.main import app
+from Layer2Ledger.main import app as fastapi_app
 
 from Layer2Ledger.API.NodeInfoAPI import NODE_ID, NODE_ASSET_ID
 from Layer2Ledger.core.Transaction import Transaction
@@ -31,7 +35,7 @@ import Layer2Ledger.core.signing_keys
 import Layer2Ledger.core.KeyVerification as KeyVerification
 
 #Imports for SQLAlchemy db classes
-from Layer2Ledger.database.database import DatabaseSession, get_db
+from Layer2Ledger.database.database import Base, get_db, AsyncSession, engine
 import Layer2Ledger.core.Onboarding as Onboarding
 
 from tests.TestsHelper import (
@@ -46,15 +50,45 @@ from tests.TestsHelper import (
     drop_MasterPublicKeyIndex_DepositAddresses_tables,
 )
 
-@pytest.fixture
-def client():
-    with app.test_client() as client:
-        yield client
+@pytest_asyncio.fixture(scope="function")
+async def db_session() -> AsyncGenerator[AsyncSession, None]:
+    connection = await engine.connect()
+    transaction = await connection.begin()
+    session = AsyncSession(bind=connection)
+
+    def get_db_override():
+        yield session
+
+    fastapi_app.dependency_overrides[get_db] = get_db_override
+
+    yield session
+
+    await transaction.rollback()
+    await connection.close()
+    fastapi_app.dependency_overrides.clear()
+
+@pytest_asyncio.fixture(scope="function")
+async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+    """
+    Asynchronous test client for the FastAPI application.
+    This fixture creates a new database session for each test, and rolls back
+    the transaction at the end of the test to ensure test isolation.
+    """
+    def get_db_override():
+        yield db_session
+
+    fastapi_app.dependency_overrides[get_db] = get_db_override
+
+    async with AsyncClient(transport=ASGITransport(app=fastapi_app), base_url="http://test") as ac:
+        yield ac
+
+    fastapi_app.dependency_overrides.clear()
+
 
 
 # This test will generate a new L2 address, get a new deposit address for it, simulate a deposit, and check the balance of the L2 address
-def test_deposit_and_check_balance(client):
-
+@pytest.mark.asyncio
+async def test_deposit_and_check_balance(client: AsyncClient, db_session: AsyncSession):
     
     # Generate L2 address
     #l2_address_priv_key, l2_address_pub_key = generate_new_keypair()
@@ -76,10 +110,10 @@ def test_deposit_and_check_balance(client):
         nonce=nonce,
         signature=signature
     )
-    response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
+    response = await client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump())
     assert is_successful_response(response)
-    verify_get_new_deposit_address_procedure(l2_address.pubkey)
-    deposit_address_response = GetDepositAddressResponse(**response.json)
+    await verify_get_new_deposit_address_procedure(db_session, l2_address.pubkey)
+    deposit_address_response = GetDepositAddressResponse(**response.json())
     deposit_address = deposit_address_response.layer1_deposit_address
     
     # Simulate Layer1 deposit
@@ -103,16 +137,16 @@ def test_deposit_and_check_balance(client):
             )
         ]
     )
-    response = client.post('/depositFunds', json=deposit_data.model_dump(), content_type='application/json')
+    response = await client.post('/depositFunds', json=deposit_data.model_dump())
     assert is_successful_response(response)
 
-    verify_deposit_confirmed(deposit_data)
+    await verify_deposit_confirmed(db_session, deposit_data)
     
     # Check balance of L2 address
     balance_request = GetBalanceRequest(public_keys=[l2_address.pubkey])
-    response = client.post('/getBalance', json=balance_request.model_dump(), content_type='application/json')
+    response = await client.post('/getBalance', json=balance_request.model_dump())
     assert is_successful_response(response)
-    balance_response = GetBalanceResponse(**response.json)
+    balance_response = GetBalanceResponse(**response.json())
     balance = list(balance_response.balance)  # Ensure balance is a list
     assert len(balance) > 0
     assert balance[0].address_found is True
@@ -124,7 +158,8 @@ def test_deposit_and_check_balance(client):
 # This test generates two new L2 addresses, gets a deposit address for the first L2 address, simulates a deposit,
 # and transfers funds from the first L2 address to the second L2 address.
 # The test ensures the final balance of the second L2 address is the transfer amount minus any fees.
-def test_deposit_and_transfer(client):
+@pytest.mark.asyncio
+async def test_deposit_and_transfer(client: AsyncClient, db_session: AsyncSession):
 
     
     # Generate L2 addresses
@@ -146,9 +181,9 @@ def test_deposit_and_transfer(client):
         nonce=nonce,
         signature=signature
     )
-    response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
+    response = await client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump())
     assert is_successful_response(response)
-    deposit_address_response = GetDepositAddressResponse(**response.json)
+    deposit_address_response = GetDepositAddressResponse(**response.json())
     deposit_address = deposit_address_response.layer1_deposit_address
     
     # Simulate Layer1 deposit
@@ -172,15 +207,15 @@ def test_deposit_and_transfer(client):
             )
         ]
     )
-    response = client.post('/depositFunds', json=deposit_data.model_dump(), content_type='application/json')
+    response = await client.post('/depositFunds', json=deposit_data.model_dump())
     assert is_successful_response(response)
-    verify_deposit_confirmed(deposit_data)
+    await verify_deposit_confirmed(db_session, deposit_data)
       
     # Check balance of L2 address 1
     balance_request = GetBalanceRequest(public_keys=[l2_address_1.pubkey])
-    response = client.post('/getBalance', json=balance_request.model_dump(), content_type='application/json')
+    response = await client.post('/getBalance', json=balance_request.model_dump())
     assert is_successful_response(response)
-    balance_response = GetBalanceResponse(**response.json)
+    balance_response = GetBalanceResponse(**response.json())
     balance = list(balance_response.balance)
     assert len(balance) > 0
     assert balance[0].address_found is True
@@ -202,15 +237,15 @@ def test_deposit_and_transfer(client):
         transaction_id=transfer_nonce,
         signature=transfer_signature
     )
-    response = client.post('/pushTransaction', json=transfer_request.model_dump(), content_type='application/json')
+    response = await client.post('/pushTransaction', json=transfer_request.model_dump())
     assert is_successful_response(response)
-    verify_layer2_transaction_procedure(transfer_request)
+    await verify_layer2_transaction_procedure(db_session, transfer_request)
     
     # Check balance of L2 address 2
     balance_request = GetBalanceRequest(public_keys=[l2_address_2.pubkey])
-    response = client.post('/getBalance', json=balance_request.model_dump(), content_type='application/json')
+    response = await client.post('/getBalance', json=balance_request.model_dump())
     assert is_successful_response(response)
-    balance_response = GetBalanceResponse(**response.json)
+    balance_response = GetBalanceResponse(**response.json())
     balance = list(balance_response.balance)
     assert len(balance) > 0
     assert balance[0].address_found is True
@@ -220,7 +255,8 @@ def test_deposit_and_transfer(client):
     print(f"Balance of L2 address 2 {l2_address_2.pubkey}: {balance}")
 
 # This test transfers funds and tests to see if it gets the transactions of a L2 address
-def test_deposit_transfer_get_transactions(client):
+@pytest.mark.asyncio
+async def test_deposit_transfer_get_transactions(client: AsyncClient, db_session: AsyncSession):
 
     
     # Generate L2 addresses
@@ -242,9 +278,9 @@ def test_deposit_transfer_get_transactions(client):
         nonce=nonce,
         signature=signature
     )
-    response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
+    response = await client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump())
     assert is_successful_response(response)
-    deposit_address_response = GetDepositAddressResponse(**response.json)
+    deposit_address_response = GetDepositAddressResponse(**response.json())
     deposit_address = deposit_address_response.layer1_deposit_address
     
     # Simulate Layer1 deposit
@@ -268,15 +304,15 @@ def test_deposit_transfer_get_transactions(client):
             )
         ]
     )
-    response = client.post('/depositFunds', json=deposit_data.model_dump(), content_type='application/json')
+    response = await client.post('/depositFunds', json=deposit_data.model_dump())
     assert is_successful_response(response)
-    verify_deposit_confirmed(deposit_data)
+    await verify_deposit_confirmed(db_session, deposit_data)
       
     # Check balance of L2 address 1
     balance_request = GetBalanceRequest(public_keys=[l2_address_1.pubkey])
-    response = client.post('/getBalance', json=balance_request.model_dump(), content_type='application/json')
+    response = await client.post('/getBalance', json=balance_request.model_dump())
     assert is_successful_response(response)
-    balance_response = GetBalanceResponse(**response.json)
+    balance_response = GetBalanceResponse(**response.json())
     balance = list(balance_response.balance)
     assert len(balance) > 0
     assert balance[0].address_found is True
@@ -298,21 +334,22 @@ def test_deposit_transfer_get_transactions(client):
         transaction_id=transfer_nonce,
         signature=transfer_signature
     )
-    response = client.post('/pushTransaction', json=transfer_request.model_dump(), content_type='application/json')
+    response = await client.post('/pushTransaction', json=transfer_request.model_dump())
     assert is_successful_response(response)
-    verify_layer2_transaction_procedure(transfer_request)
+    await verify_layer2_transaction_procedure(db_session, transfer_request)
 
     # Verify the transaction was added to the L2 address's transaction history
     get_transactions_request: GetTransactionsRequest = GetTransactionsRequest(
         public_keys=[l2_address_1.pubkey]
     )
-    response = client.post('/getAllTransactionsOfPublicKey', json=get_transactions_request.model_dump(), content_type='application/json')
+    response = await client.post('/getAllTransactionsOfPublicKey', json=get_transactions_request.model_dump())
     assert is_successful_response(response)
     
 
 # This test generates a new L2 address, gets a deposit address, simulates a deposit, and withdraws to a new L1 address.
 # The test ensures the final L2 balance is the deposit amount minus the withdrawal amount minus any fees.
-def test_deposit_and_withdraw(client):
+@pytest.mark.asyncio
+async def test_deposit_and_withdraw(client: AsyncClient, db_session: AsyncSession):
 
     
     # Generate L2 address
@@ -332,10 +369,10 @@ def test_deposit_and_withdraw(client):
         nonce=nonce,
         signature=signature
     )
-    response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
+    response = await client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump())
     assert is_successful_response(response)
-    verify_get_new_deposit_address_procedure(l2_address.pubkey)
-    deposit_address_response = GetDepositAddressResponse(**response.json)
+    await verify_get_new_deposit_address_procedure(db_session, l2_address.pubkey)
+    deposit_address_response = GetDepositAddressResponse(**response.json())
     deposit_address = deposit_address_response.layer1_deposit_address
     
     # Simulate Layer1 deposit
@@ -359,15 +396,15 @@ def test_deposit_and_withdraw(client):
             )
         ]
     )
-    response = client.post('/depositFunds', json=deposit_data.model_dump(), content_type='application/json')
+    response = await client.post('/depositFunds', json=deposit_data.model_dump())
     assert is_successful_response(response)
-    verify_deposit_confirmed(deposit_data)
+    await verify_deposit_confirmed(db_session, deposit_data)
     
     # Check balance of L2 address
     balance_request = GetBalanceRequest(public_keys=[l2_address.pubkey])
-    response = client.post('/getBalance', json=balance_request.model_dump(), content_type='application/json')
+    response = await client.post('/getBalance', json=balance_request.model_dump())
     assert is_successful_response(response)
-    balance_response = GetBalanceResponse(**response.json)
+    balance_response = GetBalanceResponse(**response.json())
     balance = list(balance_response.balance)  # Ensure balance is a list
     assert len(balance) > 0
     assert balance[0].address_found is True
@@ -388,17 +425,17 @@ def test_deposit_and_withdraw(client):
         amount=withdrawal_amount,
         signature=withdrawal_signature
     )
-    response = client.post('/withdrawalRequest', json=withdrawal_request.model_dump(), content_type='application/json')
+    response = await client.post('/withdrawalRequest', json=withdrawal_request.model_dump())
     assert is_successful_response(response)
 
-    with get_db() as db:
-        verify_withdrawal_request_procedure(db, withdrawal_request)
+    # The verify_withdrawal_request_procedure now takes db as an argument
+    await verify_withdrawal_request_procedure(db_session, withdrawal_request)
 
     
     # Check final balance of L2 address
-    response = client.post('/getBalance', json=balance_request.model_dump(), content_type='application/json')
+    response = await client.post('/getBalance', json=balance_request.model_dump())
     assert is_successful_response(response)
-    balance_response = GetBalanceResponse(**response.json)
+    balance_response = GetBalanceResponse(**response.json())
     balance = list(balance_response.balance)
     assert len(balance) > 0
     assert balance[0].address_found is True
@@ -409,7 +446,8 @@ def test_deposit_and_withdraw(client):
 
 # This test generates a new L2 address, gets a deposit address, simulates a deposit, and withdraws to a new L1 address.
 # Then simulates a Layer2Bridge Layer1 withdrawal broadcast, and checks to see if the withdrawal was added to ConfirmedWithdrawals with confirmed = False, and the layer2 Transaction.layer1_transaction_id is null
-def test_deposit_and_withdraw_broadcast(client):
+@pytest.mark.asyncio
+async def test_deposit_and_withdraw_broadcast(client: AsyncClient, db_session: AsyncSession):
 
 
     # Generate L2 address
@@ -429,10 +467,10 @@ def test_deposit_and_withdraw_broadcast(client):
         nonce=nonce,
         signature=signature
     )
-    response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
+    response = await client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump())
     assert is_successful_response(response)
-    verify_get_new_deposit_address_procedure(l2_address.pubkey)
-    deposit_address_response = GetDepositAddressResponse(**response.json)
+    await verify_get_new_deposit_address_procedure(db_session, l2_address.pubkey)
+    deposit_address_response = GetDepositAddressResponse(**response.json())
     deposit_address = deposit_address_response.layer1_deposit_address
 
     # Simulate Layer1 deposit
@@ -456,9 +494,9 @@ def test_deposit_and_withdraw_broadcast(client):
             )
         ]
     )
-    response = client.post('/depositFunds', json=deposit_data.model_dump(), content_type='application/json')
+    response = await client.post('/depositFunds', json=deposit_data.model_dump())
     assert is_successful_response(response)
-    verify_deposit_confirmed(deposit_data)
+    await verify_deposit_confirmed(db_session, deposit_data)
 
     # Simulate withdrawal to L1 address
     withdrawal_nonce = generate_nonce()
@@ -474,11 +512,10 @@ def test_deposit_and_withdraw_broadcast(client):
         amount=withdrawal_amount,
         signature=withdrawal_signature
     )
-    response = client.post('/withdrawalRequest', json=withdrawal_request.model_dump(), content_type='application/json')
+    response = await client.post('/withdrawalRequest', json=withdrawal_request.model_dump())
     assert is_successful_response(response)
 
-    with get_db() as db:
-        verify_withdrawal_request_procedure(db, withdrawal_request)
+    await verify_withdrawal_request_procedure(db_session, withdrawal_request)
 
     # Simulate Layer2Bridge Layer1 withdrawal broadcast using the correct API
     broadcast_signature = onboarding_transaction_signing_address.sign(
@@ -499,24 +536,25 @@ def test_deposit_and_withdraw_broadcast(client):
             )
         ]
     )
-    response = client.post('/withdrawalBroadcasted', json=broadcast_request.model_dump(), content_type='application/json')
+    response = await client.post('/withdrawalBroadcasted', json=broadcast_request.model_dump())
     assert is_successful_response(response)
 
-    with get_db() as db:
-        # Check if the broadcasted withdrawal was added to the database
-        withdrawal_entry: Onboarding.ConfirmedWithdrawals = db.query(Onboarding.ConfirmedWithdrawals).filter(
-            Onboarding.ConfirmedWithdrawals.layer1_transaction_id == layer1_transaction_id,
-            Onboarding.ConfirmedWithdrawals.layer1_transaction_vout == layer1_transaction_vout,
-        ).first()
-        assert withdrawal_entry is not None
+    # Check if the broadcasted withdrawal was added to the database
+    result = await db_session.execute(select(Onboarding.ConfirmedWithdrawals).filter(
+        Onboarding.ConfirmedWithdrawals.layer1_transaction_id == layer1_transaction_id,
+        Onboarding.ConfirmedWithdrawals.layer1_transaction_vout == layer1_transaction_vout,
+    ))
+    withdrawal_entry: Onboarding.ConfirmedWithdrawals = result.scalars().first()
+    assert withdrawal_entry is not None
 
-        # Check to see that it is not confirmed on layer1
-        assert withdrawal_entry.confirmed is False
+    # Check to see that it is not confirmed on layer1
+    assert withdrawal_entry.confirmed is False
 
 # This test generates a new L2 address, gets a deposit address, simulates a deposit, and withdraws to a new L1 address.
 # Then simulates a Layer2Bridge Layer1 withdrawal broadcast.
 # Then simulates a Layer2Bridge Layer1 withdrawal confirmed and checks to see if the withdrawal was added to ConfirmedWithdrawals with confirmed = True, and the layer2 Transaction.layer1_transaction_id is transaction_id of the confirmed withdrawal
-def test_deposit_and_withdraw_broadcast_confirmed(client):
+@pytest.mark.asyncio
+async def test_deposit_and_withdraw_broadcast_confirmed(client: AsyncClient, db_session: AsyncSession):
 
 
     # Generate L2 address
@@ -536,13 +574,13 @@ def test_deposit_and_withdraw_broadcast_confirmed(client):
         nonce=nonce,
         signature=signature
     )
-    response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
+    response = await client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump())
     assert is_successful_response(response)
-    verify_get_new_deposit_address_procedure(l2_address.pubkey)
-    deposit_address_response = GetDepositAddressResponse(**response.json)
+    await verify_get_new_deposit_address_procedure(db_session, l2_address.pubkey)
+    deposit_address_response = GetDepositAddressResponse(**response.json())
     deposit_address = deposit_address_response.layer1_deposit_address
 
-    verify_get_new_deposit_address_procedure(l2_address.pubkey)
+    await verify_get_new_deposit_address_procedure(db_session, l2_address.pubkey)
 
     # Simulate Layer1 deposit
     deposit_nonce = generate_nonce()
@@ -565,9 +603,9 @@ def test_deposit_and_withdraw_broadcast_confirmed(client):
             )
         ]
     )
-    response = client.post('/depositFunds', json=deposit_data.model_dump(), content_type='application/json')
+    response = await client.post('/depositFunds', json=deposit_data.model_dump())
     assert is_successful_response(response)
-    verify_deposit_confirmed(deposit_data)
+    await verify_deposit_confirmed(db_session, deposit_data)
 
     timestamp_before_withdrawal = int(time.time_ns() / 1e6) # Store the timestamp before withdrawal, so we can query the WithdrawalRequests after this timestamp
 
@@ -585,19 +623,18 @@ def test_deposit_and_withdraw_broadcast_confirmed(client):
         amount=withdrawal_amount,
         signature=withdrawal_signature
     )
-    response = client.post('/withdrawalRequest', json=withdrawal_request.model_dump(), content_type='application/json')
+    response = await client.post('/withdrawalRequest', json=withdrawal_request.model_dump())
     assert is_successful_response(response)
 
-    with get_db() as db:
-        verify_withdrawal_request_procedure(db, withdrawal_request)
+    await verify_withdrawal_request_procedure(db_session, withdrawal_request)
 
     #Simulate the Layer2Bridge querying the withdrawal request
     get_withdrawal_requests: GetWithdrawalRequestsRequest = GetWithdrawalRequestsRequest(
         latest_timestamp=timestamp_before_withdrawal
     )
-    response = client.post('/getWithdrawalRequests', json=get_withdrawal_requests.model_dump(), content_type='application/json')
+    response = await client.post('/getWithdrawalRequests', json=get_withdrawal_requests.model_dump())
     assert is_successful_response(response)
-    withdrawal_requests_response: GetWithdrawalRequestsResponse = GetWithdrawalRequestsResponse(**response.json)
+    withdrawal_requests_response: GetWithdrawalRequestsResponse = GetWithdrawalRequestsResponse(**response.json())
     assert len(withdrawal_requests_response.withdrawal_requests) == 1 # If you have more than one withdrawal request, you should make sure the timestamp does not capture extra requests from previous tests running in the same testing session.
     withdrawal_request: WithdrawalRequest = withdrawal_requests_response.withdrawal_requests[0]
     assert withdrawal_request.layer2_transaction_id == withdrawal_layer2_transaction_id_nonce
@@ -620,19 +657,19 @@ def test_deposit_and_withdraw_broadcast_confirmed(client):
             )
         ]
     )
-    response = client.post('/withdrawalBroadcasted', json=broadcast_request.model_dump(), content_type='application/json')
+    response = await client.post('/withdrawalBroadcasted', json=broadcast_request.model_dump())
     assert is_successful_response(response)
 
-    with get_db() as db:
-        # Check if the broadcasted withdrawal was added to the database
-        withdrawal_entry: Onboarding.ConfirmedWithdrawals = db.query(Onboarding.ConfirmedWithdrawals).filter(
-            Onboarding.ConfirmedWithdrawals.layer1_transaction_id == layer1_transaction_id,
-            Onboarding.ConfirmedWithdrawals.layer1_transaction_vout == layer1_transaction_vout,
-        ).first()
-        assert withdrawal_entry is not None
+    # Check if the broadcasted withdrawal was added to the database
+    result = await db_session.execute(select(Onboarding.ConfirmedWithdrawals).filter(
+        Onboarding.ConfirmedWithdrawals.layer1_transaction_id == layer1_transaction_id,
+        Onboarding.ConfirmedWithdrawals.layer1_transaction_vout == layer1_transaction_vout,
+    ))
+    withdrawal_entry: Onboarding.ConfirmedWithdrawals = result.scalars().first()
+    assert withdrawal_entry is not None
 
-        # Check to see that it is not confirmed on layer1
-        assert withdrawal_entry.confirmed is False
+    # Check to see that it is not confirmed on layer1
+    assert withdrawal_entry.confirmed is False
 
     # Simulate Layer2Bridge Layer1 withdrawal confirmed
     confirmed_signature = onboarding_transaction_signing_address.sign(
@@ -652,15 +689,15 @@ def test_deposit_and_withdraw_broadcast_confirmed(client):
             )
         ]
     )
-    response = client.post('/withdrawalConfirmed', json=confirmed_request.model_dump(), content_type='application/json')
+    response = await client.post('/withdrawalConfirmed', json=confirmed_request.model_dump())
     assert is_successful_response(response)
-    verify_withdrawal_confirmed_procedure(confirmed_request)
+    await verify_withdrawal_confirmed_procedure(db_session, confirmed_request)
     
 
 # Test for postLayer1AuditReport and getLayer1AuditReport
 # Updated test to use the message building logic from verifyLayer1AuditReportSignature
-def test_layer1_audit_report(client):
-
+@pytest.mark.asyncio
+async def test_layer1_audit_report(client: AsyncClient, db_session: AsyncSession):
 
     # Generate test data for postLayer1AuditReport
     layer1_address_balances = [
@@ -684,26 +721,27 @@ def test_layer1_audit_report(client):
     )
 
     # Post Layer1 Audit Report
-    response = client.post('/postLayer1AuditReport', json=post_audit_request.model_dump(), content_type='application/json')
+    response = await client.post('/postLayer1AuditReport', json=post_audit_request.model_dump())
     assert is_successful_response(response)
 
     # Get Layer1 Audit Report
-    response = client.get(f"/getLayer1AuditReport?block_height={post_audit_request.block_height}", content_type='application/json')
+    response = await client.get(f"/getLayer1AuditReport?block_height={post_audit_request.block_height}")
     assert is_successful_response(response)
 
     # Validate response using Pydantic model
-    audit_report_response = GetLayer1AuditReportResponse(**response.json)
+    audit_report_response = GetLayer1AuditReportResponse(**response.json())
     assert audit_report_response.blockHeight == post_audit_request.block_height
     assert audit_report_response.totalBalance == total_balance
 
     print(f"Audit report validated successfully: {audit_report_response}")
 
 #Tests to make sure the first MPK/DepositAddress is generated correctly
-def test_delete_mpk_table_get_deposit_address(client):
+@pytest.mark.asyncio
+async def test_delete_mpk_table_get_deposit_address(client: AsyncClient, db_session: AsyncSession):
 
 
     # Delete the MPK table
-    drop_MasterPublicKeyIndex_DepositAddresses_tables()
+    await drop_MasterPublicKeyIndex_DepositAddresses_tables(db_session)
 
     # Generate a new L2 address
     l2_address = generate_new_address('L2 Address for deposit')
@@ -722,14 +760,15 @@ def test_delete_mpk_table_get_deposit_address(client):
         nonce=nonce,
         signature=signature
     )
-    response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
+    response = await client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump())
     assert is_successful_response(response)
-    verify_get_new_deposit_address_procedure(l2_address.pubkey)
-    deposit_address_response = GetDepositAddressResponse(**response.json)
+    await verify_get_new_deposit_address_procedure(db_session, l2_address.pubkey)
+    deposit_address_response = GetDepositAddressResponse(**response.json())
 
 # This tests getting a deposit address twice for the same L2 address. 
 # Ensure that the second call returns the same Layer 1 deposit address as the first call.
-def test_generate_deposit_address_twice(client):
+@pytest.mark.asyncio
+async def test_generate_deposit_address_twice(client: AsyncClient, db_session: AsyncSession):
 
 
     # Generate a new L2 address
@@ -749,25 +788,26 @@ def test_generate_deposit_address_twice(client):
         nonce=nonce,
         signature=signature
     )
-    response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
+    response = await client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump())
     assert is_successful_response(response)
-    verify_get_new_deposit_address_procedure(l2_address.pubkey)
+    await verify_get_new_deposit_address_procedure(db_session, l2_address.pubkey)
     
-    deposit_address_response_1 = GetDepositAddressResponse(**response.json)
+    deposit_address_response_1 = GetDepositAddressResponse(**response.json())
     deposit_address_1 = deposit_address_response_1.layer1_deposit_address
 
     # Get L1 deposit address for the second time
-    response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
+    response = await client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump())
     assert is_successful_response(response)
     
-    deposit_address_response_2 = GetDepositAddressResponse(**response.json)
+    deposit_address_response_2 = GetDepositAddressResponse(**response.json())
     deposit_address_2 = deposit_address_response_2.layer1_deposit_address
 
     # Ensure both responses have the same Layer 1 deposit address
     assert deposit_address_1 == deposit_address_2
 
 @pytest.mark.parametrize("transaction_count", [10, 100, 1000])
-def test_mass_transfer(client, transaction_count):
+@pytest.mark.asyncio
+async def test_mass_transfer(client: AsyncClient, db_session: AsyncSession, transaction_count):
     """
     Deposits sats to one address and then transfers funds
     to n different addresses.
@@ -788,10 +828,10 @@ def test_mass_transfer(client, transaction_count):
         nonce=nonce,
         signature=signature
     )
-    response = client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump(), content_type='application/json')
+    response = await client.post('/getNewDepositAddress', json=get_deposit_address_request.model_dump())
     assert is_successful_response(response)
-    verify_get_new_deposit_address_procedure(source_address.pubkey)
-    deposit_address_response = GetDepositAddressResponse(**response.json)
+    await verify_get_new_deposit_address_procedure(db_session, source_address.pubkey)
+    deposit_address_response = GetDepositAddressResponse(**response.json())
     deposit_address = deposit_address_response.layer1_deposit_address
 
     # Simulate Layer1 deposit
@@ -813,9 +853,9 @@ def test_mass_transfer(client, transaction_count):
             )
         ]
     )
-    response = client.post('/depositFunds', json=deposit_data.model_dump(), content_type='application/json')
+    response = await client.post('/depositFunds', json=deposit_data.model_dump())
     assert is_successful_response(response)
-    verify_deposit_confirmed(deposit_data)
+    await verify_deposit_confirmed(db_session, deposit_data)
 
     # 2. Generate 100 destination addresses
     
@@ -840,15 +880,15 @@ def test_mass_transfer(client, transaction_count):
             transaction_id=transfer_nonce,
             signature=transfer_signature
         )
-        response = client.post('/pushTransaction', json=transfer_request.model_dump(), content_type='application/json')
+        response = await client.post('/pushTransaction', json=transfer_request.model_dump())
         assert is_successful_response(response)
 
     # 4. Verify final balances
     # Verify source address balance
     balance_request = GetBalanceRequest(public_keys=[source_address.pubkey])
-    response = client.post('/getBalance', json=balance_request.model_dump(), content_type='application/json')
+    response = await client.post('/getBalance', json=balance_request.model_dump())
     assert is_successful_response(response)
-    balance_response = GetBalanceResponse(**response.json)
+    balance_response = GetBalanceResponse(**response.json())
     source_balance = balance_response.balance[0]
     expected_source_balance = deposit_amount - (num_dest_addresses * amount_per_transfer)
     assert source_balance.balance == expected_source_balance
@@ -856,9 +896,9 @@ def test_mass_transfer(client, transaction_count):
     # Verify destination addresses balances
     dest_pubkeys = [addr.pubkey for addr in destination_addresses]
     balance_request = GetBalanceRequest(public_keys=dest_pubkeys)
-    response = client.post('/getBalance', json=balance_request.model_dump(), content_type='application/json')
+    response = await client.post('/getBalance', json=balance_request.model_dump())
     assert is_successful_response(response)
-    balance_response = GetBalanceResponse(**response.json)
+    balance_response = GetBalanceResponse(**response.json())
     
     for balance_info in balance_response.balance:
         assert balance_info.address_found is True
@@ -866,3 +906,20 @@ def test_mass_transfer(client, transaction_count):
 
 if __name__ == '__main__':
     pytest.main()
+
+
+@pytest.mark.asyncio
+async def test_get_node_info(client: AsyncClient):
+    """
+    Test the /getNodeInfo endpoint.
+    """
+    response = await client.get('/getNodeInfo')
+    assert response.status_code == 200
+    response_data = response.json()
+    assert response_data['error_code'] == 0
+    assert 'node_info' in response_data
+    node_info = response_data['node_info']
+    assert 'node_id' in node_info
+    assert 'node_asset_id' in node_info
+    assert node_info['node_id'] == NODE_ID
+    assert node_info['asset_id'] == NODE_ASSET_ID

@@ -4,6 +4,8 @@ from Layer2Ledger.API.InstaChainAPI import InstachainRequestHandler
 from Layer2Ledger.services.messages.Layer2Ledger.Responses.GetNodeInfoResponse import GetNodeInfoResponse, NodeInfo, Layer1NetworkInfo, Version
 import json
 from Layer2Ledger.config.config import config
+from fastapi import Request
+from Layer2Ledger.database.database import AsyncSession
 
 #unique randomly generated alphanumeric string valid for the lifetime of the node + ledger
 #used as a nonce for signing transactions to prevent cross-node relay attacks, has no cryptographic value 
@@ -29,11 +31,11 @@ from Layer2Ledger.core.signing_keys import ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY
 
 
 class getNodeInfo(InstachainRequestHandler):
-    def getParameters(self):
+    async def getParameters(self, request: Request):
         # Retain the getParameters function
         pass
 
-    def processRequest(self):
+    async def processRequest(self, db: AsyncSession):
         version = Version(major_version=1, minor_version=0, patch_version=0, API_version=1)
         layer1_network_info = Layer1NetworkInfo(minimum_transaction_amount=MINIMUM_LAYER1_TRANSACTION_AMOUNT)
         node_info = NodeInfo(
@@ -46,6 +48,6 @@ class getNodeInfo(InstachainRequestHandler):
             layer1_network_info=layer1_network_info
         )
         self.result = GetNodeInfoResponse(
-            **ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS),
-            node_info=node_info
+            node_info=node_info,
+            **ErrorMessage.build_error_message(ErrorMessage.ERROR_SUCCESS)
         )

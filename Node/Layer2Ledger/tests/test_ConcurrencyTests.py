@@ -22,7 +22,7 @@ def is_successful_response(response, response_model) -> bool:
 
 @pytest.mark.asyncio
 async def test_concurrent_transfers():
-    num_receivers = 100
+    num_receivers = 1000
     amount_per_receiver = 100
     fee_per_transfer = 1
     total_transfer_amount = num_receivers * amount_per_receiver
