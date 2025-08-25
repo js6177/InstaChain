@@ -85,31 +85,36 @@ The Layer2LedgerBatched project is a managed by the 'uv' tool and has the follow
 
 ```
 /src/ - the folder where all of the source code resides
-    /common/ - folder that contains code common to both Layer2LedgerAPIHandler and Layer2LedgerDbWriter (such as redis connection logic and redis pydantic models
-        /redis/ - folder for managing redis connections and defining redis pydantic models
-            /redis-models/
-            /redis-driver/
-        /db/ - folder that contain the sqlalchemy models andd rivers for the DB
-            models.py - file that contains the sqlalchemy models of the DB
-            session.py - file that contains the engine and session for connecting to the db
-        /config/
-            config.py - Contains the pydantic model of the config.json and functions to read it
-            shared-config.json - Shared configuration (DB, Redis connection strings)
-    /Layer2LedgerAPIHandler/
-        /api/ - folder the contain the routes and models of the FastAPI interface
-            /routes/ - business logic that handles the FastAPI requests
-            /models/ - Pydantic models that contain the request and response for the FastAPI
-                /requests/
-                /responses/
-        /config/ - folder for the config parser, pydantic model, and json file
-            config.py - Contains the pydantic model of the config.json and functions to read it
-            Layer2LedgerAPIHandler-config.json - Layer2LedgerAPIHandler configuration
-        main.py - Entrypoint
-    /Layer2LedgerDbWriter/
-        /config/ - folder for the config parser, pydantic model, and json file
-            config.py - Contains the pydantic model of the config.json and functions to read it
-            Layer2LedgerAPIHandler-config.json - Layer2LedgerAPIHandler configuration
-        main.py - Entrypoint 
+    /layer2ledgerbatched/
+        /common/ - folder that contains code common to both Layer2LedgerAPIHandler and Layer2LedgerDbWriter (such as redis connection logic and redis pydantic models
+            /redis/ - folder for managing redis connections and defining redis pydantic models
+                /redis-models/
+                /redis-driver/
+            /db/ - folder that contain the sqlalchemy models andd rivers for the DB
+                models.py - file that contains the sqlalchemy models of the DB
+                session.py - file that contains the engine and session for connecting to the db
+            /utils/ - files that contain utils and helper functions
+            /config/
+                config.py - Contains the pydantic model of the config.json and functions to read it
+                shared-config.json - Shared configuration (DB, Redis connection strings)
+        /Layer2LedgerAPIHandler/
+            /api/ - folder the contain the routes and models of the FastAPI interface
+                /routes/ - business logic that handles the FastAPI requests
+                /models/ - Pydantic models that contain the request and response for the FastAPI
+                    /requests/
+                    /responses/
+            /utils/ - files that contain utils and helper functions
+            /config/ - folder for the config parser, pydantic model, and json file
+                config.py - Contains the pydantic model of the config.json and functions to read it
+                Layer2LedgerAPIHandler-config.json - Layer2LedgerAPIHandler configuration
+            main.py - Entrypoint
+        /Layer2LedgerDbWriter/
+            /core/ - files that contain the core functionality, such as the main redis listening loop
+            /utils/ - files that contain utils and helper functions
+            /config/ - folder for the config parser, pydantic model, and json file
+                config.py - Contains the pydantic model of the config.json and functions to read it
+                Layer2LedgerAPIHandler-config.json - Layer2LedgerAPIHandler configuration
+            main.py - Entrypoint 
 /tests/ - folder for the unit tests and functional tests
 /setup-scripts/ - folder that contains scripts for seting up the environment (like starting up redis and psql services or launching uvicorn instances) to run the Layer2LedgerAPIHandler and Layer2LedgerDbWriter
 /docs/ - Documentation of this service
