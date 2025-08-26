@@ -1,0 +1,144 @@
+import datetime
+
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Float,
+    Integer,
+    JSON,
+    String,
+    Text,
+    func,
+)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+class Base(DeclarativeBase):
+    pass
+
+class Layer1AuditReport(Base):
+    __tablename__ = "layer1_audit_reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    blockHeight: Mapped[int] = mapped_column(Integer, unique=True, index=True)
+    balance: Mapped[int] = mapped_column(Integer)
+    layer1AddressBalances: Mapped[dict] = mapped_column(JSON)
+    timestamp: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    signature: Mapped[str] = mapped_column(Text)
+
+
+class Layer1Addresses(Base):
+    __tablename__ = "layer1_addresses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    layer1Address: Mapped[str] = mapped_column(String, unique=True, index=True)
+    balance: Mapped[int] = mapped_column(Integer)
+    label: Mapped[str] = mapped_column(Text)
+
+
+class TransactionDuration(Base):
+    __tablename__ = "transaction_durations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    timestamp: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    duration: Mapped[float] = mapped_column(Float)
+    transaction_id: Mapped[str] = mapped_column(String, index=True)
+    action: Mapped[str] = mapped_column(String)
+    item_count: Mapped[int] = mapped_column(Integer)
+
+
+class KeyValueStore(Base):
+    __tablename__ = "key_value_store"
+
+    key: Mapped[str] = mapped_column(String, primary_key=True, index=True)
+    value: Mapped[str] = mapped_column(String, nullable=False)
+
+
+class MasterPublicKeyIndex(Base):
+    __tablename__ = "master_public_key_indices"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    mpk_index: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+
+class WithdrawalRequests(Base):
+    __tablename__ = "withdrawal_requests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    layer1_address: Mapped[str] = mapped_column(String, index=True)
+    layer1_transaction_id: Mapped[str] = mapped_column(String, nullable=True)
+    status: Mapped[int] = mapped_column(Integer)
+    amount: Mapped[int] = mapped_column(Integer)
+    layer2_withdrawal_id: Mapped[str] = mapped_column(String, unique=True, index=True)
+    server_signature: Mapped[str] = mapped_column(String, nullable=True)
+    layer2_transaction_id: Mapped[str] = mapped_column(String)
+    withdrawal_requested_timestamp: Mapped[int] = mapped_column(BigInteger)
+    withdrawal_requested_timestamp_str: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class ConfirmedWithdrawals(Base):
+    __tablename__ = "confirmed_withdrawals"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    layer1_transaction_id: Mapped[str] = mapped_column(String, index=True)
+    layer1_transaction_vout: Mapped[int] = mapped_column(Integer)
+    layer1_address: Mapped[str] = mapped_column(String, index=True)
+    amount: Mapped[int] = mapped_column(Integer)
+    layer2_withdrawal_id: Mapped[str] = mapped_column(String, unique=True, index=True)
+    broadcasted_signature: Mapped[str] = mapped_column(String)
+    confirmed_signature: Mapped[str] = mapped_column(String)
+    confirmed: Mapped[bool] = mapped_column(Boolean, default=False)
+    confirmation_timestamp_str: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class DepositAddresses(Base):
+    __tablename__ = "deposit_addresses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    layer2_address: Mapped[str] = mapped_column(String, index=True)
+    nonce: Mapped[str] = mapped_column(String)
+    layer1_address: Mapped[str] = mapped_column(String, unique=True, index=True)
+    signature: Mapped[str] = mapped_column(String)
+    date_requested: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    mpk_index: Mapped[int] = mapped_column(Integer)
+
+
+class Layer2AddressBalance(Base):
+    __tablename__ = "address_balance_cache"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    address: Mapped[str] = mapped_column(String, unique=True, index=True)
+    balance: Mapped[int] = mapped_column(Integer)
+    timestamp: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class Transaction(Base):
+    __tablename__ = "transactions"
+
+    timestamp: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    amount: Mapped[int] = mapped_column(Integer)
+    fee: Mapped[int] = mapped_column(Integer)
+    source_address_pubkey: Mapped[str] = mapped_column(String, index=True)
+    destination_address_pubkey: Mapped[str] = mapped_column(String, index=True)
+    transaction_type: Mapped[int] = mapped_column(Integer)
+    layer2_transaction_id: Mapped[str] = mapped_column(
+        String, primary_key=True, index=True
+    )
+    signature: Mapped[str] = mapped_column(String)
+    signature_date: Mapped[int] = mapped_column(BigInteger)
+    layer1_transaction_id: Mapped[str] = mapped_column(String)
+    layer2_withdrawal_id: Mapped[str] = mapped_column(String)
