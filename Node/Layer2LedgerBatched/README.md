@@ -1,13 +1,13 @@
 # Layer2LedgerBatched design doc
 
 ## Overview of Components
-Layer2LedgerBatched is a service that processes Layer2 transfers (transfers from a Layer2 address to a Layer2 address), deposits (from Layer1 to Layer2), and withdrawals (from Layer2 to Layer2). It accepts requests through a FastAPI ASGI server ran with uvicorn, and stores them in a postgreSQL database.
+Layer2LedgerBatched is a service that processes Layer2 transfers (transfers from a Layer2 address to a Layer2 address), deposits (from Layer1 to Layer2), and withdrawals (from Layer2 to Layer2). It accepts requests through a FastAPI ASGI server ran with uvicorn, and stores them in a postgreSQL database. In the context of this project, Layer1 refers to the bitcoin network, and Layer2 refers to this ledger in this project.
 Layer2LedgerBatched consists of two standalone processes, Layer2LedgerAPIHandler and Layer2LedgerDbWriter, and two 3rd party services: Redis (redis-server) and postgreSQL (psql).
 
 Layer2LedgerAPIHandler is responsible for accepting Transfer, Deposit, and Withdrawal requests through the FastAPI http endoints, verifying that the transactions are good, and pushing them to the redis instance. The Layer2LedgerDbWriter is responsible for getting all the transactions in the redis queue, and inserting them into the postgresql batched to maximize throughput.
 
-The postgresql db will be the core database that stores the layer2 ledger and will have tables for the trasactions, deposits and withdrawal requests. 
-There will be a redis service that is responsible for providing a distributed lock mechanism (to prevent double spending of funds processed by seperate uvicorn processes) called 'AddressLock' and for maintaing a list of Transactions (called 'PendingTransactions') that the Layer2LedgerDbWriter will fetch and batch insert into mongodb. 
+A postgresql db callled "Layer2LedgerDB" will be the core database that stores the layer2 ledger and will have tables for the trasactions, deposits and withdrawal requests. The Layer2LedgerAPIHandler can only read but not write to this databse. The only service that writes to it is Layer2LedgerDbWriter.
+There will be a redis service that is responsible for providing a distributed lock mechanism (to prevent double spending of funds processed by seperate uvicorn processes) called 'AddressLock' and for maintaing a list of Transactions (called 'PendingTransactions') that the Layer2LedgerDbWriter will fetch and batch insert into Layer2LedgerDB. This pending transactions list is known as 'Layer2LedgerMempool' and is similar to the layer1 mempool.
 
 ## Tech stack
 Runtime: Python 3.12
@@ -18,6 +18,7 @@ asyncpg - For the async postgresql driver
 sqlalchemy[asyncio] - ORM for postgresql models
 redis[hiredis]  - redis driver
 pydantic - Schema validation of the REST API and redis messages 
+fastecdsa - generating layer2 addresses, verifying message signatures from layer2 addresses
 
 
 
@@ -86,7 +87,8 @@ The Layer2LedgerBatched project is a managed by the 'uv' tool and has the follow
 ```
 /src/ - the folder where all of the source code resides
     /layer2ledgerbatched/
-        /common/ - folder that contains code common to both Layer2LedgerAPIHandler and Layer2LedgerDbWriter (such as redis connection logic and redis pydantic models
+        /docs/
+        /common/ - folder that contains code common to both Layer2LedgerAPIHandler and Layer2LedgerDbWriter (such as redis connection logic and redis pydantic models)
             /redis/ - folder for managing redis connections and defining redis pydantic models
                 /redis-models/
                 /redis-driver/
@@ -142,7 +144,7 @@ In a while loop the Layer2LedgerDbWriter fetches this (and many other) Transfer 
 - for each Transfer transaction, for both the source and destination addres, generates an atomically incrementing AddressBalance upsert statement
 - batch inserts them. 
 
-Once the transfers are successfully inserted, the Layer2LedgerDbWriter unlocks all source and destination addresses involved in the batch inserted transactions.
+Once the transfers are successfully inserted, the Layer2LedgerDbWriter unlocks all source and destination addresses involved in the batch inserted transactions, and removes the inserted transactions from the PendingTransactions list in redis.
 
 ### DB models
 The Transaction and AddressBalance are the only models that this flow uses
