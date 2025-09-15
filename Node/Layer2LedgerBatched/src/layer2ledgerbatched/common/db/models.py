@@ -1,9 +1,11 @@
 import datetime
+import enum
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
     DateTime,
+    Enum,
     Float,
     Integer,
     JSON,
@@ -114,7 +116,7 @@ class DepositAddresses(Base):
 
 
 class Layer2AddressBalance(Base):
-    __tablename__ = "address_balance_cache"
+    __tablename__ = "layer2_address_balance"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     address: Mapped[str] = mapped_column(String, unique=True, index=True)
@@ -123,6 +125,15 @@ class Layer2AddressBalance(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
+class TransactionType(enum.IntEnum):
+    TRX_TRANSFER = 1  # layer2 transfer
+    TRX_DEPOSIT = 2  # when a user deposits btc to a deposit address, then funds get credited to his pubkey
+    TRX_WITHDRAWAL_INITIATED = 3  # when the user wants to withdraw to a btc address (locks that amount)
+    TRX_WITHDRAWAL_BROADCASTED = 4 # when the transaction is broadcasted and in the mempool
+    TRX_WITHDRAWAL_CANCELED = 5  # when the transaction gets removed from the layer1 mempool for any reason
+    TRX_WITHDRAWAL_CONFIRMED = 6  # when the withdrawal gets confirmed in the layer1 chain
+    INSTRUCTION_GET_DEPOSIT_ADDRESS = 7 # instruction to get a deposit address
+    INSTRUCTION_LAYER1_AUDIT = 8 # instruction to perform a layer1 audit
 
 class Transaction(Base):
     __tablename__ = "transactions"
@@ -134,7 +145,7 @@ class Transaction(Base):
     fee: Mapped[int] = mapped_column(Integer)
     source_address_pubkey: Mapped[str] = mapped_column(String, index=True)
     destination_address_pubkey: Mapped[str] = mapped_column(String, index=True)
-    transaction_type: Mapped[int] = mapped_column(Integer)
+    transaction_type: Mapped[TransactionType] = mapped_column(Enum(TransactionType))
     layer2_transaction_id: Mapped[str] = mapped_column(
         String, primary_key=True, index=True
     )
@@ -142,3 +153,5 @@ class Transaction(Base):
     signature_date: Mapped[int] = mapped_column(BigInteger)
     layer1_transaction_id: Mapped[str] = mapped_column(String)
     layer2_withdrawal_id: Mapped[str] = mapped_column(String)
+
+

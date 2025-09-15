@@ -147,7 +147,7 @@ In a while loop the Layer2LedgerDbWriter fetches this (and many other) Transfer 
 Once the transfers are successfully inserted, the Layer2LedgerDbWriter unlocks all source and destination addresses involved in the batch inserted transactions, and removes the inserted transactions from the PendingTransactions list in redis.
 
 ### DB models
-The Transaction and AddressBalance are the only models that this flow uses
+The Transaction and Layer2AddressBalance are the only models that this flow uses
 
 ```
 class Transaction(Base):
@@ -167,11 +167,15 @@ class Transaction(Base):
 ```
 
 ```
-class AddressBalance(Base):
-    __tablename__ = "address_balances"
+class Layer2AddressBalance(Base):
+    __tablename__ = "layer2_address_balance"
 
-    layer2_address_pubkey: Mapped[str] = mapped_column(String, primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    address: Mapped[str] = mapped_column(String, unique=True, index=True)
     balance: Mapped[int] = mapped_column(Integer)
+    timestamp: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 ```
 
 ### FastAPI models

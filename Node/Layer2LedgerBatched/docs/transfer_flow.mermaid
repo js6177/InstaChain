@@ -1,0 +1,35 @@
+sequenceDiagram
+    participant Client
+    participant API as Layer2LedgerAPIHandler
+    participant Redis
+    participant DB as Layer2LedgerDB (PostgreSQL)
+    participant DBWriter as Layer2LedgerDbWriter
+
+    Client->>API: POST /transfer (Layer2TransferRequest)
+    activate API
+
+    API->>API: Validate request fields & signature
+    API->>Redis: Acquire AddressLock for source & destination
+    alt Lock Failed
+        API-->>Client: HTTP Error "Address is busy"
+    else Lock Acquired
+        API->>DB: Check source balance & transaction uniqueness
+        alt Validation Failed
+            API->>Redis: Release AddressLock
+            API-->>Client: HTTP Error (e.g., "Insufficient funds")
+        else Validation Success
+            API->>Redis: Push transaction to 'PendingTransactions' list
+            API-->>Client: Success "Confirmed, pending insertion"
+        end
+    end
+    deactivate API
+
+    loop In Background
+        DBWriter->>Redis: Fetch transactions from 'PendingTransactions'
+        activate DBWriter
+        DBWriter->>DBWriter: Convert to SQLAlchemy models
+        DBWriter->>DB: Batch insert transactions & update balances
+        DBWriter->>Redis: Release AddressLocks for processed transactions
+        DBWriter->>Redis: Remove transactions from 'PendingTransactions' list
+        deactivate DBWriter
+    end

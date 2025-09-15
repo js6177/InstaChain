@@ -24,6 +24,7 @@ ERROR_SEARCH_TYPE_NOT_SUPPORTED = 30
 ERROR_INVALID_SIGNATURE = 31
 ERROR_TRANSACTION_LOCK_MODE_NOT_SUPPORTED = 32
 ERROR_FAILED_TO_READ_FROM_DATABASE = 33
+ERROR_FAILED_TO_READ_FROM_REDIS = 34
 
 error_mapping = {
 ERROR_SUCCESS: "Success",
@@ -52,6 +53,7 @@ ERROR_SEARCH_TYPE_NOT_SUPPORTED: "The search type is not supported",
 ERROR_INVALID_SIGNATURE: "The signature is invalid",
 ERROR_TRANSACTION_LOCK_MODE_NOT_SUPPORTED: "The transaction locking mode is not supported. Config error",
 ERROR_FAILED_TO_READ_FROM_DATABASE: "Failed to read an entity from the database",
+ERROR_FAILED_TO_READ_FROM_REDIS: "Failed to read an entity from Redis",
 }
 
 def build_error_message(error_code: int, error_message: str = ''):

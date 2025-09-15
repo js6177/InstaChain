@@ -1,0 +1,22 @@
+graph TD
+    subgraph "User"
+        Client
+    end
+
+    subgraph "Layer2LedgerBatched"
+        API[Layer2LedgerAPIHandler]
+        DBWriter[Layer2LedgerDbWriter]
+    end
+
+    subgraph "External Services"
+        Redis
+        Postgres[("Layer2LedgerDB (PostgreSQL)")]
+    end
+
+    Client -- "Makes API calls to" --> API
+
+    API -- "Pushes transactions to" --> Redis
+    API -- "Reads data from" --> Postgres
+
+    DBWriter -- "Pulls transactions from" --> Redis
+    DBWriter -- "Writes data to" --> Postgres

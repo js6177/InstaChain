@@ -9,7 +9,6 @@ dependencies = [
     "base58>=2.1.1",
     "fastapi>=0.116.1",
     "fastecdsa>=3.0.1",
-    "httpx>=0.28.1",
     "pydantic>=2.11.7",
     "redis[hiredis]>=6.4.0",
     "sqlalchemy[asyncio]>=2.0.43",
@@ -20,6 +19,8 @@ dependencies = [
 dev = [
     "mypy>=1.17.1",
     "pytest>=8.4.1",
+    "httpx>=0.28.1",
+    "pytest-asyncio>=1.2.0",
 ]
 
 [tool.setuptools]
