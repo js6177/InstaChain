@@ -3,11 +3,11 @@ import httpx
 from sqlalchemy import select
 import random
 
-from layer2ledgerbatched.Layer2LedgerAPIHandler.main import app
+from layer2ledgerbatched.layer2ledgerapihandler.main import app
 from layer2ledgerbatched.common.db.models import KeyValueStore
 from layer2ledgerbatched.common.db.session import get_db_session
 from layer2ledgerbatched.common.redis.redis_driver.session import get_redis_conn
-from layer2ledgerbatched.Layer2LedgerAPIHandler.api.models.requests.SampleRequest import SampleRequest
+from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.SampleRequest import SampleRequest
 
 @pytest.mark.asyncio
 async def test_lifespan_events():

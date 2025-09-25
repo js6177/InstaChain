@@ -1,5 +1,5 @@
 from layer2ledgerbatched.common.utils.ecdsa import sign_message, verify_message
-from layer2ledgerbatched.Layer2LedgerAPIHandler.utils.layer2address import Layer2Address
+from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address
 
 def test_sign_message():
     address = Layer2Address("test address")

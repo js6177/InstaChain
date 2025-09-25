@@ -1,10 +1,10 @@
 #file to verify various transactions' digital signatures
-from layer2ledgerbatched.Layer2LedgerAPIHandler.utils.layer2address import Layer2Address as Address
+from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address as Address
 from layer2ledgerbatched.common.db.models import Transaction as Transaction, TransactionType
 import logging
 
-from layer2ledgerbatched.Layer2LedgerAPIHandler.utils import signing_keys
-from layer2ledgerbatched.Layer2LedgerAPIHandler.config.config import settings, NODE_ASSET_ID
+from layer2ledgerbatched.layer2ledgerapihandler.utils import signing_keys
+from layer2ledgerbatched.layer2ledgerapihandler.config.config import settings, NODE_ASSET_ID
 
 NODE_ID = settings.NODE_ID
 

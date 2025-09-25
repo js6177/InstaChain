@@ -1,4 +1,4 @@
-from layer2ledgerbatched.Layer2LedgerAPIHandler.config.config import settings
+from layer2ledgerbatched.layer2ledgerapihandler.config.config import settings
 
 # Public key of the fullnode, used for verifying L1 transactions sent from the fullnodehelper
 if settings.FULLNODE_SIGNING_KEY_USES_FUNCTIONAL_TEST_KEYS:

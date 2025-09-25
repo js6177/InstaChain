@@ -5,14 +5,14 @@ import redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 #from src.api import users, transfers, deposits, withdrawals
-from layer2ledgerbatched.Layer2LedgerAPIHandler.api.models.requests.SampleRequest import SampleRequest
+from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.SampleRequest import SampleRequest
 from layer2ledgerbatched.common.db.session import engine, get_db_session
 from layer2ledgerbatched.common.db.models import Base
 from layer2ledgerbatched.common.redis.redis_driver.session import get_redis_conn
 
-from layer2ledgerbatched.Layer2LedgerAPIHandler.api.routes import transfer
+from layer2ledgerbatched.layer2ledgerapihandler.api.routes import transfer
 
-from layer2ledgerbatched.Layer2LedgerAPIHandler.api.models.responses.CommonResponse import CommonResponse
+from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.CommonResponse import CommonResponse
 
 
 @asynccontextmanager
