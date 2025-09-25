@@ -30,7 +30,7 @@ app = FastAPI(lifespan=lifespan)
 
 app.include_router(transfer.router, prefix="/transfer", tags=["transfer"])
 
-@app.get("/")
+@app.get("/", response_model = CommonResponse)
 async def root(    
     pg_session: AsyncSession = Depends(get_db_session),
     redis_conn: redis.asyncio.Redis = Depends(get_redis_conn)) -> CommonResponse:
@@ -39,7 +39,7 @@ async def root(
 from layer2ledgerbatched.common.db.models import KeyValueStore
 from layer2ledgerbatched.common.redis.redis_models.models import RedisKeyValueStore
 
-@app.post("/test_db")
+@app.post("/test_db", response_model = CommonResponse)
 async def test_db(
     item: SampleRequest,
     pg_session: AsyncSession = Depends(get_db_session),

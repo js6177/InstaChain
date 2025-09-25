@@ -1,7 +1,7 @@
 from layer2ledgerbatched.common.utils.ecdsa import sign_message, verify_message
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address
 
-def test_sign_message():
+def test_sign_message() -> None:
     address = Layer2Address("test address")
     address.new_address()
     message = "Hello, World!"
