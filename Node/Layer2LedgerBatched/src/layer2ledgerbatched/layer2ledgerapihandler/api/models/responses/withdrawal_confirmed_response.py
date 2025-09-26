@@ -1,4 +1,4 @@
-from .CommonResponse import CommonResponse
+from .common_response import CommonResponse
 from pydantic import BaseModel
 
 class Layer1WithdrawalConfirmedTransactionStatus(CommonResponse):

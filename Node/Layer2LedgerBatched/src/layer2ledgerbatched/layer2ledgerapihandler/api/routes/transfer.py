@@ -7,8 +7,8 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from layer2ledgerbatched.common.db.session import get_db_session
 from layer2ledgerbatched.common.db.models import Transaction
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.PushTransactionRequest import PushTransactionRequest
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.CommonResponse import CommonResponse
+from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.push_transaction_request import PushTransactionRequest
+from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
 import layer2ledgerbatched.layer2ledgerapihandler.utils.error_message as error_codes
 
 router = APIRouter()

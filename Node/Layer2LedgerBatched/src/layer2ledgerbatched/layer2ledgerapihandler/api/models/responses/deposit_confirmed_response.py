@@ -1,5 +1,5 @@
 from typing import List
-from .CommonResponse import CommonResponse
+from .common_response import CommonResponse
 
 class Layer1DepositConfirmedTransaction(CommonResponse):
     layer1_transaction_id: str

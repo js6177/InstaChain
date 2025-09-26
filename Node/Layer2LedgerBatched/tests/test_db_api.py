@@ -7,8 +7,8 @@ from layer2ledgerbatched.layer2ledgerapihandler.main import app
 from layer2ledgerbatched.common.db.models import KeyValueStore
 from layer2ledgerbatched.common.db.session import get_db_session
 from layer2ledgerbatched.common.redis.redis_driver.session import get_redis_conn
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.SampleRequest import SampleRequest
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.CommonResponse import CommonResponse
+from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.sample_request import SampleRequest
+from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
 
 @pytest.mark.asyncio
 async def test_lifespan_events() -> None:

@@ -1,5 +1,5 @@
 from typing import List
-from .CommonResponse import CommonResponse
+from .common_response import CommonResponse
 
 class Layer1BroadcastedWithdrawalTransactionStatus(CommonResponse):
     layer2_withdrawal_id: str

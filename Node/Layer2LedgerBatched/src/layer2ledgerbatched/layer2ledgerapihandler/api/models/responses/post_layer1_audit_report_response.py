@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from .CommonResponse import CommonResponse
+from .common_response import CommonResponse
 
 class PostLayer1AuditReportResponse(CommonResponse):
     pass

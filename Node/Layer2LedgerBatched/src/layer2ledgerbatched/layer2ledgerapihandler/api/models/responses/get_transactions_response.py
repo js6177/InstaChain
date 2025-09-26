@@ -8,7 +8,7 @@ from typing import List
 
 from pydantic import BaseModel
 
-from .CommonResponse import CommonResponse
+from .common_response import CommonResponse
 
 
 class GetTransactionsResponseTransaction(BaseModel):
