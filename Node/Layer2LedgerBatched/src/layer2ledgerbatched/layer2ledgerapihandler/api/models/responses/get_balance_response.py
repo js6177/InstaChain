@@ -8,6 +8,7 @@ from typing import List
 
 from pydantic import BaseModel
 
+from .common_response import CommonResponse
 
 class GetBalanceResponseBalance(BaseModel):
     address_found: bool = None 
@@ -15,7 +16,5 @@ class GetBalanceResponseBalance(BaseModel):
     public_key: str = None
 
 
-class GetBalanceResponse(BaseModel):
+class GetBalanceResponse(CommonResponse):
     balance: List[GetBalanceResponseBalance] = None
-    error_code: int = None
-    error_message: str = None
