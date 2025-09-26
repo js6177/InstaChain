@@ -30,5 +30,14 @@ class Layer2Address:
         self.private_key_str_base58 = priv_key_b58
         self.public_key_str_base58 = pub_key_b58
 
+    def from_public_key(self, public_key_str_base58: str):
+        self.public_key_str_base58 = public_key_str_base58
+        self.pub_key_bytes = base58.b58decode(public_key_str_base58)
+        if len(self.pub_key_bytes) != 64:
+            raise ValueError("Invalid public key length")
+
     def sign(self, message: str):
         return sign_message(message, self.private_key_str_base58)
+    
+    def verify(self, message: str, signature: str):
+        return verify_message(message, signature, self.public_key_str_base58)

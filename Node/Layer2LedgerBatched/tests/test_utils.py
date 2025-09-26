@@ -17,17 +17,18 @@ def test_sign_message() -> None:
 
 def test_sign_verify_speed() -> None:
     import time
-    address = Layer2Address("test address")
-    address.new_address()
-    
-    message_signatures: dict[str, str] = {} # stores the signatures for each message. key: message, value: signature
-    
-    iterations = 10000
+
+
+    message_signatures: dict[str, (str,str)] = {} # stores the signatures for each message. key: message, value: (signature, public_key)
+
+    iterations = 1000
     start_time = time.time()
     for _ in range(iterations):
+        signing_address = Layer2Address("signing address")
+        signing_address.new_address()
         message = random_string(32)
-        signature = address.sign(message)
-        message_signatures[message] = signature
+        signature = signing_address.sign(message)
+        message_signatures[message] = (signature, signing_address.public_key_str_base58)
     end_time = time.time()
     
     total_time = end_time - start_time
@@ -36,8 +37,10 @@ def test_sign_verify_speed() -> None:
     assert avg_sign_time < 0.1
     
     start_time = time.time()
-    for msg, sig in message_signatures.items():
-        assert verify_message(msg, sig, address.public_key_str_base58) == True
+    for msg, (sig, pub_key) in message_signatures.items():
+        verifying_address = Layer2Address("verifying address")
+        verifying_address.from_public_key(pub_key)
+        assert verifying_address.verify(msg, sig) == True
     end_time = time.time()
     
     total_time = end_time - start_time
