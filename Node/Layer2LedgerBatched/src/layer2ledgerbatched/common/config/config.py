@@ -1,3 +1,4 @@
+import enum
 import json
 from pathlib import Path
 from typing import List, Optional
@@ -5,6 +6,10 @@ from pydantic import BaseModel
 
 ROOT_DIR = "~/.openl2/settings"
 config_filename = "shared-config.json"
+
+class Environment(enum.Enum):
+    TEST = "test"
+    PROD = "prod"
 
 class DatabaseSettings(BaseModel):
     db_user: str
@@ -51,4 +56,4 @@ def get_settings(environment: str) -> EnvironmentSpecificSettings:
 
     raise ValueError(f"Environment '{environment}' not found in config.")
 
-settings = get_settings("prod")
+settings = get_settings(Environment.PROD.value)
