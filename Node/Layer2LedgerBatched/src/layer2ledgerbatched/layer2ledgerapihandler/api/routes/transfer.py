@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
+import redis
 from sqlalchemy import select, Table
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 
-from layer2ledgerbatched.common.db.session import get_db_session
+#from layer2ledgerbatched.common.db.session import get_db_session
+from layer2ledgerbatched.layer2ledgerapihandler.utils.sessions import get_redis, get_db_session, get_redis_lock_manager
 from layer2ledgerbatched.common.db.models import Transaction
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.push_transaction_request import PushTransactionRequest
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
@@ -14,6 +16,6 @@ import layer2ledgerbatched.layer2ledgerapihandler.utils.error_message as error_c
 router = APIRouter()
 
 @router.post("/transfer", response_model=CommonResponse)
-async def create_transfer(request: PushTransactionRequest, db: AsyncSession = Depends(get_db_session)) -> CommonResponse:
+async def create_transfer(request: PushTransactionRequest, db: AsyncSession = Depends(get_db_session), redis: redis.asyncio.Redis = Depends(get_redis)) -> CommonResponse:
     response = CommonResponse(error_code=error_codes.ERROR_SUCCESS, error_message="")
     return response
