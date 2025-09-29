@@ -16,7 +16,6 @@ async def setup_test_environment():
     async with lifespan(app):
         yield
 
-
 @pytest_asyncio.fixture(scope="function")
 async def redis_client() -> AsyncGenerator[Redis, None]:
     settings = get_settings(Environment.TEST.value)
@@ -35,7 +34,7 @@ async def postgresql_session() -> AsyncGenerator[async_sessionmaker, None]:
     await engine.dispose()
 
 @pytest_asyncio.fixture(scope="function")
-async def distributed_lock(redis_client) -> DistributedLock:
+async def distributed_lock(redis_client) -> AsyncGenerator[DistributedLock, None]:
     """Your class fixture using Redis client fixture"""
     lock_manager = DistributedLock(redis_client)
     await lock_manager.setup()

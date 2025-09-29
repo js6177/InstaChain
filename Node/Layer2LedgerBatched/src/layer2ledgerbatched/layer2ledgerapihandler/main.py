@@ -8,15 +8,9 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, AsyncEngin
 from layer2ledgerbatched.common.config.config import Environment, get_settings
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.sample_request import SampleRequest
-#from layer2ledgerbatched.common.db.session import engine, get_db_session
 from layer2ledgerbatched.common.db.models import Base
-#from layer2ledgerbatched.common.redis.redis_driver.session import get_redis_conn
-
 from layer2ledgerbatched.layer2ledgerapihandler.api.routes import transfer
-
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
-#from layer2ledgerbatched.common.redis.redis_driver.session import initialize_distributed_lock
-
 from layer2ledgerbatched.layer2ledgerapihandler.utils.sessions import get_redis, get_db_session, get_redis_lock_manager
 
 

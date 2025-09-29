@@ -24,10 +24,10 @@ class DistributedLock:
             end
         end
         
-        -- 2. If all keys are free, set ALL of them with the token and expiration
+        -- 2. If all keys are free, set ALL of them with the token without expiration
         for i, key in ipairs(KEYS) do
-            -- Use SET <key> <value> EX <seconds>
-            redis.call('SET', key, ARGV[1], 'EX', ARGV[2])
+            -- Use SET <key> <value> 
+            redis.call('SET', key, ARGV[1])
         end
         
         return 1 -- Success: all locks acquired
@@ -74,7 +74,7 @@ class DistributedLock:
         """Converts user IDs into Redis key names."""
         return [f"lock:{user_id}" for user_id in user_ids]
 
-    async def acquire_multi_lock(self, user_ids: List[str], timeout_seconds: int = 15) -> Optional[str]: # Made async
+    async def acquire_multi_lock(self, user_ids: List[str], timeout_seconds: int = 1) -> Optional[str]: # Made async
         """
         Attempts to acquire locks for ALL user IDs atomically.
         """
@@ -90,6 +90,7 @@ class DistributedLock:
         lock_keys = self._get_lock_keys(user_ids)
         
         # Execute the Lua script asynchronously
+        # We pass the timeout as an argument, but the script does not use it. This is for future extension.
         acquired = await self.acquire_script(
             keys=lock_keys, 
             args=[lock_token, timeout_seconds],
@@ -119,4 +120,4 @@ class DistributedLock:
             args=[lock_token]
         )
         
-        return released == 1 # Returns True if all keys were deleted
+        return released == len(user_ids) # Returns True if all keys were deleted
