@@ -57,10 +57,10 @@ class DistributedLock:
         # Stores the Redis client pool manager instance
         debug_event_loop("DistributedLock __init__")
         self.redis_client = redis_client
-        self.acquire_script = None
-        self.release_script = None
+        self.acquire_script: Optional[redis.asyncio.Script] = None
+        self.release_script: Optional[redis.asyncio.Script] = None
 
-    async def setup(self):
+    async def setup(self) -> None:
         """
         Asynchronously loads the Lua scripts into Redis. This function must be 
         awaited once at application startup.

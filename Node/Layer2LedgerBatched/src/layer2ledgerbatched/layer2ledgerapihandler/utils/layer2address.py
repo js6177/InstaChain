@@ -13,13 +13,13 @@ class Layer2Address:
     private_key_bytes: bytes
     pub_key_bytes: bytes
 
-    def __init__(self, label: str):
+    def __init__(self, label: str = None) -> None:
         self.label = label
 
     def __str__(self):
         return f"{self.label}: private_key: {self.private_key_str_base58}, public_key: {self.public_key_str_base58}"
 
-    def new_address(self):
+    def new_address(self) -> None:
         priv_key, pub_key = keys.gen_keypair(curve=curve.secp256k1)
         self.priv_key_bytes = priv_key.to_bytes(32, 'big')
         self.pub_key_bytes = pub_key.x.to_bytes(32, 'big') + pub_key.y.to_bytes(32, 'big')
@@ -30,14 +30,14 @@ class Layer2Address:
         self.private_key_str_base58 = priv_key_b58
         self.public_key_str_base58 = pub_key_b58
 
-    def from_public_key(self, public_key_str_base58: str):
+    def from_public_key(self, public_key_str_base58: str) -> None:
         self.public_key_str_base58 = public_key_str_base58
         self.pub_key_bytes = base58.b58decode(public_key_str_base58)
         if len(self.pub_key_bytes) != 64:
             raise ValueError("Invalid public key length")
 
-    def sign(self, message: str):
+    def sign(self, message: str) -> str:
         return sign_message(message, self.private_key_str_base58)
     
-    def verify(self, message: str, signature: str):
+    def verify(self, message: str, signature: str) -> bool:
         return verify_message(message, signature, self.public_key_str_base58)

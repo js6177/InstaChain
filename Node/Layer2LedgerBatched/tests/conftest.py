@@ -7,6 +7,7 @@ from contextlib import AsyncExitStack
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from layer2ledgerbatched.common.config.config import get_settings, Environment
+from layer2ledgerbatched.common.db.models import Base
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.layer2ledgerapihandler.main import app, lifespan
 
@@ -29,13 +30,24 @@ async def postgresql_session() -> AsyncGenerator[async_sessionmaker, None]:
     settings = get_settings(Environment.TEST.value)
     engine = create_async_engine(settings.database_url, echo=True, pool_size=10, pool_timeout=30)
     async_session = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
     async with async_session() as session:
         yield session
     await engine.dispose()
 
 @pytest_asyncio.fixture(scope="function")
-async def distributed_lock(redis_client) -> AsyncGenerator[DistributedLock, None]:
+async def distributed_lock(redis_client: Redis) -> AsyncGenerator[DistributedLock, None]:
     """Your class fixture using Redis client fixture"""
     lock_manager = DistributedLock(redis_client)
     await lock_manager.setup()
     yield lock_manager
+
+
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def clear_redis(redis_client: Redis) -> AsyncGenerator[None, None]:
+    """Clears the Redis database before each test."""
+    print("--> Clearing Redis")
+    await redis_client.flushdb()
+    yield # The test runs here

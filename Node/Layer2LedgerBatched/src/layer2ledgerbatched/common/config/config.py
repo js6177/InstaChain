@@ -7,9 +7,12 @@ from pydantic import BaseModel
 ROOT_DIR = "~/.openl2/settings"
 config_filename = "shared-config.json"
 
+
 class Environment(enum.Enum):
     TEST = "test"
     PROD = "prod"
+
+DEFAULT_ENVIRONMENT = Environment.PROD.value
 
 class DatabaseSettings(BaseModel):
     db_user: str
@@ -41,10 +44,10 @@ class EnvironmentSpecificSettings(BaseModel):
 class Settings(BaseModel):
     environment_specific_settings: List[EnvironmentSpecificSettings]
 
-def get_settings(environment: str) -> EnvironmentSpecificSettings:
+def get_settings(environment: str = DEFAULT_ENVIRONMENT) -> EnvironmentSpecificSettings:
     cwd = Path.cwd()
     print(f"Current working directory using pathlib: {cwd}")
-    config_path = Path((Path(ROOT_DIR).expanduser())) / config_filename
+    config_path = Path((Path(ROOT_DIR).expanduser())) / environment / config_filename
     if not config_path.exists():
         raise FileNotFoundError(f"{config_filename} not found in the root directory.")
     with open(config_path, "r") as f:
@@ -55,5 +58,3 @@ def get_settings(environment: str) -> EnvironmentSpecificSettings:
                 return env_settings
 
     raise ValueError(f"Environment '{environment}' not found in config.")
-
-settings = get_settings(Environment.PROD.value)
