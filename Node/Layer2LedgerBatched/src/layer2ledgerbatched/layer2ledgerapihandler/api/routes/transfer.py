@@ -15,11 +15,12 @@ import layer2ledgerbatched.layer2ledgerapihandler.utils.error_message as error_c
 from layer2ledgerbatched.layer2ledgerapihandler.utils.key_verification import buildTransferMessage
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
-from layer2ledgerbatched.common.redis.redis_models.transactions import RedisTransaction, PendingTransaction
+from layer2ledgerbatched.common.redis.redis_models.transactions import RedisTransaction, PendingTransaction, PENDING_TRANSACTIONS_LIST_KEY
 
 router = APIRouter()
 
-@router.post("/transfer", response_model=CommonResponse)
+CREATE_TRANSFER_ROUTE = "/transfer"
+@router.post(CREATE_TRANSFER_ROUTE, response_model=CommonResponse)
 async def create_transfer(
     request: PushTransactionRequest, 
     db: AsyncSession = Depends(get_db_session), 
@@ -97,7 +98,7 @@ async def create_transfer(
             addresses_locked=addresses_to_lock
         )
 
-        await redis_client.rpush("PendingTransactions", pending_transaction.json())
+        await redis_client.rpush(PENDING_TRANSACTIONS_LIST_KEY, pending_transaction.json())
 
     except Exception as e:
         await lock_manager.release_multi_lock(addresses_to_lock, lock_token)

@@ -2,6 +2,7 @@ import redis
 import time
 import json
 from layer2ledgerbatched.common.config.config import shared_config
+from layer2ledgerbatched.common.redis.redis_models.transactions import PENDING_TRANSACTIONS_LIST_KEY
 
 class RedisDriver:
     def __init__(self):
@@ -14,4 +15,4 @@ class RedisDriver:
         self.redis.delete(lock_name)
         
     def push_to_mempool(self, transaction: dict):
-        self.redis.lpush('PendingTransactions', json.dumps(transaction))
+        self.redis.lpush(PENDING_TRANSACTIONS_LIST_KEY, json.dumps(transaction))

@@ -9,11 +9,12 @@ import random
 import uuid
 import base58
 
-from layer2ledgerbatched.layer2ledgerapihandler.main import app
+from layer2ledgerbatched.layer2ledgerapihandler.main import app, TRANSFER_ROUTER_PREFIX
+from layer2ledgerbatched.layer2ledgerapihandler.api.routes.transfer import CREATE_TRANSFER_ROUTE
 from layer2ledgerbatched.common.db.models import Layer2AddressBalance, Transaction, TransactionType
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.push_transaction_request import PushTransactionRequest
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
-from layer2ledgerbatched.common.redis.redis_models.transactions import RedisTransaction, PendingTransaction
+from layer2ledgerbatched.common.redis.redis_models.transactions import RedisTransaction, PendingTransaction, PENDING_TRANSACTIONS_LIST_KEY
 from layer2ledgerbatched.layer2ledgerapihandler.utils.key_verification import buildTransferMessage
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address
 import layer2ledgerbatched.layer2ledgerapihandler.utils.error_message as error_codes
@@ -70,7 +71,7 @@ async def test_create_transfer_success_inserted_into_redis(postgresql_session, r
 
     # 3. Call API
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/transfer/transfer", json=request.model_dump())
+        response = await client.post(f"{TRANSFER_ROUTER_PREFIX}{CREATE_TRANSFER_ROUTE}", json=request.model_dump())
 
     # 4. Assert response
     assert response.status_code == 200
@@ -78,10 +79,10 @@ async def test_create_transfer_success_inserted_into_redis(postgresql_session, r
     assert response_model.error_code == error_codes.ERROR_SUCCESS
 
     # 5. Check Redis
-    pending_tx_json = await redis_client.lpop("PendingTransactions")
+    pending_tx_json = await redis_client.lpop(PENDING_TRANSACTIONS_LIST_KEY)
     assert pending_tx_json is not None
     
-    pending_tx = PendingTransaction.parse_raw(pending_tx_json)
+    pending_tx = PendingTransaction.model_validate_json(pending_tx_json)
     
     assert pending_tx.transaction.amount == amount
     assert pending_tx.transaction.source_address_pubkey == source_address.public_key_str_base58
@@ -89,7 +90,7 @@ async def test_create_transfer_success_inserted_into_redis(postgresql_session, r
     assert pending_tx.transaction.layer2_transaction_id == transaction_id
     
     # Clean up redis
-    await redis_client.delete("PendingTransactions")
+    await redis_client.delete(PENDING_TRANSACTIONS_LIST_KEY)
 
 @pytest.mark.asyncio
 async def test_create_transfer_insufficient_funds(postgresql_session, source_address, dest_address) -> None:
@@ -126,7 +127,7 @@ async def test_create_transfer_insufficient_funds(postgresql_session, source_add
 
     # 3. Call API
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/transfer/transfer", json=request.model_dump())
+        response = await client.post(f"{TRANSFER_ROUTER_PREFIX}{CREATE_TRANSFER_ROUTE}", json=request.model_dump())
 
     # 4. Assert response
     assert response.status_code == 200
@@ -164,7 +165,7 @@ async def test_create_transfer_address_locked(redis_client, distributed_lock, so
 
     # 3. Call API
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/transfer/transfer", json=request.model_dump())
+        response = await client.post(f"{TRANSFER_ROUTER_PREFIX}{CREATE_TRANSFER_ROUTE}", json=request.model_dump())
 
     # 4. Assert response
     assert response.status_code == 200
@@ -192,7 +193,7 @@ async def test_create_transfer_invalid_address(source_address, dest_address) -> 
 
     # Call API
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/transfer/transfer", json=request.model_dump())
+        response = await client.post(f"{TRANSFER_ROUTER_PREFIX}{CREATE_TRANSFER_ROUTE}", json=request.model_dump())
 
     # Assert response
     assert response.status_code == 200
@@ -234,7 +235,7 @@ async def test_create_transfer_success_inserted_into_postgres(postgresql_session
 
     # 3. Call API
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post("/transfer/transfer", json=request.model_dump())
+        response = await client.post(f"{TRANSFER_ROUTER_PREFIX}{CREATE_TRANSFER_ROUTE}", json=request.model_dump())
 
     # 4. Assert response
     assert response.status_code == 200
@@ -242,10 +243,10 @@ async def test_create_transfer_success_inserted_into_postgres(postgresql_session
     assert response_model.error_code == error_codes.ERROR_SUCCESS
 
     # 5. Check Redis
-    pending_tx_json = await redis_client.lrange("PendingTransactions", 0, -1)
+    pending_tx_json = await redis_client.lrange(PENDING_TRANSACTIONS_LIST_KEY, 0, -1)
     assert pending_tx_json is not None
     
-    pending_tx = PendingTransaction.parse_raw(pending_tx_json[0])
+    pending_tx = PendingTransaction.model_validate_json(pending_tx_json[0])
     
     assert pending_tx.transaction.amount == transfer_amount
     assert pending_tx.transaction.source_address_pubkey == source_address.public_key_str_base58

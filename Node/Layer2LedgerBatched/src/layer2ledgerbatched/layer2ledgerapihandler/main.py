@@ -53,8 +53,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = FastAPI(lifespan=lifespan)
 
-
-app.include_router(transfer.router, prefix="/transfer", tags=["transfer"])
+TRANSFER_ROUTER_PREFIX = "/transfer"
+app.include_router(transfer.router, prefix=TRANSFER_ROUTER_PREFIX, tags=["transfer"])
 
 @app.get("/", response_model = CommonResponse)
 async def root(    

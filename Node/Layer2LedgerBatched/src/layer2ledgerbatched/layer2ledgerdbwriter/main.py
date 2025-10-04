@@ -8,7 +8,7 @@ from sqlalchemy import select
 from layer2ledgerbatched.common.config.config import get_settings, Environment
 from layer2ledgerbatched.common.db.models import Transaction, Layer2AddressBalance, TransactionType, Base, model_to_dict
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
-from layer2ledgerbatched.common.redis.redis_models.transactions import PendingTransaction
+from layer2ledgerbatched.common.redis.redis_models.transactions import PendingTransaction, PENDING_TRANSACTIONS_LIST_KEY
 
 async def process_pending_transactions(environment: Environment = Environment.PROD) -> None:
     settings = get_settings(environment)
@@ -38,7 +38,7 @@ async def process_pending_transactions(environment: Environment = Environment.PR
     while True:
         try:
             # Fetch pending transactions from Redis
-            pending_txs_json = await redis_client.lrange("PendingTransactions", 0, 99)
+            pending_txs_json = await redis_client.lrange(PENDING_TRANSACTIONS_LIST_KEY, 0, 99)
             if not pending_txs_json:
                 await asyncio.sleep(1)
                 continue
@@ -93,7 +93,7 @@ async def process_pending_transactions(environment: Environment = Environment.PR
                 await lock_manager.release_multi_lock(pending_tx.addresses_locked, pending_tx.lock_token)
             
             # Remove processed transactions from Redis
-            await redis_client.ltrim("PendingTransactions", len(transactions_to_process), -1)
+            await redis_client.ltrim(PENDING_TRANSACTIONS_LIST_KEY, len(transactions_to_process), -1)
 
         except Exception as e:
             print(f"Error processing transactions: {e}")
