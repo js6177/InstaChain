@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy import select
 
 from layer2ledgerbatched.common.config.config import get_settings, Environment
-from layer2ledgerbatched.common.db.models import Transaction, Layer2AddressBalance, TransactionType, Base
+from layer2ledgerbatched.common.db.models import Transaction, Layer2AddressBalance, TransactionType, Base, model_to_dict
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.common.redis.redis_models.transactions import PendingTransaction
 
@@ -69,7 +69,7 @@ async def process_pending_transactions(environment: Environment = Environment.PR
                 address_balances.append(Layer2AddressBalance(address=address, balance=balance_change))
 
             # convert the list of Layer2AddressBalance objects to list of dicts, so we can use in pg_insert().values()
-            address_balances_dicts = [ab.to_dict() for ab in address_balances]
+            address_balances_dicts = [model_to_dict(ab) for ab in address_balances]
 
 
             db.add_all(new_transactions)

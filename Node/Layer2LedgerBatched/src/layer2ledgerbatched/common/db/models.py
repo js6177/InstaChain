@@ -12,11 +12,21 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    inspect,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 class Base(DeclarativeBase):
     pass
+
+def model_to_dict(model_instance: Base, include_pk: bool = False) -> dict:
+    columns = inspect(model_instance.__class__).columns
+    return {
+        column.key: getattr(model_instance, column.key)
+        for column in columns
+        if getattr(model_instance, column.key) is not None
+        and (include_pk or not column.primary_key)
+    }
 
 class Layer1AuditReport(Base):
     __tablename__ = "layer1_audit_reports"
@@ -124,13 +134,6 @@ class Layer2AddressBalance(Base):
     timestamp: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
-
-    def to_dict(self):
-        return {
-            col.name: getattr(self, col.name)
-            for col in self.__table__.columns
-            if getattr(self, col.name) is not None
-        }
 
 class TransactionType(enum.IntEnum):
     TRX_TRANSFER = 1  # layer2 transfer
