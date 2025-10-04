@@ -12,7 +12,7 @@ class Environment(enum.Enum):
     TEST = "test"
     PROD = "prod"
 
-DEFAULT_ENVIRONMENT = Environment.PROD.value
+DEFAULT_ENVIRONMENT = Environment.PROD
 
 class DatabaseSettings(BaseModel):
     db_user: str
@@ -30,8 +30,7 @@ class RedisSettings(BaseModel):
     port: int
 
 
-class EnvironmentSpecificSettings(BaseModel):
-    environment: str #either 'test' or 'prod'
+class Settings(BaseModel):
     database: DatabaseSettings
     redis: RedisSettings
     drop_tables_after_test_completed: Optional[bool] = True
@@ -40,21 +39,16 @@ class EnvironmentSpecificSettings(BaseModel):
     @property
     def database_url(self) -> str:
         return self.database.database_url
-    
-class Settings(BaseModel):
-    environment_specific_settings: List[EnvironmentSpecificSettings]
 
-def get_settings(environment: str = DEFAULT_ENVIRONMENT) -> EnvironmentSpecificSettings:
+def get_settings(environment: Environment = DEFAULT_ENVIRONMENT) -> Settings:
     cwd = Path.cwd()
     print(f"Current working directory using pathlib: {cwd}")
-    config_path = Path((Path(ROOT_DIR).expanduser())) / environment / config_filename
+    config_path = Path((Path(ROOT_DIR).expanduser())) / environment.value / config_filename
     if not config_path.exists():
         raise FileNotFoundError(f"{config_filename} not found in the root directory.")
     with open(config_path, "r") as f:
         config_data = json.load(f)
         settings = Settings(**config_data)
-        for env_settings in settings.environment_specific_settings:
-            if env_settings.environment == environment:
-                return env_settings
+        return settings
 
     raise ValueError(f"Environment '{environment}' not found in config.")

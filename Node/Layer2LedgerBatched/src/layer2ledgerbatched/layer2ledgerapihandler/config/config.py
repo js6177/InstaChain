@@ -22,8 +22,7 @@ class OnboardingDepositAddress(BaseModel):
     private_key: str
     public_key: str
 
-class EnvironmentSpecificSettings(BaseModel):
-    environment: str #either 'test' or 'prod'
+class Settings(BaseModel):
     NODE_ID: str
     DEPOSIT_WALLET_MASTER_PUBKEY: str
     MINIMUM_LAYER1_TRANSACTION_AMOUNT: int
@@ -32,19 +31,15 @@ class EnvironmentSpecificSettings(BaseModel):
     ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY: str
     FULLNODE_SIGNING_KEY_USES_FUNCTIONAL_TEST_KEYS: bool
     Onboarding_Deposit_Address: OnboardingDepositAddress
-    
-class Settings(BaseModel):
-    environment_specific_settings: List[EnvironmentSpecificSettings]
 
-def get_settings(environment: str = DEFAULT_ENVIRONMENT) -> EnvironmentSpecificSettings:
-    config_path = Path((Path(ROOT_DIR).expanduser())) / environment / config_filename
+
+def get_settings(environment: Environment = DEFAULT_ENVIRONMENT) -> Settings:
+    config_path = Path((Path(ROOT_DIR).expanduser())) / environment.value / config_filename
     if not config_path.exists():
         raise FileNotFoundError(f"{config_filename} not found in the root directory.")
     with open(config_path, "r") as f:
         config_data = json.load(f)
         settings = Settings(**config_data)
-        for env_settings in settings.environment_specific_settings:
-            if env_settings.environment == environment:
-                return env_settings
+        return settings
 
     raise ValueError(f"Environment '{environment}' not found in config.")

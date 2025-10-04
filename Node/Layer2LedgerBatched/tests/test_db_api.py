@@ -5,11 +5,9 @@ import random
 
 from layer2ledgerbatched.layer2ledgerapihandler.main import app
 from layer2ledgerbatched.common.db.models import KeyValueStore
-#from layer2ledgerbatched.common.db.session import get_db_session
-#from layer2ledgerbatched.common.redis.redis_driver.session import get_redis_conn
+import layer2ledgerbatched.layer2ledgerapihandler.utils.error_message as error_codes
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.sample_request import SampleRequest
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
-from layer2ledgerbatched.common.config.config import get_settings
 
 @pytest.mark.asyncio
 async def test_lifespan_events(postgresql_session, redis_client) -> None:
@@ -30,7 +28,7 @@ async def test_write_to_db_and_redis(postgresql_session, redis_client) -> None:
         assert response.status_code == 200
 
         response_model = CommonResponse.model_validate(response.json())
-        assert response_model.error_code == 0
+        assert response_model.error_code == error_codes.ERROR_SUCCESS
 
     # Verify in PostgreSQL
 

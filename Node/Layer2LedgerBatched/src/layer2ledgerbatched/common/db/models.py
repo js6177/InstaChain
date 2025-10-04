@@ -125,6 +125,13 @@ class Layer2AddressBalance(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
+    def to_dict(self):
+        return {
+            col.name: getattr(self, col.name)
+            for col in self.__table__.columns
+            if getattr(self, col.name) is not None
+        }
+
 class TransactionType(enum.IntEnum):
     TRX_TRANSFER = 1  # layer2 transfer
     TRX_DEPOSIT = 2  # when a user deposits btc to a deposit address, then funds get credited to his pubkey

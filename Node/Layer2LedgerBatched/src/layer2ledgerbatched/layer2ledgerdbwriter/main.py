@@ -10,8 +10,8 @@ from layer2ledgerbatched.common.db.models import Transaction, Layer2AddressBalan
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.common.redis.redis_models.transactions import PendingTransaction
 
-async def process_pending_transactions() -> None:
-    settings = get_settings()
+async def process_pending_transactions(environment: Environment = Environment.PROD) -> None:
+    settings = get_settings(environment)
     redis_pool = redis.ConnectionPool.from_url(
         f"redis://{settings.redis.host}:{settings.redis.port}",
         max_connections=20
@@ -37,6 +37,7 @@ async def process_pending_transactions() -> None:
 
     while True:
         try:
+            # Fetch pending transactions from Redis
             pending_txs_json = await redis_client.lrange("PendingTransactions", 0, 99)
             if not pending_txs_json:
                 await asyncio.sleep(1)
@@ -45,7 +46,7 @@ async def process_pending_transactions() -> None:
             transactions_to_process = [PendingTransaction.parse_raw(tx) for tx in pending_txs_json]
             
             new_transactions = []
-            balance_updates = {}
+            balance_updates: dict[str, int] = {} # address -> balance change
             
             for pending_tx in transactions_to_process:
                 new_transactions.append(pending_tx.transaction.to_sqlalchemy())
@@ -61,24 +62,37 @@ async def process_pending_transactions() -> None:
                 if dest_addr not in balance_updates:
                     balance_updates[dest_addr] = 0
                 balance_updates[dest_addr] += amount
+            
+            #construct a list of Layer2AddressBalance objects
+            address_balances: list[Layer2AddressBalance] = []
+            for address, balance_change in balance_updates.items():
+                address_balances.append(Layer2AddressBalance(address=address, balance=balance_change))
+
+            # convert the list of Layer2AddressBalance objects to list of dicts, so we can use in pg_insert().values()
+            address_balances_dicts = [ab.to_dict() for ab in address_balances]
+
 
             db.add_all(new_transactions)
 
-            for address, balance_change in balance_updates.items():
-                stmt = pg_insert(Layer2AddressBalance).values(
-                    address=address,
-                    balance=balance_change
-                ).on_conflict_do_update(
-                    index_elements=['address'],
-                    set_=dict(balance=Layer2AddressBalance.balance + balance_change)
-                )
+            stmt = pg_insert(Layer2AddressBalance).values(address_balances_dicts)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=[Layer2AddressBalance.address],
+                set_={
+                    Layer2AddressBalance.balance: Layer2AddressBalance.balance + stmt.excluded.balance
+                }
+            )
+            try:
                 await db.execute(stmt)
-
-            await db.commit()
+                await db.commit()
+            except Exception as e:
+                print(f"Error updating balances: {e}")
+                await db.rollback()
+                # Release locks before continuing
 
             for pending_tx in transactions_to_process:
                 await lock_manager.release_multi_lock(pending_tx.addresses_locked, pending_tx.lock_token)
             
+            # Remove processed transactions from Redis
             await redis_client.ltrim("PendingTransactions", len(transactions_to_process), -1)
 
         except Exception as e:

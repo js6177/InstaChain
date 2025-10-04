@@ -1,5 +1,8 @@
+import asyncio
 import pytest
 import httpx
+import threading
+from redis import Redis
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 import random
@@ -7,13 +10,17 @@ import uuid
 import base58
 
 from layer2ledgerbatched.layer2ledgerapihandler.main import app
-from layer2ledgerbatched.common.db.models import Layer2AddressBalance
+from layer2ledgerbatched.common.db.models import Layer2AddressBalance, Transaction, TransactionType
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.push_transaction_request import PushTransactionRequest
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
-from layer2ledgerbatched.common.redis.redis_models.transactions import PendingTransaction
+from layer2ledgerbatched.common.redis.redis_models.transactions import RedisTransaction, PendingTransaction
 from layer2ledgerbatched.layer2ledgerapihandler.utils.key_verification import buildTransferMessage
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address
 import layer2ledgerbatched.layer2ledgerapihandler.utils.error_message as error_codes
+
+from layer2ledgerbatched.layer2ledgerdbwriter.main import process_pending_transactions
+
+
 
 
 @pytest.fixture(scope="module")
@@ -30,7 +37,7 @@ def dest_address() -> Layer2Address:
 
 
 @pytest.mark.asyncio
-async def test_create_transfer_success(postgresql_session, redis_client, source_address, dest_address) -> None:
+async def test_create_transfer_success_inserted_into_redis(postgresql_session, redis_client: Redis, source_address: Layer2Address, dest_address: Layer2Address) -> None:
     # 1. Create balance for source address
     initial_balance = 1000
     balance = Layer2AddressBalance(address=source_address.public_key_str_base58, balance=initial_balance)
@@ -68,8 +75,7 @@ async def test_create_transfer_success(postgresql_session, redis_client, source_
     # 4. Assert response
     assert response.status_code == 200
     response_model = CommonResponse.model_validate(response.json())
-    assert response_model.error_code == 0
-    assert response_model.error_message == "Confirmed, pending insertion into db"
+    assert response_model.error_code == error_codes.ERROR_SUCCESS
 
     # 5. Check Redis
     pending_tx_json = await redis_client.lpop("PendingTransactions")
@@ -192,3 +198,89 @@ async def test_create_transfer_invalid_address(source_address, dest_address) -> 
     assert response.status_code == 200
     response_model = CommonResponse.model_validate(response.json())
     assert response_model.error_code == error_codes.ERROR_INVALID_DESTINATION_ADDRESS
+
+# End to End transgfer processing test. Verify that layer2ledgerdbwriter processes the transaction from Redis to Postgres
+@pytest.mark.asyncio
+async def test_create_transfer_success_inserted_into_postgres(postgresql_session, redis_client: Redis, distributed_lock, source_address, dest_address) -> None:
+    # 1. Create balance for source address
+    initial_balance = 1000
+    balance = Layer2AddressBalance(address=source_address.public_key_str_base58, balance=initial_balance)
+    postgresql_session.add(balance)
+    await postgresql_session.commit()
+
+    # 2. Build transfer request
+    transfer_amount = 100
+    fee = 10
+    transaction_id = str(uuid.uuid4())
+    
+    message = buildTransferMessage(
+        source_pubkey=source_address.public_key_str_base58,
+        destination_address_pubkey=dest_address.public_key_str_base58,
+        amount=transfer_amount,
+        fee=fee,
+        nonce=transaction_id
+    )
+    
+    signature = source_address.sign(message)
+
+    request = PushTransactionRequest(
+        amount=transfer_amount,
+        destination_address_public_key=dest_address.public_key_str_base58,
+        fee=fee,
+        signature=signature,
+        source_address_public_key=source_address.public_key_str_base58,
+        transaction_id=transaction_id,
+    )
+
+    # 3. Call API
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post("/transfer/transfer", json=request.model_dump())
+
+    # 4. Assert response
+    assert response.status_code == 200
+    response_model = CommonResponse.model_validate(response.json())
+    assert response_model.error_code == error_codes.ERROR_SUCCESS
+
+    # 5. Check Redis
+    pending_tx_json = await redis_client.lrange("PendingTransactions", 0, -1)
+    assert pending_tx_json is not None
+    
+    pending_tx = PendingTransaction.parse_raw(pending_tx_json[0])
+    
+    assert pending_tx.transaction.amount == transfer_amount
+    assert pending_tx.transaction.source_address_pubkey == source_address.public_key_str_base58
+    assert pending_tx.transaction.destination_address_pubkey == dest_address.public_key_str_base58
+    assert pending_tx.transaction.layer2_transaction_id == transaction_id
+
+    # run process_pending_transactions on a new thread, and wait for it to process
+    def run_db_writer():
+        asyncio.run(process_pending_transactions())
+    db_writer_thread = threading.Thread(target=run_db_writer, daemon=True)
+    db_writer_thread.start()
+
+    # Wait for db writer to start and process
+    await asyncio.sleep(3)
+
+    #Refresh the postgresql session
+    postgresql_session.expire_all()
+
+    # 7. Verify in PostgreSQL that transaction is inserted
+
+    inserted_transaction = await postgresql_session.execute(select(Transaction).where(Transaction.layer2_transaction_id == transaction_id))
+    inserted_transaction = inserted_transaction.scalar_one_or_none()
+    assert inserted_transaction is not None
+    assert inserted_transaction.amount == transfer_amount
+
+    # 8. Verify balances
+
+    source_balance = await postgresql_session.execute(select(Layer2AddressBalance).where(Layer2AddressBalance.address == source_address.public_key_str_base58))
+    source_balance = source_balance.scalar_one_or_none()
+    assert source_balance is not None
+    assert source_balance.balance == initial_balance - transfer_amount
+
+    dest_balnce = await postgresql_session.execute(select(Layer2AddressBalance).where(Layer2AddressBalance.address == dest_address.public_key_str_base58))
+    dest_balnce = dest_balnce.scalar_one_or_none()
+    assert dest_balnce is not None
+    assert dest_balnce.balance == transfer_amount
+
+

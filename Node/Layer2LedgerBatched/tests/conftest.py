@@ -19,7 +19,7 @@ async def setup_test_environment():
 
 @pytest_asyncio.fixture(scope="function")
 async def redis_client() -> AsyncGenerator[Redis, None]:
-    settings = get_settings(Environment.TEST.value)
+    settings = get_settings(Environment.TEST)
     pool = ConnectionPool.from_url(f"redis://{settings.redis.host}:{settings.redis.port}", max_connections=10)
     client = Redis(connection_pool=pool)
     yield client
@@ -27,7 +27,7 @@ async def redis_client() -> AsyncGenerator[Redis, None]:
 
 @pytest_asyncio.fixture(scope="function")
 async def postgresql_session() -> AsyncGenerator[async_sessionmaker, None]:
-    settings = get_settings(Environment.TEST.value)
+    settings = get_settings(Environment.TEST)
     engine = create_async_engine(settings.database_url, echo=True, pool_size=10, pool_timeout=30)
     async_session = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as conn:
