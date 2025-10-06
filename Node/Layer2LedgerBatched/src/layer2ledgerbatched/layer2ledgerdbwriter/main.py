@@ -5,6 +5,8 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy import select
 
+import layer2ledgerbatched.common.redis.redis_driver.redis_driver as redis_driver
+
 from layer2ledgerbatched.common.config.config import get_settings, Environment
 from layer2ledgerbatched.common.db.models import Transaction, Layer2AddressBalance, TransactionType, Base, model_to_dict
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
@@ -43,12 +45,11 @@ async def process_pending_transactions(environment: Environment = Environment.PR
     while True:
         try:
             # Fetch pending transactions from Redis
-            pending_txs_json = await redis_client.lrange(PENDING_TRANSACTIONS_LIST_KEY, 0, 999)
-            if not pending_txs_json:
+            transactions_to_process: list[PendingTransaction] = await redis_driver.GetPendingTransactions(redis_client, 0, 999)
+            if not transactions_to_process:
                 await asyncio.sleep(1)
                 continue
 
-            transactions_to_process = [PendingTransaction.model_validate_json(tx) for tx in pending_txs_json]
 
             new_transactions: list[Transaction] = []
             balance_updates: dict[str, int] = {} # address -> balance change

@@ -1,18 +1,13 @@
-import redis
-import time
-import json
-from layer2ledgerbatched.common.config.config import shared_config
+import asyncio
+import redis.asyncio as redis
 from layer2ledgerbatched.common.redis.redis_models.transactions import PENDING_TRANSACTIONS_LIST_KEY
+from layer2ledgerbatched.common.redis.redis_models.transactions import PendingTransaction
 
-class RedisDriver:
-    def __init__(self):
-        self.redis = redis.from_url(shared_config.redis_url, decode_responses=True)
+async def GetPendingTransactions(redis_client: redis.Redis, start: int, end: int) -> list[PendingTransaction]:
+    pending_tx_json = await redis_client.lrange(PENDING_TRANSACTIONS_LIST_KEY, start, end)
+    if asyncio.iscoroutine(pending_tx_json):
+        pending_tx_json = await pending_tx_json
+    else:
+        pending_tx_json = pending_tx_json
+    return [PendingTransaction.model_validate_json(tx) for tx in pending_tx_json]
 
-    def acquire_lock(self, lock_name: str, timeout=10):
-        return self.redis.set(lock_name, "locked", nx=True, ex=timeout)
-
-    def release_lock(self, lock_name: str):
-        self.redis.delete(lock_name)
-        
-    def push_to_mempool(self, transaction: dict):
-        self.redis.lpush(PENDING_TRANSACTIONS_LIST_KEY, json.dumps(transaction))

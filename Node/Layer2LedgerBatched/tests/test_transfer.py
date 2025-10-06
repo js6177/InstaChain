@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
 
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
+import layer2ledgerbatched.common.redis.redis_driver.redis_driver as redis_driver
 from layer2ledgerbatched.layer2ledgerapihandler.main import app, TRANSFER_ROUTER_PREFIX
 from layer2ledgerbatched.layer2ledgerapihandler.api.routes.transfer import CREATE_TRANSFER_ROUTE
 from layer2ledgerbatched.common.db.models import Layer2AddressBalance, Transaction
@@ -143,7 +144,7 @@ async def test_create_transfer_success_multiple(postgresql_session: AsyncSession
         assert response_model.error_code == error_codes.ERROR_SUCCESS
 
     # 5. Check Redis
-    pending_trxs = await redis_client.lrange(PENDING_TRANSACTIONS_LIST_KEY, 0, -1)
+    pending_trxs: list[PendingTransaction] = await redis_driver.GetPendingTransactions(redis_client, 0, -1)
     assert len(pending_trxs) == n
 
     # Clean up redis
@@ -300,11 +301,11 @@ async def test_create_transfer_success_inserted_into_postgres(postgresql_session
     assert response_model.error_code == error_codes.ERROR_SUCCESS
 
     # 5. Check Redis
-    pending_tx_json = await redis_client.lrange(PENDING_TRANSACTIONS_LIST_KEY, 0, -1)
-    assert pending_tx_json is not None
-    
-    pending_tx = PendingTransaction.model_validate_json(pending_tx_json[0])
-    
+    pending_trxs: list[PendingTransaction] = await redis_driver.GetPendingTransactions(redis_client, 0, -1)
+    assert pending_trxs is not None
+
+    pending_tx = pending_trxs[0]
+
     assert pending_tx.transaction.amount == transfer_amount
     assert pending_tx.transaction.source_address_pubkey == source_address.public_key_str_base58
     assert pending_tx.transaction.destination_address_pubkey == dest_address.public_key_str_base58
@@ -361,7 +362,7 @@ async def test_create_multiple_transfers_end_to_end(postgresql_session: AsyncSes
     # 3. Build and send n transfer requests
     transfer_amount = 100
     fee = 10
-    requests = []
+    requests: list[PushTransactionRequest] = []
     transaction_ids = [str(uuid.uuid4()) for _ in range(n)]
 
     for i in range(n):
@@ -399,8 +400,8 @@ async def test_create_multiple_transfers_end_to_end(postgresql_session: AsyncSes
     print(f"Time taken to send {n} requests: {fastapi_duration} seconds")
 
     # 5. Check Redis for n pending transactions
-    pending_txs_json = await redis_client.lrange(PENDING_TRANSACTIONS_LIST_KEY, 0, -1)
-    assert len(pending_txs_json) == n
+    pending_txs: list[PendingTransaction] = await redis_driver.GetPendingTransactions(redis_client, 0, -1)
+    assert len(pending_txs) == n
 
     # 6. Run DB writer and wait for processing
     def run_db_writer():
