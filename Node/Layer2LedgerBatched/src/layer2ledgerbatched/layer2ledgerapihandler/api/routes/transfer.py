@@ -98,7 +98,7 @@ async def create_transfer(
             addresses_locked=addresses_to_lock
         )
 
-        await redis_client.rpush(PENDING_TRANSACTIONS_LIST_KEY, pending_transaction.json())
+        await redis_client.rpush(PENDING_TRANSACTIONS_LIST_KEY, pending_transaction.model_dump_json())
 
     except Exception as e:
         await lock_manager.release_multi_lock(addresses_to_lock, lock_token)

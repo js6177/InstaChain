@@ -3,15 +3,15 @@ import pytest
 import httpx
 import threading
 from redis import Redis
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-import random
+from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
-import base58
 
+from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.layer2ledgerapihandler.main import app, TRANSFER_ROUTER_PREFIX
 from layer2ledgerbatched.layer2ledgerapihandler.api.routes.transfer import CREATE_TRANSFER_ROUTE
-from layer2ledgerbatched.common.db.models import Layer2AddressBalance, Transaction, TransactionType
+from layer2ledgerbatched.common.db.models import Layer2AddressBalance, Transaction
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.push_transaction_request import PushTransactionRequest
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
 from layer2ledgerbatched.common.redis.redis_models.transactions import RedisTransaction, PendingTransaction, PENDING_TRANSACTIONS_LIST_KEY
@@ -20,8 +20,6 @@ from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer
 import layer2ledgerbatched.layer2ledgerapihandler.utils.error_message as error_codes
 
 from layer2ledgerbatched.layer2ledgerdbwriter.main import process_pending_transactions
-
-
 
 
 @pytest.fixture(scope="module")
@@ -38,7 +36,7 @@ def dest_address() -> Layer2Address:
 
 
 @pytest.mark.asyncio
-async def test_create_transfer_success_inserted_into_redis(postgresql_session, redis_client: Redis, source_address: Layer2Address, dest_address: Layer2Address) -> None:
+async def test_create_transfer_success_inserted_into_redis(postgresql_session: AsyncSession, redis_client: Redis, source_address: Layer2Address, dest_address: Layer2Address) -> None:
     # 1. Create balance for source address
     initial_balance = 1000
     balance = Layer2AddressBalance(address=source_address.public_key_str_base58, balance=initial_balance)
@@ -92,8 +90,67 @@ async def test_create_transfer_success_inserted_into_redis(postgresql_session, r
     # Clean up redis
     await redis_client.delete(PENDING_TRANSACTIONS_LIST_KEY)
 
+@pytest.mark.parametrize("n", [10])
 @pytest.mark.asyncio
-async def test_create_transfer_insufficient_funds(postgresql_session, source_address, dest_address) -> None:
+async def test_create_transfer_success_multiple(postgresql_session: AsyncSession, redis_client: Redis, source_address: Layer2Address, dest_address: Layer2Address, n: int) -> None:
+    # 1. Create n source and n dest addresses
+    source_addresses = [Layer2Address(f"source_address_{i}") for i in range(n)]
+    dest_addresses = [Layer2Address(f"dest_address_{i}") for i in range(n)]
+    for addr in source_addresses:
+        addr.new_address()
+    for addr in dest_addresses:
+        addr.new_address()
+
+    # 2. Create initial balances for source addresses
+    initial_balance = 1000
+    balances = [Layer2AddressBalance(address=addr.public_key_str_base58, balance=initial_balance) for addr in source_addresses]
+    postgresql_session.add_all(balances)
+    await postgresql_session.commit()
+
+    # 3. Build and send n transfer requests
+    transfer_amount = 100
+    fee = 10
+    transfer_requests: list[PushTransactionRequest] = []
+    transaction_ids = [str(uuid.uuid4()) for _ in range(n)]
+
+    for i in range(n):
+        transfer_message = buildTransferMessage(
+            source_pubkey=source_addresses[i].public_key_str_base58,
+            destination_address_pubkey=dest_addresses[i].public_key_str_base58,
+            amount=transfer_amount,
+            fee=fee,
+            nonce=transaction_ids[i]
+        )
+        signature = source_addresses[i].sign(transfer_message)
+        transfer_request = PushTransactionRequest(
+            amount=transfer_amount,
+            destination_address_public_key=dest_addresses[i].public_key_str_base58,
+            fee=fee,
+            signature=signature,
+            source_address_public_key=source_addresses[i].public_key_str_base58,
+            transaction_id=transaction_ids[i],
+        )
+        
+        transfer_requests.append(transfer_request)
+
+        # 3. Call API
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.post(f"{TRANSFER_ROUTER_PREFIX}{CREATE_TRANSFER_ROUTE}", json=transfer_request.model_dump())
+
+        # 4. Assert response
+        assert response.status_code == 200
+        response_model = CommonResponse.model_validate(response.json())
+        assert response_model.error_code == error_codes.ERROR_SUCCESS
+
+    # 5. Check Redis
+    pending_trxs = await redis_client.lrange(PENDING_TRANSACTIONS_LIST_KEY, 0, -1)
+    assert len(pending_trxs) == n
+
+    # Clean up redis
+    await redis_client.delete(PENDING_TRANSACTIONS_LIST_KEY)
+
+@pytest.mark.asyncio
+async def test_create_transfer_insufficient_funds(postgresql_session: AsyncSession, source_address: Layer2Address, dest_address: Layer2Address) -> None:
     # 1. Create balance for source address
     initial_balance = 50
     upsert_stmt = pg_insert(Layer2AddressBalance).values(address=source_address.public_key_str_base58, balance=initial_balance)
@@ -135,7 +192,7 @@ async def test_create_transfer_insufficient_funds(postgresql_session, source_add
     assert response_model.error_code == error_codes.ERROR_INSUFFICIENT_FUNDS
 
 @pytest.mark.asyncio
-async def test_create_transfer_address_locked(redis_client, distributed_lock, source_address, dest_address) -> None:
+async def test_create_transfer_address_locked(redis_client: Redis, distributed_lock: DistributedLock, source_address: Layer2Address, dest_address: Layer2Address) -> None:
     # 1. Lock one of the addresses
     lock_token = await distributed_lock.acquire_multi_lock([source_address.public_key_str_base58])
 
@@ -176,7 +233,7 @@ async def test_create_transfer_address_locked(redis_client, distributed_lock, so
     await distributed_lock.release_multi_lock([source_address.public_key_str_base58], lock_token)
 
 @pytest.mark.asyncio
-async def test_create_transfer_invalid_address(source_address, dest_address) -> None:
+async def test_create_transfer_invalid_address(source_address: Layer2Address, dest_address: Layer2Address) -> None:
     # Build transfer request
     amount = 100
     fee = 10
@@ -200,9 +257,9 @@ async def test_create_transfer_invalid_address(source_address, dest_address) -> 
     response_model = CommonResponse.model_validate(response.json())
     assert response_model.error_code == error_codes.ERROR_INVALID_DESTINATION_ADDRESS
 
-# End to End transgfer processing test. Verify that layer2ledgerdbwriter processes the transaction from Redis to Postgres
+# End to End transfer processing test. Verify that layer2ledgerdbwriter processes the transaction from Redis to Postgres
 @pytest.mark.asyncio
-async def test_create_transfer_success_inserted_into_postgres(postgresql_session, redis_client: Redis, distributed_lock, source_address, dest_address) -> None:
+async def test_create_transfer_success_inserted_into_postgres(postgresql_session: AsyncSession, redis_client: Redis, distributed_lock: DistributedLock, source_address: Layer2Address, dest_address: Layer2Address) -> None:
     # 1. Create balance for source address
     initial_balance = 1000
     balance = Layer2AddressBalance(address=source_address.public_key_str_base58, balance=initial_balance)
@@ -284,4 +341,87 @@ async def test_create_transfer_success_inserted_into_postgres(postgresql_session
     assert dest_balnce is not None
     assert dest_balnce.balance == transfer_amount
 
+@pytest.mark.parametrize("n", [100])
+@pytest.mark.asyncio
+async def test_create_multiple_transfers_end_to_end(postgresql_session: AsyncSession, redis_client: Redis, n: int) -> None:
+    # 1. Create n source and n dest addresses
+    source_addresses = [Layer2Address(f"source_address_{i}") for i in range(n)]
+    dest_addresses = [Layer2Address(f"dest_address_{i}") for i in range(n)]
+    for addr in source_addresses:
+        addr.new_address()
+    for addr in dest_addresses:
+        addr.new_address()
 
+    # 2. Create initial balances for source addresses
+    initial_balance = 1000
+    balances = [Layer2AddressBalance(address=addr.public_key_str_base58, balance=initial_balance) for addr in source_addresses]
+    postgresql_session.add_all(balances)
+    await postgresql_session.commit()
+
+    # 3. Build and send n transfer requests
+    transfer_amount = 100
+    fee = 10
+    requests = []
+    transaction_ids = [str(uuid.uuid4()) for _ in range(n)]
+
+    for i in range(n):
+        message = buildTransferMessage(
+            source_pubkey=source_addresses[i].public_key_str_base58,
+            destination_address_pubkey=dest_addresses[i].public_key_str_base58,
+            amount=transfer_amount,
+            fee=fee,
+            nonce=transaction_ids[i]
+        )
+        signature = source_addresses[i].sign(message)
+        requests.append(PushTransactionRequest(
+            amount=transfer_amount,
+            destination_address_public_key=dest_addresses[i].public_key_str_base58,
+            fee=fee,
+            signature=signature,
+            source_address_public_key=source_addresses[i].public_key_str_base58,
+            transaction_id=transaction_ids[i],
+        ))
+
+    start_time_fastaopi_requests = asyncio.get_event_loop().time()
+
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        tasks = [client.post(f"{TRANSFER_ROUTER_PREFIX}{CREATE_TRANSFER_ROUTE}", json=req.model_dump()) for req in requests]
+        responses = await asyncio.gather(*tasks)
+
+    # 4. Assert all responses are successful
+    for response in responses:
+        assert response.status_code == 200
+        response_model = CommonResponse.model_validate(response.json())
+        assert response_model.error_code == error_codes.ERROR_SUCCESS
+
+    end_time_fastaopi_requests = asyncio.get_event_loop().time()
+    fastapi_duration = end_time_fastaopi_requests - start_time_fastaopi_requests
+    print(f"Time taken to send {n} requests: {fastapi_duration} seconds")
+
+    # 5. Check Redis for n pending transactions
+    pending_txs_json = await redis_client.lrange(PENDING_TRANSACTIONS_LIST_KEY, 0, -1)
+    assert len(pending_txs_json) == n
+
+    # 6. Run DB writer and wait for processing
+    def run_db_writer():
+        asyncio.run(process_pending_transactions())
+    db_writer_thread = threading.Thread(target=run_db_writer, daemon=True)
+    db_writer_thread.start()
+    await asyncio.sleep(10) # Wait for db writer to process all transactions
+
+    # 7. Verify transaction count in PostgreSQL
+    postgresql_session.expire_all()
+    transaction_count = await postgresql_session.execute(select(func.count()).select_from(Transaction))
+    assert transaction_count.scalar() == n
+
+    # 8. Verify balances
+    for i in range(n):
+        source_balance = await postgresql_session.execute(select(Layer2AddressBalance).where(Layer2AddressBalance.address == source_addresses[i].public_key_str_base58))
+        source_balance = source_balance.scalar_one_or_none()
+        assert source_balance is not None
+        assert source_balance.balance == initial_balance - transfer_amount
+
+        dest_balance = await postgresql_session.execute(select(Layer2AddressBalance).where(Layer2AddressBalance.address == dest_addresses[i].public_key_str_base58))
+        dest_balance = dest_balance.scalar_one_or_none()
+        assert dest_balance is not None
+        assert dest_balance.balance == transfer_amount

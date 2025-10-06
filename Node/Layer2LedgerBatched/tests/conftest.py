@@ -1,9 +1,8 @@
 from typing import AsyncGenerator
-import httpx
-import pytest
 import pytest_asyncio
 from redis.asyncio import ConnectionPool, Redis
-from contextlib import AsyncExitStack
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from layer2ledgerbatched.common.config.config import get_settings, Environment
@@ -26,7 +25,7 @@ async def redis_client() -> AsyncGenerator[Redis, None]:
     await client.aclose()
 
 @pytest_asyncio.fixture(scope="function")
-async def postgresql_session() -> AsyncGenerator[async_sessionmaker, None]:
+async def postgresql_session() -> AsyncGenerator[AsyncSession, None]:
     settings = get_settings(Environment.TEST)
     engine = create_async_engine(settings.database_url, echo=True, pool_size=10, pool_timeout=30)
     async_session = async_sessionmaker(engine, expire_on_commit=False)

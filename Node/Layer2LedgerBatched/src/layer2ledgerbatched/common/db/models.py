@@ -1,5 +1,6 @@
 import datetime
 import enum
+import typing
 
 from sqlalchemy import (
     BigInteger,
@@ -19,7 +20,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 class Base(DeclarativeBase):
     pass
 
-def model_to_dict(model_instance: Base, include_pk: bool = False) -> dict:
+def model_to_dict(model_instance: Base, include_pk: bool = False) -> dict[str, typing.Any]:
     columns = inspect(model_instance.__class__).columns
     return {
         column.key: getattr(model_instance, column.key)
@@ -34,7 +35,7 @@ class Layer1AuditReport(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     blockHeight: Mapped[int] = mapped_column(Integer, unique=True, index=True)
     balance: Mapped[int] = mapped_column(Integer)
-    layer1AddressBalances: Mapped[dict] = mapped_column(JSON)
+    layer1AddressBalances: Mapped[dict[str, typing.Any]] = mapped_column(JSON)
     timestamp: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

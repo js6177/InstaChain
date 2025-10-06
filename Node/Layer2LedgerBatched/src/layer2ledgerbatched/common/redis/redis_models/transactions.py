@@ -25,10 +25,10 @@ class RedisTransaction(BaseModel):
 
     @classmethod
     def from_sqlalchemy(cls, tx: Transaction) -> "RedisTransaction":
-        return cls.from_orm(tx)
+        return cls.model_validate(tx)
 
     def to_sqlalchemy(self) -> Transaction:
-        return Transaction(**self.dict())
+        return Transaction(**self.model_dump())
 
 class PendingTransaction(BaseModel):
     transaction: RedisTransaction

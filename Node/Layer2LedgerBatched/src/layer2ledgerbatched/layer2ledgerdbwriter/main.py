@@ -23,7 +23,7 @@ async def process_pending_transactions(environment: Environment = Environment.PR
     postgres_engine = create_async_engine(
         settings.database_url,
         echo=True,
-        pool_size=20,
+        pool_size=100,
         pool_timeout=30,
     )
     session_maker = async_sessionmaker(
@@ -38,14 +38,14 @@ async def process_pending_transactions(environment: Environment = Environment.PR
     while True:
         try:
             # Fetch pending transactions from Redis
-            pending_txs_json = await redis_client.lrange(PENDING_TRANSACTIONS_LIST_KEY, 0, 99)
+            pending_txs_json = await redis_client.lrange(PENDING_TRANSACTIONS_LIST_KEY, 0, 999)
             if not pending_txs_json:
                 await asyncio.sleep(1)
                 continue
 
-            transactions_to_process = [PendingTransaction.parse_raw(tx) for tx in pending_txs_json]
-            
-            new_transactions = []
+            transactions_to_process = [PendingTransaction.model_validate_json(tx) for tx in pending_txs_json]
+
+            new_transactions: list[Transaction] = []
             balance_updates: dict[str, int] = {} # address -> balance change
             
             for pending_tx in transactions_to_process:
@@ -81,19 +81,16 @@ async def process_pending_transactions(environment: Environment = Environment.PR
                     Layer2AddressBalance.balance: Layer2AddressBalance.balance + stmt.excluded.balance
                 }
             )
-            try:
-                await db.execute(stmt)
-                await db.commit()
-            except Exception as e:
-                print(f"Error updating balances: {e}")
-                await db.rollback()
-                # Release locks before continuing
+        
+            await db.execute(stmt)
+            await db.commit()
+            
+            # Remove processed transactions from Redis
+            await redis_client.ltrim(PENDING_TRANSACTIONS_LIST_KEY, len(transactions_to_process), -1)
 
             for pending_tx in transactions_to_process:
                 await lock_manager.release_multi_lock(pending_tx.addresses_locked, pending_tx.lock_token)
             
-            # Remove processed transactions from Redis
-            await redis_client.ltrim(PENDING_TRANSACTIONS_LIST_KEY, len(transactions_to_process), -1)
 
         except Exception as e:
             print(f"Error processing transactions: {e}")
