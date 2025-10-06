@@ -10,7 +10,7 @@ from layer2ledgerbatched.common.db.models import Transaction, Layer2AddressBalan
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.common.redis.redis_models.transactions import PendingTransaction, PENDING_TRANSACTIONS_LIST_KEY
 
-async def process_pending_transactions(environment: Environment = Environment.PROD) -> None:
+async def setup_clients(environment:Environment = Environment.PROD) -> tuple[redis.Redis, AsyncSession, DistributedLock]:
     settings = get_settings(environment)
     redis_pool = redis.ConnectionPool.from_url(
         f"redis://{settings.redis.host}:{settings.redis.port}",
@@ -34,6 +34,11 @@ async def process_pending_transactions(environment: Environment = Environment.PR
         await conn.run_sync(Base.metadata.create_all)
 
     db: AsyncSession = session_maker()
+
+    return redis_client, db, lock_manager
+
+async def process_pending_transactions(environment: Environment = Environment.PROD) -> None:
+    redis_client, db, lock_manager = await setup_clients(environment)
 
     while True:
         try:
