@@ -12,6 +12,13 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Python Debugger: layer2ledgerdbwriter",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/layer2ledgerbatched/layer2ledgerdbwriter/main.py",
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Python Debugger: main.py",
             "type": "debugpy",
             "request": "launch",
@@ -31,15 +38,6 @@
             "request": "launch",
             "program": "${workspaceFolder}/tests/test_Layer2AddressLock.py",
             "console": "integratedTerminal"
-        },
-        {
-            "name": "Python: Debug All Tests",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "pytest",
-            "purpose": ["debug-test"],
-            "console": "integratedTerminal",
-            "justMyCode": false
         }
     ]
 }
