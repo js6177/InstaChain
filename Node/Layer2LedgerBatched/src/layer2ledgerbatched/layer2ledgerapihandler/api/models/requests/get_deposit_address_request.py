@@ -8,6 +8,6 @@ from pydantic import BaseModel
 
 
 class GetDepositAddressRequest(BaseModel):
-    layer2_address_pubkey: str = None
-    nonce: str = None
-    signature: str = None
+    layer2_address_pubkey: str
+    nonce: str
+    signature: str

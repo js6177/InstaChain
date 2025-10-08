@@ -124,6 +124,7 @@ The Layer2LedgerBatched project is a managed by the 'uv' tool and has the follow
 
 # Data flows:
 ## Transfer:
+
 ### Procedure:
 The Layer2LedgerAPIHandler listens to incoming Transfer requests and verifies whether the request can be confirmed using the following logic:
 - The Transfer requests's fields are valid
@@ -199,3 +200,34 @@ class CommonResponse(BaseModel):
     error_code: int = None
     error_message: str = None
 ```
+
+## Deposit
+### Procedure
+The deposit action requires 2 seperate actions:
+- Requesting a deposit address
+- Depositing layer1 tokens to the deposit address.
+First, the user calls the /GetDepositAddress API, passing in their layer2 address, and gets back a layer1 address that they can deposit to. One the user has this layer1 address, any funds sent to this address on the layer1 network get credited to its corresponding layer2 address. The layer2bridge sevice monitors this address, and after 3 confirmations (this can be configured), calls the /DepositConfirmed API so that the layer2ledger can credit the corresponding layer2 address.
+
+#### GetDepositAddress
+The layer2ledger listens to incoming `GetDepositAddressRequest` messages and validates them with the following:
+- Makes sure the layer2_address_pubkey is alphanum
+- The message is properly signed by the layer2_address_pubkey
+If this check is successfull, it inserts a `DepositAddresses` sqlalchemy model into the postgresql db, and uses the result of the autoincrementing id as the index of the layer1 deposit address to generate. Once this index is acquired, it is used to generate a layer1 deposit address by calling the generate_btc_testnet_address function. The `DepositAddresses` address is then updated with the layer1 deposit address, and returned to the user in the form of `GetDepositAddressResponse` model.
+
+#### DepositConfirmed
+Once the user gets a layer1 deposit address and transfers funds to that address, the `Layer2Bridge` monitors that address for incoming transactions. Once a transaction reaches 3 confirmations, the `Layer2Bridge` calls the `/DepositConfirmed` API with a `DepositConfirmedRequest`. 
+The API then does the following:
+- The signature of the `DepositConfirmedRequest` is verifying to come from the `Layer2Bridge`
+- The layer1_address is used to fetch the layer2_address from the `DepositAddresses` table
+- A layer2 `Transaction` is generated to credit the layer2_address with the layer1_transaction_id be the deposit transaction's layer1 transaction id.
+- The `Transaction` is the push to redis similar to the Transfer procedure
+
+Once this `Transaction` is inserted into redis, the Layer2LedgerDbWriter fetches it from redis and inserts it into the postgresql db in the same loop as the regular layer2 transfers.
+
+### DB models
+This procedure inserts `DepositAddresses` and `Transaction` models 
+
+### FastAPI models
+
+This procedure accepts `GetDepositAddressRequest` and responds with `GetDepositAddressResponse` from the user
+This procedure also accepts and `DepositConfirmedRequest` and responds with `DepositConfirmedResponse` from the layer2bridge

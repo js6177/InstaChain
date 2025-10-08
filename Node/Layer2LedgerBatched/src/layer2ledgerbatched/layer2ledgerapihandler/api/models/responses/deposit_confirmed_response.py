@@ -6,4 +6,4 @@ class Layer1DepositConfirmedTransaction(CommonResponse):
     layer1_transaction_vout: int
 
 class DepositConfirmedResponse(CommonResponse):
-    transactions: List[Layer1DepositConfirmedTransaction] = None
+    transactions: List[Layer1DepositConfirmedTransaction]

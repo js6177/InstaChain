@@ -1,0 +1,38 @@
+sequenceDiagram
+    participant User
+    participant Layer2LedgerAPIHandler as API Handler
+    participant Layer2Bridge as Bridge
+    participant Layer1Network as Layer 1 Network
+    participant Redis
+    participant Layer2LedgerDbWriter as DB Writer
+    participant PostgreSQL as DB
+
+    par GetDepositAddress
+        User->>API Handler: POST /GetDepositAddress (GetDepositAddressRequest)
+        API Handler->>API Handler: Validate request (pubkey, signature)
+        API Handler->>DB: Insert into DepositAddresses (L2 address)
+        DB-->>API Handler: Return autoincremented id
+        API Handler->>API Handler: Generate L1 deposit address with id
+        API Handler->>DB: Update DepositAddresses with L1 address
+        API Handler-->>User: Return GetDepositAddressResponse (L1 address)
+    end
+
+    User->>Layer1Network: Send funds to L1 deposit address
+
+    par DepositConfirmed
+        Bridge->>Layer1Network: Monitor for confirmations
+        Layer1Network-->>Bridge: Transaction has 3 confirmations
+        Bridge->>API Handler: POST /DepositConfirmed (DepositConfirmedRequest)
+        API Handler->>API Handler: Verify signature from Bridge
+        API Handler->>DB: Get L2 address from DepositAddresses table
+        DB-->>API Handler: Return L2 address
+        API Handler->>API Handler: Generate Layer 2 Transaction
+        API Handler->>Redis: Push Transaction to PendingTransactions list
+    end
+
+    loop DB Writing Process
+        DB Writer->>Redis: Fetch transactions from PendingTransactions
+        Redis-->>DB Writer: Return transactions
+        DB Writer->>DB: Batch insert Transactions
+        DB Writer->>Redis: Remove transactions from PendingTransactions
+    end
