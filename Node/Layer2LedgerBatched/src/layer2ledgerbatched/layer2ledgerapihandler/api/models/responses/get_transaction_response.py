@@ -4,26 +4,24 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from pydantic import BaseModel
 from .common_response import CommonResponse
 
 
 class GetTransactionsResponseTransaction(BaseModel):
-    amount: int = None
-    destination_address_pubkey: str = None
-    fee: int = None
-    layer1_transaction_id: str = None
-    layer2_withdrawal_id: str = None
-    signature: str = None
-    signature_date: str = None
-    source_address_pubkey: str = None
-    timestamp: int = None
-    transaction_id: str = None
-    transaction_type: int = None
+    amount: int
+    destination_address_pubkey: str
+    fee: int
+    layer1_transaction_id: str
+    layer2_withdrawal_id: str
+    signature: str
+    signature_date: str
+    source_address_pubkey: str
+    timestamp: int
+    transaction_id: str
+    transaction_type: int
 
 
 class GetTransactionResponse(CommonResponse):
     transaction: GetTransactionsResponseTransaction | None = None
-    transaction_id: str = None
+    transaction_id: str

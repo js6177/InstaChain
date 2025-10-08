@@ -11,10 +11,10 @@ from pydantic import BaseModel
 from .common_response import CommonResponse
 
 class GetBalanceResponseBalance(BaseModel):
-    address_found: bool = None 
-    balance: int = None
-    public_key: str = None
+    address_found: bool 
+    balance: int
+    public_key: str
 
 
 class GetBalanceResponse(CommonResponse):
-    balance: List[GetBalanceResponseBalance] = None
+    balance: List[GetBalanceResponseBalance]

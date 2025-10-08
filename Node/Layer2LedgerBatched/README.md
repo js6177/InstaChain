@@ -217,9 +217,9 @@ If this check is successfull, it inserts a `DepositAddresses` sqlalchemy model i
 #### DepositConfirmed
 Once the user gets a layer1 deposit address and transfers funds to that address, the `Layer2Bridge` monitors that address for incoming transactions. Once a transaction reaches 3 confirmations, the `Layer2Bridge` calls the `/DepositConfirmed` API with a `DepositConfirmedRequest`. 
 The API then does the following:
-- The signature of the `DepositConfirmedRequest` is verifying to come from the `Layer2Bridge`
+- The signature of the `DepositConfirmedRequest` is verifying to come from the `Layer2Bridge` (by verifying with layer2_bridge_key_pubkey in the `layer2ledgerapihandler-config.json`)
 - The layer1_address is used to fetch the layer2_address from the `DepositAddresses` table
-- A layer2 `Transaction` is generated to credit the layer2_address with the layer1_transaction_id be the deposit transaction's layer1 transaction id.
+- A layer2 `Transaction` is generated to credit the layer2_address with the layer1_transaction_id being the concatination of the deposit transaction's layer1 transaction id and transaction vout (i.e. f'{transaction_id}:{transaction_vout}'). On other layer1 that don't have transaction vout, it will just use transaction id. Since it is a deposit, the source address is just left empty. The source address is set to `deposit_transaction_pubkey` in the `layer2ledgerapihandler-config.json`
 - The `Transaction` is the push to redis similar to the Transfer procedure
 
 Once this `Transaction` is inserted into redis, the Layer2LedgerDbWriter fetches it from redis and inserts it into the postgresql db in the same loop as the regular layer2 transfers.

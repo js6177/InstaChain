@@ -1,11 +1,12 @@
 from typing import AsyncGenerator
+import pytest
 import pytest_asyncio
 from redis.asyncio import ConnectionPool, Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from layer2ledgerbatched.common.config.config import get_settings, Environment
+from layer2ledgerbatched.common.config.config import get_settings, Environment, Settings
+from layer2ledgerbatched.layer2ledgerapihandler.config.config import get_settings as get_layer2ledgerapihandler_settings, Settings as Layer2LedgerAPIHandlerSettings
 from layer2ledgerbatched.common.db.models import Base
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.layer2ledgerapihandler.main import app, lifespan
@@ -15,6 +16,14 @@ from layer2ledgerbatched.layer2ledgerapihandler.main import app, lifespan
 async def setup_test_environment():
     async with lifespan(app):
         yield
+
+@pytest.fixture(scope="session")
+def settings() -> Settings:
+    return get_settings(Environment.TEST)
+
+@pytest.fixture(scope="session")
+def layer2ledgerapihandler_settings() -> Layer2LedgerAPIHandlerSettings:
+    return get_layer2ledgerapihandler_settings(Environment.TEST)
 
 @pytest_asyncio.fixture(scope="function")
 async def redis_client() -> AsyncGenerator[Redis, None]:

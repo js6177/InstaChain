@@ -4,32 +4,31 @@
 
 from __future__ import annotations
 
-from typing import Optional
 
 from pydantic import BaseModel
 from .common_response import CommonResponse
 
 
 class Layer1NetworkInfo(BaseModel):
-    minimum_transaction_amount: int = None
+    minimum_transaction_amount: int
 
 
 class Version(BaseModel):
-    API_version: int = None
-    major_version: int = None
-    minor_version: int = None
-    patch_version: int = None
+    API_version: int
+    major_version: int
+    minor_version: int
+    patch_version: int
 
-
+        
 class NodeInfo(BaseModel):
-    asset_id: int = None
-    deposit_address_derivation_path: str = None
-    layer1_network_info: Layer1NetworkInfo = None
-    node_id: str = None
-    node_name: str = None
-    onboarding_deposit_signing_key_pubkey: str = None
-    version: Version = None
+    asset_id: int
+    deposit_address_derivation_path: str
+    layer1_network_info: Layer1NetworkInfo
+    node_id: str
+    node_name: str
+    onboarding_deposit_signing_key_pubkey: str
+    version: Version
 
 
 class GetNodeInfoResponse(CommonResponse):
-    node_info: NodeInfo = None
+    node_info: NodeInfo

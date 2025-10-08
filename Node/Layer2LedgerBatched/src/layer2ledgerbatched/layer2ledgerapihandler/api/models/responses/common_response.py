@@ -3,12 +3,9 @@
 #   timestamp: 2025-04-26T22:30:11+00:00
 
 from __future__ import annotations
-
-from typing import Optional
-
 from pydantic import BaseModel
 
 
 class CommonResponse(BaseModel):
-    error_code: int = None
-    error_message: str = None
+    error_code: int
+    error_message: str

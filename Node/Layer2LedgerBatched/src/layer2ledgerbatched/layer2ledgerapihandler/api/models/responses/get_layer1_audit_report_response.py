@@ -12,12 +12,12 @@ from .common_response import CommonResponse
 
 
 class Layer1AddressBalance(BaseModel):
-    balance: int = None
-    layer1Address: str = None
+    balance: int
+    layer1Address: str
 
 
 class GetLayer1AuditReportResponse(CommonResponse):
-    addressBalances: List[Layer1AddressBalance] = None
-    blockHeight: int = None
-    ready: bool = None
-    totalBalance: int = None
+    addressBalances: List[Layer1AddressBalance]
+    blockHeight: int
+    ready: bool
+    totalBalance: int

@@ -32,5 +32,5 @@ class RedisTransaction(BaseModel):
 
 class PendingTransaction(BaseModel):
     transaction: RedisTransaction
-    lock_token: str
+    lock_token: str | None
     addresses_locked: List[str]

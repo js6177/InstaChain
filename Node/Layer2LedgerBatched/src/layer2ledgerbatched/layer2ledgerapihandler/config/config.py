@@ -26,9 +26,9 @@ class Settings(BaseModel):
     NODE_ID: str
     DEPOSIT_WALLET_MASTER_PUBKEY: str
     MINIMUM_LAYER1_TRANSACTION_AMOUNT: int
-    FULLNODE_SIGNING_KEY_PUBKEY: str
-    ONBOARDING_DEPOSIT_SIGNING_KEY_PRIVKEY: str
-    ONBOARDING_DEPOSIT_SIGNING_KEY_PUBKEY: str
+    layer2bridge_key_pubkey: str
+    layer2bridge_key_privkey: str
+    deposit_transaction_pubkey: str
     FULLNODE_SIGNING_KEY_USES_FUNCTIONAL_TEST_KEYS: bool
     Onboarding_Deposit_Address: OnboardingDepositAddress
 
