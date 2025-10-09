@@ -5,8 +5,8 @@ from redis.asyncio import ConnectionPool, Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from layer2ledgerbatched.common.config.config import get_settings, Environment, Settings
-from layer2ledgerbatched.layer2ledgerapihandler.config.config import get_settings as get_layer2ledgerapihandler_settings, Settings as Layer2LedgerAPIHandlerSettings
+from layer2ledgerbatched.common.config.config import get_common_settings, Environment, CommonSettings
+from layer2ledgerbatched.layer2ledgerapihandler.config.config import get_settings as get_layer2ledgerapihandler_settings, Layer2LedgerAPIHandlerSettings
 from layer2ledgerbatched.common.db.models import Base
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.layer2ledgerapihandler.main import app, lifespan
@@ -18,8 +18,8 @@ async def setup_test_environment():
         yield
 
 @pytest.fixture(scope="session")
-def settings() -> Settings:
-    return get_settings(Environment.TEST)
+def common_settings() -> CommonSettings:
+    return get_common_settings(Environment.TEST)
 
 @pytest.fixture(scope="session")
 def layer2ledgerapihandler_settings() -> Layer2LedgerAPIHandlerSettings:
@@ -27,7 +27,7 @@ def layer2ledgerapihandler_settings() -> Layer2LedgerAPIHandlerSettings:
 
 @pytest_asyncio.fixture(scope="function")
 async def redis_client() -> AsyncGenerator[Redis, None]:
-    settings = get_settings(Environment.TEST)
+    settings = get_common_settings(Environment.TEST)
     pool = ConnectionPool.from_url(f"redis://{settings.redis.host}:{settings.redis.port}", max_connections=10)
     client = Redis(connection_pool=pool)
     yield client
@@ -35,7 +35,7 @@ async def redis_client() -> AsyncGenerator[Redis, None]:
 
 @pytest_asyncio.fixture(scope="function")
 async def postgresql_session() -> AsyncGenerator[AsyncSession, None]:
-    settings = get_settings(Environment.TEST)
+    settings = get_common_settings(Environment.TEST)
     engine = create_async_engine(settings.database_url, echo=True, pool_size=10, pool_timeout=30)
     async_session = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as conn:

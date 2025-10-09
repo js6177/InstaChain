@@ -30,7 +30,7 @@ class RedisSettings(BaseModel):
     port: int
 
 
-class Settings(BaseModel):
+class CommonSettings(BaseModel):
     database: DatabaseSettings
     redis: RedisSettings
     drop_tables_after_test_completed: Optional[bool] = True
@@ -40,7 +40,7 @@ class Settings(BaseModel):
     def database_url(self) -> str:
         return self.database.database_url
 
-def get_settings(environment: Environment = DEFAULT_ENVIRONMENT) -> Settings:
+def get_common_settings(environment: Environment = DEFAULT_ENVIRONMENT) -> CommonSettings:
     cwd = Path.cwd()
     print(f"Current working directory using pathlib: {cwd}")
     config_path = Path((Path(ROOT_DIR).expanduser())) / environment.value / config_filename
@@ -48,7 +48,7 @@ def get_settings(environment: Environment = DEFAULT_ENVIRONMENT) -> Settings:
         raise FileNotFoundError(f"{config_filename} not found in the root directory.")
     with open(config_path, "r") as f:
         config_data = json.load(f)
-        settings = Settings(**config_data)
+        settings = CommonSettings(**config_data)
         return settings
 
     raise ValueError(f"Environment '{environment}' not found in config.")

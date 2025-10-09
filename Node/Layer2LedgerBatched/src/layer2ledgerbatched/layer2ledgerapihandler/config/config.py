@@ -22,7 +22,7 @@ class OnboardingDepositAddress(BaseModel):
     private_key: str
     public_key: str
 
-class Settings(BaseModel):
+class Layer2LedgerAPIHandlerSettings(BaseModel):
     NODE_ID: str
     DEPOSIT_WALLET_MASTER_PUBKEY: str
     MINIMUM_LAYER1_TRANSACTION_AMOUNT: int
@@ -33,13 +33,13 @@ class Settings(BaseModel):
     Onboarding_Deposit_Address: OnboardingDepositAddress
 
 
-def get_settings(environment: Environment = DEFAULT_ENVIRONMENT) -> Settings:
+def get_settings(environment: Environment = DEFAULT_ENVIRONMENT) -> Layer2LedgerAPIHandlerSettings:
     config_path = Path((Path(ROOT_DIR).expanduser())) / environment.value / config_filename
     if not config_path.exists():
         raise FileNotFoundError(f"{config_filename} not found in the root directory.")
     with open(config_path, "r") as f:
         config_data = json.load(f)
-        settings = Settings(**config_data)
+        settings = Layer2LedgerAPIHandlerSettings(**config_data)
         return settings
 
     raise ValueError(f"Environment '{environment}' not found in config.")

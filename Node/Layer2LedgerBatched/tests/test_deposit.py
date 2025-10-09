@@ -16,8 +16,8 @@ from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.deposit_con
 from layer2ledgerbatched.layer2ledgerapihandler.utils.key_verification import buildGetDepositAddressMessage, buildDepositMessage
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address
 import layer2ledgerbatched.layer2ledgerapihandler.utils.error_message as error_codes
-from layer2ledgerbatched.common.config.config import Settings as CommonSettings
-from layer2ledgerbatched.layer2ledgerapihandler.config.config import Settings as Layer2LedgerAPIHandlerSettings
+from layer2ledgerbatched.common.config.config import CommonSettings as CommonSettings
+from layer2ledgerbatched.layer2ledgerapihandler.config.config import Layer2LedgerAPIHandlerSettings as Layer2LedgerAPIHandlerSettings
 
 from layer2ledgerbatched.common.redis.redis_models.transactions import PENDING_TRANSACTIONS_LIST_KEY, PendingTransaction
 
@@ -35,7 +35,7 @@ def bridge_address() -> Layer2Address:
     return addr
 
 @pytest.mark.asyncio
-async def test_get_deposit_address_success(postgresql_session: AsyncSession, user_address: Layer2Address, settings: CommonSettings, layer2ledgerapihandler_settings: Layer2LedgerAPIHandlerSettings):
+async def test_get_deposit_address_success(postgresql_session: AsyncSession, user_address: Layer2Address, common_settings: CommonSettings, layer2ledgerapihandler_settings: Layer2LedgerAPIHandlerSettings):
     nonce = str(uuid.uuid4())
     message = buildGetDepositAddressMessage(
         layer2_address_public_key=user_address.public_key_str_base58,
@@ -66,7 +66,7 @@ async def test_get_deposit_address_success(postgresql_session: AsyncSession, use
     assert deposit_address_entry.layer2_address == user_address.public_key_str_base58
 
 @pytest.mark.asyncio
-async def test_deposit_confirmed_success(postgresql_session: AsyncSession, redis_client: redis.asyncio.Redis, user_address: Layer2Address, settings: CommonSettings, layer2ledgerapihandler_settings: Layer2LedgerAPIHandlerSettings):
+async def test_deposit_confirmed_success(postgresql_session: AsyncSession, redis_client: redis.asyncio.Redis, user_address: Layer2Address, common_settings: CommonSettings, layer2ledgerapihandler_settings: Layer2LedgerAPIHandlerSettings):
     # 1. Get a deposit address first
     nonce_get_address = str(uuid.uuid4())
     msg_get_address = buildGetDepositAddressMessage(user_address.public_key_str_base58, nonce_get_address)

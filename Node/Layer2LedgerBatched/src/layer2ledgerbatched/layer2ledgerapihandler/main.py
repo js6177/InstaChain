@@ -5,7 +5,7 @@ import redis
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, AsyncEngine, async_sessionmaker
 
 #from src.api import users, transfers, deposits, withdrawals
-from layer2ledgerbatched.common.config.config import Environment, get_settings
+from layer2ledgerbatched.common.config.config import Environment, get_common_settings
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.sample_request import SampleRequest
 from layer2ledgerbatched.common.db.models import Base
@@ -16,7 +16,7 @@ from layer2ledgerbatched.layer2ledgerapihandler.utils.sessions import get_redis,
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    settings = get_settings()
+    settings = get_common_settings()
     redis_pool = redis.asyncio.ConnectionPool.from_url(
             f"redis://{settings.redis.host}:{settings.redis.port}",
             max_connections=20

@@ -2,7 +2,7 @@ import asyncio
 import pytest
 import httpx
 import threading
-from redis import Redis
+from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
