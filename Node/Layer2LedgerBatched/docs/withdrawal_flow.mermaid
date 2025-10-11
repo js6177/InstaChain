@@ -1,0 +1,63 @@
+sequenceDiagram
+    participant User
+    participant API as Layer2LedgerAPIHandler
+    participant Redis
+    participant DBWriter as Layer2LedgerDbWriter
+    participant DB as PostgreSQL
+    participant Bridge as Layer2Bridge
+    participant Layer1Network as Layer 1 Network
+
+    Note over User, Layer1Network: Step 1: RequestWithdrawal
+    User->>API: POST /RequestWithdrawal (RequestWithdrawalRequest)
+    activate API
+    
+    API->>API: Validate addresses & amount (> 0, < MINIMUM_LAYER1_TRANSACTION_AMOUNT)
+    API->>API: Verify signature from source address
+    API->>Redis: Check if source address is locked
+    API->>DB: Check layer2_transaction_id uniqueness
+    
+    alt Validation Failed
+        API-->>User: HTTP Error (e.g., "Invalid request", "Address locked")
+    else Validation Success
+        API->>Redis: Lock source address
+        API->>API: Generate Layer2 Transaction (subtract withdrawal amount)
+        API->>API: Create WithdrawalRequest (status: WITHDRAWAL_STATUS_PENDING)
+        API->>Redis: Push RedisPendingWithdrawal to PendingWithdrawals list
+        API-->>User: Success "Withdrawal request created"
+    end
+    deactivate API
+
+    Note over DBWriter, DB: Background Processing
+    loop DB Writing Process
+        DBWriter->>Redis: Fetch RedisPendingWithdrawal from PendingWithdrawals
+        activate DBWriter
+        DBWriter->>DB: Insert Layer2 Transaction & WithdrawalRequest
+        DBWriter->>Redis: Release source address lock
+        DBWriter->>Redis: Remove from PendingWithdrawals list
+        deactivate DBWriter
+    end
+
+    Note over Bridge, Layer1Network: Step 2: WithdrawalBroadcasted
+    Bridge->>API: POST /GetWithdrawalRequests
+    API->>DB: Fetch pending WithdrawalRequests
+    DB-->>API: Return pending withdrawals
+    API->>API: Update status to WITHDRAWAL_STATUS_ACKNOWLEDGED
+    API-->>Bridge: Return withdrawal requests
+    
+    Bridge->>Layer1Network: Process withdrawals & transfer L1 funds
+    Layer1Network-->>Bridge: L1 transaction created
+    
+    Bridge->>API: POST /WithdrawalBroadcasted (WithdrawalBroadcastedRequest)
+    API->>API: Verify signature from Layer2Ledger
+    API->>DB: Update WithdrawalRequest status to WITHDRAWAL_STATUS_BROADCASTED
+    API->>DB: Create ConfirmedWithdrawal (confirmed: False)
+    API-->>Bridge: Success "Withdrawal broadcasted"
+
+    Note over Bridge, Layer1Network: Step 3: WithdrawalConfirmed
+    Bridge->>Layer1Network: Monitor L1 transaction confirmations
+    Layer1Network-->>Bridge: Transaction has required confirmations
+    
+    Bridge->>API: POST /WithdrawalConfirmed (WithdrawalConfirmedRequest)
+    API->>API: Verify signature from Layer2Ledger
+    API->>DB: Update ConfirmedWithdrawal (confirmed: True)
+    API-->>Bridge: Success "Withdrawal confirmed"

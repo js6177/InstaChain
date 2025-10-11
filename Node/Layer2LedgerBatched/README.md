@@ -231,3 +231,32 @@ This procedure inserts `DepositAddresses` and `Transaction` models
 
 This procedure accepts `GetDepositAddressRequest` and responds with `GetDepositAddressResponse` from the user
 This procedure also accepts and `DepositConfirmedRequest` and responds with `DepositConfirmedResponse` from the layer2bridge
+
+## Withdrawal
+
+### Overview
+The Withdrawal API enables users to withdraw funds they have on the layer2 ledger to their layer1 address. The entire procedure is comprised of 3 steps:
+- The users create a withdrawal request
+- The `layer2bridge` fetches the pending withdrawal requests, and transfers layer1 funds to the user's requested layer1 address.
+- The `layer2bridge` monitors the confirmation of the layer1 funds, and notifies the `layer2ledger` that the withdrawal has been completed.
+
+### Procedure
+
+#### RequestWithdrawal
+In order for a user to withdraw to their layer1 address, they call the `RequestWithdrawal` API with a valid `RequestWithdrawalRequest` message. This message contains the amount and the layer1 address they want to withdraw to. This message is signed by the layer2 address that the user has funds in, as this is considred the 'source address'. 
+Thw `RequestWithdrawal` API then does the following steps to process it:
+- Verifies that the addresses are valid
+- Verifies that the amount is valid (is > 0) and is less than the `MINIMUM_LAYER1_TRANSACTION_AMOUNT`
+- Verifies that the `RequestWithdrawalRequest` message is signed by the source address.
+- Checks to see that the source address is not locked.
+- Checks to see that layer2_transaction_id (used as a nonce) is unique.
+Once all the above checks have made, the source address is locked, and a layer2 `Transaction` is generated to subtract the withdrawal amount from the soruce layer2 address, as well as a `WithdrawalRequest` object with status being 'WITHDRAWAL_STATUS_PENDING'. These two objects are then inserted into the redis `PendingWithdrawals` list as part of a `RedisPendingWithdrawal` object.
+
+The `layer2ledgerdbwriter` then fetches these from the `PendingWithdrawals` list and inserts them into the postgresql db using the same loop/logic as the `Transfer` requests, and unlocks the source address after it has inserted.
+
+
+#### WithdrawalBroadcasted
+The `layer2bridge` periodically calls the `GetWithdrawalRequests` API to fetch the all the `WithdrawalRequest` with pending status (which flips the status to 'WITHDRAWAL_STATUS_ACKNOWLEDGED') . The `layer2bridge` then processes these withdrawals and calls the `WithdrawalBroadcasted` API with a `WithdrawalBroadcastedRequest` message containing the layer1 transaction id and vout. The `GetWithdrawalRequests` API then verifies to see that this message is signed by the `layer2ledger` and if so, updates the appropriate `WithdrawalRequest` object's status to 'WITHDRAWAL_STATUS_BROADCASTED' and creates a `ConfirmedWithdrawal` object to posgresql with the confirmed field set to False.
+
+#### WithdrawalConfirmed
+When the `layer2bridge` detects that a layer1 withdrawal transaction has been confirmed, it calls the `WithdrawalConfirmed` API with a `WithdrawalConfirmedRequest` messsage that contains all the layer1 transactions that have been confirmed. The `WithdrawalConfirmed` API then verifies that this message is signed by the `layer2bridge`, then adds a `ConfirmedWithdrawal` object to the postgresql db and updates the `WithdrawalRequest` matching the 'layer2_withdrawal_id' with the status set to 'WITHDRAWAL_STATUS_CONFIRMED' and the 'layer1_transaction_id' set to the `ConfirmedWithdrawal`'s layer1_transaction_id.
