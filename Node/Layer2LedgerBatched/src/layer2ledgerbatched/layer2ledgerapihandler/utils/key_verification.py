@@ -46,7 +46,7 @@ def verifyLayer1AuditReportSignature(blockHeight: int, balance: float, signature
     return verifyMessageSignature(message, signature, LAYER2_BRIDGE_KEY_PUBKEY)
 
 def buildLayer1AuditReportMessage(blockHeight: int, balance: float) -> str:
-    return (NODE_ID + " " + str(TransactionType.INSTRUCTION_LAYER1_AUDIT) + ' ' + str(blockHeight) + ' ' +str(balance))
+    return (NODE_ID + " " + str(TransactionType.INSTRUCTION_LAYER1_AUDIT)  + ' ' + str(blockHeight) + ' ' +str(balance))
 
 def buildTransferMessage(source_pubkey: str, destination_address_pubkey: str, amount: float, fee: float, nonce: str) -> str:
     return (NODE_ID + " " + str(NODE_ASSET_ID) + " " + str(TransactionType.TRX_TRANSFER) + " " + source_pubkey + " " + destination_address_pubkey + " " + str(amount) + " " + str(fee) + " " + nonce)

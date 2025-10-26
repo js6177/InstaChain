@@ -78,13 +78,21 @@ class MasterPublicKeyIndex(Base):
     mpk_index: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
 
+class WithdrawalStatus(enum.IntEnum):
+    WITHDRAWAL_STATUS_PENDING = 1
+    WITHDRAWAL_STATUS_ACKNOWLEDGED = 2
+    WITHDRAWAL_STATUS_BROADCASTED = 3
+    WITHDRAWAL_STATUS_CONFIRMED = 4
+    WITHDRAWAL_STATUS_CANCELED = 5
+
+
 class WithdrawalRequests(Base):
     __tablename__ = "withdrawal_requests"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     layer1_address: Mapped[str] = mapped_column(String, index=True)
     layer1_transaction_id: Mapped[str] = mapped_column(String, nullable=True)
-    status: Mapped[int] = mapped_column(Integer)
+    status: Mapped[WithdrawalStatus] = mapped_column(Enum(WithdrawalStatus))
     amount: Mapped[int] = mapped_column(Integer)
     layer2_withdrawal_id: Mapped[str] = mapped_column(String, unique=True, index=True)
     server_signature: Mapped[str] = mapped_column(String, nullable=True)

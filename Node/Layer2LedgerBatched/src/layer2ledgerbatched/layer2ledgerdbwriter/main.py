@@ -8,9 +8,10 @@ from sqlalchemy import select
 import layer2ledgerbatched.common.redis.redis_driver.redis_driver as redis_driver
 
 from layer2ledgerbatched.common.config.config import get_common_settings, Environment
-from layer2ledgerbatched.common.db.models import Transaction, Layer2AddressBalance, TransactionType, Base, model_to_dict
+from layer2ledgerbatched.common.db.models import Transaction, Layer2AddressBalance, TransactionType, Base, model_to_dict, WithdrawalRequests
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.common.redis.redis_models.transactions import PendingTransaction, PENDING_TRANSACTIONS_LIST_KEY
+from layer2ledgerbatched.common.redis.redis_models.withdrawal import PendingWithdrawal, PENDING_WITHDRAWALS_LIST_KEY
 
 async def setup_clients(environment:Environment = Environment.PROD) -> tuple[redis.Redis, AsyncSession, DistributedLock]:
     settings = get_common_settings(environment)
@@ -46,12 +47,14 @@ async def process_pending_transactions(environment: Environment = Environment.PR
         try:
             # Fetch pending transactions from Redis
             transactions_to_process: list[PendingTransaction] = await redis_driver.GetPendingTransactions(redis_client, 0, 999)
-            if not transactions_to_process:
+            withdrawals_to_process_json: list[PendingWithdrawal] = await redis_driver.GetPendingWithdrawals(redis_client, 0, 999)
+            if not transactions_to_process and not withdrawals_to_process_json:
                 await asyncio.sleep(1)
                 continue
 
 
             new_transactions: list[Transaction] = []
+            new_withdrawals: list[WithdrawalRequests] = []
             balance_updates: dict[str, int] = {} # address -> balance change
             
             for pending_tx in transactions_to_process:
@@ -68,6 +71,17 @@ async def process_pending_transactions(environment: Environment = Environment.PR
                 if dest_addr not in balance_updates:
                     balance_updates[dest_addr] = 0
                 balance_updates[dest_addr] += amount
+
+            for pending_withdrawal in withdrawals_to_process_json:
+                new_transactions.append(pending_withdrawal.transaction.to_sqlalchemy())
+                new_withdrawals.append(pending_withdrawal.withdrawal_request.to_sqlalchemy())
+
+                source_addr = pending_withdrawal.transaction.source_address_pubkey
+                amount = pending_withdrawal.transaction.amount
+
+                if source_addr not in balance_updates:
+                    balance_updates[source_addr] = 0
+                balance_updates[source_addr] -= amount
             
             #construct a list of Layer2AddressBalance objects
             address_balances: list[Layer2AddressBalance] = []
@@ -79,6 +93,7 @@ async def process_pending_transactions(environment: Environment = Environment.PR
 
 
             db.add_all(new_transactions)
+            db.add_all(new_withdrawals)
 
             stmt = pg_insert(Layer2AddressBalance).values(address_balances_dicts)
             stmt = stmt.on_conflict_do_update(
@@ -103,9 +118,15 @@ async def process_pending_transactions(environment: Environment = Environment.PR
             await db.rollback()
             await asyncio.sleep(5)
 
-def main():
+
+async def main_async():
     print("Starting Layer2LedgerDbWriter...")
-    asyncio.run(process_pending_transactions())
+    await asyncio.gather(
+        process_pending_transactions()
+    )
+
+def main():
+    asyncio.run(main_async())
 
 if __name__ == "__main__":
     main()
