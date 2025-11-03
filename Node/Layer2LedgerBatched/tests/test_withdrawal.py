@@ -184,8 +184,10 @@ async def test_withdrawal_flow(postgresql_session: AsyncSession, redis_client: R
 # Tests multiple withdrawals from a layer2 address to the same layer1 address
 @pytest.mark.asyncio
 async def test_multiple_withdrawals_to_same_layer1_address(postgresql_session: AsyncSession, redis_client: Redis, source_address: Layer2Address, layer1_address: str, layer2ledgerapihandler_settings: Layer2LedgerAPIHandlerSettings) -> None:
+    num_withdrawals = 3
+    
     # 1. Create balance for source address
-    initial_balance = 3000
+    initial_balance = sum(100 * (i + 1) for i in range(num_withdrawals)) + 1000
     balance_stmt = pg_insert(Layer2AddressBalance).values(
         address=source_address.public_key_str_base58,
         balance=initial_balance
@@ -196,87 +198,50 @@ async def test_multiple_withdrawals_to_same_layer1_address(postgresql_session: A
     await postgresql_session.execute(balance_stmt)
     await postgresql_session.commit()
 
-    # 2. Request first withdrawal
-    amount1 = 100
-    transaction_id1 = str(uuid.uuid4())
-    
-    message1 = buildWithdrawalRequestMessage(
-        source_pubkey=source_address.public_key_str_base58,
-        withdrawal_address=layer1_address,
-        amount=amount1,
-        nonce=transaction_id1
-    )
-    signature1 = source_address.sign(message1)
-
-    request1 = RequestWithdrawalRequest(
-        amount=amount1,
-        layer1_withdrawal_address=layer1_address,
-        layer2_transaction_id=transaction_id1,
-        signature=signature1,
-        source_address_public_key=source_address.public_key_str_base58,
-    )
-
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        response1 = await client.post(f"{WITHDRAWAL_ROUTER_PREFIX}{REQUEST_WITHDRAWAL_ROUTE}", json=request1.model_dump())
-
-    assert response1.status_code == 200
-    response_model1 = CommonResponse.model_validate(response1.json())
-    assert response_model1.error_code == error_codes.ERROR_SUCCESS
-
-    # 3. Process the first withdrawal
-    pending_withdrawal_json1 = await redis_client.lpop(PENDING_WITHDRAWALS_LIST_KEY)
-    assert pending_withdrawal_json1 is not None
-    pending_withdrawal1 = PendingWithdrawal.model_validate_json(pending_withdrawal_json1)
-    assert pending_withdrawal1.transaction.amount == amount1
-    layer2_withdrawal_id1 = pending_withdrawal1.withdrawal_request.layer2_withdrawal_id
-
-    await redis_client.rpush(PENDING_WITHDRAWALS_LIST_KEY, pending_withdrawal1.model_dump_json())
+    # 2. Start DB writer thread once
     def run_db_writer():
         asyncio.run(process_pending_transactions())
     db_writer_thread = threading.Thread(target=run_db_writer, daemon=True)
     db_writer_thread.start()
-    await asyncio.sleep(3)
+    await asyncio.sleep(1)
 
-    # 4. Request second withdrawal
-    amount2 = 200
-    transaction_id2 = str(uuid.uuid4())
+    withdrawal_amounts: list[int] = []
+    total_amount = 0
 
-    message2 = buildWithdrawalRequestMessage(
-        source_pubkey=source_address.public_key_str_base58,
-        withdrawal_address=layer1_address,
-        amount=amount2,
-        nonce=transaction_id2
-    )
-    signature2 = source_address.sign(message2)
+    # 3. Create and process withdrawal requests in a loop
+    for i in range(num_withdrawals):
+        amount = 100 * (i + 1)
+        withdrawal_amounts.append(amount)
+        total_amount += amount
+        transaction_id = str(uuid.uuid4())
+        
+        message = buildWithdrawalRequestMessage(
+            source_pubkey=source_address.public_key_str_base58,
+            withdrawal_address=layer1_address,
+            amount=amount,
+            nonce=transaction_id
+        )
+        signature = source_address.sign(message)
 
-    request2 = RequestWithdrawalRequest(
-        amount=amount2,
-        layer1_withdrawal_address=layer1_address,
-        layer2_transaction_id=transaction_id2,
-        signature=signature2,
-        source_address_public_key=source_address.public_key_str_base58,
-    )
+        request = RequestWithdrawalRequest(
+            amount=amount,
+            layer1_withdrawal_address=layer1_address,
+            layer2_transaction_id=transaction_id,
+            signature=signature,
+            source_address_public_key=source_address.public_key_str_base58,
+        )
 
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        response2 = await client.post(f"{WITHDRAWAL_ROUTER_PREFIX}{REQUEST_WITHDRAWAL_ROUTE}", json=request2.model_dump())
-    
-    assert response2.status_code == 200
-    response_model2 = CommonResponse.model_validate(response2.json())
-    assert response_model2.error_code == error_codes.ERROR_SUCCESS
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.post(f"{WITHDRAWAL_ROUTER_PREFIX}{REQUEST_WITHDRAWAL_ROUTE}", json=request.model_dump())
 
-    # 5. Process second withdrawal
-    pending_withdrawal_json2 = await redis_client.lpop(PENDING_WITHDRAWALS_LIST_KEY)
-    assert pending_withdrawal_json2 is not None
-    pending_withdrawal2 = PendingWithdrawal.model_validate_json(pending_withdrawal_json2)
-    assert pending_withdrawal2.transaction.amount == amount2
-    layer2_withdrawal_id2 = pending_withdrawal2.withdrawal_request.layer2_withdrawal_id
+        assert response.status_code == 200
+        response_model = CommonResponse.model_validate(response.json())
+        assert response_model.error_code == error_codes.ERROR_SUCCESS
 
-    await redis_client.rpush(PENDING_WITHDRAWALS_LIST_KEY, pending_withdrawal2.model_dump_json())
+        # Wait for the db_writer to process the item and release the lock
+        await asyncio.sleep(1)
 
-    # The dbwriter thread is already running from before, so just wait for it to process
-    await asyncio.sleep(3)
-
-    # 6. Get withdrawal requests
+    # 4. Get withdrawal requests
     from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.get_withdrawal_requests_request import GetWithdrawalRequestsRequest
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post(f"{WITHDRAWAL_ROUTER_PREFIX}{GET_WITHDRAWAL_REQUESTS_ROUTE}", json=GetWithdrawalRequestsRequest(latest_timestamp=0).model_dump())
@@ -285,60 +250,47 @@ async def test_multiple_withdrawals_to_same_layer1_address(postgresql_session: A
     from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.get_withdrawal_requests_response import GetWithdrawalRequestsResponse
     response_model = GetWithdrawalRequestsResponse.model_validate(response.json())
     assert response_model.error_code == error_codes.ERROR_SUCCESS
-    assert len(response_model.withdrawal_requests) == 2
+    assert len(response_model.withdrawal_requests) == num_withdrawals
     
-    req_ids_from_response = {req.layer2_withdrawal_id for req in response_model.withdrawal_requests}
-    assert req_ids_from_response == {layer2_withdrawal_id1, layer2_withdrawal_id2}
+    req_map = {req.amount: req.layer2_withdrawal_id for req in response_model.withdrawal_requests}
+    layer2_withdrawal_ids = [req_map[amount] for amount in withdrawal_amounts]
 
     for req in response_model.withdrawal_requests:
         assert req.status == WithdrawalStatus.WITHDRAWAL_STATUS_ACKNOWLEDGED
 
-    # 7. Broadcast withdrawal (batched)
-    layer1_transaction_id = "l1_tx_id_batched_456"
+    # 5. Broadcast withdrawal (batched)
+    layer1_transaction_id = "l1_tx_id_batched_789"
     layer1_transaction_vout = 0
-    total_amount = amount1 + amount2
-
+    
     bridge_l2_address = Layer2Address()
     bridge_l2_address.from_private_key(layer2ledgerapihandler_settings.layer2bridge_key_privkey)
 
-    broadcast_message1 = buildWithdrawalBroadcastedMessage(
-        layer1_transaction_id=layer1_transaction_id,
-        layer1_transaction_vout=layer1_transaction_vout,
-        layer1_address=layer1_address,
-        amount=amount1,
-        withdrawal_id=layer2_withdrawal_id1
-    )
-    broadcast_signature1 = bridge_l2_address.sign(broadcast_message1)
+    broadcasted_txs: list[Layer1BroadcastedWithdrawalTransaction] = []
+    for i in range(num_withdrawals):
+        amount = withdrawal_amounts[i]
+        withdrawal_id = layer2_withdrawal_ids[i]
+        
+        broadcast_message = buildWithdrawalBroadcastedMessage(
+            layer1_transaction_id=layer1_transaction_id,
+            layer1_transaction_vout=layer1_transaction_vout,
+            layer1_address=layer1_address,
+            amount=amount,
+            withdrawal_id=withdrawal_id
+        )
+        broadcast_signature = bridge_l2_address.sign(broadcast_message)
 
-    from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.withdrawal_broadcasted_request import WithdrawalBroadcastedRequest, Layer1BroadcastedWithdrawalTransaction
-    broadcasted_tx1 = Layer1BroadcastedWithdrawalTransaction(
-        layer1_transaction_id=layer1_transaction_id,
-        layer1_transaction_vout=layer1_transaction_vout,
-        layer1_address=layer1_address,
-        amount=amount1,
-        layer2_withdrawal_id=layer2_withdrawal_id1,
-        signature=broadcast_signature1
-    )
+        from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.withdrawal_broadcasted_request import WithdrawalBroadcastedRequest, Layer1BroadcastedWithdrawalTransaction
+        broadcasted_tx = Layer1BroadcastedWithdrawalTransaction(
+            layer1_transaction_id=layer1_transaction_id,
+            layer1_transaction_vout=layer1_transaction_vout,
+            layer1_address=layer1_address,
+            amount=amount,
+            layer2_withdrawal_id=withdrawal_id,
+            signature=broadcast_signature
+        )
+        broadcasted_txs.append(broadcasted_tx)
 
-    broadcast_message2 = buildWithdrawalBroadcastedMessage(
-        layer1_transaction_id=layer1_transaction_id,
-        layer1_transaction_vout=layer1_transaction_vout,
-        layer1_address=layer1_address,
-        amount=amount2,
-        withdrawal_id=layer2_withdrawal_id2
-    )
-    broadcast_signature2 = bridge_l2_address.sign(broadcast_message2)
-
-    broadcasted_tx2 = Layer1BroadcastedWithdrawalTransaction(
-        layer1_transaction_id=layer1_transaction_id,
-        layer1_transaction_vout=layer1_transaction_vout,
-        layer1_address=layer1_address,
-        amount=amount2,
-        layer2_withdrawal_id=layer2_withdrawal_id2,
-        signature=broadcast_signature2
-    )
-
-    broadcasted_request = WithdrawalBroadcastedRequest(transactions=[broadcasted_tx1, broadcasted_tx2])
+    broadcasted_request = WithdrawalBroadcastedRequest(transactions=broadcasted_txs)
 
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post(f"{WITHDRAWAL_ROUTER_PREFIX}{WITHDRAWAL_BROADCASTED_ROUTE}", json=broadcasted_request.model_dump())
@@ -347,11 +299,11 @@ async def test_multiple_withdrawals_to_same_layer1_address(postgresql_session: A
     from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.withdrawal_broadcasted_response import WithdrawalBroadcastedResponse
     response_model = WithdrawalBroadcastedResponse.model_validate(response.json())
     assert response_model.error_code == error_codes.ERROR_SUCCESS
-    assert len(response_model.transactions) == 2
-    assert response_model.transactions[0].error_code == error_codes.ERROR_SUCCESS
-    assert response_model.transactions[1].error_code == error_codes.ERROR_SUCCESS
+    assert len(response_model.transactions) == num_withdrawals
+    for tx in response_model.transactions:
+        assert tx.error_code == error_codes.ERROR_SUCCESS
 
-    # 8. Confirm withdrawal
+    # 6. Confirm withdrawal
     confirmed_message = buildWithdrawalConfirmedMessage(
         layer1_transaction_id=layer1_transaction_id,
         layer1_transaction_vout=layer1_transaction_vout,
@@ -380,16 +332,16 @@ async def test_multiple_withdrawals_to_same_layer1_address(postgresql_session: A
     assert len(response_model.transactions) == 1
     assert response_model.transactions[0].error_code == error_codes.ERROR_SUCCESS
 
-    # 9. Check DB
-    withdrawal_reqs = await postgresql_session.execute(select(WithdrawalRequests).where(WithdrawalRequests.layer2_withdrawal_id.in_([layer2_withdrawal_id1, layer2_withdrawal_id2])))
+    # 7. Check DB
+    withdrawal_reqs = await postgresql_session.execute(select(WithdrawalRequests).where(WithdrawalRequests.layer2_withdrawal_id.in_(layer2_withdrawal_ids)))
     withdrawal_reqs = withdrawal_reqs.scalars().all()
-    assert len(withdrawal_reqs) == 2
+    assert len(withdrawal_reqs) == num_withdrawals
     for req in withdrawal_reqs:
         assert req.status == WithdrawalStatus.WITHDRAWAL_STATUS_CONFIRMED
 
-    confirmed_withdrawals = await postgresql_session.execute(select(ConfirmedWithdrawals).where(ConfirmedWithdrawals.layer2_withdrawal_id.in_([layer2_withdrawal_id1, layer2_withdrawal_id2])))
+    confirmed_withdrawals = await postgresql_session.execute(select(ConfirmedWithdrawals).where(ConfirmedWithdrawals.layer2_withdrawal_id.in_(layer2_withdrawal_ids)))
     confirmed_withdrawals = confirmed_withdrawals.scalars().all()
-    assert len(confirmed_withdrawals) == 2
+    assert len(confirmed_withdrawals) == num_withdrawals
     for cw in confirmed_withdrawals:
         assert cw.confirmed == True
         assert cw.layer1_transaction_id == layer1_transaction_id

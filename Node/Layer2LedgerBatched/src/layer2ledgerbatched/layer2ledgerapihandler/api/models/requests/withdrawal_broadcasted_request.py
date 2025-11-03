@@ -10,4 +10,4 @@ class Layer1BroadcastedWithdrawalTransaction(BaseModel):
     signature: str
 
 class WithdrawalBroadcastedRequest(BaseModel):
-    transactions: List[Layer1BroadcastedWithdrawalTransaction] = None
+    transactions: List[Layer1BroadcastedWithdrawalTransaction]
