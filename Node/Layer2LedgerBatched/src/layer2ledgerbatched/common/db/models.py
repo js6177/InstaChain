@@ -113,7 +113,7 @@ class ConfirmedWithdrawals(Base):
     amount: Mapped[int] = mapped_column(Integer)
     layer2_withdrawal_id: Mapped[str] = mapped_column(String, unique=True, index=True)
     broadcasted_signature: Mapped[str] = mapped_column(String)
-    confirmed_signature: Mapped[str] = mapped_column(String)
+    confirmed_signature: Mapped[str] = mapped_column(String, nullable=True)
     confirmed: Mapped[bool] = mapped_column(Boolean, default=False)
     confirmation_timestamp_str: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
