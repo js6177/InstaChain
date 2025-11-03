@@ -47,8 +47,8 @@ async def process_pending_transactions(environment: Environment = Environment.PR
         try:
             # Fetch pending transactions from Redis
             transactions_to_process: list[PendingTransaction] = await redis_driver.GetPendingTransactions(redis_client, 0, 999)
-            withdrawals_to_process_json: list[PendingWithdrawal] = await redis_driver.GetPendingWithdrawals(redis_client, 0, 999)
-            if not transactions_to_process and not withdrawals_to_process_json:
+            withdrawals_to_process: list[PendingWithdrawal] = await redis_driver.GetPendingWithdrawals(redis_client, 0, 999)
+            if not transactions_to_process and not withdrawals_to_process:
                 await asyncio.sleep(1)
                 continue
 
@@ -72,7 +72,7 @@ async def process_pending_transactions(environment: Environment = Environment.PR
                     balance_updates[dest_addr] = 0
                 balance_updates[dest_addr] += amount
 
-            for pending_withdrawal in withdrawals_to_process_json:
+            for pending_withdrawal in withdrawals_to_process:
                 new_transactions.append(pending_withdrawal.transaction.to_sqlalchemy())
                 new_withdrawals.append(pending_withdrawal.withdrawal_request.to_sqlalchemy())
 
@@ -109,8 +109,15 @@ async def process_pending_transactions(environment: Environment = Environment.PR
             # Remove processed transactions from Redis
             await redis_client.ltrim(PENDING_TRANSACTIONS_LIST_KEY, len(transactions_to_process), -1)
 
+            # Remove processed withdrawals from Redis
+            await redis_client.ltrim(PENDING_WITHDRAWALS_LIST_KEY, len(withdrawals_to_process), -1)
+
+
+#            # Release locks
             for pending_tx in transactions_to_process:
                 await lock_manager.release_multi_lock(pending_tx.addresses_locked, pending_tx.lock_token)
+            for pending_withdrawal in withdrawals_to_process:
+                await lock_manager.release_multi_lock(pending_withdrawal.addresses_locked, pending_withdrawal.lock_token)
             
 
         except Exception as e:
