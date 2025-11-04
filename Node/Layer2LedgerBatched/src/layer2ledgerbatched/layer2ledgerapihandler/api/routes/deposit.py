@@ -17,11 +17,9 @@ from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer
 from layer2ledgerbatched.layer2ledgerapihandler.utils.generate_btc_address import generate_btc_testnet_address
 from layer2ledgerbatched.common.redis.redis_models.transactions import RedisTransaction, PendingTransaction, PENDING_TRANSACTIONS_LIST_KEY
 from layer2ledgerbatched.layer2ledgerapihandler.config.config import get_settings, Layer2LedgerAPIHandlerSettings
+from .route_defs import GET_DEPOSIT_ADDRESS_ROUTE, DEPOSIT_CONFIRMED_ROUTE
 
 router = APIRouter()
-
-GET_DEPOSIT_ADDRESS_ROUTE = "/get_deposit_address"
-DEPOSIT_CONFIRMED_ROUTE = "/deposit_confirmed"
 
 @router.post(GET_DEPOSIT_ADDRESS_ROUTE, response_model=GetDepositAddressResponse)
 async def get_deposit_address(

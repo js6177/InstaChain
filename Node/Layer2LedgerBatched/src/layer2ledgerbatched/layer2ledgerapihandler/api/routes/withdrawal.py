@@ -23,14 +23,10 @@ from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.withdrawal_b
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.withdrawal_broadcasted_response import WithdrawalBroadcastedResponse, Layer1BroadcastedWithdrawalTransactionStatus
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.withdrawal_confirmed_request import WithdrawalConfirmedRequest, Layer1WithdrawalConfirmedTransaction
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.withdrawal_confirmed_response import WithdrawalConfirmedResponse, Layer1WithdrawalConfirmedTransactionStatus
+from .route_defs import REQUEST_WITHDRAWAL_ROUTE, GET_WITHDRAWAL_REQUESTS_ROUTE, WITHDRAWAL_BROADCASTED_ROUTE, WITHDRAWAL_CONFIRMED_ROUTE
 
 
 router = APIRouter()
-
-REQUEST_WITHDRAWAL_ROUTE = "/request_withdrawal"
-GET_WITHDRAWAL_REQUESTS_ROUTE = "/get_withdrawal_requests"
-WITHDRAWAL_BROADCASTED_ROUTE = "/withdrawal_broadcasted"
-WITHDRAWAL_CONFIRMED_ROUTE = "/withdrawal_confirmed"
 
 @router.post(REQUEST_WITHDRAWAL_ROUTE, response_model=CommonResponse)
 async def request_withdrawal(

@@ -16,11 +16,11 @@ from layer2ledgerbatched.layer2ledgerapihandler.utils.key_verification import bu
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.common.redis.redis_models.transactions import RedisTransaction, PendingTransaction, PENDING_TRANSACTIONS_LIST_KEY
+from .route_defs import PUSH_TRANSACTION_ROUTE
 
 router = APIRouter()
 
-CREATE_TRANSFER_ROUTE = "/transfer"
-@router.post(CREATE_TRANSFER_ROUTE, response_model=CommonResponse)
+@router.post(PUSH_TRANSACTION_ROUTE, response_model=CommonResponse)
 async def create_transfer(
     request: PushTransactionRequest, 
     db: AsyncSession = Depends(get_db_session), 

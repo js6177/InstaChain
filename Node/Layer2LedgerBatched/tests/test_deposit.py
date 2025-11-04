@@ -6,8 +6,8 @@ import redis.asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from layer2ledgerbatched.layer2ledgerapihandler.main import app, DEPOSIT_ROUTER_PREFIX
-from layer2ledgerbatched.layer2ledgerapihandler.api.routes.deposit import GET_DEPOSIT_ADDRESS_ROUTE, DEPOSIT_CONFIRMED_ROUTE
+from layer2ledgerbatched.layer2ledgerapihandler.main import app
+from layer2ledgerbatched.layer2ledgerapihandler.api.routes.route_defs import DEPOSIT_ROUTER_PREFIX, GET_DEPOSIT_ADDRESS_ROUTE, DEPOSIT_CONFIRMED_ROUTE
 from layer2ledgerbatched.common.db.models import DepositAddresses, Transaction, TransactionType
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.get_deposit_address_request import GetDepositAddressRequest
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.get_deposit_address_response import GetDepositAddressResponse

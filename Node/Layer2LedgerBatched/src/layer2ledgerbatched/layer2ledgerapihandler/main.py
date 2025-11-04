@@ -10,6 +10,7 @@ from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import Distr
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.sample_request import SampleRequest
 from layer2ledgerbatched.common.db.models import Base
 from layer2ledgerbatched.layer2ledgerapihandler.api.routes import transfer, deposit, withdrawal
+from layer2ledgerbatched.layer2ledgerapihandler.api.routes.route_defs import TRANSFER_ROUTER_PREFIX, DEPOSIT_ROUTER_PREFIX, WITHDRAWAL_ROUTER_PREFIX
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
 from layer2ledgerbatched.layer2ledgerapihandler.utils.sessions import get_redis, get_db_session, get_redis_lock_manager
 
@@ -53,13 +54,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = FastAPI(lifespan=lifespan)
 
-TRANSFER_ROUTER_PREFIX = "/transfer"
 app.include_router(transfer.router, prefix=TRANSFER_ROUTER_PREFIX, tags=["transfer"])
-
-DEPOSIT_ROUTER_PREFIX = "/deposit"
 app.include_router(deposit.router, prefix=DEPOSIT_ROUTER_PREFIX, tags=["deposit"])
-
-WITHDRAWAL_ROUTER_PREFIX = "/withdrawal"
 app.include_router(withdrawal.router, prefix=WITHDRAWAL_ROUTER_PREFIX, tags=["withdrawal"])
 
 @app.get("/", response_model = CommonResponse)

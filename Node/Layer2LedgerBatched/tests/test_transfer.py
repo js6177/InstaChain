@@ -10,8 +10,8 @@ import uuid
 
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 import layer2ledgerbatched.common.redis.redis_driver.redis_driver as redis_driver
-from layer2ledgerbatched.layer2ledgerapihandler.main import app, TRANSFER_ROUTER_PREFIX
-from layer2ledgerbatched.layer2ledgerapihandler.api.routes.transfer import CREATE_TRANSFER_ROUTE
+from layer2ledgerbatched.layer2ledgerapihandler.main import app
+from layer2ledgerbatched.layer2ledgerapihandler.api.routes.route_defs import TRANSFER_ROUTER_PREFIX, PUSH_TRANSACTION_ROUTE
 from layer2ledgerbatched.common.db.models import Layer2AddressBalance, Transaction
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.push_transaction_request import PushTransactionRequest
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
@@ -70,7 +70,7 @@ async def test_create_transfer_success_inserted_into_redis(postgresql_session: A
 
     # 3. Call API
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post(f"{TRANSFER_ROUTER_PREFIX}{CREATE_TRANSFER_ROUTE}", json=request.model_dump())
+        response = await client.post(f"{TRANSFER_ROUTER_PREFIX}{PUSH_TRANSACTION_ROUTE}", json=request.model_dump())
 
     # 4. Assert response
     assert response.status_code == 200
@@ -136,7 +136,7 @@ async def test_create_transfer_success_multiple(postgresql_session: AsyncSession
 
         # 3. Call API
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.post(f"{TRANSFER_ROUTER_PREFIX}{CREATE_TRANSFER_ROUTE}", json=transfer_request.model_dump())
+            response = await client.post(f"{TRANSFER_ROUTER_PREFIX}{PUSH_TRANSACTION_ROUTE}", json=transfer_request.model_dump())
 
         # 4. Assert response
         assert response.status_code == 200
@@ -185,7 +185,7 @@ async def test_create_transfer_insufficient_funds(postgresql_session: AsyncSessi
 
     # 3. Call API
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post(f"{TRANSFER_ROUTER_PREFIX}{CREATE_TRANSFER_ROUTE}", json=request.model_dump())
+        response = await client.post(f"{TRANSFER_ROUTER_PREFIX}{PUSH_TRANSACTION_ROUTE}", json=request.model_dump())
 
     # 4. Assert response
     assert response.status_code == 200
@@ -223,7 +223,7 @@ async def test_create_transfer_address_locked(redis_client: Redis, distributed_l
 
     # 3. Call API
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post(f"{TRANSFER_ROUTER_PREFIX}{CREATE_TRANSFER_ROUTE}", json=request.model_dump())
+        response = await client.post(f"{TRANSFER_ROUTER_PREFIX}{PUSH_TRANSACTION_ROUTE}", json=request.model_dump())
 
     # 4. Assert response
     assert response.status_code == 200
@@ -251,7 +251,7 @@ async def test_create_transfer_invalid_address(source_address: Layer2Address, de
 
     # Call API
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post(f"{TRANSFER_ROUTER_PREFIX}{CREATE_TRANSFER_ROUTE}", json=request.model_dump())
+        response = await client.post(f"{TRANSFER_ROUTER_PREFIX}{PUSH_TRANSACTION_ROUTE}", json=request.model_dump())
 
     # Assert response
     assert response.status_code == 200
@@ -293,7 +293,7 @@ async def test_create_transfer_success_inserted_into_postgres(postgresql_session
 
     # 3. Call API
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post(f"{TRANSFER_ROUTER_PREFIX}{CREATE_TRANSFER_ROUTE}", json=request.model_dump())
+        response = await client.post(f"{TRANSFER_ROUTER_PREFIX}{PUSH_TRANSACTION_ROUTE}", json=request.model_dump())
 
     # 4. Assert response
     assert response.status_code == 200
@@ -386,7 +386,7 @@ async def test_create_multiple_transfers_end_to_end(postgresql_session: AsyncSes
     start_time_fastaopi_requests = asyncio.get_event_loop().time()
 
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
-        tasks = [client.post(f"{TRANSFER_ROUTER_PREFIX}{CREATE_TRANSFER_ROUTE}", json=req.model_dump()) for req in requests]
+        tasks = [client.post(f"{TRANSFER_ROUTER_PREFIX}{PUSH_TRANSACTION_ROUTE}", json=req.model_dump()) for req in requests]
         responses = await asyncio.gather(*tasks)
 
     # 4. Assert all responses are successful

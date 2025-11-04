@@ -10,8 +10,11 @@ import uuid
 
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 import layer2ledgerbatched.common.redis.redis_driver.redis_driver as redis_driver
-from layer2ledgerbatched.layer2ledgerapihandler.main import app, WITHDRAWAL_ROUTER_PREFIX
-from layer2ledgerbatched.layer2ledgerapihandler.api.routes.withdrawal import REQUEST_WITHDRAWAL_ROUTE, GET_WITHDRAWAL_REQUESTS_ROUTE, WITHDRAWAL_BROADCASTED_ROUTE, WITHDRAWAL_CONFIRMED_ROUTE
+from layer2ledgerbatched.layer2ledgerapihandler.main import app
+from layer2ledgerbatched.layer2ledgerapihandler.api.routes.route_defs import (
+    WITHDRAWAL_ROUTER_PREFIX, REQUEST_WITHDRAWAL_ROUTE, GET_WITHDRAWAL_REQUESTS_ROUTE, 
+    WITHDRAWAL_BROADCASTED_ROUTE, WITHDRAWAL_CONFIRMED_ROUTE
+)
 from layer2ledgerbatched.common.db.models import Layer2AddressBalance, Transaction, WithdrawalRequests, ConfirmedWithdrawals, WithdrawalStatus
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.request_withdrawal_request import RequestWithdrawalRequest
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
