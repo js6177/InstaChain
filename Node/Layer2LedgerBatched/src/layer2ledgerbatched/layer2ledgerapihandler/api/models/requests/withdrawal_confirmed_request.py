@@ -9,4 +9,4 @@ class Layer1WithdrawalConfirmedTransaction(BaseModel):
     signature: str
 
 class WithdrawalConfirmedRequest(BaseModel):
-    transactions: List[Layer1WithdrawalConfirmedTransaction] = None
+    transactions: List[Layer1WithdrawalConfirmedTransaction]

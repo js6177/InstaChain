@@ -8,5 +8,5 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 class SearchRequest(BaseModel):
-    search_string: str = None
-    search_type: str = None
+    search_string: str
+    search_type: str

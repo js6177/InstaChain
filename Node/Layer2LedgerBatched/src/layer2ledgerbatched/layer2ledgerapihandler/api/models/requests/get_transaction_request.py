@@ -9,4 +9,4 @@ from pydantic import BaseModel
 
 
 class GetTransactionRequest(BaseModel):
-    transaction_id: str = None
+    transaction_id: str
