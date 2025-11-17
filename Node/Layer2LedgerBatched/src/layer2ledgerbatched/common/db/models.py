@@ -15,7 +15,7 @@ from sqlalchemy import (
     func,
     inspect,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, MappedAsDataclass, mapped_column
 
 class Base(DeclarativeBase):
     pass
@@ -154,7 +154,7 @@ class TransactionType(enum.IntEnum):
     INSTRUCTION_GET_DEPOSIT_ADDRESS = 7 # instruction to get a deposit address
     INSTRUCTION_LAYER1_AUDIT = 8 # instruction to perform a layer1 audit
 
-class Transaction(Base):
+class Transaction(MappedAsDataclass, Base):
     __tablename__ = "transactions"
 
     timestamp: Mapped[datetime.datetime] = mapped_column(

@@ -8,8 +8,8 @@ from pydantic import BaseModel
 
 
 class RequestWithdrawalRequest(BaseModel):
-    amount: int = None
-    layer1_withdrawal_address: str = None
-    layer2_transaction_id: str = None # Client generated
-    signature: str = None
-    source_address_public_key: str = None
+    amount: int
+    layer1_withdrawal_address: str
+    layer2_transaction_id: str # Client generated
+    signature: str
+    source_address_public_key: str

@@ -3,32 +3,33 @@
 #   timestamp: 2025-04-26T22:30:00+00:00
 
 from __future__ import annotations
+import datetime
 
-from typing import List
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from .common_response import CommonResponse
 
 
 class GetTransactionsResponseTransaction(BaseModel):
-    amount: int = None
-    destination_address_pubkey: str = None
-    fee: int = None
+    model_config = ConfigDict(from_attributes=True)
+    amount: int
+    destination_address_pubkey: str
+    fee: int
     layer1_transaction_id: str | None = None
     layer2_withdrawal_id: str | None = None
-    signature: str = None
-    signature_date: str | None  = None
-    source_address_pubkey: str = None
-    timestamp: int = None
-    transaction_id: str = None
-    transaction_type: int = None
+    signature: str
+    signature_date: int | None  = None
+    source_address_pubkey: str
+    timestamp: datetime.datetime
+    layer2_transaction_id: str
+    transaction_type: int
 
 
 class TransactionGroup(BaseModel):
-    public_key: str = None
-    transactions: List[GetTransactionsResponseTransaction] = None
+    public_key: str
+    transactions: list[GetTransactionsResponseTransaction]
 
 
 class GetTransactionsResponse(CommonResponse):
-    transactions: List[TransactionGroup] = None
+    transaction_groups: list[TransactionGroup]

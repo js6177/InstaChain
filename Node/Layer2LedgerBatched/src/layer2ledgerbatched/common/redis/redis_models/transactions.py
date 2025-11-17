@@ -7,7 +7,7 @@ from layer2ledgerbatched.common.db.models import Transaction, TransactionType
 PENDING_TRANSACTIONS_LIST_KEY = "PendingTransactions"
 
 class RedisTransaction(BaseModel):
-    timestamp: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
+    timestamp: datetime.datetime = Field(default_factory=lambda: datetime.datetime.now(datetime.timezone.utc))
     amount: int
     fee: int
     source_address_pubkey: str

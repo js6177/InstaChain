@@ -4,10 +4,9 @@
 
 from __future__ import annotations
 
-from typing import List
 
 from pydantic import BaseModel
 
 
 class GetTransactionsRequest(BaseModel):
-    public_keys: list[str] = None
+    public_keys: list[str]

@@ -4,22 +4,8 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel
 from .common_response import CommonResponse
-
-
-class GetTransactionsResponseTransaction(BaseModel):
-    amount: int
-    destination_address_pubkey: str
-    fee: int
-    layer1_transaction_id: str
-    layer2_withdrawal_id: str
-    signature: str
-    signature_date: str
-    source_address_pubkey: str
-    timestamp: int
-    transaction_id: str
-    transaction_type: int
+from .get_transactions_response import GetTransactionsResponseTransaction
 
 
 class GetTransactionResponse(CommonResponse):

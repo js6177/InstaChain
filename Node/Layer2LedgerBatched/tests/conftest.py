@@ -36,7 +36,7 @@ async def redis_client() -> AsyncGenerator[Redis, None]:
 @pytest_asyncio.fixture(scope="function")
 async def postgresql_session() -> AsyncGenerator[AsyncSession, None]:
     settings = get_common_settings(Environment.TEST)
-    engine = create_async_engine(settings.database_url, echo=True, pool_size=10, pool_timeout=30)
+    engine = create_async_engine(settings.database_url, echo=False, pool_size=10, pool_timeout=30)
     async_session = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
