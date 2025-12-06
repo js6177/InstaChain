@@ -1,4 +1,5 @@
 from fastapi import Depends, FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, Dict
 import redis
@@ -53,6 +54,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await postgres_engine.dispose()
 
 app = FastAPI(lifespan=lifespan)
+
+origins = [
+    "http://localhost:5173",  # Allow your Vite frontend
+    "http://127.0.0.1:5173", # Allow your Vite frontend
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(transfer.router, prefix=TRANSFER_ROUTER_PREFIX, tags=["transfer"])
 app.include_router(deposit.router, prefix=DEPOSIT_ROUTER_PREFIX, tags=["deposit"])
