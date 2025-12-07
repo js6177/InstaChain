@@ -6,7 +6,7 @@ Layer2LedgerBatched consists of two standalone processes, Layer2LedgerAPIHandler
 
 Layer2LedgerAPIHandler is responsible for accepting Transfer, Deposit, and Withdrawal requests through the FastAPI http endoints, verifying that the transactions are good, and pushing them to the redis instance. The Layer2LedgerDbWriter is responsible for getting all the transactions in the redis queue, and inserting them into the postgresql batched to maximize throughput.
 
-A postgresql db callled "Layer2LedgerDB" will be the core database that stores the layer2 ledger and will have tables for the trasactions, deposits and withdrawal requests. The Layer2LedgerAPIHandler can only read but not write to this databse. The only service that writes to it is Layer2LedgerDbWriter.
+A postgresql db callled "Layer2LedgerDB" will be the coIre database that stores the layer2 ledger and will have tables for the trasactions, deposits and withdrawal requests. The Layer2LedgerAPIHandler can only read but not write to this databse. The only service that writes to it is Layer2LedgerDbWriter.
 There will be a redis service that is responsible for providing a distributed lock mechanism (to prevent double spending of funds processed by seperate uvicorn processes) called 'AddressLock' and for maintaing a list of Transactions (called 'PendingTransactions') that the Layer2LedgerDbWriter will fetch and batch insert into Layer2LedgerDB. This pending transactions list is known as 'Layer2LedgerMempool' and is similar to the layer1 mempool.
 
 ## Tech stack
@@ -20,6 +20,20 @@ redis[hiredis]  - redis driver
 pydantic - Schema validation of the REST API and redis messages 
 fastecdsa - generating layer2 addresses, verifying message signatures from layer2 addresses
 
+## Running layer2ledgerapihandler (pytest and uvicorn server)
+To run the layer2ledgerapihandler, you must first activate the virtual env, and install in locally
+
+`source .venv/bin/activate`
+
+`uv pip install -e .`
+
+Then you can run the pytest:
+
+`uv run pytest`
+
+And run the uvicorn ASGI server:
+
+`uv run uvicorn src.layer2ledgerbatched.layer2ledgerapihandler.main:app --host 0.0.0.0 --port 8000`
 
 
 # General concepts
