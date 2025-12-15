@@ -51,3 +51,7 @@ export * from "./withdrawalRequest";
 export * from "./withdrawalRequestLayer1TransactionId";
 export * from "./withdrawalRequestServerSignature";
 export * from "./withdrawalRequestWithdrawalRequestedTimestampStr";
+export * from "./getNodeInfoResponse";
+export * from "./layer1NetworkInfo";
+export * from "./nodeInfo";
+export * from "./version";

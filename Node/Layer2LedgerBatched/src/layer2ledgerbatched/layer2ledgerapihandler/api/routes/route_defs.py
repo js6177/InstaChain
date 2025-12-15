@@ -5,6 +5,7 @@ DEPOSIT_ROUTER_PREFIX = "/deposit"
 TRANSFER_ROUTER_PREFIX = "/transfer"
 WITHDRAWAL_ROUTER_PREFIX = "/withdrawal"
 EXPLORER_ROUTER_PREFIX = "/explorer"
+INFO_ROUTER_PREFIX = "/info"
 
 # Deposit routes
 GET_DEPOSIT_ADDRESS_ROUTE = "/get_deposit_address"

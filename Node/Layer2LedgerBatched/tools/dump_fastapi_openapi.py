@@ -22,5 +22,5 @@ with open(output_path, "w") as f:
 print(f"OpenAPI schema dumped to {output_path}")
 
 # To run this script, use the command:
-# python tools/dump_fastapi_openapi.py
+# uv run python tools/dump_fastapi_openapi.py
 

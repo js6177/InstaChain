@@ -10,8 +10,8 @@ from layer2ledgerbatched.common.config.config import Environment, get_common_set
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.sample_request import SampleRequest
 from layer2ledgerbatched.common.db.models import Base
-from layer2ledgerbatched.layer2ledgerapihandler.api.routes import transfer, deposit, withdrawal, explorer
-from layer2ledgerbatched.layer2ledgerapihandler.api.routes.route_defs import TRANSFER_ROUTER_PREFIX, DEPOSIT_ROUTER_PREFIX, WITHDRAWAL_ROUTER_PREFIX, EXPLORER_ROUTER_PREFIX
+from layer2ledgerbatched.layer2ledgerapihandler.api.routes import transfer, deposit, withdrawal, explorer, info
+from layer2ledgerbatched.layer2ledgerapihandler.api.routes.route_defs import TRANSFER_ROUTER_PREFIX, DEPOSIT_ROUTER_PREFIX, WITHDRAWAL_ROUTER_PREFIX, EXPLORER_ROUTER_PREFIX, INFO_ROUTER_PREFIX
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
 from layer2ledgerbatched.layer2ledgerapihandler.utils.sessions import get_redis, get_db_session, get_redis_lock_manager
 
@@ -72,6 +72,7 @@ app.include_router(transfer.router, prefix=TRANSFER_ROUTER_PREFIX, tags=["transf
 app.include_router(deposit.router, prefix=DEPOSIT_ROUTER_PREFIX, tags=["deposit"])
 app.include_router(withdrawal.router, prefix=WITHDRAWAL_ROUTER_PREFIX, tags=["withdrawal"])
 app.include_router(explorer.router, prefix=EXPLORER_ROUTER_PREFIX, tags=["explorer"])
+app.include_router(info.router, prefix=INFO_ROUTER_PREFIX, tags=["info"])
 
 @app.get("/", response_model = CommonResponse)
 async def root(    

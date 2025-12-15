@@ -1,4 +1,3 @@
-from ast import List
 from fastapi import APIRouter, Depends
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,13 +31,7 @@ from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.get_transac
     GetTransactionsResponseTransaction,
     TransactionGroup,
 )
-from layer2ledgerbatched.layer2ledgerapihandler.api.routes.route_defs import (
-    EXPLORER_ROUTER_PREFIX,
-    GET_ALL_TRANSACTIONS_ROUTE,
-    GET_BALANCE_ROUTE,
-    GET_FEE_ROUTE,
-    GET_TRANSACTION_ROUTE,
-)
+
 from layer2ledgerbatched.layer2ledgerapihandler.config.config import get_settings
 from layer2ledgerbatched.layer2ledgerapihandler.utils.error_message import (
     get_error_message,

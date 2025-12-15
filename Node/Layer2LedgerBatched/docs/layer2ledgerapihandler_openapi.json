@@ -482,6 +482,28 @@
         }
       }
     },
+    "/info/getNodeInfo": {
+      "get": {
+        "tags": [
+          "info"
+        ],
+        "summary": "Get Node Info",
+        "description": "Returns information about the node, such as node ID, name, asset ID, and version.",
+        "operationId": "get_node_info_info_getNodeInfo_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetNodeInfoResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/": {
       "get": {
         "summary": "Root",
@@ -791,6 +813,28 @@
           "fee"
         ],
         "title": "GetFeeResponse"
+      },
+      "GetNodeInfoResponse": {
+        "properties": {
+          "error_code": {
+            "type": "integer",
+            "title": "Error Code"
+          },
+          "error_message": {
+            "type": "string",
+            "title": "Error Message"
+          },
+          "node_info": {
+            "$ref": "#/components/schemas/NodeInfo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error_code",
+          "error_message",
+          "node_info"
+        ],
+        "title": "GetNodeInfoResponse"
       },
       "GetTransactionRequest": {
         "properties": {
@@ -1102,6 +1146,19 @@
         ],
         "title": "Layer1DepositConfirmedTransaction"
       },
+      "Layer1NetworkInfo": {
+        "properties": {
+          "minimum_transaction_amount": {
+            "type": "integer",
+            "title": "Minimum Transaction Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "minimum_transaction_amount"
+        ],
+        "title": "Layer1NetworkInfo"
+      },
       "Layer1WithdrawalConfirmedTransaction": {
         "properties": {
           "layer1_transaction_id": {
@@ -1162,6 +1219,47 @@
           "layer1_transaction_vout"
         ],
         "title": "Layer1WithdrawalConfirmedTransactionStatus"
+      },
+      "NodeInfo": {
+        "properties": {
+          "asset_id": {
+            "type": "integer",
+            "title": "Asset Id"
+          },
+          "deposit_address_derivation_path": {
+            "type": "string",
+            "title": "Deposit Address Derivation Path"
+          },
+          "layer1_network_info": {
+            "$ref": "#/components/schemas/Layer1NetworkInfo"
+          },
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "node_name": {
+            "type": "string",
+            "title": "Node Name"
+          },
+          "onboarding_deposit_signing_key_pubkey": {
+            "type": "string",
+            "title": "Onboarding Deposit Signing Key Pubkey"
+          },
+          "version": {
+            "$ref": "#/components/schemas/Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "asset_id",
+          "deposit_address_derivation_path",
+          "layer1_network_info",
+          "node_id",
+          "node_name",
+          "onboarding_deposit_signing_key_pubkey",
+          "version"
+        ],
+        "title": "NodeInfo"
       },
       "PushTransactionRequest": {
         "properties": {
@@ -1297,6 +1395,34 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "Version": {
+        "properties": {
+          "API_version": {
+            "type": "integer",
+            "title": "Api Version"
+          },
+          "major_version": {
+            "type": "integer",
+            "title": "Major Version"
+          },
+          "minor_version": {
+            "type": "integer",
+            "title": "Minor Version"
+          },
+          "patch_version": {
+            "type": "integer",
+            "title": "Patch Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "API_version",
+          "major_version",
+          "minor_version",
+          "patch_version"
+        ],
+        "title": "Version"
       },
       "WithdrawalBroadcastedRequest": {
         "properties": {
