@@ -15,7 +15,10 @@
   },
   "dependencies": {
     "zod": "^4.1.13",
-    "zustand": "^5.0.9"
+    "zustand": "^5.0.9",
+    "@noble/hashes": "^1.8.0",
+    "@noble/secp256k1": "^2.3.0",
+    "bs58": "^6.0.0"
   },
   "devDependencies": {
     "typescript": "^5.9.3"
