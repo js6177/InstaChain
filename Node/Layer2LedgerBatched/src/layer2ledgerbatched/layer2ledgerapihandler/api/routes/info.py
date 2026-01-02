@@ -33,7 +33,7 @@ async def get_node_info() -> GetNodeInfoResponse:
     )
 
     layer1_network_info = Layer1NetworkInfo(
-        minimum_transaction_amount=settings.MINIMUM_LAYER1_TRANSACTION_AMOUNT
+        minimum_transaction_amount=settings.minimum_layer1_transaction_amount
     )
 
     # TODO: Confirm the correct derivation path
@@ -41,9 +41,9 @@ async def get_node_info() -> GetNodeInfoResponse:
         asset_id=config.NODE_ASSET_ID,
         deposit_address_derivation_path="m/44/1",
         layer1_network_info=layer1_network_info,
-        node_id=settings.NODE_ID,
-        node_name=settings.NODE_ID,  # Using NODE_ID as node_name
-        onboarding_deposit_signing_key_pubkey=settings.Onboarding_Deposit_Address.public_key,
+        node_id=settings.layer2ledger_node_id,
+        node_name=settings.layer2ledger_node_id,  # Using NODE_ID as node_name
+        onboarding_deposit_signing_key_pubkey=settings.onboarding_layer2_deposit_address.public_key,
         version=version,
     )
 

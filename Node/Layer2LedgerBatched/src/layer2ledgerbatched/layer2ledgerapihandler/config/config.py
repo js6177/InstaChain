@@ -17,20 +17,19 @@ NODE_ASSET_ID = ASSET_BITCOIN|ASSET_TESTNET_FLAG
 ROOT_DIR = "~/.openl2/settings"
 config_filename = "layer2ledgerapihandler-config.json"
 
-class OnboardingDepositAddress(BaseModel):
-    mneumonic: str
+class SettingsLayer2Address(BaseModel):
+    mneumonic: str | None = None
     private_key: str
     public_key: str
 
 class Layer2LedgerAPIHandlerSettings(BaseModel):
-    NODE_ID: str
-    DEPOSIT_WALLET_MASTER_PUBKEY: str
-    MINIMUM_LAYER1_TRANSACTION_AMOUNT: int
-    layer2bridge_key_pubkey: str
-    layer2bridge_key_privkey: str
+    layer2ledger_node_id: str
+    deposit_wallet_master_pubkey: str
+    minimum_layer1_transaction_amount: int
+    layer2bridge_signing_address: SettingsLayer2Address
     deposit_transaction_pubkey: str
-    FULLNODE_SIGNING_KEY_USES_FUNCTIONAL_TEST_KEYS: bool
-    Onboarding_Deposit_Address: OnboardingDepositAddress
+    layer2bridge_signing_key_uses_functional_test_keys: bool
+    onboarding_layer2_deposit_address: SettingsLayer2Address
 
 
 def get_settings(environment: Environment = DEFAULT_ENVIRONMENT) -> Layer2LedgerAPIHandlerSettings:

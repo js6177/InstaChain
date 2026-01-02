@@ -92,7 +92,7 @@ async def test_deposit_confirmed_success(postgresql_session: AsyncSession, redis
     
     # The bridge signs this message
     bridge_l2_address = Layer2Address()
-    bridge_l2_address.from_private_key(layer2ledgerapihandler_settings.layer2bridge_key_privkey)
+    bridge_l2_address.from_private_key(layer2ledgerapihandler_settings.layer2bridge_signing_address.private_key)
 
     msg_confirm = buildDepositMessage(
         layer1_transaction_id=layer1_tx_id,

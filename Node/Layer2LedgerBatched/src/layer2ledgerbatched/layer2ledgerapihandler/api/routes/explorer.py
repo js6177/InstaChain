@@ -136,7 +136,7 @@ async def get_fee(request: GetFeeRequest) -> GetFeeResponse:
     Gets the current transaction fee.
     """
     return GetFeeResponse(
-        fee=get_settings().MINIMUM_LAYER1_TRANSACTION_AMOUNT,
+        fee=get_settings().minimum_layer1_transaction_amount,
         error_code=ERROR_SUCCESS,
         error_message=get_error_message(ERROR_SUCCESS),
     )

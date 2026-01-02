@@ -114,7 +114,7 @@ async def test_withdrawal_flow(postgresql_session: AsyncSession, redis_client: R
     layer1_transaction_vout = 0
     
     bridge_l2_address = Layer2Address()
-    bridge_l2_address.from_private_key(layer2ledgerapihandler_settings.layer2bridge_key_privkey)
+    bridge_l2_address.from_private_key(layer2ledgerapihandler_settings.layer2bridge_signing_address.private_key)
     
     broadcast_message = buildWithdrawalBroadcastedMessage(
         layer1_transaction_id=layer1_transaction_id,
@@ -266,7 +266,7 @@ async def test_multiple_withdrawals_to_same_layer1_address(postgresql_session: A
     layer1_transaction_vout = 0
     
     bridge_l2_address = Layer2Address()
-    bridge_l2_address.from_private_key(layer2ledgerapihandler_settings.layer2bridge_key_privkey)
+    bridge_l2_address.from_private_key(layer2ledgerapihandler_settings.layer2bridge_signing_address.private_key)
 
     broadcasted_txs: list[Layer1BroadcastedWithdrawalTransaction] = []
     for i in range(num_withdrawals):
@@ -439,7 +439,7 @@ async def test_multiple_withdrawals_from_different_layer2_addresses(postgresql_s
     layer1_transaction_vout = 0
     
     bridge_l2_address = Layer2Address()
-    bridge_l2_address.from_private_key(layer2ledgerapihandler_settings.layer2bridge_key_privkey)
+    bridge_l2_address.from_private_key(layer2ledgerapihandler_settings.layer2bridge_signing_address.private_key)
 
     broadcasted_txs: list[Layer1BroadcastedWithdrawalTransaction] = []
     for i in range(num_withdrawals):

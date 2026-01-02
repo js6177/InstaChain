@@ -250,4 +250,4 @@ async def test_get_fee(postgresql_session: AsyncSession) -> None:
     assert response.status_code == 200
     response_model = GetFeeResponse.model_validate(response.json())
     assert response_model.error_code == ERROR_SUCCESS
-    assert response_model.fee == get_settings().MINIMUM_LAYER1_TRANSACTION_AMOUNT
+    assert response_model.fee == get_settings().minimum_layer1_transaction_amount

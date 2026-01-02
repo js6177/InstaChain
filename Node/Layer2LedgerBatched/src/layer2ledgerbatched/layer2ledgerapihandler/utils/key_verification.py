@@ -5,8 +5,9 @@ from layer2ledgerbatched.common.db.models import Transaction as Transaction, Tra
 from layer2ledgerbatched.layer2ledgerapihandler.config.config import get_settings, NODE_ASSET_ID
 
 settings = get_settings()
-NODE_ID = settings.NODE_ID
-LAYER2_BRIDGE_KEY_PUBKEY = settings.layer2bridge_key_pubkey
+NODE_ID = settings.layer2ledger_node_id
+LAYER2_BRIDGE_KEY_PUBKEY = settings.layer2bridge_signing_address.public_key
+
 
 def verifyMessageSignature(message: str, signature: str, pubkey: str) -> bool:
     verifyingAddress = Address()

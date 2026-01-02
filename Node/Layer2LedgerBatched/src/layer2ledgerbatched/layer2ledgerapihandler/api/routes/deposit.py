@@ -54,7 +54,7 @@ async def get_deposit_address(
     await db.refresh(new_deposit_address)
 
     deposit_address_id = new_deposit_address.id
-    layer1_address = generate_btc_testnet_address(settings.DEPOSIT_WALLET_MASTER_PUBKEY, deposit_address_id)
+    layer1_address = generate_btc_testnet_address(settings.deposit_wallet_master_pubkey, deposit_address_id)
 
     if not layer1_address:
         await db.rollback()
@@ -85,7 +85,7 @@ async def deposit_confirmed(
                 nonce=deposit_confirmed.nonce
             )
             bridge_address = Layer2Address()
-            bridge_address.from_public_key(settings.layer2bridge_key_pubkey)
+            bridge_address.from_public_key(settings.layer2bridge_signing_address.public_key)
             if not bridge_address.verify(message, deposit_confirmed.signature):
                 return DepositConfirmedResponse(error_code=error_codes.ERROR_INVALID_SIGNATURE, error_message=error_codes.get_error_message(error_codes.ERROR_INVALID_SIGNATURE), transactions=successful_transactions)
         except Exception as e:
