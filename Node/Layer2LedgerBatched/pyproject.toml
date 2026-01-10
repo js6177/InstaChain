@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling"]  # or "setuptools>=61.0"
+build-backend = "hatchling.build"  # or "setuptools.build_meta"
+
 [project]
 name = "layer2ledgerbatched"
 version = "0.1.0"
@@ -24,7 +28,9 @@ dev = [
     "pytest-asyncio>=1.2.0",
 ]
 
-[tool.setuptools]
-packages = ["layer2ledgerbatched"]
-package-dir = {"" = "src"}
+[tool.hatch.build.targets.wheel]
+packages = ["src/layer2ledgerbatched"]
+only-include = ["src/layer2ledgerbatched"]
 
+[tool.hatch.build.targets.sdist]
+packages = ["src/layer2ledgerbatched"]

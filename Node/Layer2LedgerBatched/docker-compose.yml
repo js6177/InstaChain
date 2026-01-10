@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    env_file:
+      - .env.${ENVIRONMENT:-dev}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  layer2ledgerapihandler:
+    build:
+      context: .
+      dockerfile: Dockerfile.layer2ledgerapihandler
+    ports:
+      - "${LAYER2LEDGER_FASTAPI_PORT:-8000}:8000"
+    env_file:
+      - .env.${ENVIRONMENT:-dev}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  layer2ledgerdbwriter:
+    build:
+      context: .
+      dockerfile: Dockerfile.layer2ledgerdbwriter
+    env_file:
+      - .env.${ENVIRONMENT:-dev}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:

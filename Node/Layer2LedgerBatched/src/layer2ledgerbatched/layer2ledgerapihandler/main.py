@@ -5,7 +5,6 @@ from typing import AsyncGenerator, Dict
 import redis
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, AsyncEngine, async_sessionmaker
 
-#from src.api import users, transfers, deposits, withdrawals
 from layer2ledgerbatched.common.config.config import Environment, get_common_settings
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.sample_request import SampleRequest

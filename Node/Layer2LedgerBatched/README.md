@@ -20,8 +20,12 @@ redis[hiredis]  - redis driver
 pydantic - Schema validation of the REST API and redis messages 
 fastecdsa - generating layer2 addresses, verifying message signatures from layer2 addresses
 
-## Running layer2ledgerapihandler (pytest and uvicorn server)
-To run the layer2ledgerapihandler, you must first activate the virtual env, and install in locally
+## Running layer2ledgerapihandler with docker
+To run the layer2ledgerapihandler as a docker container, run:
+`docker-compose up --build`
+
+## Running layer2ledgerapihandler locally (pytest and uvicorn server)
+To run the layer2ledgerapihandler from a regular command line (Linux), you must first activate the virtual env, and install in locally
 
 `source .venv/bin/activate`
 

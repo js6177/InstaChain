@@ -3,6 +3,8 @@ from layer2ledgerbatched.layer2ledgerapihandler.config.config import Layer2Ledge
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address
 from layer2ledgerbatched.common.config.config import DEFAULT_ENVIRONMENT, Environment
 from layer2ledgerbatched.layer2ledgerapihandler.config.config import ROOT_DIR, config_filename
+from layer2ledgerbatched.common.config.config import CommonSettings
+
 import json
 from pathlib import Path
 
@@ -11,6 +13,21 @@ def random_string(length: int):
     import random
     import string
     return ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(length))
+
+# Go up untill we see files that are supposed to be in the root dir
+# If we go up untill OS root, return None, as something is wrong or this setup.py is run from outside a project folder
+def get_project_root() -> Path:
+    root_files = [
+                'docker-compose.yml',
+                'pyproject.toml',
+    ]
+    start_path = Path(__file__).resolve()
+    while start_path != start_path.parent: # Stop at filesystem root
+        for root_file in root_files:
+            if (start_path / root_file).exists():
+                return start_path
+        start_path = start_path.parent
+    return None
 
 def generate_layer2ledgerapihandler_settings():
     layer2bridge_key = Layer2Address()
@@ -35,6 +52,10 @@ def generate_layer2ledgerapihandler_settings():
         with open(config_path, "w") as f:
             f.write(settings_json)
         print(f"Settings file saved to {config_path}")
+
+# Read .env.dev or .env.prod and generate a CommonSettings
+def generate_common_settings() -> CommonSettings:
+    project_root_path = get_project_root()
 
 if __name__ == "__main__":
     generate_layer2ledgerapihandler_settings()

@@ -1,0 +1,60 @@
+# .dockerignore
+
+# Virtual environments - CRITICAL for Windows
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+*.egg
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Environment files (don't copy into image)
+.env
+.env.*
+!.env.example
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker files (don't need these in image)
+docker-compose.yml
+Dockerfile*
+.dockerignore
+
+# Documentation
+docs/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# OS
+Thumbs.db

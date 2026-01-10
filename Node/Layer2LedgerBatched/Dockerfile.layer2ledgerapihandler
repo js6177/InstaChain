@@ -1,0 +1,27 @@
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy dependency files (copy README.md since hatchling.build requires it to buld)
+COPY pyproject.toml uv.lock README.md ./
+
+# Install dependencies WITHOUT the local project
+RUN uv sync --frozen --no-install-project --no-dev
+
+# Copy source code from src/ directory
+COPY src ./src
+
+# Now sync WITH the local project installed
+RUN uv sync --frozen --no-dev
+RUN uv pip install --no-deps .
+
+# Verify installation
+RUN uv pip show layer2ledgerbatched && echo "✓ Package installed successfully"
+
+ENV PATH="/app/.venv/bin:$PATH"
+
+CMD ["uv", "run", "uvicorn", "layer2ledgerbatched.layer2ledgerapihandler.main:app", "--host", "0.0.0.0", "--port", "8000"]
