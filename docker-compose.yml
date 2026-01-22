@@ -1,10 +1,10 @@
 version: '3.8'
 
 services:
-  postgres:
+  layer2ledger-postgres:
     image: postgres:16-alpine
     env_file:
-      - .env.${ENVIRONMENT:-dev}
+      - ./Node/layer2ledgerbatched/.env.${ENVIRONMENT:-dev}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -15,7 +15,7 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
+  layer2ledger-redis:
     image: redis:7-alpine
     ports:
       - "${REDIS_PORT:-6379}:6379"
@@ -29,29 +29,29 @@ services:
 
   layer2ledgerapihandler:
     build:
-      context: .
-      dockerfile: Dockerfile.layer2ledgerapihandler
+      context: ./Node
+      dockerfile: ../docker/Dockerfile.layer2ledgerapihandler
     ports:
       - "${LAYER2LEDGER_FASTAPI_PORT:-8000}:8000"
     env_file:
-      - .env.${ENVIRONMENT:-dev}
+      - ./Node/layer2ledgerbatched/.env.${ENVIRONMENT:-dev}
     depends_on:
-      postgres:
+      layer2ledger-postgres:
         condition: service_healthy
-      redis:
+      layer2ledger-redis:
         condition: service_healthy
     restart: unless-stopped
 
   layer2ledgerdbwriter:
     build:
-      context: .
-      dockerfile: Dockerfile.layer2ledgerdbwriter
+      context: ./Node
+      dockerfile: ../docker/Dockerfile.layer2ledgerdbwriter
     env_file:
-      - .env.${ENVIRONMENT:-dev}
+      - ./Node/layer2ledgerbatched/.env.${ENVIRONMENT:-dev}
     depends_on:
-      postgres:
+      layer2ledger-postgres:
         condition: service_healthy
-      redis:
+      layer2ledger-redis:
         condition: service_healthy
     restart: unless-stopped
 

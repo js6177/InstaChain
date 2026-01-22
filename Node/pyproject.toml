@@ -1,0 +1,3 @@
+# /root/pyproject.toml
+[tool.uv.workspace]
+members = ["setup_scripts", "packages/*", "layer2ledgerbatched"]

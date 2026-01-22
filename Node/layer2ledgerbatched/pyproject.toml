@@ -18,6 +18,7 @@ dependencies = [
     "redis[hiredis]>=6.4.0",
     "sqlalchemy[asyncio]>=2.0.43",
     "uvicorn>=0.35.0",
+    "config-models"
 ]
 
 [dependency-groups]
@@ -28,9 +29,18 @@ dev = [
     "pytest-asyncio>=1.2.0",
 ]
 
+[tool.uv]
+package = true
+
+[tool.uv.sources]
+config-models = { workspace = true }
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/layer2ledgerbatched"]
-only-include = ["src/layer2ledgerbatched"]
 
-[tool.hatch.build.targets.sdist]
-packages = ["src/layer2ledgerbatched"]
+#[tool.hatch.build.targets.wheel]
+#packages = ["src/layer2ledgerbatched"]
+#only-include = ["src/layer2ledgerbatched"]
+
+#[tool.hatch.build.targets.sdist]
+#packages = ["src/layer2ledgerbatched"]
