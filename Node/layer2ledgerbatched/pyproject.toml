@@ -33,7 +33,7 @@ dev = [
 package = true
 
 [tool.uv.sources]
-config-models = { workspace = true }
+config-models = { path = "../packages/config-models", editable = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/layer2ledgerbatched"]
