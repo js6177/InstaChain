@@ -19,7 +19,8 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.43",
     "uvicorn>=0.35.0",
     "config-models",
-    "config-loader"
+    "config-loader",
+    "layer2address"
 ]
 
 [dependency-groups]
@@ -36,13 +37,7 @@ package = true
 [tool.uv.sources]
 config-models = { path = "../packages/config_models", editable = true }
 config-loader = { path = "../packages/config_loader", editable = true }
+layer2address = { path = "../packages/layer2address", editable = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/layer2ledgerbatched"]
-
-#[tool.hatch.build.targets.wheel]
-#packages = ["src/layer2ledgerbatched"]
-#only-include = ["src/layer2ledgerbatched"]
-
-#[tool.hatch.build.targets.sdist]
-#packages = ["src/layer2ledgerbatched"]
