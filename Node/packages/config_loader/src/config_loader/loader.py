@@ -43,3 +43,15 @@ def get_config_file(service: str, environment: str) -> str:
     config_path = get_config_path()
     config_file = Path(config_path) / f"{service}/{environment}/config.json"
     return str(config_file)
+
+def get_project_root() -> str:
+    """
+    Returns the root directory of the project (where the .git folder is located).
+    """
+    from pathlib import Path
+
+    current_path = Path.cwd()
+    for parent in current_path.parents:
+        if (parent / ".git").exists():
+            return str(parent)
+    raise FileNotFoundError("Project root with .git folder not found.")

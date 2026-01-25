@@ -6,7 +6,8 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "config-models",
-    "config-loader"
+    "config-loader",
+    "layer2address"
 ]
 
 [tool.uv]
@@ -15,6 +16,7 @@ package = true
 [tool.uv.sources]
 config-models = { path = "../packages/config_models", editable = true }
 config-loader = { path = "../packages/config_loader", editable = true }
+layer2address = { path = "../packages/layer2address", editable = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/setup_scripts"]

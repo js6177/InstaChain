@@ -12,6 +12,15 @@ wheels = [
 ]
 
 [[package]]
+name = "base58"
+version = "2.1.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7f/45/8ae61209bb9015f516102fa559a2914178da1d5868428bd86a1b4421141d/base58-2.1.1.tar.gz", hash = "sha256:c5d0cb3f5b6e81e8e35da5754388ddcc6d0d14b6c6a132cb93d69ed580a7278c", size = 6528 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4a/45/ec96b29162a402fc4c1c5512d114d7b3787b9d1c2ec241d9568b4816ee23/base58-2.1.1-py3-none-any.whl", hash = "sha256:11a36f4d3ce51dfc1043f3218591ac4eb1ceb172919cebe05b52a5bcc8d245c2", size = 5621 },
+]
+
+[[package]]
 name = "config-loader"
 version = "0.1.0"
 source = { editable = "../packages/config_loader" }
@@ -29,6 +38,37 @@ dependencies = [
 requires-dist = [
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
+]
+
+[[package]]
+name = "fastecdsa"
+version = "3.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b2/88/3a4a4c4b6143fe0e4c20fe4b5bb0142e6fa5f2d8763710b1f3d7dff9d5e3/fastecdsa-3.0.1.tar.gz", hash = "sha256:f4b4a50fd5e346c4949aba365c061c3f6b25eee7983c973e1d31de7672ba48ea", size = 47583 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a3/f1/37413a26a8b664b53d959c5744064b7b95a67721f926ddd3c4d77e743429/fastecdsa-3.0.1-cp312-cp312-macosx_13_0_x86_64.whl", hash = "sha256:2dab30e3eceb773244baadb6dbc8977f0a28741e8d2ea790f529cc1f8419b265", size = 274252 },
+    { url = "https://files.pythonhosted.org/packages/16/ba/647a3d2ce818738e6ff1f107f1a7c662696d13e205ce3ad4ee591e596e61/fastecdsa-3.0.1-cp312-cp312-macosx_14_0_arm64.whl", hash = "sha256:82272ca3c91e20433e0ca66c2d96f4d4997850846586f9ff7a9533a5c3f6e253", size = 254797 },
+    { url = "https://files.pythonhosted.org/packages/97/73/22afe3500d674d817ce5f0ec51e043965076503fced6af3468a869a9e8c3/fastecdsa-3.0.1-cp312-cp312-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:6f16d79411ea8a3cb467da53b75e10d66db3a0f716e4d56a9d7e77e5f3ad9f71", size = 287534 },
+    { url = "https://files.pythonhosted.org/packages/09/51/f0a03480d932c487587d3effd34c9481d279f624d4b303af91932a4b5216/fastecdsa-3.0.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:abeb065ce8fb3b2765ac7a1f7d693d5785e584629ff83ad271c02c1d55789bb1", size = 302623 },
+    { url = "https://files.pythonhosted.org/packages/a5/6a/543251ee857c1defeea386e4640f11207304a67dcb46968ff27dde383e2a/fastecdsa-3.0.1-cp313-cp313-macosx_13_0_x86_64.whl", hash = "sha256:7b1c1cb4fd9a9d9999cffc20b223b1f805d423d2105e93742ccd2938fb82d0d4", size = 274259 },
+    { url = "https://files.pythonhosted.org/packages/47/c4/913974857f98942d2cf488efe207a95ae3a3672b252b75030d9a23cdcac0/fastecdsa-3.0.1-cp313-cp313-macosx_14_0_arm64.whl", hash = "sha256:c3e5b8a41ea620739628990fe90ef38f8a4a62bcdd2ce28c62d165f0863373f7", size = 254817 },
+    { url = "https://files.pythonhosted.org/packages/41/4f/e15f00dc747f5febcb50601054a537101fc00bf56dcb1118cc9bf5678569/fastecdsa-3.0.1-cp313-cp313-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:4a4bb5b7bc01cef888142b47b764086a6ac2d0632630f07a83444e5f976d3aa6", size = 287538 },
+    { url = "https://files.pythonhosted.org/packages/d7/b8/ddef975efa12a74591135d5bb575fe1eeaafb69bce9b6854e4876506e81e/fastecdsa-3.0.1-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:53680c1791f1f74e13005941c97b7f38a2f45016027a5b648b93488e50773563", size = 302626 },
+]
+
+[[package]]
+name = "layer2address"
+version = "0.1.0"
+source = { editable = "../packages/layer2address" }
+dependencies = [
+    { name = "base58" },
+    { name = "fastecdsa" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "base58", specifier = ">=2.1.1" },
+    { name = "fastecdsa", specifier = ">=3.0.1" },
 ]
 
 [[package]]
@@ -147,12 +187,14 @@ source = { editable = "." }
 dependencies = [
     { name = "config-loader" },
     { name = "config-models" },
+    { name = "layer2address" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "config-loader", editable = "../packages/config_loader" },
     { name = "config-models", editable = "../packages/config_models" },
+    { name = "layer2address", editable = "../packages/layer2address" },
 ]
 
 [[package]]

@@ -1,0 +1,3 @@
+This setup scipts should be run once (before docker building) before setup in order to:
+- generate signing/verifying keys in order for various services to communicate securily with each other (by signing and verifying messages sent between them)
+- copies the docker env variables for the 3rd party apps (bitcoin core, redis, mongodb, postgresql) into a single config.json for each backend service so that the backend services can connect to them
