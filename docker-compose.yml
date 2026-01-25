@@ -4,7 +4,7 @@ services:
   layer2ledger-postgres:
     image: postgres:16-alpine
     env_file:
-      - ./Node/layer2ledgerbatched/.env.${ENVIRONMENT:-dev}
+      - ./backend/layer2ledgerbatched/.env.${ENVIRONMENT:-dev}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -29,12 +29,12 @@ services:
 
   layer2ledgerapihandler:
     build:
-      context: ./Node
+      context: ./backend
       dockerfile: ../docker/Dockerfile.layer2ledgerapihandler
     ports:
       - "${LAYER2LEDGER_FASTAPI_PORT:-8000}:8000"
     env_file:
-      - ./Node/layer2ledgerbatched/.env.${ENVIRONMENT:-dev}
+      - ./backend/layer2ledgerbatched/.env.${ENVIRONMENT:-dev}
     depends_on:
       layer2ledger-postgres:
         condition: service_healthy
@@ -44,10 +44,10 @@ services:
 
   layer2ledgerdbwriter:
     build:
-      context: ./Node
+      context: ./backend
       dockerfile: ../docker/Dockerfile.layer2ledgerdbwriter
     env_file:
-      - ./Node/layer2ledgerbatched/.env.${ENVIRONMENT:-dev}
+      - ./backend/layer2ledgerbatched/.env.${ENVIRONMENT:-dev}
     depends_on:
       layer2ledger-postgres:
         condition: service_healthy

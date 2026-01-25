@@ -41,7 +41,7 @@ def get_config_file(service: str, environment: str) -> str:
     from pathlib import Path
 
     config_path = get_config_path()
-    config_file = Path(config_path) / f"{service}/{environment}/config.json"
+    config_file = Path(config_path) / f"{environment}/{service}-config.json"
     return str(config_file)
 
 def get_project_root() -> str:

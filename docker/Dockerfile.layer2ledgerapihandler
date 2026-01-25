@@ -11,12 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy dependency files (copy README.md since hatchling.build requires it to buld)
 COPY layer2ledgerbatched/pyproject.toml layer2ledgerbatched/uv.lock layer2ledgerbatched/
-COPY packages/config-models packages/config-models
-#COPY . /app/layer2ledgerapihandler/
-#COPY pyproject.toml uv.lock README.md ./app/layer2ledgerapihandler/
-
-# Change workdir to the layer2ledgerapihandler folder
-#WORKDIR /app/layer2ledgerapihandler
+COPY packages/ packages/
 
 # Install dependencies WITHOUT the local project
 RUN cd layer2ledgerbatched && uv sync --frozen --no-install-project --no-dev
@@ -27,9 +22,6 @@ COPY layer2ledgerbatched layer2ledgerbatched/
 # Install the service itself
 RUN cd layer2ledgerbatched && uv sync --frozen --no-dev
 
-# Verify installation
-#RUN cd layer2ledgerbatched && uv pip show layer2ledgerbatched && echo "✓ Package installed successfully"
-
 # Runtime stage
 FROM python:3.12-slim
 
@@ -38,7 +30,7 @@ WORKDIR /app
 # Copy only what this service needs
 COPY --from=builder /app/layer2ledgerbatched/.venv /app/layer2ledgerbatched/.venv
 COPY --from=builder /app/layer2ledgerbatched /app/layer2ledgerbatched
-COPY --from=builder /app/packages/config-models /app/packages/config-models
+COPY --from=builder /app/packages/ /app/packages/
 
 ENV PATH="/app/layer2ledgerbatched/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
