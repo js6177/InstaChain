@@ -18,7 +18,8 @@ dependencies = [
     "redis[hiredis]>=6.4.0",
     "sqlalchemy[asyncio]>=2.0.43",
     "uvicorn>=0.35.0",
-    "config-models"
+    "config-models",
+    "config-loader"
 ]
 
 [dependency-groups]
@@ -33,7 +34,8 @@ dev = [
 package = true
 
 [tool.uv.sources]
-config-models = { path = "../packages/config-models", editable = true }
+config-models = { path = "../packages/config_models", editable = true }
+config-loader = { path = "../packages/config_loader", editable = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/layer2ledgerbatched"]

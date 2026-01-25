@@ -4,4 +4,21 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "config-models",
+    "config-loader"
+]
+
+[tool.uv]
+package = true
+
+[tool.uv.sources]
+config-models = { path = "../packages/config_models", editable = true }
+config-loader = { path = "../packages/config_loader", editable = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/setup_scripts"]
+
+[build-system]
+requires = ["hatchling"]  # or "setuptools>=61.0"
+build-backend = "hatchling.build"  # or "setuptools.build_meta"
