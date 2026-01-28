@@ -44,6 +44,16 @@ def get_config_file(service: str, environment: str) -> str:
     config_file = Path(config_path) / f"{environment}/{service}-config.json"
     return str(config_file)
 
+def docker_env_file_path(service: str, environment: str) -> str:
+    """
+    Returns the full path to the Docker environment file for a given service and environment.
+    """
+    from pathlib import Path
+
+    config_path = get_config_path()
+    env_file = Path(config_path) / f"{environment}/{service}.env"
+    return str(env_file)
+
 def get_project_root() -> str:
     """
     Returns the root directory of the project (where the .git folder is located).

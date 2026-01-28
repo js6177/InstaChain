@@ -1,5 +1,5 @@
 ﻿from pydantic import BaseModel, model_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 import string
 from typing import Optional
 
@@ -18,6 +18,13 @@ class Layer2LedgerDockerEnvSettings(BaseSettings):
     redis_url: str
 
     layer2ledger_fastapi_port: int
+
+    model_config = SettingsConfigDict(env_file='.env')
+
+    @classmethod
+    def load_from_path(cls, env_path: str):
+        # This manually triggers the env loading logic
+        return cls(_env_file=env_path)
 
     @model_validator(mode='after')
     def interpolate_database_url(self) -> 'Layer2LedgerDockerEnvSettings':
