@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 import string
 from typing import Optional
 
+# Layer2Ledger settings
 # Settings from the .env file from the docker root 
 class Layer2LedgerDockerEnvSettings(BaseSettings):
     postgres_user: str
@@ -78,3 +79,30 @@ class Layer2LedgerCommonSettings(BaseModel):
     redis: RedisSettings
     drop_tables_after_test_completed: Optional[bool] = True
     drop_tables_before_test_completed: Optional[bool] = True
+
+
+# Layer2Bridge settings
+
+class Layer2BridgeBitcoinConfFileSettings(BaseModel):
+    chain: str
+    rpcuser: str
+    rpcpassword: str
+    rpchost: str
+    rpcport: int
+
+class Layer2BridgeSettings(BaseModel):
+    #required fields:
+    rpc_settings: Layer2BridgeBitcoinConfFileSettings
+    database_layer2bridge_name: str
+    wallet_name: str
+    layer2_node_url: str
+    onboarding_signing_private_key: str
+
+    #optional fields:
+    import_wallet_privkey_at_startup: bool | None = False
+    wallet_private_key_seed_mneumonic: str | None = None
+    import_wallet_privkey_while_looping: bool | None = False
+    import_wallet_privkey_startup_count: int | None = 1000
+    import_wallet_privkey_loop_count: int | None = 0
+    database_audit_name: str | None = None
+    

@@ -41,6 +41,15 @@ requires-dist = [
 ]
 
 [[package]]
+name = "configobj"
+version = "5.0.9"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f5/c4/c7f9e41bc2e5f8eeae4a08a01c91b2aea3dfab40a3e14b25e87e7db8d501/configobj-5.0.9.tar.gz", hash = "sha256:03c881bbf23aa07bccf1b837005975993c4ab4427ba57f959afdd9d1a2386848", size = 101518 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a6/c4/0679472c60052c27efa612b4cd3ddd2a23e885dcdc73461781d2c802d39e/configobj-5.0.9-py2.py3-none-any.whl", hash = "sha256:1ba10c5b6ee16229c79a05047aeda2b55eb4e80d7c7d8ecf17ec1ca600c79882", size = 35615 },
+]
+
+[[package]]
 name = "fastecdsa"
 version = "3.0.1"
 source = { registry = "https://pypi.org/simple" }
@@ -70,6 +79,11 @@ requires-dist = [
     { name = "base58", specifier = ">=2.1.1" },
     { name = "fastecdsa", specifier = ">=3.0.1" },
 ]
+
+[[package]]
+name = "misc-utils"
+version = "0.1.0"
+source = { editable = "../packages/misc_utils" }
 
 [[package]]
 name = "pydantic"
@@ -187,14 +201,18 @@ source = { editable = "." }
 dependencies = [
     { name = "config-loader" },
     { name = "config-models" },
+    { name = "configobj" },
     { name = "layer2address" },
+    { name = "misc-utils" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "config-loader", editable = "../packages/config_loader" },
     { name = "config-models", editable = "../packages/config_models" },
+    { name = "configobj", specifier = ">=5.0.9" },
     { name = "layer2address", editable = "../packages/layer2address" },
+    { name = "misc-utils", editable = "../packages/misc_utils" },
 ]
 
 [[package]]

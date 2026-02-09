@@ -7,7 +7,9 @@ requires-python = ">=3.12"
 dependencies = [
     "config-models",
     "config-loader",
-    "layer2address"
+    "misc-utils",
+    "layer2address",
+    "configobj>=5.0.9",
 ]
 
 [tool.uv]
@@ -16,6 +18,7 @@ package = true
 [tool.uv.sources]
 config-models = { path = "../packages/config_models", editable = true }
 config-loader = { path = "../packages/config_loader", editable = true }
+misc-utils = { path = "../packages/misc_utils", editable = true }
 layer2address = { path = "../packages/layer2address", editable = true }
 
 [tool.hatch.build.targets.wheel]
