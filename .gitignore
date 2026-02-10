@@ -128,6 +128,9 @@ venv.bak/
 *_env/
 .vs/
 
+#Output directories
+.config/
+
 # Spyder project settings
 .spyderproject
 .spyproject
