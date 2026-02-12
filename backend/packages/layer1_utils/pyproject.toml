@@ -1,0 +1,19 @@
+[project]
+name = "layer1-utils"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "James S", email = "jamie.77.smith@protonmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "bip-utils>=2.10.0",
+]
+
+[project.scripts]
+layer1-utils = "layer1_utils:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
