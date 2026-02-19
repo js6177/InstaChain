@@ -8,7 +8,7 @@ from bip_utils import (
 )
 import json
 from typing import List, Dict, Any, Union
-from .models import MasterKeys, BitcoinCoreDescriptor
+from layer1_utils.models import MasterKeys, BitcoinCoreDescriptor
 
 def generate_mnemonic(words_num: int = 12) -> str:
     """Generate a BIP39 mnemonic."""
@@ -209,43 +209,45 @@ if __name__ == "__main__":
     from bip_utils import Bip39MnemonicGenerator, Bip39WordsNum
     
     mnemonic = Bip39MnemonicGenerator().FromWordsNumber(Bip39WordsNum.WORDS_NUM_12)
-    print(f"Mnemonic: {mnemonic}\n")
+    mnemonic_str = str(mnemonic.ToStr())
+    print(f"Mnemonic: {mnemonic_str}\n")
     
     testnet = True
-    keys = generate_master_keys_segwit(mnemonic, testnet=testnet)
+    keys: MasterKeys = generate_master_keys_segwit(mnemonic_str, testnet=testnet)
     
     print(f"Network: {'Testnet' if testnet else 'Mainnet'}")
-    print(f"Derivation Path: {keys['derivation_path']}")
-    print(f"Master xprv: {keys['master_xprv']}")
-    print(f"Master xpub: {keys['master_xpub']}\n")
+    print(f"Derivation Path: {keys.derivation_path}")
+    print(f"Master xprv: {keys.master_xprv}")
+    print(f"Master xpub: {keys.master_xpub}\n")
     
     # Verify it starts with correct prefix
     if testnet:
-        assert keys['master_xprv'].startswith('tprv'), f"Expected tprv, got {keys['master_xprv'][:4]}"
-        assert keys['master_xpub'].startswith('tpub'), f"Expected tpub, got {keys['master_xpub'][:4]}"
+        assert keys.master_xprv.startswith('tprv'), f"Expected tprv, got {keys.master_xprv[:4]}"
+        assert keys.master_xpub.startswith('tpub'), f"Expected tpub, got {keys.master_xpub[:4]}"
         print(f"✓ Testnet keys have correct prefixes (tprv/tpub)\n")
     else:
-        assert keys['master_xprv'].startswith('xprv'), f"Expected xprv, got {keys['master_xprv'][:4]}"
-        assert keys['master_xpub'].startswith('xpub'), f"Expected xpub, got {keys['master_xpub'][:4]}"
+        assert keys.master_xprv.startswith('xprv'), f"Expected xprv, got {keys.master_xprv[:4]}"
+        assert keys.master_xpub.startswith('xpub'), f"Expected xpub, got {keys.master_xpub[:4]}"
         print(f"✓ Mainnet keys have correct prefixes (xprv/xpub)\n")
     
     # Generate addresses
     print("=== Native SegWit Addresses (from xpub) ===")
     for i in range(5):
-        addr = derive_address_from_xpub_segwit(keys['master_xpub'], change=0, address_index=i, testnet=testnet)
+        addr = derive_address_from_xpub_segwit(keys.master_xpub, change=0, address_index=i, testnet=testnet)
         print(f"Address {i}: {addr}")
     
     print("\n=== Native SegWit Addresses (from xprv) ===")
     for i in range(3):
-        result = derive_address_from_xprv_segwit(keys['master_xprv'], change=0, address_index=i, testnet=testnet)
+        result = derive_address_from_xprv_segwit(keys.master_xprv, change=0, address_index=i, testnet=testnet)
         print(f"Address {i}: {result['address']}")
         print(f"  Private Key WIF: {result['private_key_wif']}")
     
     print("\n=== Bitcoin Core Descriptors ===")
-    descriptors = generate_bitcoin_core_descriptor_segwit(keys['master_xprv'], testnet=testnet)
-    print(json.dumps(descriptors, indent=2))
+    descriptors = generate_bitcoin_core_descriptor_segwit(keys.master_xprv, testnet=testnet)
+    descriptors_json = json.dumps([d.model_dump() for d in descriptors], indent=2)
+    print(descriptors_json)
     
     print("\n=== Bitcoin Core Command ===")
     print(f"bitcoin-cli {'-testnet4' if testnet else ''} importdescriptors '")
-    print(json.dumps(descriptors, indent=2))
+    print(descriptors_json)
     print("'")
