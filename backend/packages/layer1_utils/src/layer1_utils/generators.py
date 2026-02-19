@@ -2,11 +2,20 @@ from bip_utils import (
     Bip32Slip10Secp256k1,
     Bip39SeedGenerator,
     Bip32KeyNetVersions,
-    WifEncoder
+    WifEncoder,
+    Bip39MnemonicGenerator,
+    Bip39WordsNum
 )
 import json
+from typing import List, Dict, Any, Union
+from .models import MasterKeys, BitcoinCoreDescriptor
 
-def polymod(c, val):
+def generate_mnemonic(words_num: int = 12) -> str:
+    """Generate a BIP39 mnemonic."""
+    words_enum = Bip39WordsNum.WORDS_NUM_12 if words_num == 12 else Bip39WordsNum.WORDS_NUM_24
+    return str(Bip39MnemonicGenerator().FromWordsNumber(words_enum).ToStr())
+
+def polymod(c: int, val: int) -> int:
     c0 = c >> 35
     c = ((c & 0x7ffffffff) << 5) ^ val
     if (c0 & 1):
@@ -50,7 +59,7 @@ def descriptor_checksum(desc: str) -> str:
         ret[j] = CHECKSUM_CHARSET[(c >> (5 * (7 - j))) & 31]
     return ''.join(ret)
 
-def get_key_net_versions(testnet: bool = False):
+def get_key_net_versions(testnet: bool = False) -> Bip32KeyNetVersions:
     """Get the correct key net versions for testnet or mainnet."""
     if testnet:
         return Bip32KeyNetVersions(
@@ -64,7 +73,7 @@ def get_key_net_versions(testnet: bool = False):
         )
 
 
-def generate_master_keys_segwit(mnemonic: str, testnet: bool = False):
+def generate_master_keys_segwit(mnemonic: str, testnet: bool = False) -> MasterKeys:
     """
     Generate master keys for BIP84 using standard xprv/xpub format.
     Derives to m/84'/coin_type'/0' and exports with standard prefixes.
@@ -89,15 +98,15 @@ def generate_master_keys_segwit(mnemonic: str, testnet: bool = False):
     
     derivation_path = f"m/84'/{coin_type}'/0'"
     
-    return {
-        "master_xprv": master_xprv,
-        "master_xpub": master_xpub,
-        "derivation_path": derivation_path,
-        "testnet": testnet
-    }
+    return MasterKeys(
+        master_xprv=master_xprv,
+        master_xpub=master_xpub,
+        derivation_path=derivation_path,
+        testnet=testnet
+    )
 
 
-def derive_address_from_xpub_segwit(master_xpub: str, change: int, address_index: int, testnet: bool = False):
+def derive_address_from_xpub_segwit(master_xpub: str, change: int, address_index: int, testnet: bool = False) -> str:
     """
     Derive native SegWit address from xpub.
     """
@@ -123,7 +132,7 @@ def derive_address_from_xpub_segwit(master_xpub: str, change: int, address_index
     return address
 
 
-def derive_address_from_xprv_segwit(master_xprv: str, change: int, address_index: int, testnet: bool = False):
+def derive_address_from_xprv_segwit(master_xprv: str, change: int, address_index: int, testnet: bool = False) -> Dict[str, str]:
     """
     Derive native SegWit address from xprv with private key.
     """
@@ -162,7 +171,7 @@ def derive_address_from_xprv_segwit(master_xprv: str, change: int, address_index
     }
 
 
-def generate_bitcoin_core_descriptor_segwit(master_xprv: str, testnet: bool = False, address_range: int = 1000):
+def generate_bitcoin_core_descriptor_segwit(master_xprv: str, testnet: bool = False, address_range: int = 1000) -> List[BitcoinCoreDescriptor]:
     """
     Generate native SegWit descriptors with checksums for Bitcoin Core.
     """
@@ -173,28 +182,27 @@ def generate_bitcoin_core_descriptor_segwit(master_xprv: str, testnet: bool = Fa
     change_checksum = descriptor_checksum(change_desc)
     
     descriptors = [
-        {
-            "desc": f"{receiving_desc}#{receiving_checksum}",
-            "active": True,
-            "internal": False,
-            "range": [0, address_range],
-            "next_index": 0,
-            "timestamp": "now",
-            "label": "BIP84 Receiving"
-        },
-        {
-            "desc": f"{change_desc}#{change_checksum}",
-            "active": True,
-            "internal": True,
-            "range": [0, address_range],
-            "next_index": 0,
-            "timestamp": "now",
-            "label": "BIP84 Change"
-        }
+        BitcoinCoreDescriptor(
+            desc=f"{receiving_desc}#{receiving_checksum}",
+            active=True,
+            internal=False,
+            range=[0, address_range],
+            next_index=0,
+            timestamp="now",
+            label="BIP84 Receiving"
+        ),
+        BitcoinCoreDescriptor(
+            desc=f"{change_desc}#{change_checksum}",
+            active=True,
+            internal=True,
+            range=[0, address_range],
+            next_index=0,
+            timestamp="now",
+            label="BIP84 Change"
+        )
     ]
     
     return descriptors
-
 
 # Example usage
 if __name__ == "__main__":

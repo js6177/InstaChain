@@ -33,24 +33,33 @@ class BitcoinRPCClient:
         if params is None:
             params = []
         
-        # Serialize Pydantic models in params
-        serialized_params = []
-        for p in params:
+        def serialize_param(p: Any) -> Any:
             if isinstance(p, BaseModel):
-                serialized_params.append(p.model_dump(exclude_none=True))
-            else:
-                serialized_params.append(p)
+                return p.model_dump(exclude_none=True)
+            if isinstance(p, list):
+                return [serialize_param(i) for i in p]
+            if isinstance(p, dict):
+                return {k: serialize_param(v) for k, v in p.items() if v is not None}
+            return p
+
+        serialized_params = [serialize_param(p) for p in params]
 
         request_data = BitcoinRPCRequest(method=method, params=serialized_params)
+        payload = request_data.model_dump()
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 self.url,
-                json=request_data.model_dump(),
+                json=payload,
                 auth=self.auth,
                 timeout=60.0
             )
-            response.raise_for_status()
+            
+            try:
+                response.raise_for_status()
+            except httpx.HTTPStatusError as e:
+                raise Exception(f"HTTP Error {e.response.status_code}: {e.response.text}") from e
+
             rpc_response = BitcoinRPCResponse[Any].model_validate(response.json())
             
             if rpc_response.error:
@@ -86,6 +95,8 @@ class BitcoinRPCClient:
         return LoadWalletResponse.model_validate(result)
 
     async def importdescriptors(self, requests: list[DescriptorImportRequest]) -> list[ImportDescriptorResult]:
+        # The requests list IS the first parameter. _call wraps it in a list of parameters.
+        # So we pass [requests] to _call so it becomes params: [requests] in the JSON.
         result = await self._call("importdescriptors", [requests])
         return [ImportDescriptorResult.model_validate(r) for r in result]
 
@@ -114,6 +125,12 @@ class BitcoinRPCClient:
     async def listaddressgroupings(self) -> list[list[AddressGroupingItem]]:
         result = await self._call("listaddressgroupings")
         return [[AddressGroupingItem.model_validate(item) for item in group] for group in result]
+
+    async def getnewaddress(self, label: str = "", address_type: Optional[str] = None) -> str:
+        params = [label]
+        if address_type is not None:
+            params.append(address_type)
+        return str(await self._call("getnewaddress", params))
 
     async def getblockheader(self, blockhash: str, verbose: bool = True) -> GetBlockHeaderResponse:
         result = await self._call("getblockheader", [blockhash, verbose])

@@ -58,12 +58,11 @@ class LoadWalletResponse(BaseModel):
     warning: Optional[str] = None
 
 class DescriptorImportRequest(BaseModel):
-    descriptor: str
+    desc: str
     active: bool = False
     timestamp: Union[int, str] = "now"
     range: Optional[Union[int, list[int]]] = None
     internal: bool = False
-    watchonly: bool = False
     next_index: Optional[int] = None
 
 class ImportDescriptorResult(BaseModel):
