@@ -1,5 +1,5 @@
 import httpx
-from typing import Any, Optional
+from typing import Any, Optional, Type, TypeVar, Union
 from .models import (
     BitcoinRPCRequest, 
     BitcoinRPCResponse, 
@@ -16,6 +16,8 @@ from .models import (
 from config_models.models import Layer2BridgeBitcoinConfFileSettings
 from pydantic import BaseModel
 
+R = TypeVar('R')
+
 class BitcoinRPCClient:
     def __init__(self, config: Layer2BridgeBitcoinConfFileSettings, wallet_name: Optional[str] = None):
         self.config = config
@@ -29,7 +31,7 @@ class BitcoinRPCClient:
             return f"{self.base_url}/wallet/{self.wallet_name}"
         return self.base_url
 
-    async def _call(self, method: str, params: list[Any] = None) -> Any:
+    async def _call_raw(self, method: str, params: list[Any] = None, response_model: Type[R] = Any) -> BitcoinRPCResponse[R]:
         if params is None:
             params = []
         
@@ -43,7 +45,6 @@ class BitcoinRPCClient:
             return p
 
         serialized_params = [serialize_param(p) for p in params]
-
         request_data = BitcoinRPCRequest(method=method, params=serialized_params)
         payload = request_data.model_dump()
         
@@ -55,17 +56,19 @@ class BitcoinRPCClient:
                 timeout=60.0
             )
             
+            # Bitcoin Core often returns 500 for RPC errors but with a valid JSON body
             try:
+                rpc_response = BitcoinRPCResponse[response_model].model_validate(response.json())
+                return rpc_response
+            except Exception:
                 response.raise_for_status()
-            except httpx.HTTPStatusError as e:
-                raise Exception(f"HTTP Error {e.response.status_code}: {e.response.text}") from e
+                raise Exception(f"Failed to parse Bitcoin RPC response: {response.text}")
 
-            rpc_response = BitcoinRPCResponse[Any].model_validate(response.json())
-            
-            if rpc_response.error:
-                raise Exception(f"Bitcoin RPC error: {rpc_response.error}")
-            
-            return rpc_response.result
+    async def _call(self, method: str, params: list[Any] = None) -> Any:
+        rpc_response = await self._call_raw(method, params)
+        if rpc_response.error:
+            raise Exception(f"Bitcoin RPC error: {rpc_response.error.code} - {rpc_response.error.message}")
+        return rpc_response.result
 
     async def getbestblockhash(self) -> str:
         return str(await self._call("getbestblockhash"))
@@ -80,19 +83,17 @@ class BitcoinRPCClient:
     async def createwallet(self, wallet_name: str, disable_private_keys: bool = False, 
                            blank: bool = False, passphrase: str = "", 
                            avoid_reuse: bool = False, descriptors: bool = True, 
-                           load_on_startup: Optional[bool] = None) -> CreateWalletResponse:
+                           load_on_startup: Optional[bool] = None) -> BitcoinRPCResponse[CreateWalletResponse]:
         params = [wallet_name, disable_private_keys, blank, passphrase, avoid_reuse, descriptors]
         if load_on_startup is not None:
             params.append(load_on_startup)
-        result = await self._call("createwallet", params)
-        return CreateWalletResponse.model_validate(result)
+        return await self._call_raw("createwallet", params, CreateWalletResponse)
 
-    async def loadwallet(self, filename: str, load_on_startup: Optional[bool] = None) -> LoadWalletResponse:
+    async def loadwallet(self, filename: str, load_on_startup: Optional[bool] = None) -> BitcoinRPCResponse[LoadWalletResponse]:
         params = [filename]
         if load_on_startup is not None:
             params.append(load_on_startup)
-        result = await self._call("loadwallet", params)
-        return LoadWalletResponse.model_validate(result)
+        return await self._call_raw("loadwallet", params, LoadWalletResponse)
 
     async def importdescriptors(self, requests: list[DescriptorImportRequest]) -> list[ImportDescriptorResult]:
         # The requests list IS the first parameter. _call wraps it in a list of parameters.

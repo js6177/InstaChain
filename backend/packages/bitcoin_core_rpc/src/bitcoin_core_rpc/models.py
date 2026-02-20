@@ -9,10 +9,23 @@ class BitcoinRPCRequest(BaseModel):
     method: str
     params: list[Any] = Field(default_factory=list)
 
+class BitcoinRPCError(BaseModel):
+    code: int
+    message: str
+    data: Optional[Any] = None
+
 class BitcoinRPCResponse(BaseModel, Generic[T]):
     result: Optional[T] = None
-    error: Optional[Any] = None
+    error: Optional[BitcoinRPCError] = None
     id: str
+
+    @property
+    def is_wallet_already_loaded(self) -> bool:
+        return self.error is not None and self.error.code == -35
+
+    @property
+    def is_wallet_already_exists(self) -> bool:
+        return self.error is not None and self.error.code == -4
 
 class GetBestBlockHashResponse(BaseModel):
     hash: str

@@ -128,23 +128,28 @@ async def import_keys_to_bitcoin_core(bridge_settings: Layer2BridgeSettings, mas
     # Initialize RPC client without wallet name first to create/load wallet
     rpc_client = BitcoinRPCClient(bridge_settings.rpc_settings)
     
-    # Try to load wallet, if it fails create it
-    try:
-        await rpc_client.loadwallet(bridge_settings.wallet_name)
+    # Try to load wallet
+    load_resp = await rpc_client.loadwallet(bridge_settings.wallet_name)
+    if load_resp.error:
+        if load_resp.is_wallet_already_loaded:
+            print(f"Wallet '{bridge_settings.wallet_name}' is already loaded.")
+        else:
+            print(f"Could not load wallet, attempting to create it. Error: {load_resp.error.code} - {load_resp.error.message}")
+            create_resp = await rpc_client.createwallet(bridge_settings.wallet_name)
+            if create_resp.error:
+                if create_resp.is_wallet_already_exists:
+                    print(f"Wallet '{bridge_settings.wallet_name}' already exists. Attempting to load it again...")
+                    load_resp2 = await rpc_client.loadwallet(bridge_settings.wallet_name)
+                    if load_resp2.error and not load_resp2.is_wallet_already_loaded:
+                        print(f"Failed to load existing wallet: {load_resp2.error.code} - {load_resp2.error.message}")
+                        return
+                else:
+                    print(f"Failed to create wallet: {create_resp.error.code} - {create_resp.error.message}")
+                    return
+            else:
+                print(f"Wallet '{bridge_settings.wallet_name}' created successfully.")
+    else:
         print(f"Wallet '{bridge_settings.wallet_name}' loaded successfully.")
-    except Exception as e:
-        print(f"Could not load wallet, attempting to create it. Error: {e}")
-        try:
-            await rpc_client.createwallet(bridge_settings.wallet_name)
-            print(f"Wallet '{bridge_settings.wallet_name}' created successfully.")
-        except Exception as e2:
-            print(f"Attempted to create wallet but received error: {e2}. Proceeding anyway...")
-            # Try loading it one more time just in case it was created but creation returned error
-            try:
-                await rpc_client.loadwallet(bridge_settings.wallet_name)
-                print(f"Wallet '{bridge_settings.wallet_name}' loaded on second attempt.")
-            except:
-                pass
 
     # Now use the client with the specific wallet
     rpc_client.wallet_name = bridge_settings.wallet_name

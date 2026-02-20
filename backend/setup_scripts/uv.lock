@@ -321,10 +321,14 @@ version = "0.1.0"
 source = { editable = "../packages/layer1_utils" }
 dependencies = [
     { name = "bip-utils" },
+    { name = "pydantic" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "bip-utils", specifier = ">=2.10.0" }]
+requires-dist = [
+    { name = "bip-utils", specifier = ">=2.10.0" },
+    { name = "pydantic", specifier = ">=2.12.5" },
+]
 
 [[package]]
 name = "layer2address"
