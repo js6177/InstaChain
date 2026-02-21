@@ -67,15 +67,15 @@ def generate_keys(env: str) -> Tuple[Layer2BridgeSettings, MasterKeys]:
     btc_keys: MasterKeys = generate_master_keys_segwit(mnemonic, testnet=True) # Assuming dev uses testnet
 
     layer2ledgerbatched_layer2ledgerapihandler_settings = Layer2LedgerAPIHandlerSettings(
-        layer2ledger_node_id=''.join(random.choices(string.ascii_lowercase + string.digits, k=16)),
-        deposit_wallet_master_pubkey=btc_keys.master_xpub,
-        minimum_layer1_transaction_amount=1000,
+        layer2ledger_node_id = generate_alphanumeric_id(),
+        deposit_wallet_master_pubkey = btc_keys.master_xpub,
+        minimum_layer1_transaction_amount = 1000,
         layer2bridge_signing_address=SettingsLayer2Address(
             mneumonic=None,
             private_key=layer2bridge_signing_address.private_key_str_base58,
             public_key=layer2bridge_signing_address.public_key_str_base58,
         ),
-        deposit_transaction_pubkey=''.join(random.choices(string.ascii_lowercase + string.digits, k=16)),
+        deposit_transaction_pubkey = generate_alphanumeric_id(),
         layer2bridge_signing_key_uses_functional_test_keys=False,
         onboarding_layer2_deposit_address=SettingsLayer2Address(
             mneumonic=None,
