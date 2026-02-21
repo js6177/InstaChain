@@ -8,9 +8,15 @@ from bitcoin_core_rpc.models import DescriptorImportRequest
 import random
 import string
 import asyncio
+import json
+import argparse
 from configobj import ConfigObj
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Optional
+from enum import StrEnum
+
+class Intermediate(StrEnum):
+    BITCOIN_CORE_MASTER_KEYS = 'temp-bitcoincore-master-keys'
 
 def get_layer2ledgerbatched_docker_env_settings(environment: str) -> Layer2LedgerDockerEnvSettings:
     """
@@ -21,8 +27,7 @@ def get_layer2ledgerbatched_docker_env_settings(environment: str) -> Layer2Ledge
     settings = Layer2LedgerDockerEnvSettings.load_from_path(config_file_path)
     return settings
 
-def generate_keys() -> Tuple[Layer2BridgeSettings, str, str]:
-    env = 'dev'
+def generate_keys(env: str) -> Tuple[Layer2BridgeSettings, MasterKeys]:
     print(f"\nLoading configurations for environment: {env}")
 
     project_root = get_project_root()
@@ -120,9 +125,33 @@ def generate_keys() -> Tuple[Layer2BridgeSettings, str, str]:
     with open(get_config_file(Services.LAYER2LEDGERBRIDGE, env), 'w') as f:
         f.write(layer2bridge_settings.model_dump_json(indent=4))
 
-    return layer2bridge_settings, btc_keys.master_xprv, btc_keys.master_xpub
+    # Store MasterKeys in a temp file
+    temp_keys_path = get_config_file(Intermediate.BITCOIN_CORE_MASTER_KEYS, env)
+    with open(temp_keys_path, 'w') as f:
+        f.write(btc_keys.model_dump_json(indent=4))
+    print(f"Master keys saved to: {temp_keys_path}")
 
-async def import_keys_to_bitcoin_core(bridge_settings: Layer2BridgeSettings, master_xprv: str, master_xpub: str) -> None:
+    return layer2bridge_settings, btc_keys
+
+async def import_keys_to_bitcoin_core(env: str, bridge_settings: Optional[Layer2BridgeSettings] = None, btc_keys: Optional[MasterKeys] = None) -> None:
+    if bridge_settings is None:
+        bridge_settings_path = get_config_file(Services.LAYER2LEDGERBRIDGE, env)
+        print(f"Loading bridge settings from: {bridge_settings_path}")
+        if not Path(bridge_settings_path).exists():
+            print(f"Error: Bridge settings file not found at {bridge_settings_path}. Run with -generate-keys first.")
+            return
+        with open(bridge_settings_path, 'r') as f:
+            bridge_settings = Layer2BridgeSettings.model_validate_json(f.read())
+    
+    if btc_keys is None:
+        temp_keys_path = get_config_file(Intermediate.BITCOIN_CORE_MASTER_KEYS, env)
+        print(f"Loading master keys from: {temp_keys_path}")
+        if not Path(temp_keys_path).exists():
+            print(f"Error: Master keys file not found at {temp_keys_path}. Run with -generate-keys first.")
+            return
+        with open(temp_keys_path, 'r') as f:
+            btc_keys = MasterKeys.model_validate_json(f.read())
+
     print(f"\nImporting keys to Bitcoin Core wallet: {bridge_settings.wallet_name}")
     
     # Initialize RPC client without wallet name first to create/load wallet
@@ -156,7 +185,7 @@ async def import_keys_to_bitcoin_core(bridge_settings: Layer2BridgeSettings, mas
     
     # Generate descriptors
     testnet = bridge_settings.rpc_settings.chain != "main"
-    descriptors_data: list[BitcoinCoreDescriptor] = generate_bitcoin_core_descriptor_segwit(master_xprv, testnet=testnet)
+    descriptors_data: list[BitcoinCoreDescriptor] = generate_bitcoin_core_descriptor_segwit(btc_keys.master_xprv, testnet=testnet)
     
     import_requests = [
         DescriptorImportRequest(
@@ -187,7 +216,7 @@ async def import_keys_to_bitcoin_core(bridge_settings: Layer2BridgeSettings, mas
         print(f"New address from Bitcoin Core: {new_address}")
         
         # Derive address 0 from xpub for comparison
-        derived_address = derive_address_from_xpub_segwit(master_xpub, change=0, address_index=0, testnet=testnet)
+        derived_address = derive_address_from_xpub_segwit(btc_keys.master_xpub, change=0, address_index=0, testnet=testnet)
         print(f"Derived address 0 from xpub: {derived_address}")
         
         if new_address == derived_address:
@@ -200,8 +229,24 @@ async def import_keys_to_bitcoin_core(bridge_settings: Layer2BridgeSettings, mas
         print(f"Verification failed with error: {e}")
 
 async def main() -> None:
-    bridge_settings, master_xprv, master_xpub = generate_keys()
-    await import_keys_to_bitcoin_core(bridge_settings, master_xprv, master_xpub)
+    parser = argparse.ArgumentParser(description='Setup scripts for InstaChain')
+    parser.add_argument('-env', type=str, default='dev', help='Environment to use (default: dev)')
+    parser.add_argument('-generate-keys', action='store_true', help='Generate keys and save to config files')
+    parser.add_argument('-import-keys-to-bitcoin-core', action='store_true', help='Import generated keys to Bitcoin Core')
+    args = parser.parse_args()
+
+    if not args.generate_keys and not args.import_keys_to_bitcoin_core:
+        parser.print_help()
+        return
+
+    bridge_settings = None
+    btc_keys = None
+
+    if args.generate_keys:
+        bridge_settings, btc_keys = generate_keys(args.env)
+
+    if args.import_keys_to_bitcoin_core:
+        await import_keys_to_bitcoin_core(args.env, bridge_settings, btc_keys)
 
 
 if __name__ == "__main__":
