@@ -5,7 +5,7 @@ from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.get_node_in
     NodeInfo,
     Version,
 )
-from layer2ledgerbatched.layer2ledgerapihandler.config import config
+from layer2ledgerbatched.common.constants import NODE_ASSET_ID
 from layer2ledgerbatched.layer2ledgerapihandler.config.config import get_settings
 from layer2ledgerbatched.layer2ledgerapihandler.utils.error_message import (
     ERROR_SUCCESS,
@@ -38,7 +38,7 @@ async def get_node_info() -> GetNodeInfoResponse:
 
     # TODO: Confirm the correct derivation path
     node_info = NodeInfo(
-        asset_id=config.NODE_ASSET_ID,
+        asset_id=NODE_ASSET_ID,
         deposit_address_derivation_path="m/44/1",
         layer1_network_info=layer1_network_info,
         node_id=settings.layer2ledger_node_id,
