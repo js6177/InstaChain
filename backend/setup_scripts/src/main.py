@@ -18,6 +18,16 @@ from enum import StrEnum
 class Intermediate(StrEnum):
     BITCOIN_CORE_MASTER_KEYS = 'temp-bitcoincore-master-keys'
 
+def str2bool(v: str | bool) -> bool:
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 def get_layer2ledgerbatched_docker_env_settings(environment: str) -> Layer2LedgerDockerEnvSettings:
     """
     Loads and returns the Layer2LedgerDockerEnvSettings for the specified environment.
@@ -27,7 +37,7 @@ def get_layer2ledgerbatched_docker_env_settings(environment: str) -> Layer2Ledge
     settings = Layer2LedgerDockerEnvSettings.load_from_path(config_file_path)
     return settings
 
-def generate_keys(env: str) -> Tuple[Layer2BridgeSettings, MasterKeys]:
+def generate_keys(env: str, containered: bool = True) -> Tuple[Layer2BridgeSettings, MasterKeys]:
     print(f"\nLoading configurations for environment: {env}")
 
     project_root = get_project_root()
@@ -40,18 +50,20 @@ def generate_keys(env: str) -> Tuple[Layer2BridgeSettings, MasterKeys]:
 
     layer2ledgerbatched_docker_env = get_layer2ledgerbatched_docker_env_settings(env)
 
+    db_host = layer2ledgerbatched_docker_env.postgres_host if containered else "localhost"
+    redis_host = layer2ledgerbatched_docker_env.redis_host if containered else "localhost"
 
     # Generate the json config for layer2ledgerbatched-common and layer2ledgerbatched-layer2ledgerapihandler from the values in the docker env
     layer2ledgerbatched_common_settings = Layer2LedgerCommonSettings(
         database=PostgresqlDatabaseSettings(
             db_user=layer2ledgerbatched_docker_env.postgres_user,
             db_password=layer2ledgerbatched_docker_env.postgres_password,
-            db_host=layer2ledgerbatched_docker_env.postgres_host,
+            db_host=db_host,
             db_port=str(layer2ledgerbatched_docker_env.postgres_port),
             db_name=layer2ledgerbatched_docker_env.postgres_db,
         ),
         redis=RedisSettings(
-            host=layer2ledgerbatched_docker_env.redis_host,
+            host=redis_host,
             port=layer2ledgerbatched_docker_env.redis_port,
         ),
     )
@@ -233,6 +245,7 @@ async def main() -> None:
     parser.add_argument('-env', type=str, default='dev', help='Environment to use (default: dev)')
     parser.add_argument('-generate-keys', action='store_true', help='Generate keys and save to config files')
     parser.add_argument('-import-keys-to-bitcoin-core', action='store_true', help='Import generated keys to Bitcoin Core')
+    parser.add_argument('-containered', type=str2bool, default=True, help='Whether the setup is for a containered environment (default: True)')
     args = parser.parse_args()
 
     if not args.generate_keys and not args.import_keys_to_bitcoin_core:
@@ -243,7 +256,7 @@ async def main() -> None:
     btc_keys = None
 
     if args.generate_keys:
-        bridge_settings, btc_keys = generate_keys(args.env)
+        bridge_settings, btc_keys = generate_keys(args.env, containered=args.containered)
 
     if args.import_keys_to_bitcoin_core:
         await import_keys_to_bitcoin_core(args.env, bridge_settings, btc_keys)
