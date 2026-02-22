@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, Depends
 import redis
 from sqlalchemy import select
@@ -12,7 +11,7 @@ from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.deposit_conf
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.deposit_confirmed_response import DepositConfirmedResponse, Layer1DepositConfirmedTransaction
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
 import layer2ledgerbatched.layer2ledgerapihandler.utils.error_message as error_codes
-from layer2ledgerbatched.layer2ledgerapihandler.utils.key_verification import buildGetDepositAddressMessage, buildDepositMessage
+from layer2ledgerbatched.layer2ledgerapihandler.utils.key_verification import verifyGetDepositAddress, verifyDeposit, buildGetDepositAddressMessage, buildDepositMessage
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address
 from layer2ledgerbatched.layer2ledgerapihandler.utils.generate_btc_address import generate_btc_testnet_address
 from layer2ledgerbatched.common.redis.redis_models.transactions import RedisTransaction, PendingTransaction, PENDING_TRANSACTIONS_LIST_KEY
@@ -30,17 +29,12 @@ async def get_deposit_address(
     if not request.layer2_address_pubkey or not request.layer2_address_pubkey.isalnum():
         return GetDepositAddressResponse(error_code=error_codes.ERROR_INVALID_SOURCE_ADDRESS, error_message=error_codes.get_error_message(error_codes.ERROR_INVALID_SOURCE_ADDRESS))
 
-    try:
-        message = buildGetDepositAddressMessage(
-            layer2_address_public_key=request.layer2_address_pubkey,
-            nonce=request.nonce
-        )
-        address = Layer2Address()
-        address.from_public_key(request.layer2_address_pubkey)
-        if not address.verify(message, request.signature):
-            return GetDepositAddressResponse(error_code=error_codes.ERROR_INVALID_SIGNATURE, error_message=error_codes.get_error_message(error_codes.ERROR_INVALID_SIGNATURE))
-    except Exception as e:
-        return GetDepositAddressResponse(error_code=error_codes.ERROR_INVALID_SIGNATURE, error_message=str(e))
+    if not verifyGetDepositAddress(
+        source_pubkey=request.layer2_address_pubkey,
+        nonce=request.nonce,
+        signature=request.signature
+    ):
+        return GetDepositAddressResponse(error_code=error_codes.ERROR_INVALID_SIGNATURE, error_message=error_codes.get_error_message(error_codes.ERROR_INVALID_SIGNATURE))
 
     new_deposit_address = DepositAddresses(
         layer2_address=request.layer2_address_pubkey,
@@ -76,20 +70,15 @@ async def deposit_confirmed(
 ) -> DepositConfirmedResponse:
     successful_transactions: list[Layer1DepositConfirmedTransaction] = []
     for deposit_confirmed in request.transactions:
-        try:
-            message = buildDepositMessage(
-                layer1_transaction_id=deposit_confirmed.layer1_transaction_id,
-                layer1_transaction_vout=deposit_confirmed.layer1_transaction_vout,
-                layer1_address=deposit_confirmed.layer1_address,
-                amount=deposit_confirmed.amount,
-                nonce=deposit_confirmed.nonce
-            )
-            bridge_address = Layer2Address()
-            bridge_address.from_public_key(settings.layer2bridge_signing_address.public_key)
-            if not bridge_address.verify(message, deposit_confirmed.signature):
-                return DepositConfirmedResponse(error_code=error_codes.ERROR_INVALID_SIGNATURE, error_message=error_codes.get_error_message(error_codes.ERROR_INVALID_SIGNATURE), transactions=successful_transactions)
-        except Exception as e:
-            return DepositConfirmedResponse(error_code=error_codes.ERROR_INVALID_SIGNATURE, error_message=str(e), transactions=successful_transactions)
+        if not verifyDeposit(
+            layer1_transaction_id=deposit_confirmed.layer1_transaction_id,
+            layer1_transaction_vout=deposit_confirmed.layer1_transaction_vout,
+            layer1_address=deposit_confirmed.layer1_address,
+            amount=deposit_confirmed.amount,
+            nonce=deposit_confirmed.nonce,
+            signature=deposit_confirmed.signature
+        ):
+            return DepositConfirmedResponse(error_code=error_codes.ERROR_INVALID_SIGNATURE, error_message=error_codes.get_error_message(error_codes.ERROR_INVALID_SIGNATURE), transactions=successful_transactions)
 
         result = await db.execute(
             select(DepositAddresses.layer2_address).where(DepositAddresses.layer1_address == deposit_confirmed.layer1_address)

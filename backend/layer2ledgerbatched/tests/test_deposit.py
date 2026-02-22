@@ -6,6 +6,7 @@ import redis.asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+from layer2ledgerbatched.layer2ledgerapihandler.config.config import get_layer2bridge_settings
 from layer2ledgerbatched.layer2ledgerapihandler.main import app
 from layer2ledgerbatched.layer2ledgerapihandler.api.routes.route_defs import DEPOSIT_ROUTER_PREFIX, GET_DEPOSIT_ADDRESS_ROUTE, DEPOSIT_CONFIRMED_ROUTE
 from layer2ledgerbatched.common.db.models import DepositAddresses, Transaction, TransactionType
@@ -16,8 +17,8 @@ from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.deposit_con
 from layer2ledgerbatched.layer2ledgerapihandler.utils.key_verification import buildGetDepositAddressMessage, buildDepositMessage
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address
 import layer2ledgerbatched.layer2ledgerapihandler.utils.error_message as error_codes
-from layer2ledgerbatched.common.config.config import CommonSettings as CommonSettings
-from layer2ledgerbatched.layer2ledgerapihandler.config.config import Layer2LedgerAPIHandlerSettings as Layer2LedgerAPIHandlerSettings
+from config_models.models import Layer2LedgerCommonSettings, Layer2LedgerAPIHandlerSettings, Layer2BridgeSettings
+from config_loader.loader import Environment, Services, get_config_file
 
 from layer2ledgerbatched.common.redis.redis_models.transactions import PENDING_TRANSACTIONS_LIST_KEY, PendingTransaction
 
@@ -30,12 +31,13 @@ def user_address() -> Layer2Address:
 @pytest.fixture(scope="module")
 def bridge_address() -> Layer2Address:
     # In a real scenario, this would be loaded from config
+    bridge_settings: Layer2BridgeSettings = get_layer2bridge_settings()
     addr = Layer2Address("bridge_address")
-    addr.new_address()
+    addr.from_private_key(bridge_settings.onboarding_signing_private_key)
     return addr
 
 @pytest.mark.asyncio
-async def test_get_deposit_address_success(postgresql_session: AsyncSession, user_address: Layer2Address, common_settings: CommonSettings, layer2ledgerapihandler_settings: Layer2LedgerAPIHandlerSettings):
+async def test_get_deposit_address_success(postgresql_session: AsyncSession, user_address: Layer2Address, common_settings: Layer2LedgerCommonSettings, layer2ledgerapihandler_settings: Layer2LedgerAPIHandlerSettings):
     nonce = str(uuid.uuid4())
     message = buildGetDepositAddressMessage(
         layer2_address_public_key=user_address.public_key_str_base58,
@@ -66,7 +68,7 @@ async def test_get_deposit_address_success(postgresql_session: AsyncSession, use
     assert deposit_address_entry.layer2_address == user_address.public_key_str_base58
 
 @pytest.mark.asyncio
-async def test_deposit_confirmed_success(postgresql_session: AsyncSession, redis_client: redis.asyncio.Redis, user_address: Layer2Address, common_settings: CommonSettings, layer2ledgerapihandler_settings: Layer2LedgerAPIHandlerSettings):
+async def test_deposit_confirmed_success(postgresql_session: AsyncSession, redis_client: redis.asyncio.Redis, user_address: Layer2Address, bridge_address: Layer2Address, common_settings: Layer2LedgerCommonSettings, layer2ledgerapihandler_settings: Layer2LedgerAPIHandlerSettings):
     # 1. Get a deposit address first
     nonce_get_address = str(uuid.uuid4())
     msg_get_address = buildGetDepositAddressMessage(user_address.public_key_str_base58, nonce_get_address)
@@ -91,9 +93,6 @@ async def test_deposit_confirmed_success(postgresql_session: AsyncSession, redis
     nonce_confirm = str(uuid.uuid4())
     
     # The bridge signs this message
-    bridge_l2_address = Layer2Address()
-    bridge_l2_address.from_private_key(layer2ledgerapihandler_settings.layer2bridge_signing_address.private_key)
-
     msg_confirm = buildDepositMessage(
         layer1_transaction_id=layer1_tx_id,
         layer1_transaction_vout=0,
@@ -101,7 +100,7 @@ async def test_deposit_confirmed_success(postgresql_session: AsyncSession, redis
         amount=amount,
         nonce=nonce_confirm
     )
-    sig_confirm = bridge_l2_address.sign(msg_confirm)
+    sig_confirm = bridge_address.sign(msg_confirm)
 
     deposit_confirmed = DepositsConfirmed(
         layer1_address=layer1_deposit_address,

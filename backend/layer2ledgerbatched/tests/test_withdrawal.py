@@ -1,4 +1,5 @@
 import asyncio
+from config_models import Layer2BridgeSettings
 import pytest
 import httpx
 import threading
@@ -36,12 +37,20 @@ def source_address() -> Layer2Address:
 def layer1_address() -> str:
     return "tb1qxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
+@pytest.fixture(scope="module")
+def bridge_address() -> Layer2Address:
+    # In a real scenario, this would be loaded from config
+    bridge_settings: Layer2BridgeSettings = get_layer2bridge_settings()
+    addr = Layer2Address("bridge_address")
+    addr.from_private_key(bridge_settings.onboarding_signing_private_key)
+    return addr
 
-from layer2ledgerbatched.layer2ledgerapihandler.config.config import Layer2LedgerAPIHandlerSettings
+
+from layer2ledgerbatched.layer2ledgerapihandler.config.config import Layer2LedgerAPIHandlerSettings, get_layer2bridge_settings
 
 # Tests a simple withdrawal flow: request withdrawal, broadcast, confirm
 @pytest.mark.asyncio
-async def test_withdrawal_flow(postgresql_session: AsyncSession, redis_client: Redis, source_address: Layer2Address, layer1_address: str, layer2ledgerapihandler_settings: Layer2LedgerAPIHandlerSettings) -> None:
+async def test_withdrawal_flow(postgresql_session: AsyncSession, redis_client: Redis, source_address: Layer2Address, bridge_address: Layer2Address, layer1_address: str, layer2ledgerapihandler_settings: Layer2LedgerAPIHandlerSettings) -> None:
     # 1. Create balance for source address
     initial_balance = 1000
     balance = Layer2AddressBalance(address=source_address.public_key_str_base58, balance=initial_balance)
@@ -113,8 +122,6 @@ async def test_withdrawal_flow(postgresql_session: AsyncSession, redis_client: R
     layer1_transaction_id = "l1_tx_id_123"
     layer1_transaction_vout = 0
     
-    bridge_l2_address = Layer2Address()
-    bridge_l2_address.from_private_key(layer2ledgerapihandler_settings.layer2bridge_signing_address.private_key)
     
     broadcast_message = buildWithdrawalBroadcastedMessage(
         layer1_transaction_id=layer1_transaction_id,
@@ -123,7 +130,7 @@ async def test_withdrawal_flow(postgresql_session: AsyncSession, redis_client: R
         amount=amount,
         withdrawal_id=layer2_withdrawal_id
     )
-    broadcast_signature = bridge_l2_address.sign(broadcast_message)
+    broadcast_signature = bridge_address.sign(broadcast_message)
     
     from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.withdrawal_broadcasted_request import WithdrawalBroadcastedRequest, Layer1BroadcastedWithdrawalTransaction
     broadcasted_tx = Layer1BroadcastedWithdrawalTransaction(
@@ -152,7 +159,7 @@ async def test_withdrawal_flow(postgresql_session: AsyncSession, redis_client: R
         layer1_address=layer1_address,
         amount=amount
     )
-    confirmed_signature = bridge_l2_address.sign(confirmed_message)
+    confirmed_signature = bridge_address.sign(confirmed_message)
     
     from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.withdrawal_confirmed_request import WithdrawalConfirmedRequest, Layer1WithdrawalConfirmedTransaction
     confirmed_tx = Layer1WithdrawalConfirmedTransaction(
@@ -186,7 +193,7 @@ async def test_withdrawal_flow(postgresql_session: AsyncSession, redis_client: R
 
 # Tests multiple withdrawals from a layer2 address to the same layer1 address
 @pytest.mark.asyncio
-async def test_multiple_withdrawals_to_same_layer1_address(postgresql_session: AsyncSession, redis_client: Redis, source_address: Layer2Address, layer1_address: str, layer2ledgerapihandler_settings: Layer2LedgerAPIHandlerSettings) -> None:
+async def test_multiple_withdrawals_to_same_layer1_address(postgresql_session: AsyncSession, redis_client: Redis, source_address: Layer2Address, bridge_address: Layer2Address, layer1_address: str, layer2ledgerapihandler_settings: Layer2LedgerAPIHandlerSettings) -> None:
     num_withdrawals = 3
     
     # 1. Create balance for source address
@@ -265,8 +272,6 @@ async def test_multiple_withdrawals_to_same_layer1_address(postgresql_session: A
     layer1_transaction_id = "l1_tx_id_batched_789"
     layer1_transaction_vout = 0
     
-    bridge_l2_address = Layer2Address()
-    bridge_l2_address.from_private_key(layer2ledgerapihandler_settings.layer2bridge_signing_address.private_key)
 
     broadcasted_txs: list[Layer1BroadcastedWithdrawalTransaction] = []
     for i in range(num_withdrawals):
@@ -280,7 +285,7 @@ async def test_multiple_withdrawals_to_same_layer1_address(postgresql_session: A
             amount=amount,
             withdrawal_id=withdrawal_id
         )
-        broadcast_signature = bridge_l2_address.sign(broadcast_message)
+        broadcast_signature = bridge_address.sign(broadcast_message)
 
         from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.withdrawal_broadcasted_request import WithdrawalBroadcastedRequest, Layer1BroadcastedWithdrawalTransaction
         broadcasted_tx = Layer1BroadcastedWithdrawalTransaction(
@@ -313,7 +318,7 @@ async def test_multiple_withdrawals_to_same_layer1_address(postgresql_session: A
         layer1_address=layer1_address,
         amount=total_amount
     )
-    confirmed_signature = bridge_l2_address.sign(confirmed_message)
+    confirmed_signature = bridge_address.sign(confirmed_message)
     
     from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.withdrawal_confirmed_request import WithdrawalConfirmedRequest, Layer1WithdrawalConfirmedTransaction
     confirmed_tx = Layer1WithdrawalConfirmedTransaction(
@@ -351,7 +356,7 @@ async def test_multiple_withdrawals_to_same_layer1_address(postgresql_session: A
 
 # Test multiple withdrawals from different layer2 addresses to the same layer1 address
 @pytest.mark.asyncio
-async def test_multiple_withdrawals_from_different_layer2_addresses(postgresql_session: AsyncSession, redis_client: Redis, layer1_address: str, layer2ledgerapihandler_settings: Layer2LedgerAPIHandlerSettings) -> None:
+async def test_multiple_withdrawals_from_different_layer2_addresses(postgresql_session: AsyncSession, redis_client: Redis, layer1_address: str, bridge_address: Layer2Address, layer2ledgerapihandler_settings: Layer2LedgerAPIHandlerSettings) -> None:
     num_withdrawals = 3
     
     # 1. Create and fund multiple source addresses
@@ -437,9 +442,6 @@ async def test_multiple_withdrawals_from_different_layer2_addresses(postgresql_s
     # 5. Broadcast withdrawal (batched)
     layer1_transaction_id = "l1_tx_id_batched_multi_source_123"
     layer1_transaction_vout = 0
-    
-    bridge_l2_address = Layer2Address()
-    bridge_l2_address.from_private_key(layer2ledgerapihandler_settings.layer2bridge_signing_address.private_key)
 
     broadcasted_txs: list[Layer1BroadcastedWithdrawalTransaction] = []
     for i in range(num_withdrawals):
@@ -453,7 +455,7 @@ async def test_multiple_withdrawals_from_different_layer2_addresses(postgresql_s
             amount=amount,
             withdrawal_id=withdrawal_id
         )
-        broadcast_signature = bridge_l2_address.sign(broadcast_message)
+        broadcast_signature = bridge_address.sign(broadcast_message)
 
         from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.withdrawal_broadcasted_request import WithdrawalBroadcastedRequest, Layer1BroadcastedWithdrawalTransaction
         broadcasted_tx = Layer1BroadcastedWithdrawalTransaction(
@@ -486,7 +488,7 @@ async def test_multiple_withdrawals_from_different_layer2_addresses(postgresql_s
         layer1_address=layer1_address,
         amount=total_amount
     )
-    confirmed_signature = bridge_l2_address.sign(confirmed_message)
+    confirmed_signature = bridge_address.sign(confirmed_message)
     
     from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.withdrawal_confirmed_request import WithdrawalConfirmedRequest, Layer1WithdrawalConfirmedTransaction
     confirmed_tx = Layer1WithdrawalConfirmedTransaction(

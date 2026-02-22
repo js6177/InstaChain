@@ -1,44 +1,22 @@
 import json
 from pathlib import Path
-from pydantic import BaseModel
-from typing import Dict, Any, List
-from layer2ledgerbatched.common.config.config import DEFAULT_ENVIRONMENT, Environment
+from config_models.models import Layer2BridgeSettings, Layer2LedgerAPIHandlerSettings, SettingsLayer2Address
+from config_loader.loader import get_config_file, Services, Environment
 
-#lower 32 bits are used to specify the asset
-ASSET_BITCOIN = 1
-ASSET_ETHEREUM = 2
-
-ASSET_TESTNET_FLAG = (1 << 32) #bit 32 is the testnet flag
-ASSET_STABLECOIN_FLAG = (1 << 33)
-# variable that holds what asset the node supports
-# For now, a node can support only 1 asset, though in the future, multi-asset nodes are possible
-NODE_ASSET_ID = ASSET_BITCOIN|ASSET_TESTNET_FLAG
-
-ROOT_DIR = "~/.openl2/settings"
-config_filename = "layer2ledgerapihandler-config.json"
-
-class SettingsLayer2Address(BaseModel):
-    mneumonic: str | None = None
-    private_key: str
-    public_key: str
-
-class Layer2LedgerAPIHandlerSettings(BaseModel):
-    layer2ledger_node_id: str
-    deposit_wallet_master_pubkey: str
-    minimum_layer1_transaction_amount: int
-    layer2bridge_signing_address: SettingsLayer2Address
-    deposit_transaction_pubkey: str
-    layer2bridge_signing_key_uses_functional_test_keys: bool
-    onboarding_layer2_deposit_address: SettingsLayer2Address
-
-
-def get_settings(environment: Environment = DEFAULT_ENVIRONMENT) -> Layer2LedgerAPIHandlerSettings:
-    config_path = Path((Path(ROOT_DIR).expanduser())) / environment.value / config_filename
-    if not config_path.exists():
-        raise FileNotFoundError(f"{config_filename} not found in the root directory.")
-    with open(config_path, "r") as f:
+def get_settings(environment: Environment = Environment.PROD) -> Layer2LedgerAPIHandlerSettings:
+    config_file_path = get_config_file(Services.LAYER2LEDGERBATCHED_LAYER2LEDGERAPIHANDLER, environment.value)
+    if not Path(config_file_path).exists():
+        raise FileNotFoundError(f"API Handler settings file not found at {config_file_path}.")
+    with open(config_file_path, "r") as f:
         config_data = json.load(f)
         settings = Layer2LedgerAPIHandlerSettings(**config_data)
         return settings
 
-    raise ValueError(f"Environment '{environment}' not found in config.")
+def get_layer2bridge_settings(environment: Environment = Environment.PROD) -> Layer2BridgeSettings:
+    config_file_path = get_config_file(Services.LAYER2LEDGERBRIDGE, environment.value)
+    if not Path(config_file_path).exists():
+        raise FileNotFoundError(f"Layer2Bridge settings file not found at {config_file_path}.")
+    with open(config_file_path, "r") as f:
+        config_data = json.load(f)
+        settings = Layer2BridgeSettings(**config_data)
+        return settings

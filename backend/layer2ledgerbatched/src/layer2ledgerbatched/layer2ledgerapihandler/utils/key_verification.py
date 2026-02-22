@@ -2,11 +2,12 @@
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address as Address
 from layer2ledgerbatched.common.db.models import Transaction as Transaction, TransactionType
 
-from layer2ledgerbatched.layer2ledgerapihandler.config.config import get_settings, NODE_ASSET_ID
+from layer2ledgerbatched.common.constants import NODE_ASSET_ID
+from layer2ledgerbatched.layer2ledgerapihandler.config.config import get_settings, Layer2LedgerAPIHandlerSettings
 
-settings = get_settings()
-NODE_ID = settings.layer2ledger_node_id
-LAYER2_BRIDGE_KEY_PUBKEY = settings.layer2bridge_signing_address.public_key
+_settings: Layer2LedgerAPIHandlerSettings = get_settings()
+NODE_ID = _settings.layer2ledger_node_id
+LAYER2_BRIDGE_KEY_PUBKEY = _settings.layer2bridge_signing_address.public_key
 
 
 def verifyMessageSignature(message: str, signature: str, pubkey: str) -> bool:
@@ -16,7 +17,7 @@ def verifyMessageSignature(message: str, signature: str, pubkey: str) -> bool:
 
 def verifyGetDepositAddress(source_pubkey: str, nonce: str, signature: str) -> bool:
     message = buildGetDepositAddressMessage(source_pubkey, nonce)
-    return verifyMessageSignature(message, signature, LAYER2_BRIDGE_KEY_PUBKEY)
+    return verifyMessageSignature(message, signature, source_pubkey)
 
 def buildGetDepositAddressMessage(layer2_address_public_key: str, nonce: str) -> str:
     return (NODE_ID + " " + str(NODE_ASSET_ID) + " " + str(TransactionType.INSTRUCTION_GET_DEPOSIT_ADDRESS) + ' ' + layer2_address_public_key + ' ' + nonce)
@@ -52,5 +53,13 @@ def buildLayer1AuditReportMessage(blockHeight: int, balance: float) -> str:
 def buildTransferMessage(source_pubkey: str, destination_address_pubkey: str, amount: float, fee: float, nonce: str) -> str:
     return (NODE_ID + " " + str(NODE_ASSET_ID) + " " + str(TransactionType.TRX_TRANSFER) + " " + source_pubkey + " " + destination_address_pubkey + " " + str(amount) + " " + str(fee) + " " + nonce)
 
+def verifyTransferMessage(source_pubkey: str, destination_address_pubkey: str, amount: float, fee: float, nonce: str, signature: str) -> bool:
+    message = buildTransferMessage(source_pubkey, destination_address_pubkey, amount, fee, nonce)
+    return verifyMessageSignature(message, signature, source_pubkey)
+
 def buildWithdrawalRequestMessage(source_pubkey: str, withdrawal_address: str, nonce: str, amount: float) -> str:
     return (NODE_ID + " " + str(NODE_ASSET_ID) + " " + str(TransactionType.TRX_WITHDRAWAL_INITIATED) + " " + source_pubkey + " " + withdrawal_address + ' ' + nonce + ' ' + str(amount))
+
+def verifyWithdrawalRequestMessage(source_pubkey: str, withdrawal_address: str, nonce: str, amount: float, signature: str) -> bool:
+    message = buildWithdrawalRequestMessage(source_pubkey, withdrawal_address, nonce, amount)
+    return verifyMessageSignature(message, signature, source_pubkey)

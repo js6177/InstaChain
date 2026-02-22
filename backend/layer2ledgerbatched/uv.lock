@@ -3,8 +3,10 @@ revision = 1
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.14' and platform_python_implementation != 'PyPy'",
-    "python_full_version < '3.14' and platform_python_implementation != 'PyPy'",
-    "platform_python_implementation == 'PyPy'",
+    "python_full_version == '3.13.*' and platform_python_implementation != 'PyPy'",
+    "python_full_version < '3.13' and platform_python_implementation != 'PyPy'",
+    "python_full_version >= '3.13' and platform_python_implementation == 'PyPy'",
+    "python_full_version < '3.13' and platform_python_implementation == 'PyPy'",
 ]
 
 [[package]]
@@ -65,7 +67,7 @@ wheels = [
 
 [[package]]
 name = "bip-utils"
-version = "2.9.3"
+version = "2.10.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cbor2" },
@@ -77,9 +79,9 @@ dependencies = [
     { name = "pycryptodome" },
     { name = "pynacl" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/fd/0b/c112ca753e8454d8f0ac3ddae2337f37b60c36056f9a89184f07bbed1a0c/bip_utils-2.9.3.tar.gz", hash = "sha256:72a8c95484b57e92311b0b2a3d5195b0ce4395c19a0b157d4a289e8b1300f48a", size = 335672 }
+sdist = { url = "https://files.pythonhosted.org/packages/7b/ca/c61d6d12ebb7d722fbef2ab86b146965719cd7e015c36b7f7154bde31799/bip_utils-2.10.0.tar.gz", hash = "sha256:660e3b07723a6c0750d6a4b43fc888c6a56573c73cb515e3af7e5d6e19cd5957", size = 583314 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f1/86/e7ce96e91c4cb383fc998c5c80000db92592354ec81b5f38d6f0717917dd/bip_utils-2.9.3-py3-none-any.whl", hash = "sha256:ee26b8417a576c7f89b847da37316db01a5cece1994c1609d37fbeefb91ad45e", size = 589384 },
+    { url = "https://files.pythonhosted.org/packages/3a/d3/59a21685c2ab9f508d960059e88c06f28dae5f5c3761ef06b8c8ffcaeeae/bip_utils-2.10.0-py3-none-any.whl", hash = "sha256:33792674bda552a071a539b6590b2986aa8c08d0c9c30c2566d7cb323173310d", size = 597460 },
 ]
 
 [[package]]
@@ -437,6 +439,21 @@ wheels = [
 ]
 
 [[package]]
+name = "layer1-utils"
+version = "0.1.0"
+source = { editable = "../packages/layer1_utils" }
+dependencies = [
+    { name = "bip-utils" },
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "bip-utils", specifier = ">=2.10.0" },
+    { name = "pydantic", specifier = ">=2.12.5" },
+]
+
+[[package]]
 name = "layer2address"
 version = "0.1.0"
 source = { editable = "../packages/layer2address" }
@@ -463,6 +480,7 @@ dependencies = [
     { name = "config-models" },
     { name = "fastapi" },
     { name = "fastecdsa" },
+    { name = "layer1-utils" },
     { name = "layer2address" },
     { name = "pydantic" },
     { name = "redis", extra = ["hiredis"] },
@@ -487,6 +505,7 @@ requires-dist = [
     { name = "config-models", editable = "../packages/config_models" },
     { name = "fastapi", specifier = ">=0.116.1" },
     { name = "fastecdsa", specifier = ">=3.0.1" },
+    { name = "layer1-utils", editable = "../packages/layer1_utils" },
     { name = "layer2address", editable = "../packages/layer2address" },
     { name = "pydantic", specifier = ">=2.11.7" },
     { name = "redis", extras = ["hiredis"], specifier = ">=6.4.0" },

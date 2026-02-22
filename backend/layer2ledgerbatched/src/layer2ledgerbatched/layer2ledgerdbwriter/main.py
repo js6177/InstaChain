@@ -7,7 +7,8 @@ from sqlalchemy import select
 
 import layer2ledgerbatched.common.redis.redis_driver.redis_driver as redis_driver
 
-from layer2ledgerbatched.common.config.config import get_common_settings, Environment
+from config_loader.loader import Environment
+from layer2ledgerbatched.common.config.config import get_common_settings
 from layer2ledgerbatched.common.db.models import Transaction, Layer2AddressBalance, TransactionType, Base, model_to_dict, WithdrawalRequests
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.common.redis.redis_models.transactions import PendingTransaction, PENDING_TRANSACTIONS_LIST_KEY
@@ -24,7 +25,7 @@ async def setup_clients(environment:Environment = Environment.PROD) -> tuple[red
     await lock_manager.setup()
 
     postgres_engine = create_async_engine(
-        settings.database_url,
+        settings.database.database_url,
         echo=True,
         pool_size=100,
         pool_timeout=30,

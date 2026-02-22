@@ -12,7 +12,7 @@ from layer2ledgerbatched.common.db.models import Transaction, Layer2AddressBalan
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.request_withdrawal_request import RequestWithdrawalRequest
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
 import layer2ledgerbatched.layer2ledgerapihandler.utils.error_message as error_codes
-from layer2ledgerbatched.layer2ledgerapihandler.utils.key_verification import buildWithdrawalRequestMessage as buildWithdrawalMessage, verifyWithdrawalBroadcasted, verifyWithdrawalConfirmed
+from layer2ledgerbatched.layer2ledgerapihandler.utils.key_verification import buildWithdrawalRequestMessage as buildWithdrawalMessage, verifyWithdrawalBroadcasted, verifyWithdrawalConfirmed, verifyWithdrawalRequestMessage
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.common.redis.redis_models.transactions import RedisTransaction
@@ -46,19 +46,14 @@ async def request_withdrawal(
         return CommonResponse(error_code=error_codes.ERROR_INVALID_AMOUNT, error_message=error_codes.get_error_message(error_codes.ERROR_INVALID_AMOUNT))
 
     # 2. Verify signature
-    try:
-        message = buildWithdrawalMessage(
-            source_pubkey=request.source_address_public_key,
-            withdrawal_address=request.layer1_withdrawal_address,
-            amount=request.amount,
-            nonce=request.layer2_transaction_id
-        )
-        address = Layer2Address()
-        address.from_public_key(request.source_address_public_key)
-        if not address.verify(message, request.signature):
-            return CommonResponse(error_code=error_codes.ERROR_INVALID_SIGNATURE, error_message=error_codes.get_error_message(error_codes.ERROR_INVALID_SIGNATURE))
-    except Exception as e:
-        return CommonResponse(error_code=error_codes.ERROR_INVALID_SIGNATURE, error_message=str(e))
+    if not verifyWithdrawalRequestMessage(
+        source_pubkey=request.source_address_public_key,
+        withdrawal_address=request.layer1_withdrawal_address,
+        amount=request.amount,
+        nonce=request.layer2_transaction_id,
+        signature=request.signature
+    ):
+        return CommonResponse(error_code=error_codes.ERROR_INVALID_SIGNATURE, error_message=error_codes.get_error_message(error_codes.ERROR_INVALID_SIGNATURE))
 
     # 3. Acquire lock
     addresses_to_lock = [request.source_address_public_key]

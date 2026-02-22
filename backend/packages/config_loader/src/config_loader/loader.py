@@ -9,6 +9,10 @@ class Services(StrEnum):
     LAYER2LEDGEROAUTHMANAGER = 'layer2ledgeroauthmanager'
     LAYER2LEDGERBRIDGE = 'layer2ledgerbridge'
 
+class Environment(StrEnum):
+    DEV = "dev"
+    PROD = "prod"
+
 # Gets the path where all the configuration files are stored, based on these 3 criteria:
 # 1. If the environment variable OPENL2_CONFIG_PATH is set, use that path.
 # 2. Local project root directory (where the .git folder is located) in the '/.config' directory.

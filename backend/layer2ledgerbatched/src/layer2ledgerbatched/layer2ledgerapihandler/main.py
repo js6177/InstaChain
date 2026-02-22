@@ -5,7 +5,8 @@ from typing import AsyncGenerator, Dict
 import redis
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, AsyncEngine, async_sessionmaker
 
-from layer2ledgerbatched.common.config.config import Environment, get_common_settings
+from config_loader.loader import Environment
+from layer2ledgerbatched.common.config.config import get_common_settings
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.sample_request import SampleRequest
 from layer2ledgerbatched.common.db.models import Base
@@ -32,7 +33,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.redis_lock_manager = redis_lock_manager
 
     postgres_engine: AsyncEngine = create_async_engine(
-        settings.database_url, 
+        settings.database.database_url, 
         echo=False,
         pool_size=20, 
         pool_timeout=30,

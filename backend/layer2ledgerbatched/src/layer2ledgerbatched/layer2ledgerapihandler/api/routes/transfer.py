@@ -12,7 +12,7 @@ from layer2ledgerbatched.common.db.models import Transaction, Layer2AddressBalan
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.push_transaction_request import PushTransactionRequest
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
 import layer2ledgerbatched.layer2ledgerapihandler.utils.error_message as error_codes
-from layer2ledgerbatched.layer2ledgerapihandler.utils.key_verification import buildTransferMessage
+from layer2ledgerbatched.layer2ledgerapihandler.utils.key_verification import buildTransferMessage, verifyTransferMessage
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.common.redis.redis_models.transactions import RedisTransaction, PendingTransaction, PENDING_TRANSACTIONS_LIST_KEY
@@ -39,20 +39,15 @@ async def create_transfer(
         return CommonResponse(error_code=error_codes.ERROR_INVALID_AMOUNT, error_message=error_codes.get_error_message(error_codes.ERROR_INVALID_AMOUNT))
 
     # 2. Verify signature
-    try:
-        message = buildTransferMessage(
-            source_pubkey=request.source_address_public_key,
-            destination_address_pubkey=request.destination_address_public_key,
-            amount=request.amount,
-            fee=request.fee,
-            nonce=request.transaction_id
-        )
-        address = Layer2Address()
-        address.from_public_key(request.source_address_public_key)
-        if not address.verify(message, request.signature):
-            return CommonResponse(error_code=error_codes.ERROR_INVALID_SIGNATURE, error_message=error_codes.get_error_message(error_codes.ERROR_INVALID_SIGNATURE))
-    except Exception as e:
-        return CommonResponse(error_code=error_codes.ERROR_INVALID_SIGNATURE, error_message=str(e))
+    if not verifyTransferMessage(
+        source_pubkey=request.source_address_public_key,
+        destination_address_pubkey=request.destination_address_public_key,
+        amount=request.amount,
+        fee=request.fee,
+        nonce=request.transaction_id,
+        signature=request.signature
+    ):
+        return CommonResponse(error_code=error_codes.ERROR_INVALID_SIGNATURE, error_message=error_codes.get_error_message(error_codes.ERROR_INVALID_SIGNATURE))
 
     # 3. Acquire lock
     addresses_to_lock = sorted([request.source_address_public_key, request.destination_address_public_key])

@@ -20,7 +20,8 @@ dependencies = [
     "uvicorn>=0.35.0",
     "config-models",
     "config-loader",
-    "layer2address"
+    "layer2address",
+    "layer1-utils"
 ]
 
 [dependency-groups]
@@ -38,6 +39,8 @@ package = true
 config-models = { path = "../packages/config_models", editable = true }
 config-loader = { path = "../packages/config_loader", editable = true }
 layer2address = { path = "../packages/layer2address", editable = true }
+layer1-utils = { path = "../packages/layer1_utils", editable = true }
+
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/layer2ledgerbatched"]
