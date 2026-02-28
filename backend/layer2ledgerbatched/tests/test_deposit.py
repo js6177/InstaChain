@@ -18,7 +18,7 @@ from layer2ledgerbatched.layer2ledgerapihandler.utils.key_verification import bu
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address
 import layer2ledgerbatched.layer2ledgerapihandler.utils.error_message as error_codes
 from config_models.models import Layer2LedgerCommonSettings, Layer2LedgerAPIHandlerSettings, Layer2BridgeSettings
-from config_loader.loader import Environment, Services, get_config_file
+from config_loader.loader import Environment, Services
 
 from layer2ledgerbatched.common.redis.redis_models.transactions import PENDING_TRANSACTIONS_LIST_KEY, PendingTransaction
 

@@ -105,4 +105,8 @@ class Layer2BridgeSettings(BaseModel):
     import_wallet_privkey_startup_count: int | None = 1000
     import_wallet_privkey_loop_count: int | None = 0
     database_audit_name: str | None = None
+
+#Common settings that all backend services can access
+class CommonBackendSettings(BaseModel):
+    node_id: str
     

@@ -1,5 +1,5 @@
 from config_models import Layer2LedgerCommonSettings, SettingsLayer2Address, Layer2LedgerAPIHandlerSettings, PostgresqlDatabaseSettings, RedisSettings, Layer2LedgerDockerEnvSettings, Layer2BridgeBitcoinConfFileSettings, Layer2BridgeSettings
-from config_loader import get_config_path, get_env_specific_config_path, get_project_root, get_config_file, get_layer2bridge_bitcoinconf_file_path, Services
+from config_loader import get_config_directory, get_env_specific_config_directory, get_project_root, get_config_file_path, get_layer2bridge_bitcoinconf_file_path, get_bitcoincore_conf_directory, Services
 from misc_utils import generate_secure_password, generate_alphanumeric_id
 from layer2address import Layer2Address
 from layer1_utils import generate_mnemonic, generate_master_keys_segwit, generate_bitcoin_core_descriptor_segwit, derive_address_from_xpub_segwit, MasterKeys, BitcoinCoreDescriptor
@@ -10,6 +10,7 @@ import string
 import asyncio
 import json
 import argparse
+import shutil
 from configobj import ConfigObj
 from pathlib import Path
 from typing import Tuple, Optional
@@ -33,18 +34,17 @@ def get_layer2ledgerbatched_docker_env_settings(environment: str) -> Layer2Ledge
     Loads and returns the Layer2LedgerDockerEnvSettings for the specified environment.
     """
     root_path = get_project_root()
-    config_file_path = root_path + '/backend/layer2ledgerbatched' + f'/.env.{environment}'
-    settings = Layer2LedgerDockerEnvSettings.load_from_path(config_file_path)
+    config_file_path = root_path / 'backend/layer2ledgerbatched' / f'.env.{environment}'
+    settings = Layer2LedgerDockerEnvSettings.load_from_path(str(config_file_path))
     return settings
 
 def generate_keys(env: str, containered: bool = True) -> Tuple[Layer2BridgeSettings, MasterKeys]:
     print(f"\nLoading configurations for environment: {env}")
 
     project_root = get_project_root()
-    out_config_dir = get_env_specific_config_path(environment=env) # Directory where the generated config files will be stored
-    out_config_dir_path = Path(out_config_dir)
-    if not out_config_dir_path.exists():
-        out_config_dir_path.mkdir(parents=True, exist_ok=True)
+    out_config_dir = get_env_specific_config_directory(environment=env) # Directory where the generated config files will be stored
+    if not out_config_dir.exists():
+        out_config_dir.mkdir(parents=True, exist_ok=True)
     print(f"Project root is at: {project_root}")
     print(f"Output config path is at: {out_config_dir}")
 
@@ -97,8 +97,8 @@ def generate_keys(env: str, containered: bool = True) -> Tuple[Layer2BridgeSetti
     )
 
     layer2bridge_bitcoinconf_file_path = get_layer2bridge_bitcoinconf_file_path()
-    layer2bridge_bitcoinconfig_obj = ConfigObj(layer2bridge_bitcoinconf_file_path, encoding='utf-8')
-    new_btc_rpcpassword = 'f4cB39dA2kp5Vh' # generate_secure_password(16) # hardcoded for now. TODO: uncomment
+    layer2bridge_bitcoinconfig_obj = ConfigObj(str(layer2bridge_bitcoinconf_file_path), encoding='utf-8')
+    new_btc_rpcpassword = generate_secure_password(16)
     
 
     selected_chain = layer2bridge_bitcoinconfig_obj.get('chain')
@@ -125,20 +125,20 @@ def generate_keys(env: str, containered: bool = True) -> Tuple[Layer2BridgeSetti
 
     )
 
-    with open(get_config_file('bitcoin.conf', env), 'wb') as f:
+    with open(get_config_file_path('bitcoin.conf', env), 'wb') as f:
         layer2bridge_bitcoinconfig_obj.write(f)
 
-    with open(get_config_file(Services.LAYER2LEDGERBATCHED_COMMON, env), 'w') as f:
+    with open(get_config_file_path(Services.LAYER2LEDGERBATCHED_COMMON, env), 'w') as f:
         f.write(layer2ledgerbatched_common_settings.model_dump_json(indent=4))
 
-    with open(get_config_file(Services.LAYER2LEDGERBATCHED_LAYER2LEDGERAPIHANDLER, env), 'w') as f:
+    with open(get_config_file_path(Services.LAYER2LEDGERBATCHED_LAYER2LEDGERAPIHANDLER, env), 'w') as f:
         f.write(layer2ledgerbatched_layer2ledgerapihandler_settings.model_dump_json(indent=4))
 
-    with open(get_config_file(Services.LAYER2LEDGERBRIDGE, env), 'w') as f:
+    with open(get_config_file_path(Services.LAYER2LEDGERBRIDGE, env), 'w') as f:
         f.write(layer2bridge_settings.model_dump_json(indent=4))
 
     # Store MasterKeys in a temp file
-    temp_keys_path = get_config_file(Intermediate.BITCOIN_CORE_MASTER_KEYS, env)
+    temp_keys_path = get_config_file_path(Intermediate.BITCOIN_CORE_MASTER_KEYS, env)
     with open(temp_keys_path, 'w') as f:
         f.write(btc_keys.model_dump_json(indent=4))
     print(f"Master keys saved to: {temp_keys_path}")
@@ -147,18 +147,18 @@ def generate_keys(env: str, containered: bool = True) -> Tuple[Layer2BridgeSetti
 
 async def import_keys_to_bitcoin_core(env: str, bridge_settings: Optional[Layer2BridgeSettings] = None, btc_keys: Optional[MasterKeys] = None) -> None:
     if bridge_settings is None:
-        bridge_settings_path = get_config_file(Services.LAYER2LEDGERBRIDGE, env)
+        bridge_settings_path = get_config_file_path(Services.LAYER2LEDGERBRIDGE, env)
         print(f"Loading bridge settings from: {bridge_settings_path}")
-        if not Path(bridge_settings_path).exists():
+        if not bridge_settings_path.exists():
             print(f"Error: Bridge settings file not found at {bridge_settings_path}. Run with -generate-keys first.")
             return
         with open(bridge_settings_path, 'r') as f:
             bridge_settings = Layer2BridgeSettings.model_validate_json(f.read())
     
     if btc_keys is None:
-        temp_keys_path = get_config_file(Intermediate.BITCOIN_CORE_MASTER_KEYS, env)
+        temp_keys_path = get_config_file_path(Intermediate.BITCOIN_CORE_MASTER_KEYS, env)
         print(f"Loading master keys from: {temp_keys_path}")
-        if not Path(temp_keys_path).exists():
+        if not temp_keys_path.exists():
             print(f"Error: Master keys file not found at {temp_keys_path}. Run with -generate-keys first.")
             return
         with open(temp_keys_path, 'r') as f:
@@ -241,11 +241,12 @@ async def import_keys_to_bitcoin_core(env: str, bridge_settings: Optional[Layer2
         print(f"Verification failed with error: {e}")
 
 async def main() -> None:
-    parser = argparse.ArgumentParser(description='Setup scripts for InstaChain')
+    parser = argparse.ArgumentParser(description='Setup scripts for OpenL2')
     parser.add_argument('-env', type=str, default='dev', help='Environment to use (default: dev)')
     parser.add_argument('-generate-keys', action='store_true', help='Generate keys and save to config files')
     parser.add_argument('-import-keys-to-bitcoin-core', action='store_true', help='Import generated keys to Bitcoin Core')
     parser.add_argument('-containered', type=str2bool, default=True, help='Whether the setup is for a containered environment (default: True)')
+    parser.add_argument('-overwrite-bitcoinconf', action='store_true', default=False, help='Overwrite the system bitcoin.conf with the project one (only if -containered is False) (default: True)')
     args = parser.parse_args()
 
     if not args.generate_keys and not args.import_keys_to_bitcoin_core:
@@ -257,6 +258,22 @@ async def main() -> None:
 
     if args.generate_keys:
         bridge_settings, btc_keys = generate_keys(args.env, containered=args.containered)
+
+    if not args.containered and args.overwrite_bitcoinconf:
+        source = get_config_file_path('bitcoin.conf', args.env)
+        dest_dir = get_bitcoincore_conf_directory()
+        dest = dest_dir / "bitcoin.conf"
+        
+        print(f"Overwriting system bitcoin.conf at {dest} with {source}")
+        if not dest_dir.exists():
+            dest_dir.mkdir(parents=True, exist_ok=True)
+        
+        shutil.copy2(source, dest)
+
+        if args.import_keys_to_bitcoin_core:
+            input("Start bitcoin core, and press Enter to import key import...")
+
+
 
     if args.import_keys_to_bitcoin_core:
         await import_keys_to_bitcoin_core(args.env, bridge_settings, btc_keys)
