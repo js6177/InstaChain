@@ -25,19 +25,19 @@ To run the layer2ledgerapihandler as a docker container, run:
 `docker-compose up --build`
 
 ## Running layer2ledgerapihandler locally (pytest and uvicorn server)
-To run the layer2ledgerapihandler from a regular command line (Linux), you must first activate the virtual env, and install in locally
+To run the layer2ledgerapihandler from a regular command line (Linux), so you must first sync the project
 
-`source .venv/bin/activate`
-
-`uv pip install -e .`
-
-Then you can run the pytest:
-
-`uv run pytest`
+`uv sync`
 
 And run the uvicorn ASGI server:
 
-`uv run uvicorn src.layer2ledgerbatched.layer2ledgerapihandler.main:app --host 0.0.0.0 --port 8000`
+`uv run uvicorn layer2ledgerbatched.layer2ledgerapihandler.main:app --host 0.0.0.0 --port 8080`
+
+## Running layer2ledgerdbwriter locally
+
+`uv sync`
+
+`uv run src/layer2ledgerbatched/layer2ledgerdbwriter/main.py`
 
 
 # General concepts
