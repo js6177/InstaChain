@@ -16,7 +16,7 @@ from layer2ledgerbatched.common.db.models import Layer2AddressBalance, Transacti
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.push_transaction_request import PushTransactionRequest
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
 from layer2ledgerbatched.common.redis.redis_models.transactions import RedisTransaction, PendingTransaction, PENDING_TRANSACTIONS_LIST_KEY
-from layer2ledgerbatched.layer2ledgerapihandler.utils.key_verification import buildTransferMessage
+from openl2_messaging import buildTransferMessage
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address
 import layer2ledgerbatched.layer2ledgerapihandler.utils.error_message as error_codes
 
