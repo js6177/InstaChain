@@ -135,7 +135,7 @@ async def get_fee(request: GetFeeRequest) -> GetFeeResponse:
     """
     Gets the current transaction fee.
     """
-    settings = get_layer2ledgerbatched_layer2ledgerapihandler_config(Environment.PROD)
+    settings = get_layer2ledgerbatched_layer2ledgerapihandler_config()
     return GetFeeResponse(
         fee=settings.minimum_layer1_transaction_amount,
         error_code=ERROR_SUCCESS,

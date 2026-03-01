@@ -13,7 +13,7 @@ from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import Distr
 from layer2ledgerbatched.common.redis.redis_models.transactions import PendingTransaction, PENDING_TRANSACTIONS_LIST_KEY
 from layer2ledgerbatched.common.redis.redis_models.withdrawal import PendingWithdrawal, PENDING_WITHDRAWALS_LIST_KEY
 
-async def setup_clients(environment:Environment = Environment.PROD) -> tuple[redis.Redis, AsyncSession, DistributedLock]:
+async def setup_clients(environment:Environment = Environment.DEFAULT) -> tuple[redis.Redis, AsyncSession, DistributedLock]:
     settings = get_layer2ledgerbatched_common_config(environment.value)
     redis_pool = redis.ConnectionPool.from_url(
         f"redis://{settings.redis.host}:{settings.redis.port}",
@@ -40,7 +40,7 @@ async def setup_clients(environment:Environment = Environment.PROD) -> tuple[red
 
     return redis_client, db, lock_manager
 
-async def process_pending_transactions(environment: Environment = Environment.PROD) -> None:
+async def process_pending_transactions(environment: Environment = Environment.DEFAULT) -> None:
     redis_client, db, lock_manager = await setup_clients(environment)
 
     while True:

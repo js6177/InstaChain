@@ -41,7 +41,7 @@ def layer1_address() -> str:
 @pytest.fixture(scope="module")
 def bridge_address() -> Layer2Address:
     # In a real scenario, this would be loaded from config
-    bridge_settings: Layer2BridgeSettings = get_layer2ledgerbridge_config(Environment.PROD)
+    bridge_settings: Layer2BridgeSettings = get_layer2ledgerbridge_config()
     addr = Layer2Address("bridge_address")
     addr.from_private_key(bridge_settings.onboarding_signing_private_key)
     return addr

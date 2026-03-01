@@ -5,7 +5,7 @@ from config_loader.loader import get_backend_common_config, Environment
 from .constants import NODE_ASSET_ID
 from config_models import CommonBackendSettings
 
-_settings: CommonBackendSettings = get_backend_common_config(Environment.PROD)
+_settings: CommonBackendSettings = get_backend_common_config()
 NODE_ID = _settings.node_id
 LAYER2_BRIDGE_KEY_PUBKEY = _settings.layer2bridge_signing_public_key
 

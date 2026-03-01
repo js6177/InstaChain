@@ -250,5 +250,5 @@ async def test_get_fee(postgresql_session: AsyncSession) -> None:
     assert response.status_code == 200
     response_model = GetFeeResponse.model_validate(response.json())
     assert response_model.error_code == ERROR_SUCCESS
-    settings = get_layer2ledgerbatched_layer2ledgerapihandler_config(Environment.PROD)
+    settings = get_layer2ledgerbatched_layer2ledgerapihandler_config()
     assert response_model.fee == settings.minimum_layer1_transaction_amount

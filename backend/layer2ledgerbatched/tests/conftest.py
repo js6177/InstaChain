@@ -19,15 +19,15 @@ async def setup_test_environment():
 
 @pytest.fixture(scope="session")
 def common_settings() -> Layer2LedgerCommonSettings:
-    return get_layer2ledgerbatched_common_config(Environment.DEV.value)
+    return get_layer2ledgerbatched_common_config()
 
 @pytest.fixture(scope="session")
 def layer2ledgerapihandler_settings() -> Layer2LedgerAPIHandlerSettings:
-    return get_layer2ledgerbatched_layer2ledgerapihandler_config(Environment.DEV.value)
+    return get_layer2ledgerbatched_layer2ledgerapihandler_config()
 
 @pytest_asyncio.fixture(scope="function")
 async def redis_client() -> AsyncGenerator[Redis, None]:
-    settings = get_layer2ledgerbatched_common_config(Environment.DEV.value)
+    settings = get_layer2ledgerbatched_common_config()
     pool = ConnectionPool.from_url(f"redis://{settings.redis.host}:{settings.redis.port}", max_connections=10)
     client = Redis(connection_pool=pool)
     yield client
@@ -35,7 +35,7 @@ async def redis_client() -> AsyncGenerator[Redis, None]:
 
 @pytest_asyncio.fixture(scope="function")
 async def postgresql_session() -> AsyncGenerator[AsyncSession, None]:
-    settings = get_layer2ledgerbatched_common_config(Environment.DEV.value)
+    settings = get_layer2ledgerbatched_common_config()
     engine = create_async_engine(settings.database.database_url, echo=False, pool_size=10, pool_timeout=30)
     async_session = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as conn:

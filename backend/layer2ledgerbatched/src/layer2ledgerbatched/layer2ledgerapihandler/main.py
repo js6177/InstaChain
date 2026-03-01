@@ -17,7 +17,7 @@ from layer2ledgerbatched.layer2ledgerapihandler.utils.sessions import get_redis,
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    settings = get_layer2ledgerbatched_common_config(Environment.PROD)
+    settings = get_layer2ledgerbatched_common_config()
     redis_pool = redis.asyncio.ConnectionPool.from_url(
             f"redis://{settings.redis.host}:{settings.redis.port}",
             max_connections=20

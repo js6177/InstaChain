@@ -20,6 +20,7 @@ class Services(StrEnum):
 class Environment(StrEnum):
     DEV = "dev"
     PROD = "prod"
+    DEFAULT = "prod" # default to prod if not specified
 
 # Gets the directory where all the configuration files are stored, based on these 3 criteria:
 # 1. If the environment variable OPENL2_CONFIG_PATH is set, use that path.
@@ -52,7 +53,7 @@ def get_config_directory() -> Path:
 
     return system_config_path
 
-def get_env_specific_config_directory(environment: str) -> Path:
+def get_env_specific_config_directory(environment: str = Environment.DEFAULT.value) -> Path:
     """
     Returns the path to the configuration file for a specific environment (e.g., dev, staging, prod).
     """
@@ -71,7 +72,7 @@ def get_bitcoincore_conf_directory() -> Path:
         return Path.home() / ".bitcoin"
 
 # Returns the full path of the config file
-def get_config_file_path(service: str, environment: str) -> Path:
+def get_config_file_path(service: str, environment: str = Environment.DEFAULT.value) -> Path:
     """
     Returns the full path to the configuration file for a given service and environment.
     """
@@ -83,7 +84,7 @@ def get_config_file_path(service: str, environment: str) -> Path:
     config_file = config_path / environment / service_file_name
     return config_file
 
-def docker_env_file_path(service: str, environment: str) -> Path:
+def docker_env_file_path(service: str, environment: str = Environment.DEFAULT.value) -> Path:
     """
     Returns the full path to the Docker environment file for a given service and environment.
     """
@@ -112,7 +113,7 @@ def get_project_root() -> Path:
             return parent
     raise FileNotFoundError("Project root with .git folder not found.")
 
-def get_layer2ledgerbatched_common_config(environment: str) -> Layer2LedgerCommonSettings:
+def get_layer2ledgerbatched_common_config(environment: str = Environment.DEFAULT.value) -> Layer2LedgerCommonSettings:
     """
     Returns the Layer2LedgerCommonSettings model for the given environment.
     """
@@ -121,7 +122,7 @@ def get_layer2ledgerbatched_common_config(environment: str) -> Layer2LedgerCommo
         config_data = json.load(f)
     return Layer2LedgerCommonSettings.model_validate(config_data)
 
-def get_layer2ledgerbatched_layer2ledgerapihandler_config(environment: str) -> Layer2LedgerAPIHandlerSettings:
+def get_layer2ledgerbatched_layer2ledgerapihandler_config(environment: str = Environment.DEFAULT.value) -> Layer2LedgerAPIHandlerSettings:
     """
     Returns the Layer2LedgerAPIHandlerSettings model for the given environment.
     """
@@ -130,7 +131,7 @@ def get_layer2ledgerbatched_layer2ledgerapihandler_config(environment: str) -> L
         config_data = json.load(f)
     return Layer2LedgerAPIHandlerSettings.model_validate(config_data)
 
-def get_layer2ledgerbridge_config(environment: str) -> Layer2BridgeSettings:
+def get_layer2ledgerbridge_config(environment: str = Environment.DEFAULT.value) -> Layer2BridgeSettings:
     """
     Returns the Layer2BridgeSettings model for the given environment.
     """
@@ -139,7 +140,7 @@ def get_layer2ledgerbridge_config(environment: str) -> Layer2BridgeSettings:
         config_data = json.load(f)
     return Layer2BridgeSettings.model_validate(config_data)
 
-def get_backend_common_config(environment: str) -> CommonBackendSettings:
+def get_backend_common_config(environment: str = Environment.DEFAULT.value) -> CommonBackendSettings:
     """
     Returns the CommonBackendSettings model for the given environment.
     """

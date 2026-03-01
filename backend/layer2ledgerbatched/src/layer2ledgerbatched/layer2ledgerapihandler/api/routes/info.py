@@ -22,7 +22,7 @@ async def get_node_info() -> GetNodeInfoResponse:
     """
     Returns information about the node, such as node ID, name, asset ID, and version.
     """
-    settings = get_layer2ledgerbatched_layer2ledgerapihandler_config(Environment.PROD)
+    settings = get_layer2ledgerbatched_layer2ledgerapihandler_config()
 
     # TODO: Get version from a more reliable source
     version = Version(

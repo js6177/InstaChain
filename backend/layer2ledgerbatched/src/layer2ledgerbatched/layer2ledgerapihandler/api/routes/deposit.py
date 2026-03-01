@@ -25,7 +25,7 @@ router = APIRouter()
 async def get_deposit_address(
     request: GetDepositAddressRequest,
     db: AsyncSession = Depends(get_db_session),
-    settings: Layer2LedgerAPIHandlerSettings = Depends(lambda: get_layer2ledgerbatched_layer2ledgerapihandler_config(Environment.PROD))
+    settings: Layer2LedgerAPIHandlerSettings = Depends(lambda: get_layer2ledgerbatched_layer2ledgerapihandler_config())
 ) -> GetDepositAddressResponse:
     if not request.layer2_address_pubkey or not request.layer2_address_pubkey.isalnum():
         return GetDepositAddressResponse(error_code=error_codes.ERROR_INVALID_SOURCE_ADDRESS, error_message=error_codes.get_error_message(error_codes.ERROR_INVALID_SOURCE_ADDRESS))
@@ -67,7 +67,7 @@ async def deposit_confirmed(
     request: DepositConfirmedRequest,
     db: AsyncSession = Depends(get_db_session),
     redis_client: redis.asyncio.Redis = Depends(get_redis),
-    settings: Layer2LedgerAPIHandlerSettings = Depends(lambda: get_layer2ledgerbatched_layer2ledgerapihandler_config(Environment.PROD))
+    settings: Layer2LedgerAPIHandlerSettings = Depends(lambda: get_layer2ledgerbatched_layer2ledgerapihandler_config())
 ) -> DepositConfirmedResponse:
     successful_transactions: list[Layer1DepositConfirmedTransaction] = []
     for deposit_confirmed in request.transactions:
