@@ -39,7 +39,7 @@ from layer2ledgerbatched.layer2ledgerapihandler.api.routes.route_defs import (
     GET_FEE_ROUTE,
     GET_TRANSACTION_ROUTE,
 )
-from layer2ledgerbatched.layer2ledgerapihandler.config.config import get_settings
+from config_loader.loader import get_layer2ledgerbatched_layer2ledgerapihandler_config, Environment
 from layer2ledgerbatched.layer2ledgerapihandler.utils.error_message import (
     ERROR_SUCCESS,
     ERROR_TRANSACTION_ID_NOT_FOUND,
@@ -250,4 +250,5 @@ async def test_get_fee(postgresql_session: AsyncSession) -> None:
     assert response.status_code == 200
     response_model = GetFeeResponse.model_validate(response.json())
     assert response_model.error_code == ERROR_SUCCESS
-    assert response_model.fee == get_settings().minimum_layer1_transaction_amount
+    settings = get_layer2ledgerbatched_layer2ledgerapihandler_config(Environment.PROD)
+    assert response_model.fee == settings.minimum_layer1_transaction_amount

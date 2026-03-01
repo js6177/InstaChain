@@ -6,7 +6,7 @@ from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.get_node_in
     Version,
 )
 from layer2ledgerbatched.common.constants import NODE_ASSET_ID
-from layer2ledgerbatched.layer2ledgerapihandler.config.config import get_settings
+from config_loader.loader import get_layer2ledgerbatched_layer2ledgerapihandler_config, Environment
 from layer2ledgerbatched.layer2ledgerapihandler.utils.error_message import (
     ERROR_SUCCESS,
     get_error_message,
@@ -22,7 +22,7 @@ async def get_node_info() -> GetNodeInfoResponse:
     """
     Returns information about the node, such as node ID, name, asset ID, and version.
     """
-    settings = get_settings()
+    settings = get_layer2ledgerbatched_layer2ledgerapihandler_config(Environment.PROD)
 
     # TODO: Get version from a more reliable source
     version = Version(

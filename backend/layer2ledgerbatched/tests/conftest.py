@@ -5,10 +5,8 @@ from redis.asyncio import ConnectionPool, Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from config_loader.loader import Environment
+from config_loader.loader import Environment, get_layer2ledgerbatched_common_config, get_layer2ledgerbatched_layer2ledgerapihandler_config
 from config_models.models import Layer2LedgerCommonSettings, Layer2LedgerAPIHandlerSettings
-from layer2ledgerbatched.common.config.config import get_common_settings
-from layer2ledgerbatched.layer2ledgerapihandler.config.config import get_settings as get_layer2ledgerapihandler_settings
 from layer2ledgerbatched.common.db.models import Base
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.layer2ledgerapihandler.main import app, lifespan
@@ -21,15 +19,15 @@ async def setup_test_environment():
 
 @pytest.fixture(scope="session")
 def common_settings() -> Layer2LedgerCommonSettings:
-    return get_common_settings(Environment.DEV)
+    return get_layer2ledgerbatched_common_config(Environment.DEV.value)
 
 @pytest.fixture(scope="session")
 def layer2ledgerapihandler_settings() -> Layer2LedgerAPIHandlerSettings:
-    return get_layer2ledgerapihandler_settings(Environment.DEV)
+    return get_layer2ledgerbatched_layer2ledgerapihandler_config(Environment.DEV.value)
 
 @pytest_asyncio.fixture(scope="function")
 async def redis_client() -> AsyncGenerator[Redis, None]:
-    settings = get_common_settings(Environment.DEV)
+    settings = get_layer2ledgerbatched_common_config(Environment.DEV.value)
     pool = ConnectionPool.from_url(f"redis://{settings.redis.host}:{settings.redis.port}", max_connections=10)
     client = Redis(connection_pool=pool)
     yield client
@@ -37,7 +35,7 @@ async def redis_client() -> AsyncGenerator[Redis, None]:
 
 @pytest_asyncio.fixture(scope="function")
 async def postgresql_session() -> AsyncGenerator[AsyncSession, None]:
-    settings = get_common_settings(Environment.DEV)
+    settings = get_layer2ledgerbatched_common_config(Environment.DEV.value)
     engine = create_async_engine(settings.database.database_url, echo=False, pool_size=10, pool_timeout=30)
     async_session = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as conn:

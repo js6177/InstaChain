@@ -32,7 +32,7 @@ from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.get_transac
     TransactionGroup,
 )
 
-from layer2ledgerbatched.layer2ledgerapihandler.config.config import get_settings
+from config_loader.loader import get_layer2ledgerbatched_layer2ledgerapihandler_config, Environment
 from layer2ledgerbatched.layer2ledgerapihandler.utils.error_message import (
     get_error_message,
     ERROR_TRANSACTION_ID_NOT_FOUND,
@@ -135,8 +135,9 @@ async def get_fee(request: GetFeeRequest) -> GetFeeResponse:
     """
     Gets the current transaction fee.
     """
+    settings = get_layer2ledgerbatched_layer2ledgerapihandler_config(Environment.PROD)
     return GetFeeResponse(
-        fee=get_settings().minimum_layer1_transaction_amount,
+        fee=settings.minimum_layer1_transaction_amount,
         error_code=ERROR_SUCCESS,
         error_message=get_error_message(ERROR_SUCCESS),
     )

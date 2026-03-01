@@ -3,9 +3,10 @@ from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer
 from layer2ledgerbatched.common.db.models import Transaction as Transaction, TransactionType
 
 from layer2ledgerbatched.common.constants import NODE_ASSET_ID
-from layer2ledgerbatched.layer2ledgerapihandler.config.config import get_settings, Layer2LedgerAPIHandlerSettings
+from config_loader.loader import get_layer2ledgerbatched_layer2ledgerapihandler_config, Environment
+from config_models.models import Layer2LedgerAPIHandlerSettings
 
-_settings: Layer2LedgerAPIHandlerSettings = get_settings()
+_settings: Layer2LedgerAPIHandlerSettings = get_layer2ledgerbatched_layer2ledgerapihandler_config(Environment.PROD)
 NODE_ID = _settings.layer2ledger_node_id
 LAYER2_BRIDGE_KEY_PUBKEY = _settings.layer2bridge_signing_address.public_key
 

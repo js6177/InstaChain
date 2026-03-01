@@ -23,6 +23,7 @@ from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.withdrawal_b
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.withdrawal_broadcasted_response import WithdrawalBroadcastedResponse, Layer1BroadcastedWithdrawalTransactionStatus
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.withdrawal_confirmed_request import WithdrawalConfirmedRequest, Layer1WithdrawalConfirmedTransaction
 from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.withdrawal_confirmed_response import WithdrawalConfirmedResponse, Layer1WithdrawalConfirmedTransactionStatus
+from config_loader.loader import get_layer2ledgerbatched_layer2ledgerapihandler_config, Environment
 from .route_defs import REQUEST_WITHDRAWAL_ROUTE, GET_WITHDRAWAL_REQUESTS_ROUTE, WITHDRAWAL_BROADCASTED_ROUTE, WITHDRAWAL_CONFIRMED_ROUTE
 
 
@@ -87,7 +88,7 @@ async def request_withdrawal(
             amount=request.amount,
             fee=0,
             source_address_pubkey=request.source_address_public_key,
-            destination_address_pubkey="", # Destination is a layer1 address
+            destination_address_pubkey='', # Destination is a layer1 address
             transaction_type=TransactionType.TRX_WITHDRAWAL_INITIATED,
             layer2_transaction_id=request.layer2_transaction_id,
             signature=request.signature,

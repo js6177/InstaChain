@@ -7,15 +7,14 @@ from sqlalchemy import select
 
 import layer2ledgerbatched.common.redis.redis_driver.redis_driver as redis_driver
 
-from config_loader.loader import Environment
-from layer2ledgerbatched.common.config.config import get_common_settings
+from config_loader.loader import Environment, get_layer2ledgerbatched_common_config
 from layer2ledgerbatched.common.db.models import Transaction, Layer2AddressBalance, TransactionType, Base, model_to_dict, WithdrawalRequests
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.common.redis.redis_models.transactions import PendingTransaction, PENDING_TRANSACTIONS_LIST_KEY
 from layer2ledgerbatched.common.redis.redis_models.withdrawal import PendingWithdrawal, PENDING_WITHDRAWALS_LIST_KEY
 
 async def setup_clients(environment:Environment = Environment.PROD) -> tuple[redis.Redis, AsyncSession, DistributedLock]:
-    settings = get_common_settings(environment)
+    settings = get_layer2ledgerbatched_common_config(environment.value)
     redis_pool = redis.ConnectionPool.from_url(
         f"redis://{settings.redis.host}:{settings.redis.port}",
         max_connections=20

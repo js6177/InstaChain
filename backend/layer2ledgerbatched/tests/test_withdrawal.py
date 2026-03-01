@@ -1,5 +1,5 @@
 import asyncio
-from config_models import Layer2BridgeSettings
+from config_models.models import Layer2BridgeSettings
 import pytest
 import httpx
 import threading
@@ -24,6 +24,7 @@ from layer2ledgerbatched.layer2ledgerapihandler.utils.key_verification import bu
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address
 import layer2ledgerbatched.layer2ledgerapihandler.utils.error_message as error_codes
 
+from config_loader.loader import get_layer2ledgerbridge_config, Environment
 from layer2ledgerbatched.layer2ledgerdbwriter.main import process_pending_transactions
 
 
@@ -40,13 +41,13 @@ def layer1_address() -> str:
 @pytest.fixture(scope="module")
 def bridge_address() -> Layer2Address:
     # In a real scenario, this would be loaded from config
-    bridge_settings: Layer2BridgeSettings = get_layer2bridge_settings()
+    bridge_settings: Layer2BridgeSettings = get_layer2ledgerbridge_config(Environment.PROD)
     addr = Layer2Address("bridge_address")
     addr.from_private_key(bridge_settings.onboarding_signing_private_key)
     return addr
 
 
-from layer2ledgerbatched.layer2ledgerapihandler.config.config import Layer2LedgerAPIHandlerSettings, get_layer2bridge_settings
+from config_models.models import Layer2LedgerAPIHandlerSettings
 
 # Tests a simple withdrawal flow: request withdrawal, broadcast, confirm
 @pytest.mark.asyncio

@@ -15,7 +15,8 @@ from layer2ledgerbatched.layer2ledgerapihandler.utils.key_verification import ve
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address
 from layer2ledgerbatched.layer2ledgerapihandler.utils.generate_btc_address import generate_btc_testnet_address
 from layer2ledgerbatched.common.redis.redis_models.transactions import RedisTransaction, PendingTransaction, PENDING_TRANSACTIONS_LIST_KEY
-from layer2ledgerbatched.layer2ledgerapihandler.config.config import get_settings, Layer2LedgerAPIHandlerSettings
+from config_loader.loader import get_layer2ledgerbatched_layer2ledgerapihandler_config, Environment
+from config_models.models import Layer2LedgerAPIHandlerSettings
 from .route_defs import GET_DEPOSIT_ADDRESS_ROUTE, DEPOSIT_CONFIRMED_ROUTE
 
 router = APIRouter()
@@ -24,7 +25,7 @@ router = APIRouter()
 async def get_deposit_address(
     request: GetDepositAddressRequest,
     db: AsyncSession = Depends(get_db_session),
-    settings: Layer2LedgerAPIHandlerSettings = Depends(get_settings)
+    settings: Layer2LedgerAPIHandlerSettings = Depends(lambda: get_layer2ledgerbatched_layer2ledgerapihandler_config(Environment.PROD))
 ) -> GetDepositAddressResponse:
     if not request.layer2_address_pubkey or not request.layer2_address_pubkey.isalnum():
         return GetDepositAddressResponse(error_code=error_codes.ERROR_INVALID_SOURCE_ADDRESS, error_message=error_codes.get_error_message(error_codes.ERROR_INVALID_SOURCE_ADDRESS))
@@ -66,7 +67,7 @@ async def deposit_confirmed(
     request: DepositConfirmedRequest,
     db: AsyncSession = Depends(get_db_session),
     redis_client: redis.asyncio.Redis = Depends(get_redis),
-    settings: Layer2LedgerAPIHandlerSettings = Depends(get_settings)
+    settings: Layer2LedgerAPIHandlerSettings = Depends(lambda: get_layer2ledgerbatched_layer2ledgerapihandler_config(Environment.PROD))
 ) -> DepositConfirmedResponse:
     successful_transactions: list[Layer1DepositConfirmedTransaction] = []
     for deposit_confirmed in request.transactions:

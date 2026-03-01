@@ -6,7 +6,6 @@ import redis.asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from layer2ledgerbatched.layer2ledgerapihandler.config.config import get_layer2bridge_settings
 from layer2ledgerbatched.layer2ledgerapihandler.main import app
 from layer2ledgerbatched.layer2ledgerapihandler.api.routes.route_defs import DEPOSIT_ROUTER_PREFIX, GET_DEPOSIT_ADDRESS_ROUTE, DEPOSIT_CONFIRMED_ROUTE
 from layer2ledgerbatched.common.db.models import DepositAddresses, Transaction, TransactionType
@@ -18,7 +17,7 @@ from layer2ledgerbatched.layer2ledgerapihandler.utils.key_verification import bu
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address
 import layer2ledgerbatched.layer2ledgerapihandler.utils.error_message as error_codes
 from config_models.models import Layer2LedgerCommonSettings, Layer2LedgerAPIHandlerSettings, Layer2BridgeSettings
-from config_loader.loader import Environment, Services
+from config_loader.loader import Environment, Services, get_layer2ledgerbridge_config
 
 from layer2ledgerbatched.common.redis.redis_models.transactions import PENDING_TRANSACTIONS_LIST_KEY, PendingTransaction
 
@@ -31,7 +30,7 @@ def user_address() -> Layer2Address:
 @pytest.fixture(scope="module")
 def bridge_address() -> Layer2Address:
     # In a real scenario, this would be loaded from config
-    bridge_settings: Layer2BridgeSettings = get_layer2bridge_settings()
+    bridge_settings: Layer2BridgeSettings = get_layer2ledgerbridge_config(Environment.PROD)
     addr = Layer2Address("bridge_address")
     addr.from_private_key(bridge_settings.onboarding_signing_private_key)
     return addr
