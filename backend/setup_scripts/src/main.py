@@ -1,4 +1,4 @@
-from config_models import Layer2LedgerCommonSettings, SettingsLayer2Address, Layer2LedgerAPIHandlerSettings, PostgresqlDatabaseSettings, RedisSettings, Layer2LedgerDockerEnvSettings, Layer2BridgeBitcoinConfFileSettings, Layer2BridgeSettings
+from config_models import Layer2LedgerCommonSettings, SettingsLayer2Address, Layer2LedgerAPIHandlerSettings, PostgresqlDatabaseSettings, RedisSettings, Layer2LedgerDockerEnvSettings, Layer2BridgeBitcoinConfFileSettings, Layer2BridgeSettings, CommonBackendSettings
 from config_loader import get_config_directory, get_env_specific_config_directory, get_project_root, get_config_file_path, get_layer2bridge_bitcoinconf_file_path, get_bitcoincore_conf_directory, Services
 from misc_utils import generate_secure_password, generate_alphanumeric_id
 from layer2address import Layer2Address
@@ -122,7 +122,11 @@ def generate_keys(env: str, containered: bool = True) -> Tuple[Layer2BridgeSetti
         onboarding_signing_private_key=layer2bridge_signing_address.private_key_str_base58,
         import_wallet_privkey_at_startup=False,
         wallet_private_key_seed_mneumonic=mnemonic, # Using the BIP39 mnemonic
+    )
 
+    common_backend_settings: CommonBackendSettings = CommonBackendSettings(
+         node_id = layer2ledgerbatched_layer2ledgerapihandler_settings.layer2ledger_node_id,
+         layer2bridge_signing_public_key = layer2bridge_signing_address.public_key_str_base58
     )
 
     with open(get_config_file_path('bitcoin.conf', env), 'wb') as f:
@@ -136,6 +140,9 @@ def generate_keys(env: str, containered: bool = True) -> Tuple[Layer2BridgeSetti
 
     with open(get_config_file_path(Services.LAYER2LEDGERBRIDGE, env), 'w') as f:
         f.write(layer2bridge_settings.model_dump_json(indent=4))
+
+    with open(get_config_file_path(Services.BACKEND_COMMON, env), 'w') as f:
+        f.write(common_backend_settings.model_dump_json(indent=4))
 
     # Store MasterKeys in a temp file
     temp_keys_path = get_config_file_path(Intermediate.BITCOIN_CORE_MASTER_KEYS, env)

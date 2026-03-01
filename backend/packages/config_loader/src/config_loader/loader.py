@@ -1,7 +1,14 @@
 import os
 import platform
+import json
 from pathlib import Path
 from enum import StrEnum
+from config_models.models import (
+    Layer2LedgerCommonSettings,
+    Layer2LedgerAPIHandlerSettings,
+    Layer2BridgeSettings,
+    CommonBackendSettings,
+)
 
 class Services(StrEnum):
     LAYER2LEDGERBATCHED_COMMON = 'layer2ledgerbatched-common'
@@ -104,3 +111,39 @@ def get_project_root() -> Path:
         if (parent / ".git").exists():
             return parent
     raise FileNotFoundError("Project root with .git folder not found.")
+
+def get_layer2ledgerbatched_common_config(environment: str) -> Layer2LedgerCommonSettings:
+    """
+    Returns the Layer2LedgerCommonSettings model for the given environment.
+    """
+    config_file = get_config_file_path(Services.LAYER2LEDGERBATCHED_COMMON, environment)
+    with open(config_file, "r") as f:
+        config_data = json.load(f)
+    return Layer2LedgerCommonSettings.model_validate(config_data)
+
+def get_layer2ledgerbatched_layer2ledgerapihandler_config(environment: str) -> Layer2LedgerAPIHandlerSettings:
+    """
+    Returns the Layer2LedgerAPIHandlerSettings model for the given environment.
+    """
+    config_file = get_config_file_path(Services.LAYER2LEDGERBATCHED_LAYER2LEDGERAPIHANDLER, environment)
+    with open(config_file, "r") as f:
+        config_data = json.load(f)
+    return Layer2LedgerAPIHandlerSettings.model_validate(config_data)
+
+def get_layer2ledgerbridge_config(environment: str) -> Layer2BridgeSettings:
+    """
+    Returns the Layer2BridgeSettings model for the given environment.
+    """
+    config_file = get_config_file_path(Services.LAYER2LEDGERBRIDGE, environment)
+    with open(config_file, "r") as f:
+        config_data = json.load(f)
+    return Layer2BridgeSettings.model_validate(config_data)
+
+def get_backend_common_config(environment: str) -> CommonBackendSettings:
+    """
+    Returns the CommonBackendSettings model for the given environment.
+    """
+    config_file = get_config_file_path(Services.BACKEND_COMMON, environment)
+    with open(config_file, "r") as f:
+        config_data = json.load(f)
+    return CommonBackendSettings.model_validate(config_data)

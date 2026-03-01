@@ -109,4 +109,5 @@ class Layer2BridgeSettings(BaseModel):
 #Common settings that all backend services can access
 class CommonBackendSettings(BaseModel):
     node_id: str
+    layer2bridge_signing_public_key: str
     

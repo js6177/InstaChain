@@ -1,4 +1,4 @@
-from .models import Layer2LedgerDockerEnvSettings, Layer2LedgerAPIHandlerSettings, SettingsLayer2Address, PostgresqlDatabaseSettings, RedisSettings, Layer2LedgerCommonSettings, Layer2BridgeBitcoinConfFileSettings, Layer2BridgeSettings
+from .models import Layer2LedgerDockerEnvSettings, Layer2LedgerAPIHandlerSettings, SettingsLayer2Address, PostgresqlDatabaseSettings, RedisSettings, Layer2LedgerCommonSettings, Layer2BridgeBitcoinConfFileSettings, Layer2BridgeSettings, CommonBackendSettings
 
 __all__ = [
     "Layer2LedgerDockerEnvSettings",
@@ -8,5 +8,6 @@ __all__ = [
     "RedisSettings",
     "Layer2LedgerCommonSettings",
     "Layer2BridgeBitcoinConfFileSettings",
-    "Layer2BridgeSettings"
+    "Layer2BridgeSettings",
+    "CommonBackendSettings"
 ]
