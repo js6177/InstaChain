@@ -519,8 +519,10 @@ dependencies = [
     { name = "config-loader" },
     { name = "config-models" },
     { name = "fastecdsa" },
+    { name = "httpx" },
     { name = "layer1-utils" },
     { name = "layer2address" },
+    { name = "openl2-layer2ledger-api" },
     { name = "openl2-messaging" },
     { name = "pydantic" },
     { name = "sqlalchemy" },
@@ -534,12 +536,25 @@ requires-dist = [
     { name = "config-loader", editable = "../packages/config_loader" },
     { name = "config-models", editable = "../packages/config_models" },
     { name = "fastecdsa", specifier = ">=3.0.1" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "layer1-utils", editable = "../packages/layer1_utils" },
     { name = "layer2address", editable = "../packages/layer2address" },
+    { name = "openl2-layer2ledger-api", editable = "../packages/openl2_layer2ledger_api" },
     { name = "openl2-messaging", editable = "../packages/openl2_messaging" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "sqlalchemy", specifier = ">=2.0.47" },
 ]
+
+[[package]]
+name = "openl2-layer2ledger-api"
+version = "0.1.0"
+source = { editable = "../packages/openl2_layer2ledger_api" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2.11.7" }]
 
 [[package]]
 name = "openl2-messaging"

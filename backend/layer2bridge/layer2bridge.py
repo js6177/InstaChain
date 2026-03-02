@@ -1,6 +1,6 @@
 import asyncio
 from typing import Dict, List, Any
-import requests
+import httpx
 import time
 import filelock
 import os
@@ -21,6 +21,9 @@ import hashlib
 from OnboardingLogger import OnboardingLogger
 from config_loader.loader import get_layer2ledgerbridge_config
 from config_models.models import Layer2BridgeSettings
+from openl2_layer2ledger_api.models.requests import (
+    Layer1BroadcastedWithdrawalTransaction,
+)
 
 
 SATOSHI_PER_BITCOIN = 100000000
@@ -82,10 +85,10 @@ class Layer2Bridge():
 
         while(not termination_called):
             await self.getConfirmedTransactionsFromNodeAndSaveToDb()
-            self.getPendingWithdrawalsFromLayer2LedgerAndSaveToDb()
+            await self.getPendingWithdrawalsFromLayer2LedgerAndSaveToDb()
             self.getPendingWithdrawalsFromDb()
-            self.sendPendingConfirmedDepositsToLayer2Ledger()
-            self.sendPendingConfirmedWithdrawalsToLayer2Ledger()
+            await self.sendPendingConfirmedDepositsToLayer2Ledger()
+            await self.sendPendingConfirmedWithdrawalsToLayer2Ledger()
             await self.broadcastPendingWithdrawals()
             await self.updateAuditDB()
 
@@ -121,15 +124,28 @@ class Layer2Bridge():
         OnboardingLogger("lastblockhash: " + self.lastblockhash)
         self.layer2BridgeDB.setLastBlockHash(self.lastblockhash)
 
-    def getPendingWithdrawalsFromLayer2LedgerAndSaveToDb(self):
+    async def getPendingWithdrawalsFromLayer2LedgerAndSaveToDb(self):
         #get pending withdrawals from the Layer2Ledger, and save it to the db
         lastwithdrawalTimestamp = int(self.layer2BridgeDB.getLastWithdrawalRequestTimestamp())
         pendingWithdrawals = []
-        pendingWithdrawalsJSON = json.loads(self.layer2Interface.getWithdrawalRequests(lastwithdrawalTimestamp))
-        if(int(pendingWithdrawalsJSON['error_code']) == 0):
-            for pendingWithdrawalJSON in pendingWithdrawalsJSON['withdrawal_requests']:
-                withdrawal = DatabaseInterface.PendingWithdrawal().fromWithdrawalRequestAPIJson(pendingWithdrawalJSON)
-                pendingWithdrawals.append(withdrawal)
+        try:
+            response = await self.layer2Interface.getWithdrawalRequests(lastwithdrawalTimestamp)
+            if response.error_code == 0:
+                for wr in response.withdrawal_requests:
+                    withdrawal = DatabaseInterface.PendingWithdrawal(
+                        layer2_withdrawal_id=wr.layer2_withdrawal_id,
+                        status=wr.status,
+                        transaction_id='',
+                        amount=wr.amount,
+                        fee=0,
+                        destination_address=wr.layer1_address,
+                        confirmations=0,
+                        withdrawal_requested_timestamp=wr.withdrawal_requested_timestamp,
+                        date_broadcasted=0
+                    )
+                    pendingWithdrawals.append(withdrawal)
+        except Exception as e:
+            OnboardingLogger(f"Error getting withdrawal requests: {e}")
 
         for pendingWithdrawal in pendingWithdrawals:
             self.layer2BridgeDB.insertPendingWithdrawal(pendingWithdrawal)
@@ -152,38 +168,42 @@ class Layer2Bridge():
             else:
                 OnboardingLogger(f"Skipping withdrawal {pendingWithdrawal.layer2_withdrawal_id} with amount {pendingWithdrawal.amount} because it is less than the minimum withdrawal amount of {minWithdrawalAmount} satoshis")
 
-    def sendPendingConfirmedDepositsToLayer2Ledger(self):
+    async def sendPendingConfirmedDepositsToLayer2Ledger(self):
         #Send pending confirmed deposit transactions to the Layer2Ledger
         pendingConfirmedDepositTransactions = self.layer2BridgeDB.getPendingConfirmedDepositTransactions()
         
         if(len(pendingConfirmedDepositTransactions)):
-            pendingConfirmedDepositResponseJSON = json.loads(self.layer2Interface.sendConfirmDeposit(pendingConfirmedDepositTransactions))
-            response = json.loads(json.dumps(pendingConfirmedDepositResponseJSON), object_hook=lambda d: SimpleNamespace(**d))
-            if(response.error_code == 0):
-                for trx in response.transactions:
-                    error_code = trx.error_code
-                    layer1_transaction_id = trx.layer1_transaction_id
-                    layer1_transaction_vout = trx.layer1_transaction_vout
-                    if(Layer2Interface.SuccessOrDuplicateErrorCode(error_code)):
-                        self.layer2BridgeDB.updateConfirmedTransaction(layer1_transaction_id, layer1_transaction_vout, DatabaseInterface.ConfirmedTransaction.CATEGORY_RECIEVE, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
-                        OnboardingLogger('Deposit confirmed. transaction_id:' + layer1_transaction_id + ' ' + str(layer1_transaction_vout))
+            try:
+                response = await self.layer2Interface.sendConfirmDeposit(pendingConfirmedDepositTransactions)
+                if(response.error_code == 0):
+                    for trx in response.transactions:
+                        error_code = trx.error_code
+                        layer1_transaction_id = trx.layer1_transaction_id
+                        layer1_transaction_vout = trx.layer1_transaction_vout
+                        if(Layer2Interface.SuccessOrDuplicateErrorCode(error_code)):
+                            self.layer2BridgeDB.updateConfirmedTransaction(layer1_transaction_id, layer1_transaction_vout, DatabaseInterface.ConfirmedTransaction.CATEGORY_RECIEVE, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
+                            OnboardingLogger('Deposit confirmed. transaction_id:' + layer1_transaction_id + ' ' + str(layer1_transaction_vout))
+            except Exception as e:
+                OnboardingLogger(f"Error sending confirmed deposits: {e}")
 
 
-    def sendPendingConfirmedWithdrawalsToLayer2Ledger(self):
+    async def sendPendingConfirmedWithdrawalsToLayer2Ledger(self):
         #Send pending confirmed withdrawal transactions to the Layer2Ledger
         pendingConfirmedWithdrawalTransactions = self.layer2BridgeDB.getPendingConfirmedWithdrawalTransactions()
 
         if(len(pendingConfirmedWithdrawalTransactions)):
-            withdrawalConfirmedResponseJSON = json.loads(self.layer2Interface.sendConfirmWithdrawal(pendingConfirmedWithdrawalTransactions))
-            response = json.loads(json.dumps(withdrawalConfirmedResponseJSON), object_hook=lambda d: SimpleNamespace(**d))
-            if(response.error_code == 0):
-                for trx in response.transactions:
-                    error_code = trx.error_code
-                    layer1_transaction_id = trx.layer1_transaction_id
-                    layer1_transaction_vout = trx.layer1_transaction_vout
-                    if(Layer2Interface.SuccessOrDuplicateErrorCode(error_code)):
-                        self.layer2BridgeDB.updateConfirmedTransaction(layer1_transaction_id, layer1_transaction_vout, DatabaseInterface.ConfirmedTransaction.CATEGORY_SEND, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
-                        OnboardingLogger('Withdrawal confirmed. transaction_id:' + layer1_transaction_id + ' ' + str(layer1_transaction_vout))
+            try:
+                response = await self.layer2Interface.sendConfirmWithdrawal(pendingConfirmedWithdrawalTransactions)
+                if(response.error_code == 0):
+                    for trx in response.transactions:
+                        error_code = trx.error_code
+                        layer1_transaction_id = trx.layer1_transaction_id
+                        layer1_transaction_vout = trx.layer1_transaction_vout
+                        if(Layer2Interface.SuccessOrDuplicateErrorCode(error_code)):
+                            self.layer2BridgeDB.updateConfirmedTransaction(layer1_transaction_id, layer1_transaction_vout, DatabaseInterface.ConfirmedTransaction.CATEGORY_SEND, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
+                            OnboardingLogger('Withdrawal confirmed. transaction_id:' + layer1_transaction_id + ' ' + str(layer1_transaction_vout))
+            except Exception as e:
+                OnboardingLogger(f"Error sending confirmed withdrawals: {e}")
 
 
     async def broadcastPendingWithdrawals(self):
@@ -209,8 +229,8 @@ class Layer2Bridge():
                     withdrawalBroadcastedTransactions = []
                     for key, withdrawalOutput in self.withdrawalTransactionOutputs.items(): # do db writes and layer2 updates in seperate loops
                         output = withdrawalOutputs[withdrawalOutput.destination_address]
-                        withdrawalBroadcastedTransactions.append(Layer2Interface.Layer2Interface.WithdrawalBroadcastedTransaction(layer1_transaction_id = withdrawalTrxId, layer1_transaction_vout = output.transaction_vout, layer1_address=withdrawalOutput.destination_address, amount = output.amount, layer2_withdrawal_id = withdrawalOutput.layer2_withdrawal_id, signature = ''))
-                    self.layer2Interface.sendWithdrawalBroadcasted(withdrawalBroadcastedTransactions)
+                        withdrawalBroadcastedTransactions.append(Layer1BroadcastedWithdrawalTransaction(layer1_transaction_id = withdrawalTrxId, layer1_transaction_vout = output.transaction_vout, layer1_address=withdrawalOutput.destination_address, amount = output.amount, layer2_withdrawal_id = withdrawalOutput.layer2_withdrawal_id, signature = ''))
+                    await self.layer2Interface.sendWithdrawalBroadcasted(withdrawalBroadcastedTransactions)
                     self.layer2BridgeDB.setLastBroadcastBlockHeight(self.blockheight)
                 except Exception as e:
                     OnboardingLogger(f"Error broadcasting/processing withdrawals: {e}")
@@ -235,7 +255,7 @@ class Layer2Bridge():
                 layer1AddressesBalance = 0
                 for layer1Address in layer1Addresses:
                     layer1AddressesBalance += layer1Address.balance
-                self.layer2Interface.postLayer1AuditReport(self.blockheight, layer1AddressesBalance, layer1Addresses)
+                await self.layer2Interface.postLayer1AuditReport(self.blockheight, layer1AddressesBalance, layer1Addresses)
             except Exception as e:
                 OnboardingLogger(f"Error updating audit DB: {e}")
 

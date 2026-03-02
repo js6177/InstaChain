@@ -13,7 +13,9 @@ dependencies = [
     "layer2address",
     "layer1-utils",
     "openl2-messaging",
-    "bitcoin-core-rpc"
+    "bitcoin-core-rpc",
+    "openl2-layer2ledger-api",
+    "httpx>=0.28.1"
 ]
 
 [tool.uv.sources]
@@ -23,3 +25,4 @@ layer2address = { path = "../packages/layer2address", editable = true }
 layer1-utils = { path = "../packages/layer1_utils", editable = true }
 openl2-messaging = { path = "../packages/openl2_messaging", editable = true }
 bitcoin-core-rpc = { path = "../packages/bitcoin_core_rpc", editable = true }
+openl2-layer2ledger-api = { path = "../packages/openl2_layer2ledger_api", editable = true }

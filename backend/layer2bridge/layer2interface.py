@@ -1,9 +1,7 @@
-import requests
-import json
+import httpx
 import random
 import string
-from typing import List, Dict, Any
-from dataclasses import dataclass
+from typing import List
 import DatabaseInterface
 import AuditDatabaseInterface
 from openl2_messaging import (
@@ -13,22 +11,40 @@ from openl2_messaging import (
     signLayer1AuditReportMessage
 )
 from OnboardingLogger import OnboardingLogger
+from openl2_layer2ledger_api import (
+    WITHDRAWAL_ROUTER_PREFIX,
+    GET_WITHDRAWAL_REQUESTS_ROUTE,
+    WITHDRAWAL_BROADCASTED_ROUTE,
+    WITHDRAWAL_CONFIRMED_ROUTE,
+    DEPOSIT_ROUTER_PREFIX,
+    DEPOSIT_CONFIRMED_ROUTE,
+)
+from openl2_layer2ledger_api.models.requests import (
+    GetWithdrawalRequestsRequest,
+    WithdrawalBroadcastedRequest,
+    Layer1BroadcastedWithdrawalTransaction,
+    WithdrawalConfirmedRequest,
+    Layer1WithdrawalConfirmedTransaction,
+    DepositConfirmedRequest,
+    DepositsConfirmed,
+    PostLayer1AuditReportRequest,
+    Layer1AddressBalance,
+)
+from openl2_layer2ledger_api.models.responses import (
+    GetWithdrawalRequestsResponse,
+    WithdrawalBroadcastedResponse,
+    WithdrawalConfirmedResponse,
+    DepositConfirmedResponse,
+    PostLayer1AuditReportResponse,
+    CommonResponse,
+)
 
 
 DEFAULT_LAYER2_URL = 'https://testnet.instachain.io/'
 
 ERROR_SUCCESS = 0
-ERROR_UNKNOWN = 1
-ERROR_CANNOT_VERIFY_SIGNATURE = 10
 ERROR_CANNOT_DUPLICATE_TRANSACTION = 11
-ERROR_INSUFFICIENT_FUNDS = 12
-ERROR_TRANSACTION_ID_NOT_FOUND = 13
-ERROR_ONBOARDING_PUBKEY_MISMATCH = 14
-ERROR_CANNOT_CANCEL_WITHDRAWAL_MULTIPLE_TIMES = 15
-ERROR_DEPOSIT_ADDRESS_NOT_FOUND = 16
 ERROR_DUPLICATE_TRANSACTION_ID = 17
-ERROR_COULD_NOT_FIND_WITHDRAWAL_REQUEST = 18
-ERROR_DATABASE_TRANSACTIONAL_ERROR = 19
 
 def SuccessOrDuplicateErrorCode(error: int):
     return error in (ERROR_SUCCESS, ERROR_CANNOT_DUPLICATE_TRANSACTION, ERROR_DUPLICATE_TRANSACTION_ID)
@@ -37,143 +53,124 @@ class Layer2Interface:
     layer2_node_url: str
     onboarding_signing_private_key: str
 
-    @dataclass
-    class WithdrawalBroadcastedTransaction:
-        layer1_transaction_id: str
-        layer1_transaction_vout: int
-        layer1_address: str
-        amount: int
-        layer2_withdrawal_id: str
-        signature: str = ""
-
     def __init__(self, layer2_node_url: str, onboarding_signing_private_key: str):
         self.layer2_node_url = layer2_node_url or DEFAULT_LAYER2_URL
+        if not self.layer2_node_url.endswith('/'):
+            self.layer2_node_url += '/'
         self.onboarding_signing_private_key = onboarding_signing_private_key
 
-    header = {'user-agent': 'requests/0.0.1'}
-    def getWithdrawalRequests(self, lastwithdrawalTimestamp: int):
-        url = self.layer2_node_url + 'getWithdrawalRequests'
-        data = {'latest_timestamp': lastwithdrawalTimestamp}
-        r = requests.get(url, params=data, headers=self.header)
-        OnboardingLogger(r.text)
-        return r.text
+    async def getWithdrawalRequests(self, lastwithdrawalTimestamp: int) -> GetWithdrawalRequestsResponse:
+        url = f"{self.layer2_node_url}{WITHDRAWAL_ROUTER_PREFIX.strip('/')}{GET_WITHDRAWAL_REQUESTS_ROUTE}"
+        request_model = GetWithdrawalRequestsRequest(latest_timestamp=lastwithdrawalTimestamp)
+        async with httpx.AsyncClient() as client:
+            r = await client.post(url, json=request_model.model_dump())
+            r.raise_for_status()
+            response_model = GetWithdrawalRequestsResponse.model_validate(r.json())
+            OnboardingLogger(f"getWithdrawalRequests: {response_model.error_code}")
+            return response_model
 
-    def ackWithdrawalRequests(self, layer2_withdrawal_ids: List[str]):
-        url = self.layer2_node_url + 'ackWithdrawalRequests'
-        data = {'layer2_withdrawal_ids': layer2_withdrawal_ids}
-        r = requests.post(url, params=data, headers=self.header)
-        OnboardingLogger(r.text)
-        return r.text
+    async def broadcastWithdrawalMulti(self, withdrawalBroadcastedTransactions: List[Layer1BroadcastedWithdrawalTransaction]) -> WithdrawalBroadcastedResponse:
+        url = f"{self.layer2_node_url}{WITHDRAWAL_ROUTER_PREFIX.strip('/')}{WITHDRAWAL_BROADCASTED_ROUTE}"
+        request_model = WithdrawalBroadcastedRequest(transactions=withdrawalBroadcastedTransactions)
+        async with httpx.AsyncClient() as client:
+            r = await client.post(url, json=request_model.model_dump())
+            r.raise_for_status()
+            response_model = WithdrawalBroadcastedResponse.model_validate(r.json())
+            OnboardingLogger(f"broadcastWithdrawalMulti: {response_model.error_code}")
+            return response_model
 
-    def confirmDeposit(self, nonce: str, layer1_transaction_id: str, amount: int, layer1_address: str, signature: str):
-        url = self.layer2_node_url + 'depositFunds'
-        data = {'nonce': nonce,
-                'layer1_transaction_id': layer1_transaction_id,
-                'amount': amount,
-                'layer1_address': layer1_address,
-                'signature': signature}
-        r = requests.post(url, params=data, headers=self.header)
-        OnboardingLogger('/confirmDeposit ' + layer1_transaction_id)
-        OnboardingLogger(r.text)
-        return r.text
+    async def confirmWithdrawalMulti(self, confirmedWithdrawals: List[Layer1WithdrawalConfirmedTransaction]) -> WithdrawalConfirmedResponse:
+        url = f"{self.layer2_node_url}{WITHDRAWAL_ROUTER_PREFIX.strip('/')}{WITHDRAWAL_CONFIRMED_ROUTE}"
+        request_model = WithdrawalConfirmedRequest(transactions=confirmedWithdrawals)
+        async with httpx.AsyncClient() as client:
+            r = await client.post(url, json=request_model.model_dump())
+            r.raise_for_status()
+            response_model = WithdrawalConfirmedResponse.model_validate(r.json())
+            OnboardingLogger(f"confirmWithdrawalMulti: {response_model.error_code}")
+            return response_model
 
-    def confirmDepositMulti(self, depositTransactions: List[DatabaseInterface.ConfirmedTransaction]):
-        url = self.layer2_node_url + 'depositFunds'
-        transactions = []
-        for depositTransaction in depositTransactions:
-            transaction = {'layer1_transaction_id': depositTransaction.transaction_id,
-                    'layer1_transaction_vout': depositTransaction.transaction_vout,
-                    'amount': depositTransaction.amount,
-                    'layer1_address': depositTransaction.address,
-                    'nonce': depositTransaction.nonce,
-                    'signature': depositTransaction.signature}
-            transactions.append(transaction)
-        jsonData = {"transactions":transactions}
-        r = requests.post(url, json=jsonData, headers=self.header)
-        OnboardingLogger("confirmDepositMulti: " + str(r.text))
-        return r.text
-
-    def broadcastWithdrawalMulti(self, withdrawalBroadcastedTransactions: List[WithdrawalBroadcastedTransaction]):
-        url = self.layer2_node_url + 'withdrawalBroadcasted'
-        transactions = []
-        for withdrawalBroadcastedTransaction in withdrawalBroadcastedTransactions:
-            transaction = {"layer1_transaction_id": withdrawalBroadcastedTransaction.layer1_transaction_id,
-                "layer1_transaction_vout": withdrawalBroadcastedTransaction.layer1_transaction_vout,
-                "layer1_address": withdrawalBroadcastedTransaction.layer1_address,
-                "amount": withdrawalBroadcastedTransaction.amount,
-                "layer2_withdrawal_id": withdrawalBroadcastedTransaction.layer2_withdrawal_id,
-                "signature": withdrawalBroadcastedTransaction.signature}
-
-            transactions.append(transaction)
-        jsonData = {"transactions":transactions}
-        OnboardingLogger('broadcastWithdrawalMulti: ' + json.dumps(jsonData))
-        r = requests.post(url, json=jsonData, headers=self.header)
-        OnboardingLogger(r.text)
-        return r.text
-
-    def broadcastWithdrawal(self, layer1_transaction_id: str, layer1_transaction_vout: int, layer1_address: str, amount: int, layer2_withdrawal_id: str, signature: str):
-        url = self.layer2_node_url + 'withdrawalBroadcasted'
-        data = {'layer1_transaction_id': layer1_transaction_id,
-                'layer1_transaction_vout': layer1_transaction_vout,
-                'layer1_address': layer1_address,
-                'amount': amount,
-                'layer2_withdrawal_id': layer2_withdrawal_id,
-                'signature': signature}
-        r = requests.post(url, params=data, headers=self.header)
-        OnboardingLogger(r.text)
-        return r.text
-
-    def confirmWithdrawal(self, layer1_transaction_id: str, layer1_transaction_vout: int, layer1_address: str, amount: int, signature: str):
-        url = self.layer2_node_url + 'withdrawalConfirmed'
-        data = {'layer1_transaction_id': layer1_transaction_id,
-                'layer1_transaction_vout': layer1_transaction_vout,
-                'layer1_address': layer1_address,
-                'amount': amount,
-                'signature': signature}
-        r = requests.post(url, params=data, headers=self.header)
-        OnboardingLogger(r.text)
-        return r.text
-
-    def confirmWithdrawalMulti(self, confirmedWithdrawals: List[DatabaseInterface.ConfirmedTransaction]):
-        url = self.layer2_node_url + 'withdrawalConfirmed'
-        transactions = []
-        for confirmedWithdrawal in confirmedWithdrawals:
-            transaction = {'layer1_transaction_id': confirmedWithdrawal.transaction_id,
-                'layer1_transaction_vout': confirmedWithdrawal.transaction_vout,
-                'layer1_address': confirmedWithdrawal.address,
-                'amount': confirmedWithdrawal.amount,
-                'signature': confirmedWithdrawal.signature}
-            transactions.append(transaction)
-        jsonData = {"transactions":transactions}
-        r = requests.post(url, json=jsonData, headers=self.header)
-        OnboardingLogger(r.text)
-        return r.text
+    async def confirmDepositMulti(self, depositTransactions: List[DepositsConfirmed]) -> DepositConfirmedResponse:
+        url = f"{self.layer2_node_url}{DEPOSIT_ROUTER_PREFIX.strip('/')}{DEPOSIT_CONFIRMED_ROUTE}"
+        request_model = DepositConfirmedRequest(transactions=depositTransactions)
+        async with httpx.AsyncClient() as client:
+            r = await client.post(url, json=request_model.model_dump())
+            r.raise_for_status()
+            response_model = DepositConfirmedResponse.model_validate(r.json())
+            OnboardingLogger(f"confirmDepositMulti: {response_model.error_code}")
+            return response_model
     
-    def postLayer1AuditReport(self, blockheight: int, balance: int, layer1AddressBalances: List[AuditDatabaseInterface.AuditLayer1Address]):
-        url = self.layer2_node_url + 'postLayer1AuditReport'
-        layer1AddressBalancesJson = [layer1AddressBalance.to_dict() for layer1AddressBalance in layer1AddressBalances]
+    async def postLayer1AuditReport(self, blockheight: int, balance: int, layer1AddressBalances: List[AuditDatabaseInterface.AuditLayer1Address]) -> PostLayer1AuditReportResponse:
+        # TODO: Add audit router prefix to api_paths if it exists, otherwise use hardcoded '/audit'
+        url = f"{self.layer2_node_url}audit/postLayer1AuditReport"
+        
+        balances = [
+            Layer1AddressBalance(layer1_address=ab.layer1_address, balance=ab.balance)
+            for ab in layer1AddressBalances
+        ]
+        
         signature = signLayer1AuditReportMessage(self.onboarding_signing_private_key, blockheight, balance)
-        jsonData = {'block_height': blockheight,
-                'balance': balance,
-                'layer1_address_balances': layer1AddressBalancesJson,
-                'signature': signature}
-        r = requests.post(url, json=jsonData, headers=self.header)
-        OnboardingLogger(r.text)
-        return r.text
+        request_model = PostLayer1AuditReportRequest(
+            block_height=blockheight,
+            layer1_address_balances=balances,
+            signature=signature
+        )
+        
+        async with httpx.AsyncClient() as client:
+            r = await client.post(url, json=request_model.model_dump())
+            r.raise_for_status()
+            response_model = PostLayer1AuditReportResponse.model_validate(r.json())
+            OnboardingLogger(f"postLayer1AuditReport: {response_model.error_code}")
+            return response_model
 
-
-    def sendConfirmDeposit(self, transactions: List[DatabaseInterface.ConfirmedTransaction]):
+    async def sendConfirmDeposit(self, transactions: List[DatabaseInterface.ConfirmedTransaction]) -> DepositConfirmedResponse:
+        deposit_txs = []
         for transaction in transactions:
-            transaction.nonce = ''.join(random.choice(string.ascii_letters) for i in range(16))
-            transaction.signature = signDepositMessage(self.onboarding_signing_private_key, transaction.transaction_id, transaction.transaction_vout, transaction.address, transaction.amount, transaction.nonce)
-        return self.confirmDepositMulti(transactions)
+            nonce = ''.join(random.choice(string.ascii_letters) for i in range(16))
+            signature = signDepositMessage(
+                self.onboarding_signing_private_key, 
+                transaction.transaction_id, 
+                transaction.transaction_vout, 
+                transaction.address, 
+                transaction.amount, 
+                nonce
+            )
+            deposit_txs.append(DepositsConfirmed(
+                layer1_transaction_id=transaction.transaction_id,
+                layer1_transaction_vout=transaction.transaction_vout,
+                amount=transaction.amount,
+                layer1_address=transaction.address,
+                nonce=nonce,
+                signature=signature
+            ))
+        return await self.confirmDepositMulti(deposit_txs)
 
-    def sendWithdrawalBroadcasted(self, withdrawalBroadcastedTransactions: List[WithdrawalBroadcastedTransaction]):
-        for withdrawalBroadcastedTransaction in withdrawalBroadcastedTransactions:
-            withdrawalBroadcastedTransaction.signature = signWithdrawalBroadcastedMessage(self.onboarding_signing_private_key, withdrawalBroadcastedTransaction.layer1_transaction_id, withdrawalBroadcastedTransaction.layer1_transaction_vout, withdrawalBroadcastedTransaction.layer1_address, withdrawalBroadcastedTransaction.amount, withdrawalBroadcastedTransaction.layer2_withdrawal_id)
-        return self.broadcastWithdrawalMulti(withdrawalBroadcastedTransactions)
+    async def sendWithdrawalBroadcasted(self, withdrawalBroadcastedTransactions: List[Layer1BroadcastedWithdrawalTransaction]) -> WithdrawalBroadcastedResponse:
+        for tx in withdrawalBroadcastedTransactions:
+            tx.signature = signWithdrawalBroadcastedMessage(
+                self.onboarding_signing_private_key, 
+                tx.layer1_transaction_id, 
+                tx.layer1_transaction_vout, 
+                tx.layer1_address, 
+                tx.amount, 
+                tx.layer2_withdrawal_id
+            )
+        return await self.broadcastWithdrawalMulti(withdrawalBroadcastedTransactions)
 
-    def sendConfirmWithdrawal(self, confirmedWithdrawals: List[DatabaseInterface.ConfirmedTransaction]):
+    async def sendConfirmWithdrawal(self, confirmedWithdrawals: List[DatabaseInterface.ConfirmedTransaction]) -> WithdrawalConfirmedResponse:
+        withdrawal_txs = []
         for transaction in confirmedWithdrawals:
-            transaction.signature = signWithdrawalConfirmedMessage(self.onboarding_signing_private_key, transaction.transaction_id, transaction.transaction_vout, transaction.address, transaction.amount)
-        return self.confirmWithdrawalMulti(confirmedWithdrawals)
+            signature = signWithdrawalConfirmedMessage(
+                self.onboarding_signing_private_key, 
+                transaction.transaction_id, 
+                transaction.transaction_vout, 
+                transaction.address, 
+                transaction.amount
+            )
+            withdrawal_txs.append(Layer1WithdrawalConfirmedTransaction(
+                layer1_transaction_id=transaction.transaction_id,
+                layer1_transaction_vout=transaction.transaction_vout,
+                layer1_address=transaction.address,
+                amount=transaction.amount,
+                signature=signature
+            ))
+        return await self.confirmWithdrawalMulti(withdrawal_txs)
