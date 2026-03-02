@@ -5,8 +5,12 @@ from .models import (
     LoadWalletResponse,
     DescriptorImportRequest,
     ImportDescriptorResult,
+    ImportMultiRequest,
+    ImportMultiResult,
     ListSinceBlockResponse,
+    ListSinceBlockTransaction,
     GetTransactionResponse,
+    GetTransactionDetail,
     AddressGroupingItem,
     GetBlockHeaderResponse
 )
@@ -18,8 +22,12 @@ __all__ = [
     "LoadWalletResponse",
     "DescriptorImportRequest",
     "ImportDescriptorResult",
+    "ImportMultiRequest",
+    "ImportMultiResult",
     "ListSinceBlockResponse",
+    "ListSinceBlockTransaction",
     "GetTransactionResponse",
+    "GetTransactionDetail",
     "AddressGroupingItem",
     "GetBlockHeaderResponse",
 ]

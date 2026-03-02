@@ -1,4 +1,5 @@
-from typing import Dict, List
+import asyncio
+from typing import Dict, List, Any
 import requests
 import time
 import filelock
@@ -8,15 +9,9 @@ import random
 import string
 import datetime
 from dataclasses import dataclass
-from BitcoinRPCResponses.ListSinceBlockResponse import BitcoinRpcListSinceBlockResponse
-from BitcoinRPCResponses.LoadWalletResponse import BitcoinRpcLoadWalletResponse
 import DatabaseInterface
 import AuditDatabaseInterface
 import binascii
-import checksum
-from bip_utils import Bip32, Bip32Utils, Bip32Conf, BitcoinConf, Bip44BitcoinTestNet, WifEncoder
-from bip_utils import P2PKH, P2SH, P2WPKH
-from bitcoinrpc.authproxy import AuthServiceProxy, JSONRPCException
 import traceback
 import argparse
 import Layer2Interface
@@ -24,113 +19,42 @@ from FullNodeInterface import BitcoinRPC
 from types import SimpleNamespace
 import hashlib
 from OnboardingLogger import OnboardingLogger
+from config_loader.loader import get_layer2ledgerbridge_config
+from config_models.models import Layer2BridgeSettings
 
 
 SATOSHI_PER_BITCOIN = 100000000
-MAX_NUMBER_OF_KEYS_TO_IMPORT_PER_RPC_REQUEST = 1000
 
 DEFAULT_WORKING_DIRECTORY = os.path.expanduser('~') + "/.IC/Layer2Bridge/"
-CONFIG_FILE_PATH = DEFAULT_WORKING_DIRECTORY + "config.json"
 LOCKFILE_PATH = DEFAULT_WORKING_DIRECTORY + 'Layer2Bridge.lock'
 
 DEFAULT_LAYER2BRIDGE_DB_NAME = "layer2Bridge.sqlite"
 DEFAULT_AUDIT_DB_NAME = "audit.sqlite"
 
 
-def main():
+async def main():
     if os.path.exists(LOCKFILE_PATH):
         os.remove(LOCKFILE_PATH)
     try:
         oh = Layer2Bridge()
-        oh.run()
+        await oh.run()
     except Exception as e:
         OnboardingLogger(e)
         OnboardingLogger(traceback.format_exc())
         OnboardingLogger('Restarting...')
 
 
-
 class Layer2Bridge():
-    #required config_variables
-    database_layer2bridge_name: string = DEFAULT_LAYER2BRIDGE_DB_NAME
-    database_layer2bridge_full_path: string = None
-    rpc_ip: string = None
-    rpc_port: string = None
-    rpc_user: string = None
-    rpc_password: string = None
-    wallet_name: string = None
-
-    #optional config variables
-    wallet_private_key_seed_mneumonic: string = None
-    testnet: bool = True
-    layer2_node_url: string = None
-    enable_batching: bool = False
-    
-    #variables for importing private keys
-    import_wallet_privkey_at_startup: bool = False
-    wallet_private_key_seed_mneumonic: string = None
-    import_wallet_privkey_while_looping: bool = False
-    import_wallet_privkey_startup_count: int = 0
-    import_wallet_privkey_loop_count: int = 0
-    onboarding_signing_private_key: string = None
-
-    #database names
-    database_audit_name: string = DEFAULT_AUDIT_DB_NAME
-    database_audit_full_path: string = None
+    settings: Layer2BridgeSettings
+    database_layer2bridge_full_path: str
+    database_audit_full_path: str
 
     def loadConfig(self):
-        requiredConfigKeysLoaded = False
-        try:
-            with open(CONFIG_FILE_PATH) as config_file:
-                data = json.load(config_file)
-                #these throw exceptions if key is not found
-                self.database_layer2bridge_name = data["database_layer2bridge_name"]
-                self.database_layer2bridge_full_path = DEFAULT_WORKING_DIRECTORY + self.database_layer2bridge_name
+        self.settings = get_layer2ledgerbridge_config()
+        self.database_layer2bridge_full_path = DEFAULT_WORKING_DIRECTORY + self.settings.database_layer2bridge_name
+        self.database_audit_full_path = DEFAULT_WORKING_DIRECTORY + (self.settings.database_audit_name or DEFAULT_AUDIT_DB_NAME)
 
-                self.rpc_ip = data["rpc_ip"]
-                self.rpc_port = data["rpc_port"]
-                self.rpc_user = data["rpc_user"]
-                self.rpc_password = data["rpc_password"]
-                self.wallet_name = data["wallet_name"]
-                self.layer2_node_url = data["layer2_node_url"]
-                self.onboarding_signing_private_key = data["onboarding_signing_private_key"]
-
-                #thse don't throw exceptions if key is notfound, instead they assign null
-                self.import_wallet_privkey_at_startup = data.get("import_wallet_privkey_at_startup")
-                self.wallet_private_key_seed_mneumonic = data.get("wallet_private_key_seed_mneumonic")
-                self.import_wallet_privkey_while_looping = data.get("import_wallet_privkey_while_looping")
-                self.import_wallet_privkey_startup_count = data.get("import_wallet_privkey_startup_count")
-                self.import_wallet_privkey_loop_count = data.get("import_wallet_privkey_loop_count")
-                self.database_audit_name = data.get("database_audit_name") or DEFAULT_AUDIT_DB_NAME
-                self.database_audit_full_path = DEFAULT_WORKING_DIRECTORY + self.database_audit_name
-
-        except FileNotFoundError as e:
-            OnboardingLogger("Fatal Error: " + CONFIG_FILE_PATH + " not found. Exiting.")
-            exit(1)
-        except KeyError as e:
-            OnboardingLogger("Error: Cound not find key " + str(e) + " in " + CONFIG_FILE_PATH + " , Exiting.")
-            exit(1)
-
-    def import_private_keys(self, count: int, db, nh: BitcoinRPC):
-        number_of_keys_left_to_import = count
-        t1 = time.time()
-        while(number_of_keys_left_to_import > 0):
-            number_of_keys_to_import = min(number_of_keys_left_to_import, MAX_NUMBER_OF_KEYS_TO_IMPORT_PER_RPC_REQUEST)
-            privkeyBip32Index = db.getImportPrivkeyBip32Index()
-            OnboardingLogger("Importing " + str(number_of_keys_to_import) +" private keys starting at index " + str(privkeyBip32Index))
-            m = hashlib.sha256()
-            m.update(self.wallet_private_key_seed_mneumonic.encode("utf-8"))
-            wallet_private_key_seed = m.hexdigest()
-            nh.importMultipleDescriptors(wallet_private_key_seed, privkeyBip32Index, number_of_keys_to_import, True)
-            db.setImportPrivkeyBip32Index(privkeyBip32Index + number_of_keys_to_import)
-            number_of_keys_left_to_import -= number_of_keys_to_import
-
-            elapsed_time = time.time() - t1
-
-            OnboardingLogger("Done importing private keys. Imported " + str(number_of_keys_to_import) + " keys from index " + str(privkeyBip32Index))
-            OnboardingLogger("Time elapsed: " + str(elapsed_time))
-
-    def run(self):
+    async def run(self):
         termination_called = False
         self.loadConfig()
 
@@ -140,16 +64,12 @@ class Layer2Bridge():
         self.auditDB = AuditDatabaseInterface.AuditDatabaseInterface(self.database_audit_full_path)
 
         # start bitcoin full node, or attach if it already started
-        self.bitcoinRPC = BitcoinRPC(self.rpc_ip, self.rpc_port, self.rpc_user, self.rpc_password, self.wallet_name, self.testnet)
-        self.layer2Interface = Layer2Interface.Layer2Interface(self.layer2_node_url, self.onboarding_signing_private_key)
+        self.bitcoinRPC = BitcoinRPC(self.settings.rpc_settings, self.settings.wallet_name)
+        self.layer2Interface = Layer2Interface.Layer2Interface(self.settings.layer2_node_url, self.settings.onboarding_signing_private_key)
 
-        wallet_loaded: BitcoinRpcLoadWalletResponse = self.bitcoinRPC.loadWallet()
-        if(not wallet_loaded.success):
-            OnboardingLogger(f"Error: Wallet could not load. {str(wallet_loaded.exception)}")
-            return
-
-        if(self.import_wallet_privkey_at_startup):
-            self.import_private_keys(self.import_wallet_privkey_startup_count, self.layer2BridgeDB, self.bitcoinRPC)
+        wallet_loaded = await self.bitcoinRPC.loadWallet()
+        if not wallet_loaded.name:
+            OnboardingLogger(f"Error: Wallet could not load. {wallet_loaded.warning}")
             return
 
         self.lastblockhash = self.layer2BridgeDB.getLastBlockHash()
@@ -157,45 +77,44 @@ class Layer2Bridge():
 
         pendingConfirmedTransactions = self.layer2BridgeDB.getAllPendingConfirmedTransactions()
         for trx in pendingConfirmedTransactions:
-            self.confirmedTransactionsDict[trx.transaction_id] = trx
+            self.confirmedTransactionsDict[(trx.transaction_id, trx.transaction_vout, trx.category)] = trx
 
 
         while(not termination_called):
-            if(self.import_wallet_privkey_while_looping):
-                self.import_private_keys(self.import_wallet_privkey_loop_count, self.layer2BridgeDB, self.bitcoinRPC)
-
-            self.getConfirmedTransactionsFromNodeAndSaveToDb()
+            await self.getConfirmedTransactionsFromNodeAndSaveToDb()
             self.getPendingWithdrawalsFromLayer2LedgerAndSaveToDb()
             self.getPendingWithdrawalsFromDb()
             self.sendPendingConfirmedDepositsToLayer2Ledger()
             self.sendPendingConfirmedWithdrawalsToLayer2Ledger()
-            self.broadcastPendingWithdrawals()
-            self.updateAuditDB()
+            await self.broadcastPendingWithdrawals()
+            await self.updateAuditDB()
 
-            time.sleep(60*1) #sleep 1 mins
+            await asyncio.sleep(60*1) #sleep 1 mins
             if os.path.exists(LOCKFILE_PATH):
                 termination_called = True
                 OnboardingLogger("Termination called through lockfile... ")
 
-        pass
-
-    def getConfirmedTransactionsFromNodeAndSaveToDb(self):
+    async def getConfirmedTransactionsFromNodeAndSaveToDb(self):
         #get confirmed transactions from the node and save it to the db
-        confirmedTransactionsResponse: BitcoinRpcListSinceBlockResponse = self.bitcoinRPC.getConfirmedTransactions(self.lastblockhash)
-        if(not confirmedTransactionsResponse.success):
-            OnboardingLogger(f"Error: Could not get confirmed transactions from node. {str(confirmedTransactionsResponse.exception)}")
+        try:
+            confirmedTransactionsResponse = await self.bitcoinRPC.getConfirmedTransactions(self.lastblockhash)
+        except Exception as e:
+            OnboardingLogger(f"Error: Could not get confirmed transactions from node. {e}")
             return
+
         self.lastblockhash = confirmedTransactionsResponse.lastblock
-        getBlockHeaderResponse = self.bitcoinRPC.getBlockHeader(self.lastblockhash)
-        if(not getBlockHeaderResponse.success):
-            OnboardingLogger(f"Error: Could not get block header from node. {str(getBlockHeaderResponse.exception)}")
+        
+        try:
+            getBlockHeaderResponse = await self.bitcoinRPC.getBlockHeader(self.lastblockhash)
+            self.blockheight = getBlockHeaderResponse.height
+        except Exception as e:
+            OnboardingLogger(f"Error: Could not get block header from node. {e}")
             return
-        self.blockheight = getBlockHeaderResponse.height
 
         OnboardingLogger('Latest blockheight: ' +  str(self.blockheight))
         for confirmedTransaction in confirmedTransactionsResponse.transactions:
-            if(confirmedTransaction.confirmations >= self.bitcoinRPC.getTargetConfirmations()):
-                if((confirmedTransaction.txid, confirmedTransaction.vout, confirmedTransaction.category) not in self.confirmedTransactionsDict):
+            if confirmedTransaction.confirmations >= self.bitcoinRPC.getTargetConfirmations():
+                if (confirmedTransaction.txid, confirmedTransaction.vout, confirmedTransaction.category) not in self.confirmedTransactionsDict:
                     confirmedTransactionDbObject = DatabaseInterface.ConfirmedTransaction().fromBitcoinRpcListSinceBlockTransactions(confirmedTransaction)
                     self.confirmedTransactionsDict[(confirmedTransaction.txid, confirmedTransaction.vout, confirmedTransaction.category)] = confirmedTransactionDbObject #add in memory
                     self.layer2BridgeDB.insertConfirmedTransaction(confirmedTransactionDbObject)
@@ -267,7 +186,7 @@ class Layer2Bridge():
                         OnboardingLogger('Withdrawal confirmed. transaction_id:' + layer1_transaction_id + ' ' + str(layer1_transaction_vout))
 
 
-    def broadcastPendingWithdrawals(self):
+    async def broadcastPendingWithdrawals(self):
         #Broadcast withdrawal transactions
         lastBroadcastBlockHeight = self.layer2BridgeDB.getLastBroadcastBlockHeight()
         broadcastTransactionBlockDelay = self.layer2BridgeDB.getBroadcastTransactionBlockDelay()
@@ -276,40 +195,37 @@ class Layer2Bridge():
         OnboardingLogger("broadcastTransactionBlockDelay: " + str(broadcastTransactionBlockDelay))
         OnboardingLogger("targetBroadcastBlockheight: " + str(targetBroadcastBlockheight))
         if(len(self.withdrawalTransactionOutputs)):
-            if((not self.enable_batching) or (self.blockheight >= (targetBroadcastBlockheight))):
+            if self.blockheight >= targetBroadcastBlockheight:
                 OnboardingLogger("Broadcasting " +  str(len(self.withdrawalTransactionOutputs)) + " withdrawal outputs")
-                broadcastedTransaction = self.bitcoinRPC.broadcastTransaction(self.withdrawalTransactionOutputs)
-                withdrawalTrxId = broadcastedTransaction.transaction_id
-                if(broadcastedTransaction.success):
+                try:
+                    withdrawalTrxId = await self.bitcoinRPC.broadcastTransaction(self.withdrawalTransactionOutputs)
                     for key, withdrawalOutput in self.withdrawalTransactionOutputs.items():
                         withdrawalOutput.status = DatabaseInterface.PendingWithdrawal.LAYER1_STATUS_BROADCASTED
                         self.layer2BridgeDB.updatePendingWithdrawal(withdrawalOutput.layer2_withdrawal_id, withdrawalOutput.status, withdrawalTrxId, 0)
-                    bitcoinRpcGetTransactionResponse = self.bitcoinRPC.getTransaction(withdrawalTrxId)
-                    if(bitcoinRpcGetTransactionResponse.success):
-                        withdrawalOutputs = DatabaseInterface.ConfirmedTransaction.fromBitcoinRpcGetTransactionResponse(bitcoinRpcGetTransactionResponse)
-                        
-                        withdrawalBroadcastedTransactions = []
-                        for key, withdrawalOutput in self.withdrawalTransactionOutputs.items(): # do db writes and layer2 updates in seperate loops
-                            output = withdrawalOutputs[withdrawalOutput.destination_address]
-                            withdrawalBroadcastedTransactions.append(Layer2Interface.Layer2Interface.WithdrawalBroadcastedTransaction(layer1_transaction_id = withdrawalTrxId, layer1_transaction_vout = output.transaction_vout, layer1_address=withdrawalOutput.destination_address, amount = output.amount, layer2_withdrawal_id = withdrawalOutput.layer2_withdrawal_id, signature = ''))
-                        self.layer2Interface.sendWithdrawalBroadcasted(withdrawalBroadcastedTransactions)
-                    else:
-                        OnboardingLogger("Error: Could not get broadcasted transaction from node. " + str(withdrawalOutputs.exception))
+                    
+                    bitcoinRpcGetTransactionResponse = await self.bitcoinRPC.getTransaction(withdrawalTrxId)
+                    withdrawalOutputs = DatabaseInterface.ConfirmedTransaction.fromBitcoinRpcGetTransactionResponse(bitcoinRpcGetTransactionResponse)
+                    
+                    withdrawalBroadcastedTransactions = []
+                    for key, withdrawalOutput in self.withdrawalTransactionOutputs.items(): # do db writes and layer2 updates in seperate loops
+                        output = withdrawalOutputs[withdrawalOutput.destination_address]
+                        withdrawalBroadcastedTransactions.append(Layer2Interface.Layer2Interface.WithdrawalBroadcastedTransaction(layer1_transaction_id = withdrawalTrxId, layer1_transaction_vout = output.transaction_vout, layer1_address=withdrawalOutput.destination_address, amount = output.amount, layer2_withdrawal_id = withdrawalOutput.layer2_withdrawal_id, signature = ''))
+                    self.layer2Interface.sendWithdrawalBroadcasted(withdrawalBroadcastedTransactions)
                     self.layer2BridgeDB.setLastBroadcastBlockHeight(self.blockheight)
-                else:
-                    OnboardingLogger("Error: Could not broadcast transaction. " + str(broadcastedTransaction.exception))
+                except Exception as e:
+                    OnboardingLogger(f"Error broadcasting/processing withdrawals: {e}")
             else:
                 OnboardingLogger('Batching: waiting for blockheight ' + str(targetBroadcastBlockheight) + ' to broadcast batched transaction. Current blockheight: ' + str(self.blockheight))
         else:
             OnboardingLogger("No withdrawals to broadcast")
 
-    def updateAuditDB(self):
+    async def updateAuditDB(self):
         #update the auditDB if there is new blockheight
         if(self.blockheight > self.auditDB.getLastAuditBlockHeight()):
-            addressGroupingsResponse = self.bitcoinRPC.getAddressGroupings()
-            if(addressGroupingsResponse.success):
+            try:
+                addressGroupings = await self.bitcoinRPC.getAddressGroupings()
                 usedLayer1Addresses: List[AuditDatabaseInterface.AuditLayer1Address] = []
-                for addressGrouping in addressGroupingsResponse.address_groupings:
+                for addressGrouping in addressGroupings:
                     for address in addressGrouping:
                         usedLayer1Addresses.append(AuditDatabaseInterface.AuditLayer1Address.fromBitcoinRpcListAddressGroupingsAddress(address))
                 self.auditDB.addOrUpdateLayer1Addresses(usedLayer1Addresses, self.blockheight, True)
@@ -320,6 +236,8 @@ class Layer2Bridge():
                 for layer1Address in layer1Addresses:
                     layer1AddressesBalance += layer1Address.balance
                 self.layer2Interface.postLayer1AuditReport(self.blockheight, layer1AddressesBalance, layer1Addresses)
+            except Exception as e:
+                OnboardingLogger(f"Error updating audit DB: {e}")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

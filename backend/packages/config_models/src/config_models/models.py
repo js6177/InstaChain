@@ -1,4 +1,4 @@
-﻿from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import string
 from typing import Optional
@@ -99,15 +99,9 @@ class Layer2BridgeSettings(BaseModel):
     onboarding_signing_private_key: str
 
     #optional fields:
-    import_wallet_privkey_at_startup: bool | None = False
-    wallet_private_key_seed_mneumonic: str | None = None
-    import_wallet_privkey_while_looping: bool | None = False
-    import_wallet_privkey_startup_count: int | None = 1000
-    import_wallet_privkey_loop_count: int | None = 0
     database_audit_name: str | None = None
 
 #Common settings that all backend services can access
 class CommonBackendSettings(BaseModel):
     node_id: str
     layer2bridge_signing_public_key: str
-    

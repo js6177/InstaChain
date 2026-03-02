@@ -8,6 +8,8 @@ from .models import (
     LoadWalletResponse,
     DescriptorImportRequest,
     ImportDescriptorResult,
+    ImportMultiRequest,
+    ImportMultiResult,
     ListSinceBlockResponse,
     GetTransactionResponse,
     AddressGroupingItem,
@@ -53,7 +55,7 @@ class BitcoinRPCClient:
                 self.url,
                 json=payload,
                 auth=self.auth,
-                timeout=60.0
+                timeout=120.0
             )
             
             # Bitcoin Core often returns 500 for RPC errors but with a valid JSON body
@@ -96,10 +98,12 @@ class BitcoinRPCClient:
         return await self._call_raw("loadwallet", params, LoadWalletResponse)
 
     async def importdescriptors(self, requests: list[DescriptorImportRequest]) -> list[ImportDescriptorResult]:
-        # The requests list IS the first parameter. _call wraps it in a list of parameters.
-        # So we pass [requests] to _call so it becomes params: [requests] in the JSON.
         result = await self._call("importdescriptors", [requests])
         return [ImportDescriptorResult.model_validate(r) for r in result]
+
+    async def importmulti(self, requests: list[ImportMultiRequest], rescan: bool = True) -> list[ImportMultiResult]:
+        result = await self._call("importmulti", [requests, {"rescan": rescan}])
+        return [ImportMultiResult.model_validate(r) for r in result]
 
     async def sendmany(self, amounts: dict[str, float], minconf: int = 1, 
                        comment: str = "", subtractfeefrom: list[str] = None, 

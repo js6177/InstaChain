@@ -1,13 +1,13 @@
 from __future__ import annotations
 import datetime
 import string
-from typing import Any
+from typing import Any, List
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, BigInteger, Float, Boolean, DateTime, ForeignKey
 
-from BitcoinRPCResponses.ListAddressGroupingsResponse import BitcoinRpcListAddressGroupingsAddress
+from bitcoin_core_rpc import AddressGroupingItem
 from constants import SATOSHI_PER_BITCOIN
 
 Base = declarative_base()
@@ -27,7 +27,7 @@ class AuditLayer1Address(Base):
     last_updated_on = Column(DateTime)
 
 
-    def __init__(self, layer1_address: string, layer1_address_label: string, balance: int, sent_to_layer2_ledger: bool = False):
+    def __init__(self, layer1_address: str, layer1_address_label: str, balance: int, sent_to_layer2_ledger: bool = False):
         self.layer1_address = layer1_address
         self.layer1_address_label = layer1_address_label
         self.balance = balance
@@ -45,9 +45,9 @@ class AuditLayer1Address(Base):
         }
     
     @staticmethod
-    def fromBitcoinRpcListAddressGroupingsAddress(address: BitcoinRpcListAddressGroupingsAddress) -> AuditLayer1Address:
+    def fromBitcoinRpcListAddressGroupingsAddress(address: AddressGroupingItem) -> AuditLayer1Address:
         layer1_address = address.address
-        layer1_address_label = address.label
+        layer1_address_label = address.label or ""
         balance = int(address.amount * SATOSHI_PER_BITCOIN)
         return AuditLayer1Address(layer1_address, layer1_address_label, balance)
 
@@ -102,4 +102,3 @@ class AuditDatabaseInterface:
             return auditState.block_height
         else:
             return 0
-

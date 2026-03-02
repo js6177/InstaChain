@@ -1,7 +1,12 @@
 import sqlite3
 import string
-from BitcoinRPCResponses.ListSinceBlockResponse import BitcoinRpcListSinceBlockResponse, BitcoinRpcListSinceBlockTransactions
-from BitcoinRPCResponses.GetTransactionResponse import BitcoinRpcGetTransactionResponse, BitcoinRpcGetTransactionResponseDetails
+from typing import List, Dict, Optional, Any
+from bitcoin_core_rpc import (
+    ListSinceBlockResponse,
+    ListSinceBlockTransaction,
+    GetTransactionResponse,
+    GetTransactionDetail
+)
 from OnboardingLogger import OnboardingLogger
 
 
@@ -43,37 +48,19 @@ class ConfirmedTransaction():
     def __init__(self, transaction_id = '', layer2_status = None, transaction_vout = 0, amount = 0, fee = 0, address = '', category = '', confirmations = 0, timestamp = 0, blockheight = 0):
         self.setValues(transaction_id, layer2_status, transaction_vout, amount, fee, address, category, confirmations, timestamp, blockheight)
 
-    def fromListSinceBlockRpcJson(self, transactionJSON):
-        self.setValues(transactionJSON["txid"], ConfirmedTransaction.LAYER2_STATUS_PENDING, transactionJSON["vout"], int(transactionJSON["amount"]*SATOSHI_PER_BITCOIN), 0, transactionJSON["address"], transactionJSON["category"], transactionJSON["confirmations"], transactionJSON["time"], transactionJSON["blockheight"])
-        return self
-    
-    def fromBitcoinRpcListSinceBlockTransactions(self, transaction: BitcoinRpcListSinceBlockTransactions):
-        self.setValues(transaction.txid, ConfirmedTransaction.LAYER2_STATUS_PENDING, transaction.vout, int(transaction.amount * SATOSHI_PER_BITCOIN), 0, transaction.address, transaction.category, transaction.confirmations, transaction.time, transaction.blockheight)
+    def fromBitcoinRpcListSinceBlockTransactions(self, transaction: ListSinceBlockTransaction):
+        self.setValues(transaction.txid, ConfirmedTransaction.LAYER2_STATUS_PENDING, transaction.vout, int(transaction.amount * SATOSHI_PER_BITCOIN), 0, transaction.address or "", transaction.category, transaction.confirmations, transaction.time, transaction.blockheight or 0)
         return self
 
-    def fromGetTransactionDetails(self, transactionDetailJSON, transaction_id, blockheight, timestamp):
-        OnboardingLogger("transactionDetailJSON: " + str(transactionDetailJSON))
-        self.setValues(transaction_id, ConfirmedTransaction.LAYER2_STATUS_PENDING, transactionDetailJSON["vout"], transactionDetailJSON["amount"], transactionDetailJSON.get("fee") or 0, transactionDetailJSON["address"], transactionDetailJSON["category"], 0, timestamp, blockheight)
-        return self
-    
-    def fromBitcoinRpcGetTransactionResponseDetails(self, transactionDetail: BitcoinRpcGetTransactionResponseDetails, transaction_id, blockheight, timestamp):
-        self.setValues(transaction_id, ConfirmedTransaction.LAYER2_STATUS_PENDING, transactionDetail.vout, int(transactionDetail.amount * SATOSHI_PER_BITCOIN), int(transactionDetail.fee * SATOSHI_PER_BITCOIN), transactionDetail.address, transactionDetail.category, 0, timestamp, blockheight)
+    def fromBitcoinRpcGetTransactionResponseDetails(self, transactionDetail: GetTransactionDetail, transaction_id, blockheight, timestamp):
+        self.setValues(transaction_id, ConfirmedTransaction.LAYER2_STATUS_PENDING, transactionDetail.vout, int(transactionDetail.amount * SATOSHI_PER_BITCOIN), int((transactionDetail.fee or 0) * SATOSHI_PER_BITCOIN), transactionDetail.address or "", transactionDetail.category, 0, timestamp, blockheight)
         return self
 
     @staticmethod
-    def fromGetTransaction(getTransactionJSON):
-        outputs = {}
-        transactionDetails = getTransactionJSON["details"]
-        for transactionDetail in transactionDetails:
-            output = ConfirmedTransaction().fromGetTransactionDetails(transactionDetail, getTransactionJSON["txid"], 0, getTransactionJSON["time"])
-            outputs[output.address] = output
-        return outputs
-    
-    @staticmethod
-    def fromBitcoinRpcGetTransactionResponse(bitcoinRpcGetTransactionResponse: BitcoinRpcGetTransactionResponse):
+    def fromBitcoinRpcGetTransactionResponse(bitcoinRpcGetTransactionResponse: GetTransactionResponse):
         outputs = {}
         for transactionDetail in bitcoinRpcGetTransactionResponse.details:
-            output = ConfirmedTransaction().fromBitcoinRpcGetTransactionResponseDetails(transactionDetail, bitcoinRpcGetTransactionResponse.txid, bitcoinRpcGetTransactionResponse.blockheight, bitcoinRpcGetTransactionResponse.time)
+            output = ConfirmedTransaction().fromBitcoinRpcGetTransactionResponseDetails(transactionDetail, bitcoinRpcGetTransactionResponse.txid, bitcoinRpcGetTransactionResponse.blockheight or 0, bitcoinRpcGetTransactionResponse.time)
             outputs[output.address] = output
         return outputs
 
@@ -108,7 +95,7 @@ class PendingWithdrawal():
     def __init__(self, layer2_withdrawal_id = '', status = None, transaction_id = '', amount = 0, fee = 0, destination_address = '', confirmations = 0, withdrawal_requested_timestamp = 0, date_broadcasted = 0):
         self.setValues(layer2_withdrawal_id, status, transaction_id, amount, fee, destination_address, confirmations, withdrawal_requested_timestamp, date_broadcasted)
 
-    def fromWithdrawalRequestAPIJson(self, withdrawalJSON: string):
+    def fromWithdrawalRequestAPIJson(self, withdrawalJSON: Dict[str, Any]):
         self.setValues(withdrawalJSON['layer2_withdrawal_id'], withdrawalJSON['status'], '', withdrawalJSON['amount'], 0, withdrawalJSON['layer1_address'], 0, withdrawalJSON['withdrawal_requested_timestamp'], 0)
         return self
 
@@ -141,7 +128,7 @@ class DB():
              ON KeyValue (_key)''')
         self.conn.commit()
 
-    def getPendingWithdrawals(self) -> 'list[PendingWithdrawal]':
+    def getPendingWithdrawals(self) -> List[PendingWithdrawal]:
         withdrawals = []
         status = (PendingWithdrawal.LAYER1_STATUS_PENDING,)
         withdrawalRows = self.cursor.execute('SELECT * FROM PendingWithdrawals WHERE status=?', status).fetchall()
@@ -261,9 +248,3 @@ class DB():
 
     def setBroadcastTransactionBlockDelay(self, broadcastTransactionBlockDelay):
         self.setKeyValue('broadcastTransactionBlockDelay', str(broadcastTransactionBlockDelay), True)
-
-    def getImportPrivkeyBip32Index(self, defaultValue = 0):
-        return int(self.getKeyValue('importPrivkeyBip32Index', defaultValue))
-
-    def setImportPrivkeyBip32Index(self, importPrivkeyBip32Index):
-        self.setKeyValue('importPrivkeyBip32Index', str(importPrivkeyBip32Index), True)

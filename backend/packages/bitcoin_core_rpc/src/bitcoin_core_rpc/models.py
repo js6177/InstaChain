@@ -77,13 +77,34 @@ class DescriptorImportRequest(BaseModel):
     range: Optional[Union[int, list[int]]] = None
     internal: bool = False
     next_index: Optional[int] = None
+    label: Optional[str] = None
 
 class ImportDescriptorResult(BaseModel):
     success: bool
     warnings: Optional[list[str]] = None
     error: Optional[dict[str, Any]] = None
 
+class ImportMultiRequest(BaseModel):
+    rescan: bool = True
+    desc: Optional[str] = None
+    scriptpubkey: Optional[str] = None
+    redeemscript: Optional[str] = None
+    witnessscript: Optional[str] = None
+    pubkeys: Optional[list[str]] = None
+    keys: Optional[list[str]] = None
+    range: Optional[Union[int, list[int]]] = None
+    internal: Optional[bool] = None
+    watchonly: Optional[bool] = None
+    label: Optional[str] = None
+    timestamp: Union[int, str] = "now"
+
+class ImportMultiResult(BaseModel):
+    success: bool
+    warnings: Optional[list[str]] = None
+    error: Optional[dict[str, Any]] = None
+
 class ListSinceBlockTransaction(BaseModel):
+    involvesWatchonly: Optional[bool] = None
     address: Optional[str] = None
     category: str
     amount: float
@@ -91,20 +112,27 @@ class ListSinceBlockTransaction(BaseModel):
     vout: int
     fee: Optional[float] = None
     confirmations: int
+    generated: Optional[bool] = None
+    trusted: Optional[bool] = None
     blockhash: Optional[str] = None
+    blockheight: Optional[int] = None
     blockindex: Optional[int] = None
     blocktime: Optional[int] = None
     txid: str
+    walletconflicts: Optional[list[str]] = None
     time: int
     timereceived: int
+    comment: Optional[str] = None
     bip125_replaceable: str
     abandoned: Optional[bool] = None
+    to: Optional[str] = None
 
 class ListSinceBlockResponse(BaseModel):
     transactions: list[ListSinceBlockTransaction]
     lastblock: str
 
 class GetTransactionDetail(BaseModel):
+    involvesWatchonly: Optional[bool] = None
     address: Optional[str] = None
     category: str
     amount: float
@@ -117,15 +145,21 @@ class GetTransactionResponse(BaseModel):
     amount: float
     fee: Optional[float] = None
     confirmations: int
+    generated: Optional[bool] = None
+    trusted: Optional[bool] = None
     blockhash: Optional[str] = None
+    blockheight: Optional[int] = None
     blockindex: Optional[int] = None
     blocktime: Optional[int] = None
     txid: str
+    walletconflicts: Optional[list[str]] = None
     time: int
     timereceived: int
+    comment: Optional[str] = None
     bip125_replaceable: str
     details: list[GetTransactionDetail]
     hex: str
+    decoded: Optional[dict[str, Any]] = None
 
 class AddressGroupingItem(RootModel):
     root: list[Any]  # [address, amount, label]

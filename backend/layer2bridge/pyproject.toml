@@ -6,13 +6,14 @@ dependencies = [
     "base58>=2.1.1",
     "bip-utils>=2.9.3",
     "fastecdsa>=3.0.1",
-    "pydantic>=2.11.7",
+    "pydantic>=2.12.5",
     "sqlalchemy>=2.0.47",
     "config-models",
     "config-loader",
     "layer2address",
     "layer1-utils",
-    "openl2-messaging"
+    "openl2-messaging",
+    "bitcoin-core-rpc"
 ]
 
 [tool.uv.sources]
@@ -21,3 +22,4 @@ config-loader = { path = "../packages/config_loader", editable = true }
 layer2address = { path = "../packages/layer2address", editable = true }
 layer1-utils = { path = "../packages/layer1_utils", editable = true }
 openl2-messaging = { path = "../packages/openl2_messaging", editable = true }
+bitcoin-core-rpc = { path = "../packages/bitcoin_core_rpc", editable = true }
