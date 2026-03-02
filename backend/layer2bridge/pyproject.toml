@@ -26,3 +26,13 @@ layer1-utils = { path = "../packages/layer1_utils", editable = true }
 openl2-messaging = { path = "../packages/openl2_messaging", editable = true }
 bitcoin-core-rpc = { path = "../packages/bitcoin_core_rpc", editable = true }
 openl2-layer2ledger-api = { path = "../packages/openl2_layer2ledger_api", editable = true }
+
+[project.scripts]
+layer2bridge = "layer2bridge.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/layer2bridge"]

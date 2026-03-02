@@ -1,16 +1,14 @@
 import sqlite3
-import string
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Any
 from bitcoin_core_rpc import (
-    ListSinceBlockResponse,
     ListSinceBlockTransaction,
     GetTransactionResponse,
     GetTransactionDetail
 )
-from OnboardingLogger import OnboardingLogger
+from layer2bridge.onboarding_logger import OnboardingLogger
 
 
-from constants import *
+from layer2bridge.constants import SATOSHI_PER_BITCOIN
 
 DEFAULT_DATABASE_NAME = "bitcoin.db"
 
@@ -248,3 +246,7 @@ class DB():
 
     def setBroadcastTransactionBlockDelay(self, broadcastTransactionBlockDelay):
         self.setKeyValue('broadcastTransactionBlockDelay', str(broadcastTransactionBlockDelay), True)
+
+    def close(self):
+        if self.conn:
+            self.conn.close()

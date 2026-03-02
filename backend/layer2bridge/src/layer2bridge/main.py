@@ -1,24 +1,12 @@
 import asyncio
-from typing import Dict, List, Any
-import httpx
-import time
-import filelock
+from typing import Dict, List
 import os
-import json
-import random
-import string
-import datetime
-from dataclasses import dataclass
-import DatabaseInterface
-import AuditDatabaseInterface
-import binascii
+from layer2bridge import database_interface as DatabaseInterface
+from layer2bridge import audit_database_interface as AuditDatabaseInterface
 import traceback
-import argparse
-import Layer2Interface
-from FullNodeInterface import BitcoinRPC
-from types import SimpleNamespace
-import hashlib
-from OnboardingLogger import OnboardingLogger
+from layer2bridge import layer2interface as Layer2Interface
+from layer2bridge.full_node_interface import BitcoinRPC
+from layer2bridge.onboarding_logger import OnboardingLogger
 from config_loader.loader import get_layer2ledgerbridge_config
 from config_models.models import Layer2BridgeSettings
 from openl2_layer2ledger_api.models.requests import (
@@ -29,28 +17,31 @@ from openl2_layer2ledger_api.models.requests import (
 SATOSHI_PER_BITCOIN = 100000000
 
 DEFAULT_WORKING_DIRECTORY = os.path.expanduser('~') + "/.IC/Layer2Bridge/"
-LOCKFILE_PATH = DEFAULT_WORKING_DIRECTORY + 'Layer2Bridge.lock'
 
 DEFAULT_LAYER2BRIDGE_DB_NAME = "layer2Bridge.sqlite"
 DEFAULT_AUDIT_DB_NAME = "audit.sqlite"
 
 
 async def main():
-    if os.path.exists(LOCKFILE_PATH):
-        os.remove(LOCKFILE_PATH)
+    bridge = Layer2Bridge()
     try:
-        oh = Layer2Bridge()
-        await oh.run()
+        await bridge.run()
+    except (asyncio.CancelledError, KeyboardInterrupt):
+        OnboardingLogger("Termination requested...")
     except Exception as e:
-        OnboardingLogger(e)
+        OnboardingLogger(f"Unexpected error: {e}")
         OnboardingLogger(traceback.format_exc())
-        OnboardingLogger('Restarting...')
+    finally:
+        bridge.close()
+        OnboardingLogger("Bridge closed.")
 
 
 class Layer2Bridge():
     settings: Layer2BridgeSettings
     database_layer2bridge_full_path: str
     database_audit_full_path: str
+    layer2BridgeDB: DatabaseInterface.DB = None
+    auditDB: AuditDatabaseInterface.AuditDatabaseInterface = None
 
     def loadConfig(self):
         self.settings = get_layer2ledgerbridge_config()
@@ -58,7 +49,6 @@ class Layer2Bridge():
         self.database_audit_full_path = DEFAULT_WORKING_DIRECTORY + (self.settings.database_audit_name or DEFAULT_AUDIT_DB_NAME)
 
     async def run(self):
-        termination_called = False
         self.loadConfig()
 
         self.layer2BridgeDB = DatabaseInterface.DB(self.database_layer2bridge_full_path)
@@ -83,7 +73,7 @@ class Layer2Bridge():
             self.confirmedTransactionsDict[(trx.transaction_id, trx.transaction_vout, trx.category)] = trx
 
 
-        while(not termination_called):
+        while True:
             await self.getConfirmedTransactionsFromNodeAndSaveToDb()
             await self.getPendingWithdrawalsFromLayer2LedgerAndSaveToDb()
             self.getPendingWithdrawalsFromDb()
@@ -93,9 +83,12 @@ class Layer2Bridge():
             await self.updateAuditDB()
 
             await asyncio.sleep(60*1) #sleep 1 mins
-            if os.path.exists(LOCKFILE_PATH):
-                termination_called = True
-                OnboardingLogger("Termination called through lockfile... ")
+
+    def close(self):
+        if self.layer2BridgeDB:
+            self.layer2BridgeDB.close()
+        if self.auditDB:
+            self.auditDB.close()
 
     async def getConfirmedTransactionsFromNodeAndSaveToDb(self):
         #get confirmed transactions from the node and save it to the db

@@ -1,14 +1,13 @@
 from __future__ import annotations
 import datetime
 import string
-from typing import Any, List
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, BigInteger, Float, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, BigInteger, Boolean, DateTime
 
 from bitcoin_core_rpc import AddressGroupingItem
-from constants import SATOSHI_PER_BITCOIN
+from layer2bridge.constants import SATOSHI_PER_BITCOIN
 
 Base = declarative_base()
 
@@ -102,3 +101,7 @@ class AuditDatabaseInterface:
             return auditState.block_height
         else:
             return 0
+
+    def close(self):
+        self.session.close()
+        self.engine.dispose()

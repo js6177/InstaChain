@@ -5,12 +5,12 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Layer2Bridge",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "Layer2Bridge.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
+        "name": "Run layer2bridge.main",
+        "type": "debugpy",
+        "request": "launch",
+        "program": "${workspaceFolder}/src/layer2bridge/main.py",
+        "console": "integratedTerminal",
+        "justMyCode": true
         }
     ]
 }

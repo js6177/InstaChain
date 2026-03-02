@@ -511,7 +511,7 @@ requires-dist = [
 [[package]]
 name = "layer2bridge"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "base58" },
     { name = "bip-utils" },

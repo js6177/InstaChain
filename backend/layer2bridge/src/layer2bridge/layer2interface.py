@@ -2,15 +2,15 @@ import httpx
 import random
 import string
 from typing import List
-import DatabaseInterface
-import AuditDatabaseInterface
+from layer2bridge import database_interface as DatabaseInterface
+from layer2bridge import audit_database_interface as AuditDatabaseInterface
 from openl2_messaging import (
     signDepositMessage,
     signWithdrawalBroadcastedMessage,
     signWithdrawalConfirmedMessage,
     signLayer1AuditReportMessage
 )
-from OnboardingLogger import OnboardingLogger
+from layer2bridge.onboarding_logger import OnboardingLogger
 from openl2_layer2ledger_api import (
     WITHDRAWAL_ROUTER_PREFIX,
     GET_WITHDRAWAL_REQUESTS_ROUTE,
@@ -36,7 +36,6 @@ from openl2_layer2ledger_api.models.responses import (
     WithdrawalConfirmedResponse,
     DepositConfirmedResponse,
     PostLayer1AuditReportResponse,
-    CommonResponse,
 )
 
 

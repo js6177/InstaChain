@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from bitcoin_core_rpc import (
     BitcoinRPCClient,
     LoadWalletResponse,
@@ -8,7 +8,8 @@ from bitcoin_core_rpc import (
     GetBlockHeaderResponse
 )
 from config_models.models import Layer2BridgeBitcoinConfFileSettings
-from OnboardingLogger import OnboardingLogger
+from layer2bridge.onboarding_logger import OnboardingLogger
+
 
 DEFAULT_TESTNET = True
 TESTNET_TARGETCONFIRMATIONS = 3
