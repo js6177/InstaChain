@@ -1,0 +1,16 @@
+[project]
+name = "openl2-layer2ledger-api"
+version = "0.1.0"
+description = "Layer2Ledger API models and paths"
+readme = "README.md"
+authors = [
+    { name = "James S", email = "jamie.77.smith@protonmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.11.7"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

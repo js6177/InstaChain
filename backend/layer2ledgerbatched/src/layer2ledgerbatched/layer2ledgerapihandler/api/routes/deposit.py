@@ -5,11 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from layer2ledgerbatched.layer2ledgerapihandler.utils.sessions import get_redis, get_db_session
 from layer2ledgerbatched.common.db.models import DepositAddresses, Transaction, TransactionType
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.get_deposit_address_request import GetDepositAddressRequest
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.get_deposit_address_response import GetDepositAddressResponse
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.deposit_confirmed_request import DepositConfirmedRequest
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.deposit_confirmed_response import DepositConfirmedResponse, Layer1DepositConfirmedTransaction
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
+from openl2_layer2ledger_api.models.requests import GetDepositAddressRequest
+from openl2_layer2ledger_api.models.responses import GetDepositAddressResponse
+from openl2_layer2ledger_api.models.requests import DepositConfirmedRequest
+from openl2_layer2ledger_api.models.responses import DepositConfirmedResponse, Layer1DepositConfirmedTransaction
+from openl2_layer2ledger_api.models.responses import CommonResponse
 import layer2ledgerbatched.layer2ledgerapihandler.utils.error_message as error_codes
 from openl2_messaging import verifyGetDepositAddress, verifyDeposit, buildGetDepositAddressMessage, buildDepositMessage
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address
@@ -17,7 +17,7 @@ from layer2ledgerbatched.layer2ledgerapihandler.utils.generate_btc_address impor
 from layer2ledgerbatched.common.redis.redis_models.transactions import RedisTransaction, PendingTransaction, PENDING_TRANSACTIONS_LIST_KEY
 from config_loader.loader import get_layer2ledgerbatched_layer2ledgerapihandler_config, Environment
 from config_models.models import Layer2LedgerAPIHandlerSettings
-from .route_defs import GET_DEPOSIT_ADDRESS_ROUTE, DEPOSIT_CONFIRMED_ROUTE
+from openl2_layer2ledger_api import GET_DEPOSIT_ADDRESS_ROUTE, DEPOSIT_CONFIRMED_ROUTE
 
 router = APIRouter()
 

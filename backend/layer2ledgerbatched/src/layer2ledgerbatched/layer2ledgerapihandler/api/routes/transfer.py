@@ -9,14 +9,14 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 #from layer2ledgerbatched.common.db.session import get_db_session
 from layer2ledgerbatched.layer2ledgerapihandler.utils.sessions import get_redis, get_db_session, get_redis_lock_manager
 from layer2ledgerbatched.common.db.models import Transaction, Layer2AddressBalance, TransactionType
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.push_transaction_request import PushTransactionRequest
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
+from openl2_layer2ledger_api.models.requests import PushTransactionRequest
+from openl2_layer2ledger_api.models.responses import CommonResponse
 import layer2ledgerbatched.layer2ledgerapihandler.utils.error_message as error_codes
 from openl2_messaging import buildTransferMessage, verifyTransferMessage
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.common.redis.redis_models.transactions import RedisTransaction, PendingTransaction, PENDING_TRANSACTIONS_LIST_KEY
-from .route_defs import PUSH_TRANSACTION_ROUTE
+from openl2_layer2ledger_api import PUSH_TRANSACTION_ROUTE
 
 router = APIRouter()
 

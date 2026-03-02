@@ -6,8 +6,8 @@ import random
 from layer2ledgerbatched.layer2ledgerapihandler.main import app
 from layer2ledgerbatched.common.db.models import KeyValueStore
 import layer2ledgerbatched.layer2ledgerapihandler.utils.error_message as error_codes
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.sample_request import SampleRequest
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
+from openl2_layer2ledger_api.models.requests import SampleRequest
+from openl2_layer2ledger_api.models.responses import CommonResponse
 
 @pytest.mark.asyncio
 async def test_lifespan_events(postgresql_session, redis_client) -> None:

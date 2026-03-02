@@ -6,33 +6,21 @@ import time
 
 from layer2ledgerbatched.common.db.models import Layer2AddressBalance as DBBalance
 from layer2ledgerbatched.common.db.models import Transaction, TransactionType
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.get_balance_request import (
+from openl2_layer2ledger_api.models.requests import (
     GetBalanceRequest,
-)
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.get_fee_request import (
     GetFeeRequest,
-)
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.get_transaction_request import (
     GetTransactionRequest,
-)
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.get_transactions_request import (
     GetTransactionsRequest,
 )
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.get_balance_response import (
+from openl2_layer2ledger_api.models.responses import (
     GetBalanceResponse,
     GetBalanceResponseBalance,
-)
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.get_fee_response import (
     GetFeeResponse,
-)
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.get_transaction_response import (
     GetTransactionResponse,
-)
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.get_transactions_response import (
     GetTransactionsResponse,
     GetTransactionsResponseTransaction,
 )
-from layer2ledgerbatched.layer2ledgerapihandler.api.routes.route_defs import (
+from openl2_layer2ledger_api import (
     EXPLORER_ROUTER_PREFIX,
     GET_ALL_TRANSACTIONS_ROUTE,
     GET_BALANCE_ROUTE,

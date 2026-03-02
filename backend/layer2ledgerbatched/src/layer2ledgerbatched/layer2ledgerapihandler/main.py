@@ -7,11 +7,11 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, AsyncEngin
 
 from config_loader.loader import get_layer2ledgerbatched_common_config, Environment
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.sample_request import SampleRequest
+from openl2_layer2ledger_api.models.requests import SampleRequest
 from layer2ledgerbatched.common.db.models import Base
 from layer2ledgerbatched.layer2ledgerapihandler.api.routes import transfer, deposit, withdrawal, explorer, info
-from layer2ledgerbatched.layer2ledgerapihandler.api.routes.route_defs import TRANSFER_ROUTER_PREFIX, DEPOSIT_ROUTER_PREFIX, WITHDRAWAL_ROUTER_PREFIX, EXPLORER_ROUTER_PREFIX, INFO_ROUTER_PREFIX
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
+from openl2_layer2ledger_api import TRANSFER_ROUTER_PREFIX, DEPOSIT_ROUTER_PREFIX, WITHDRAWAL_ROUTER_PREFIX, EXPLORER_ROUTER_PREFIX, INFO_ROUTER_PREFIX
+from openl2_layer2ledger_api.models.responses import CommonResponse
 from layer2ledgerbatched.layer2ledgerapihandler.utils.sessions import get_redis, get_db_session, get_redis_lock_manager
 
 

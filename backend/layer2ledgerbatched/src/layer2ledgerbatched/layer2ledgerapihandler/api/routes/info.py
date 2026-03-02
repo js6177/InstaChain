@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.get_node_info_response import (
+from openl2_layer2ledger_api.models.responses import (
     GetNodeInfoResponse,
     Layer1NetworkInfo,
     NodeInfo,

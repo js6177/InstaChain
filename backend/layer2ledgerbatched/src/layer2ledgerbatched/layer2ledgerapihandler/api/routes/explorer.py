@@ -4,29 +4,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from layer2ledgerbatched.common.db.models import Layer2AddressBalance as DBBalance
 from layer2ledgerbatched.common.db.models import Transaction as DBTransaction
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.get_balance_request import (
+from openl2_layer2ledger_api.models.requests import (
     GetBalanceRequest,
 )
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.get_fee_request import (
+from openl2_layer2ledger_api.models.requests import (
     GetFeeRequest,
 )
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.get_transaction_request import (
+from openl2_layer2ledger_api.models.requests import (
     GetTransactionRequest,
 )
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.get_transactions_request import (
+from openl2_layer2ledger_api.models.requests import (
     GetTransactionsRequest,
 )
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.get_balance_response import (
+from openl2_layer2ledger_api.models.responses import (
     GetBalanceResponseBalance,
     GetBalanceResponse,
 )
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.get_fee_response import (
+from openl2_layer2ledger_api.models.responses import (
     GetFeeResponse,
 )
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.get_transaction_response import (
+from openl2_layer2ledger_api.models.responses import (
     GetTransactionResponse,
 )
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.get_transactions_response import (
+from openl2_layer2ledger_api.models.responses import (
     GetTransactionsResponse,
     GetTransactionsResponseTransaction,
     TransactionGroup,
@@ -40,7 +40,7 @@ from layer2ledgerbatched.layer2ledgerapihandler.utils.error_message import (
 )
 from layer2ledgerbatched.layer2ledgerapihandler.utils.sessions import get_db_session
 
-from .route_defs import (
+from openl2_layer2ledger_api import (
     GET_ALL_TRANSACTIONS_ROUTE,
     GET_BALANCE_ROUTE,
     GET_FEE_ROUTE,

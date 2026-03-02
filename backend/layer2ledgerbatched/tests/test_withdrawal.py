@@ -12,13 +12,13 @@ import uuid
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 import layer2ledgerbatched.common.redis.redis_driver.redis_driver as redis_driver
 from layer2ledgerbatched.layer2ledgerapihandler.main import app
-from layer2ledgerbatched.layer2ledgerapihandler.api.routes.route_defs import (
+from openl2_layer2ledger_api import (
     WITHDRAWAL_ROUTER_PREFIX, REQUEST_WITHDRAWAL_ROUTE, GET_WITHDRAWAL_REQUESTS_ROUTE, 
     WITHDRAWAL_BROADCASTED_ROUTE, WITHDRAWAL_CONFIRMED_ROUTE
 )
 from layer2ledgerbatched.common.db.models import Layer2AddressBalance, Transaction, WithdrawalRequests, ConfirmedWithdrawals, WithdrawalStatus
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.request_withdrawal_request import RequestWithdrawalRequest
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
+from openl2_layer2ledger_api.models.requests import RequestWithdrawalRequest
+from openl2_layer2ledger_api.models.responses import CommonResponse
 from layer2ledgerbatched.common.redis.redis_models.withdrawal import PendingWithdrawal, PENDING_WITHDRAWALS_LIST_KEY
 from openl2_messaging import buildWithdrawalRequestMessage, buildWithdrawalBroadcastedMessage, buildWithdrawalConfirmedMessage
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address
@@ -107,12 +107,12 @@ async def test_withdrawal_flow(postgresql_session: AsyncSession, redis_client: R
     await asyncio.sleep(3)
 
     # 5. Get withdrawal requests
-    from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.get_withdrawal_requests_request import GetWithdrawalRequestsRequest
+    from openl2_layer2ledger_api.models.requests import GetWithdrawalRequestsRequest
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post(f"{WITHDRAWAL_ROUTER_PREFIX}{GET_WITHDRAWAL_REQUESTS_ROUTE}", json=GetWithdrawalRequestsRequest(latest_timestamp=0).model_dump())
 
     assert response.status_code == 200
-    from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.get_withdrawal_requests_response import GetWithdrawalRequestsResponse
+    from openl2_layer2ledger_api.models.responses import GetWithdrawalRequestsResponse
     response_model = GetWithdrawalRequestsResponse.model_validate(response.json())
     assert response_model.error_code == error_codes.ERROR_SUCCESS
     assert len(response_model.withdrawal_requests) == 1
@@ -133,7 +133,7 @@ async def test_withdrawal_flow(postgresql_session: AsyncSession, redis_client: R
     )
     broadcast_signature = bridge_address.sign(broadcast_message)
     
-    from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.withdrawal_broadcasted_request import WithdrawalBroadcastedRequest, Layer1BroadcastedWithdrawalTransaction
+    from openl2_layer2ledger_api.models.requests import WithdrawalBroadcastedRequest, Layer1BroadcastedWithdrawalTransaction
     broadcasted_tx = Layer1BroadcastedWithdrawalTransaction(
         layer1_transaction_id=layer1_transaction_id,
         layer1_transaction_vout=layer1_transaction_vout,
@@ -148,7 +148,7 @@ async def test_withdrawal_flow(postgresql_session: AsyncSession, redis_client: R
         response = await client.post(f"{WITHDRAWAL_ROUTER_PREFIX}{WITHDRAWAL_BROADCASTED_ROUTE}", json=broadcasted_request.model_dump())
 
     assert response.status_code == 200
-    from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.withdrawal_broadcasted_response import WithdrawalBroadcastedResponse
+    from openl2_layer2ledger_api.models.responses import WithdrawalBroadcastedResponse
     response_model = WithdrawalBroadcastedResponse.model_validate(response.json())
     assert response_model.error_code == error_codes.ERROR_SUCCESS
     assert response_model.transactions[0].error_code == error_codes.ERROR_SUCCESS
@@ -162,7 +162,7 @@ async def test_withdrawal_flow(postgresql_session: AsyncSession, redis_client: R
     )
     confirmed_signature = bridge_address.sign(confirmed_message)
     
-    from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.withdrawal_confirmed_request import WithdrawalConfirmedRequest, Layer1WithdrawalConfirmedTransaction
+    from openl2_layer2ledger_api.models.requests import WithdrawalConfirmedRequest, Layer1WithdrawalConfirmedTransaction
     confirmed_tx = Layer1WithdrawalConfirmedTransaction(
         layer1_transaction_id=layer1_transaction_id,
         layer1_transaction_vout=layer1_transaction_vout,
@@ -176,7 +176,7 @@ async def test_withdrawal_flow(postgresql_session: AsyncSession, redis_client: R
         response = await client.post(f"{WITHDRAWAL_ROUTER_PREFIX}{WITHDRAWAL_CONFIRMED_ROUTE}", json=confirmed_request.model_dump())
 
     assert response.status_code == 200
-    from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.withdrawal_confirmed_response import WithdrawalConfirmedResponse
+    from openl2_layer2ledger_api.models.responses import WithdrawalConfirmedResponse
     response_model = WithdrawalConfirmedResponse.model_validate(response.json())
     assert response_model.error_code == error_codes.ERROR_SUCCESS
     assert response_model.transactions[0].error_code == error_codes.ERROR_SUCCESS
@@ -253,12 +253,12 @@ async def test_multiple_withdrawals_to_same_layer1_address(postgresql_session: A
         await asyncio.sleep(1)
 
     # 4. Get withdrawal requests
-    from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.get_withdrawal_requests_request import GetWithdrawalRequestsRequest
+    from openl2_layer2ledger_api.models.requests import GetWithdrawalRequestsRequest
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post(f"{WITHDRAWAL_ROUTER_PREFIX}{GET_WITHDRAWAL_REQUESTS_ROUTE}", json=GetWithdrawalRequestsRequest(latest_timestamp=0).model_dump())
 
     assert response.status_code == 200
-    from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.get_withdrawal_requests_response import GetWithdrawalRequestsResponse
+    from openl2_layer2ledger_api.models.responses import GetWithdrawalRequestsResponse
     response_model = GetWithdrawalRequestsResponse.model_validate(response.json())
     assert response_model.error_code == error_codes.ERROR_SUCCESS
     assert len(response_model.withdrawal_requests) == num_withdrawals
@@ -288,7 +288,7 @@ async def test_multiple_withdrawals_to_same_layer1_address(postgresql_session: A
         )
         broadcast_signature = bridge_address.sign(broadcast_message)
 
-        from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.withdrawal_broadcasted_request import WithdrawalBroadcastedRequest, Layer1BroadcastedWithdrawalTransaction
+        from openl2_layer2ledger_api.models.requests import WithdrawalBroadcastedRequest, Layer1BroadcastedWithdrawalTransaction
         broadcasted_tx = Layer1BroadcastedWithdrawalTransaction(
             layer1_transaction_id=layer1_transaction_id,
             layer1_transaction_vout=layer1_transaction_vout,
@@ -305,7 +305,7 @@ async def test_multiple_withdrawals_to_same_layer1_address(postgresql_session: A
         response = await client.post(f"{WITHDRAWAL_ROUTER_PREFIX}{WITHDRAWAL_BROADCASTED_ROUTE}", json=broadcasted_request.model_dump())
 
     assert response.status_code == 200
-    from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.withdrawal_broadcasted_response import WithdrawalBroadcastedResponse
+    from openl2_layer2ledger_api.models.responses import WithdrawalBroadcastedResponse
     response_model = WithdrawalBroadcastedResponse.model_validate(response.json())
     assert response_model.error_code == error_codes.ERROR_SUCCESS
     assert len(response_model.transactions) == num_withdrawals
@@ -321,7 +321,7 @@ async def test_multiple_withdrawals_to_same_layer1_address(postgresql_session: A
     )
     confirmed_signature = bridge_address.sign(confirmed_message)
     
-    from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.withdrawal_confirmed_request import WithdrawalConfirmedRequest, Layer1WithdrawalConfirmedTransaction
+    from openl2_layer2ledger_api.models.requests import WithdrawalConfirmedRequest, Layer1WithdrawalConfirmedTransaction
     confirmed_tx = Layer1WithdrawalConfirmedTransaction(
         layer1_transaction_id=layer1_transaction_id,
         layer1_transaction_vout=layer1_transaction_vout,
@@ -335,7 +335,7 @@ async def test_multiple_withdrawals_to_same_layer1_address(postgresql_session: A
         response = await client.post(f"{WITHDRAWAL_ROUTER_PREFIX}{WITHDRAWAL_CONFIRMED_ROUTE}", json=confirmed_request.model_dump())
 
     assert response.status_code == 200
-    from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.withdrawal_confirmed_response import WithdrawalConfirmedResponse
+    from openl2_layer2ledger_api.models.responses import WithdrawalConfirmedResponse
     response_model = WithdrawalConfirmedResponse.model_validate(response.json())
     assert response_model.error_code == error_codes.ERROR_SUCCESS
     assert len(response_model.transactions) == 1
@@ -424,12 +424,12 @@ async def test_multiple_withdrawals_from_different_layer2_addresses(postgresql_s
     await asyncio.sleep(3)
 
     # 4. Get withdrawal requests
-    from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.get_withdrawal_requests_request import GetWithdrawalRequestsRequest
+    from openl2_layer2ledger_api.models.requests import GetWithdrawalRequestsRequest
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post(f"{WITHDRAWAL_ROUTER_PREFIX}{GET_WITHDRAWAL_REQUESTS_ROUTE}", json=GetWithdrawalRequestsRequest(latest_timestamp=0).model_dump())
 
     assert response.status_code == 200
-    from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.get_withdrawal_requests_response import GetWithdrawalRequestsResponse
+    from openl2_layer2ledger_api.models.responses import GetWithdrawalRequestsResponse
     response_model = GetWithdrawalRequestsResponse.model_validate(response.json())
     assert response_model.error_code == error_codes.ERROR_SUCCESS
     assert len(response_model.withdrawal_requests) == num_withdrawals
@@ -458,7 +458,7 @@ async def test_multiple_withdrawals_from_different_layer2_addresses(postgresql_s
         )
         broadcast_signature = bridge_address.sign(broadcast_message)
 
-        from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.withdrawal_broadcasted_request import WithdrawalBroadcastedRequest, Layer1BroadcastedWithdrawalTransaction
+        from openl2_layer2ledger_api.models.requests import WithdrawalBroadcastedRequest, Layer1BroadcastedWithdrawalTransaction
         broadcasted_tx = Layer1BroadcastedWithdrawalTransaction(
             layer1_transaction_id=layer1_transaction_id,
             layer1_transaction_vout=layer1_transaction_vout,
@@ -475,7 +475,7 @@ async def test_multiple_withdrawals_from_different_layer2_addresses(postgresql_s
         response = await client.post(f"{WITHDRAWAL_ROUTER_PREFIX}{WITHDRAWAL_BROADCASTED_ROUTE}", json=broadcasted_request.model_dump())
 
     assert response.status_code == 200
-    from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.withdrawal_broadcasted_response import WithdrawalBroadcastedResponse
+    from openl2_layer2ledger_api.models.responses import WithdrawalBroadcastedResponse
     response_model = WithdrawalBroadcastedResponse.model_validate(response.json())
     assert response_model.error_code == error_codes.ERROR_SUCCESS
     assert len(response_model.transactions) == num_withdrawals
@@ -491,7 +491,7 @@ async def test_multiple_withdrawals_from_different_layer2_addresses(postgresql_s
     )
     confirmed_signature = bridge_address.sign(confirmed_message)
     
-    from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.withdrawal_confirmed_request import WithdrawalConfirmedRequest, Layer1WithdrawalConfirmedTransaction
+    from openl2_layer2ledger_api.models.requests import WithdrawalConfirmedRequest, Layer1WithdrawalConfirmedTransaction
     confirmed_tx = Layer1WithdrawalConfirmedTransaction(
         layer1_transaction_id=layer1_transaction_id,
         layer1_transaction_vout=layer1_transaction_vout,
@@ -505,7 +505,7 @@ async def test_multiple_withdrawals_from_different_layer2_addresses(postgresql_s
         response = await client.post(f"{WITHDRAWAL_ROUTER_PREFIX}{WITHDRAWAL_CONFIRMED_ROUTE}", json=confirmed_request.model_dump())
 
     assert response.status_code == 200
-    from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.withdrawal_confirmed_response import WithdrawalConfirmedResponse
+    from openl2_layer2ledger_api.models.responses import WithdrawalConfirmedResponse
     response_model = WithdrawalConfirmedResponse.model_validate(response.json())
     assert response_model.error_code == error_codes.ERROR_SUCCESS
     assert len(response_model.transactions) == 1

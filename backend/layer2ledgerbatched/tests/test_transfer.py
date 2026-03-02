@@ -11,10 +11,10 @@ import uuid
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 import layer2ledgerbatched.common.redis.redis_driver.redis_driver as redis_driver
 from layer2ledgerbatched.layer2ledgerapihandler.main import app
-from layer2ledgerbatched.layer2ledgerapihandler.api.routes.route_defs import TRANSFER_ROUTER_PREFIX, PUSH_TRANSACTION_ROUTE
+from openl2_layer2ledger_api import TRANSFER_ROUTER_PREFIX, PUSH_TRANSACTION_ROUTE
 from layer2ledgerbatched.common.db.models import Layer2AddressBalance, Transaction
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.requests.push_transaction_request import PushTransactionRequest
-from layer2ledgerbatched.layer2ledgerapihandler.api.models.responses.common_response import CommonResponse
+from openl2_layer2ledger_api.models.requests import PushTransactionRequest
+from openl2_layer2ledger_api.models.responses import CommonResponse
 from layer2ledgerbatched.common.redis.redis_models.transactions import RedisTransaction, PendingTransaction, PENDING_TRANSACTIONS_LIST_KEY
 from openl2_messaging import buildTransferMessage
 from layer2ledgerbatched.layer2ledgerapihandler.utils.layer2address import Layer2Address

@@ -22,7 +22,8 @@ dependencies = [
     "config-loader",
     "layer2address",
     "layer1-utils",
-    "openl2-messaging"
+    "openl2-messaging",
+    "openl2-layer2ledger-api"
 ]
 
 [dependency-groups]
@@ -42,6 +43,7 @@ config-loader = { path = "../packages/config_loader", editable = true }
 layer2address = { path = "../packages/layer2address", editable = true }
 layer1-utils = { path = "../packages/layer1_utils", editable = true }
 openl2-messaging = { path = "../packages/openl2_messaging", editable = true }
+openl2-layer2ledger-api = { path = "../packages/openl2_layer2ledger_api", editable = true }
 
 
 [tool.hatch.build.targets.wheel]

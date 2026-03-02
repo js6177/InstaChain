@@ -492,6 +492,7 @@ dependencies = [
     { name = "fastecdsa" },
     { name = "layer1-utils" },
     { name = "layer2address" },
+    { name = "openl2-layer2ledger-api" },
     { name = "openl2-messaging" },
     { name = "pydantic" },
     { name = "redis", extra = ["hiredis"] },
@@ -518,6 +519,7 @@ requires-dist = [
     { name = "fastecdsa", specifier = ">=3.0.1" },
     { name = "layer1-utils", editable = "../packages/layer1_utils" },
     { name = "layer2address", editable = "../packages/layer2address" },
+    { name = "openl2-layer2ledger-api", editable = "../packages/openl2_layer2ledger_api" },
     { name = "openl2-messaging", editable = "../packages/openl2_messaging" },
     { name = "pydantic", specifier = ">=2.11.7" },
     { name = "redis", extras = ["hiredis"], specifier = ">=6.4.0" },
@@ -573,6 +575,17 @@ sdist = { url = "https://files.pythonhosted.org/packages/a2/6e/371856a3fb9d31ca8
 wheels = [
     { url = "https://files.pythonhosted.org/packages/79/7b/2c79738432f5c924bef5071f933bcc9efd0473bac3b4aa584a6f7c1c8df8/mypy_extensions-1.1.0-py3-none-any.whl", hash = "sha256:1be4cccdb0f2482337c4743e60421de3a356cd97508abadd57d47403e94f5505", size = 4963 },
 ]
+
+[[package]]
+name = "openl2-layer2ledger-api"
+version = "0.1.0"
+source = { editable = "../packages/openl2_layer2ledger_api" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2.11.7" }]
 
 [[package]]
 name = "openl2-messaging"
