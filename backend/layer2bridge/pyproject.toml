@@ -1,0 +1,23 @@
+[project]
+name = "layer2bridge"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "base58>=2.1.1",
+    "bip-utils>=2.9.3",
+    "fastecdsa>=3.0.1",
+    "pydantic>=2.11.7",
+    "sqlalchemy>=2.0.47",
+    "config-models",
+    "config-loader",
+    "layer2address",
+    "layer1-utils",
+    "openl2-messaging"
+]
+
+[tool.uv.sources]
+config-models = { path = "../packages/config_models", editable = true }
+config-loader = { path = "../packages/config_loader", editable = true }
+layer2address = { path = "../packages/layer2address", editable = true }
+layer1-utils = { path = "../packages/layer1_utils", editable = true }
+openl2-messaging = { path = "../packages/openl2_messaging", editable = true }

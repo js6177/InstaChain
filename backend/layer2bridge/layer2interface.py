@@ -8,7 +8,12 @@ import datetime
 from dataclasses import dataclass
 import DatabaseInterface
 import AuditDatabaseInterface
-import SigningAddress
+from openl2_messaging import (
+    signDepositMessage,
+    signWithdrawalBroadcastedMessage,
+    signWithdrawalConfirmedMessage,
+    signLayer1AuditReportMessage
+)
 import binascii
 import checksum
 from bip_utils import Bip32, Bip32Utils, Bip32Conf, BitcoinConf, Bip44BitcoinTestNet, WifEncoder
@@ -91,7 +96,7 @@ class Layer2Interface:
                     'amount': depositTransaction.amount,
                     'layer1_address': depositTransaction.address,
                     'nonce': depositTransaction.nonce,
-                    'signature': depositTransaction.signature.decode("utf-8")}
+                    'signature': depositTransaction.signature}
             transactions.append(transaction)
         jsonData = {"transactions":transactions}
         r = requests.post(url, json=jsonData, headers=self.header)
@@ -107,7 +112,7 @@ class Layer2Interface:
                 "layer1_address": withdrawalBroadcastedTramsaction.layer1_address,
                 "amount": withdrawalBroadcastedTramsaction.amount,
                 "layer2_withdrawal_id": withdrawalBroadcastedTramsaction.layer2_withdrawal_id,
-                "signature": withdrawalBroadcastedTramsaction.signature.decode("utf-8")}
+                "signature": withdrawalBroadcastedTramsaction.signature}
 
             transactions.append(transaction)
         jsonData = {"transactions":transactions}
@@ -148,7 +153,7 @@ class Layer2Interface:
                 'layer1_transaction_vout': confirmedWithdrawal.transaction_vout,
                 'layer1_address': confirmedWithdrawal.address,
                 'amount': confirmedWithdrawal.amount,
-                'signature': confirmedWithdrawal.signature.decode("utf-8")}
+                'signature': confirmedWithdrawal.signature}
             transactions.append(transaction)
         jsonData = {"transactions":transactions}
         r = requests.post(url, json=jsonData, headers=self.header)
@@ -158,11 +163,11 @@ class Layer2Interface:
     def postLayer1AuditReport(self, blockheight, balance, layer1AddressBalances: List[AuditDatabaseInterface.AuditLayer1Address]):
         url = self.layer2_node_url + 'postLayer1AuditReport'
         layer1AddressBalancesJson = [layer1AddressBalance.to_dict() for layer1AddressBalance in layer1AddressBalances]
-        signature = SigningAddress.signLayer1AuditReportMessage(self.onboarding_signing_private_key, blockheight, balance)
+        signature = signLayer1AuditReportMessage(self.onboarding_signing_private_key, blockheight, balance)
         jsonData = {'block_height': blockheight,
                 'balance': balance,
                 'layer1_address_balances': layer1AddressBalancesJson,
-                'signature': signature.decode("utf-8")}
+                'signature': signature}
         r = requests.post(url, json=jsonData, headers=self.header)
         OnboardingLogger(r.text)
         return r.text
@@ -171,15 +176,18 @@ class Layer2Interface:
     def sendConfirmDeposit(self, transactions: List[DatabaseInterface.ConfirmedTransaction]):
         for transaction in transactions:
             transaction.nonce = ''.join(random.choice(string.ascii_letters) for i in range(16))
-            transaction.signature = SigningAddress.signDepositConfirmedMessage(self.onboarding_signing_private_key, transaction.transaction_id, transaction.transaction_vout, transaction.address, transaction.amount, transaction.nonce)
+            transaction.signature = signDepositMessage(self.onboarding_signing_private_key, transaction.transaction_id, transaction.transaction_vout, transaction.address, transaction.amount, transaction.nonce)
         return self.confirmDepositMulti(transactions)
 
     def sendWithdrawalBroadcasted(self, withdrawalBroadcastedTramsactions: List[WithdrawalBroadcastedTransaction]):
         for withdrawalBroadcastedTramsaction in withdrawalBroadcastedTramsactions:
-            withdrawalBroadcastedTramsaction.signature = SigningAddress.signWithdrawalBroadcastedMessage(self.onboarding_signing_private_key, withdrawalBroadcastedTramsaction.layer1_transaction_id, withdrawalBroadcastedTramsaction.layer1_transaction_vout, withdrawalBroadcastedTramsaction.layer1_address, withdrawalBroadcastedTramsaction.amount, withdrawalBroadcastedTramsaction.layer2_withdrawal_id)
+            withdrawalBroadcastedTramsaction.signature = signWithdrawalBroadcastedMessage(self.onboarding_signing_private_key, withdrawalBroadcastedTramsaction.layer1_transaction_id, withdrawalBroadcastedTramsaction.layer1_transaction_vout, withdrawalBroadcastedTramsaction.layer1_address, withdrawalBroadcastedTramsaction.amount, withdrawalBroadcastedTramsaction.layer2_withdrawal_id)
+        return self.sendWithdrawalBroadcastedMulti(withdrawalBroadcastedTramsactions)
+
+    def sendWithdrawalBroadcastedMulti(self, withdrawalBroadcastedTramsactions: List[WithdrawalBroadcastedTransaction]):
         return self.broadcastWithdrawalMulti(withdrawalBroadcastedTramsactions)
 
     def sendConfirmWithdrawal(self, confirmedWithdrawals: List[DatabaseInterface.ConfirmedTransaction]):
         for transaction in confirmedWithdrawals:
-            transaction.signature = SigningAddress.signWithdrawalConfirmedMessage(self.onboarding_signing_private_key, transaction.transaction_id, transaction.transaction_vout, transaction.address, transaction.amount)
+            transaction.signature = signWithdrawalConfirmedMessage(self.onboarding_signing_private_key, transaction.transaction_id, transaction.transaction_vout, transaction.address, transaction.amount)
         return self.confirmWithdrawalMulti(confirmedWithdrawals)

@@ -16,7 +16,6 @@ from BitcoinRPCResponses.LoadWalletResponse import BitcoinRpcLoadWalletResponse
 from BitcoinRPCResponses.ListSinceBlockResponse import BitcoinRpcListSinceBlockResponse
 import DatabaseInterface
 from AuditDatabaseInterface import AuditLayer1Address
-import SigningAddress
 import binascii
 import checksum
 from bip_utils import Bip32, Bip32Utils, Bip32Conf, BitcoinConf, Bip44BitcoinTestNet, WifEncoder
