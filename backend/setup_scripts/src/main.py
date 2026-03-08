@@ -118,10 +118,8 @@ def generate_keys(env: str, containered: bool = True) -> Tuple[Layer2BridgeSetti
         rpc_settings=layer2bridge_bitcoinconf_settings,
         database_layer2bridge_name='layer2bridge_db.' + env,
         wallet_name='wallet-' + env,
-        layer2_node_url='localhost',
-        onboarding_signing_private_key=layer2bridge_signing_address.private_key_str_base58,
-        import_wallet_privkey_at_startup=False,
-        wallet_private_key_seed_mneumonic=mnemonic, # Using the BIP39 mnemonic
+        layer2_node_url=f'http://localhost:{layer2ledgerbatched_docker_env.layer2ledger_fastapi_port}',
+        onboarding_signing_private_key=layer2bridge_signing_address.private_key_str_base58
     )
 
     common_backend_settings: CommonBackendSettings = CommonBackendSettings(
