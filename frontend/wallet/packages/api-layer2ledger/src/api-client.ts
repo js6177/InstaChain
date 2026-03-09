@@ -5,9 +5,9 @@ import type { AxiosRequestConfig } from 'axios';
 const getBaseURL = (): string => {
   try {
     // This will work at runtime in Vite, but won't cause issues during Orval's esbuild processing
-    return import.meta.env?.VITE_API_BASE_URL || 'http://0.0.0.0:8000/';
+    return import.meta.env?.VITE_API_BASE_URL || 'http://0.0.0.0:8080';
   } catch {
-    return 'http://0.0.0.0:8000/';
+    return 'http://0.0.0.0:8080';
   }
 };
 

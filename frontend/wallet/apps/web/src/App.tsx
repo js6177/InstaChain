@@ -48,7 +48,7 @@ function App() {
     <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4">
       <div className="bg-card text-card-foreground p-8 rounded-lg shadow-md max-w-2xl w-full border border-border">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold">API Response from http://0.0.0.0:8000/</h2>
+          <h2 className="text-xl font-semibold">API Response from http://0.0.0.0:8080</h2>
           <div className="flex items-center gap-2">
             <Toggle
               pressed={theme === 'dark'}
