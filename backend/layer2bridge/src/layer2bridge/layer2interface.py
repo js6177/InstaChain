@@ -18,6 +18,8 @@ from openl2_layer2ledger_api import (
     WITHDRAWAL_CONFIRMED_ROUTE,
     DEPOSIT_ROUTER_PREFIX,
     DEPOSIT_CONFIRMED_ROUTE,
+    AUDIT_ROUTER_PREFIX,
+    POST_LAYER1_AUDIT_REPORT_ROUTE,
 )
 from openl2_layer2ledger_api.models.requests import (
     GetWithdrawalRequestsRequest,
@@ -99,8 +101,7 @@ class Layer2Interface:
             return response_model
     
     async def postLayer1AuditReport(self, blockheight: int, balance: int, layer1AddressBalances: List[AuditDatabaseInterface.AuditLayer1Address]) -> PostLayer1AuditReportResponse:
-        # TODO: Add audit router prefix to api_paths if it exists, otherwise use hardcoded '/audit'
-        url = f"{self.layer2_node_url}audit/postLayer1AuditReport"
+        url = f"{self.layer2_node_url}{AUDIT_ROUTER_PREFIX.strip('/')}{POST_LAYER1_AUDIT_REPORT_ROUTE}"
         
         balances = [
             Layer1AddressBalance(layer1_address=ab.layer1_address, balance=ab.balance)

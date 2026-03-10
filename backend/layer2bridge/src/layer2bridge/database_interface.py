@@ -8,7 +8,7 @@ from bitcoin_core_rpc import (
 from layer2bridge.onboarding_logger import OnboardingLogger
 
 
-from layer2bridge.constants import SATOSHI_PER_BITCOIN
+from openl2_messaging.constants import SATOSHI_PER_BITCOIN
 
 DEFAULT_DATABASE_NAME = "bitcoin.db"
 

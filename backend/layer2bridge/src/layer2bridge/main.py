@@ -12,9 +12,8 @@ from config_models.models import Layer2BridgeSettings
 from openl2_layer2ledger_api.models.requests import (
     Layer1BroadcastedWithdrawalTransaction,
 )
+from openl2_messaging.constants import SATOSHI_PER_BITCOIN
 
-
-SATOSHI_PER_BITCOIN = 100000000
 
 DEFAULT_WORKING_DIRECTORY = os.path.expanduser('~') + "/.IC/Layer2Bridge/"
 

@@ -9,12 +9,12 @@ from bitcoin_core_rpc import (
 )
 from config_models.models import Layer2BridgeBitcoinConfFileSettings
 from layer2bridge.onboarding_logger import OnboardingLogger
+from openl2_messaging.constants import SATOSHI_PER_BITCOIN
 
 
 DEFAULT_TESTNET = True
 TESTNET_TARGETCONFIRMATIONS = 3
 MAINNET_TARGETCONFIRMATIONS = 6
-SATOSHI_PER_BITCOIN = 100000000
 
 class BitcoinRPC:
     def __init__(self, rpc_config: Layer2BridgeBitcoinConfFileSettings, wallet_name: str, testnet: bool = DEFAULT_TESTNET):

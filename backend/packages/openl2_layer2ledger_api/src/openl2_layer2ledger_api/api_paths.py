@@ -6,6 +6,7 @@ TRANSFER_ROUTER_PREFIX = "/transfer"
 WITHDRAWAL_ROUTER_PREFIX = "/withdrawal"
 EXPLORER_ROUTER_PREFIX = "/explorer"
 INFO_ROUTER_PREFIX = "/info"
+AUDIT_ROUTER_PREFIX = "/audit"
 
 # Deposit routes
 GET_DEPOSIT_ADDRESS_ROUTE = "/get_deposit_address"
@@ -25,3 +26,10 @@ GET_BALANCE_ROUTE = "/get_balance"
 GET_TRANSACTION_ROUTE = "/get_transaction"
 GET_ALL_TRANSACTIONS_ROUTE = "/get_all_transactions"
 GET_FEE_ROUTE = "/get_fee"
+
+# Info routes
+GET_NODE_INFO_ROUTE = "/get_node_info"
+
+# Audit routes
+POST_LAYER1_AUDIT_REPORT_ROUTE = "/post_layer1_audit_report"
+GET_LAYER1_AUDIT_REPORT_ROUTE = "/get_layer1_audit_report"

@@ -5,7 +5,8 @@ from openl2_layer2ledger_api.models.responses import (
     NodeInfo,
     Version,
 )
-from layer2ledgerbatched.common.constants import NODE_ASSET_ID
+from openl2_layer2ledger_api import GET_NODE_INFO_ROUTE
+from openl2_messaging.constants import NODE_ASSET_ID
 from config_loader.loader import get_layer2ledgerbatched_layer2ledgerapihandler_config, Environment
 from layer2ledgerbatched.layer2ledgerapihandler.utils.error_message import (
     ERROR_SUCCESS,
@@ -13,8 +14,6 @@ from layer2ledgerbatched.layer2ledgerapihandler.utils.error_message import (
 )
 
 router = APIRouter()
-
-GET_NODE_INFO_ROUTE = "/getNodeInfo"
 
 
 @router.get(GET_NODE_INFO_ROUTE, response_model=GetNodeInfoResponse)

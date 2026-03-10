@@ -7,7 +7,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, BigInteger, Boolean, DateTime
 
 from bitcoin_core_rpc import AddressGroupingItem
-from layer2bridge.constants import SATOSHI_PER_BITCOIN
+from openl2_messaging.constants import SATOSHI_PER_BITCOIN
 
 Base = declarative_base()
 
