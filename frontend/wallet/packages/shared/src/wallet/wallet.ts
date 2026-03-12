@@ -3,7 +3,8 @@ import { sha256 } from '@noble/hashes/sha2';
 import bs58 from 'bs58';
 import { hmac } from '@noble/hashes/hmac';
 import { MNEUMONIC_WORD_COUNT, MNEUMONIC_WORDLIST } from './wordlist';
-import {GetTransactionsResponseTransaction} from '../../../api-layer2ledger/src/generated/models/getTransactionsResponseTransaction';
+import type {GetTransactionsResponseTransaction} from '../../../api-layer2ledger/src/generated/models/getTransactionsResponseTransaction';
+import { TransactionType } from 'openl2_messaging';
 
 secp.etc.hmacSha256Sync = (key, ...msgs) => hmac(sha256, key, secp.etc.concatBytes(...msgs));
 
@@ -16,7 +17,7 @@ async function signMessage(message: string, privKeyB58: string): Promise<string>
     const privKey = bs58.decode(privKeyB58);
     const signature = await secp.sign(messageHash, privKey);
     const signatureBytes = signature.toCompactRawBytes();
-    return bs58.encode(Buffer.from(signatureBytes));
+    return bs58.encode(signatureBytes);
 }
 
 async function verifyMessage(message: string, signatureB58: string, publicKeyB58: string): Promise<boolean> {
@@ -36,13 +37,7 @@ async function verifyMessage(message: string, signatureB58: string, publicKeyB58
 }
 
 type GeneratedKeypair = [privKeyBytes: secp.Bytes, pubKeyWithTypePrefixBytes: secp.Bytes];
-enum Layer2AddressGenerationType {
-    EMPTY = 'EMPTY',    // No keypair generated
-    NEW = 'NEW',        // New keypair randomly generated
-    FROM_MNEMONIC = 'FROM_MNEMONIC', // Keypair generated from mnemonic
-    FROM_PRIVATE_KEY = 'FROM_PRIVATE_KEY', // Keypair generated from a saved private key,
-    FROM_PUBLIC_KEY = 'FROM_PUBLIC_KEY' // Keypair generated from a public key
-}
+export type Layer2AddressGenerationType = 'EMPTY' | 'NEW' | 'FROM_MNEMONIC' | 'FROM_PRIVATE_KEY' | 'FROM_PUBLIC_KEY';
 
 class Layer2Address {
     label: string;
@@ -60,7 +55,7 @@ class Layer2Address {
         this.private_key_bytes = private_key_bytes;
         this.pub_key_bytes = pub_key_bytes;
         this.mnemonicIndex = -1;
-        this.generation_type = Layer2AddressGenerationType.EMPTY;
+        this.generation_type = 'EMPTY';
     }
 
     // Generates a new address
@@ -78,7 +73,7 @@ class Layer2Address {
         this.private_key_bytes = privKeyBytes;
         this.pub_key_bytes = pubKeyBytes;
         this.label = label;
-        this.generation_type = Layer2AddressGenerationType.NEW;
+        this.generation_type = 'NEW';
     }
 
     // From seed generates a private key from seed string
@@ -107,9 +102,9 @@ class Layer2Address {
         this.label = label;
         if (mnemonicIndex >= 0) {
             this.mnemonicIndex = mnemonicIndex;
-            this.generation_type = Layer2AddressGenerationType.FROM_MNEMONIC;
+            this.generation_type = 'FROM_MNEMONIC';
         }else{
-            this.generation_type = Layer2AddressGenerationType.FROM_PRIVATE_KEY;
+            this.generation_type = 'FROM_PRIVATE_KEY';
         }
     }
 
@@ -130,7 +125,7 @@ class Layer2Address {
         this.public_key_str_base58 = pubKeyB58;
         this.pub_key_bytes = pubKeyBytes;
         this.label = label;
-        this.generation_type = Layer2AddressGenerationType.FROM_PUBLIC_KEY;
+        this.generation_type = 'FROM_PUBLIC_KEY';
     }
 
 
@@ -180,16 +175,6 @@ class Layer2Wallet {
     }
 }
 
-enum Layer2LedgerTransactionType {
-    NONE = 0, // Invalid/uninitialized transaction type
-    TRANSFER = 1,  // regular layer2 transfer
-    DEPOSIT = 2,  // when a user deposits layer1 btc to a deposit address, then funds get credited to their layer2 pubkey
-    WITHDRAWAL_INITIATED = 3,  // when the user initiates a withdrawal to a layer1 btc address (locks that amount)
-    WITHDRAWAL_BROADCASTED = 4, // when the transaction is broadcasted and in the mempool
-    WITHDRAWAL_CANCELED = 5,  // when the transaction gets removed from the layer1 mempool for any reason
-    WITHDRAWAL_CONFIRMED = 6,  // when the withdrawal gets confirmed in the layer1 chain
-    INSTRUCTION_GET_DEPOSIT_ADDRESS = 7 // instruction to get a deposit address 
-}
 
 class Layer2Transaction {
     // Actual transaction info, fields from the layer2 ledger
@@ -198,7 +183,7 @@ class Layer2Transaction {
     fee: number;
     source_address: string;
     destination_address: string;
-    transaction_type: Layer2LedgerTransactionType;
+    transaction_type: TransactionType;
     layer2_transaction_id: string;
     signature: string;
     signature_date: number | null;
@@ -216,7 +201,7 @@ class Layer2Transaction {
         this.fee = 0;
         this.source_address = "";
         this.destination_address = "";
-        this.transaction_type = Layer2LedgerTransactionType.NONE;
+        this.transaction_type = 0 as TransactionType;
         this.layer2_transaction_id = "";
         this.signature = "";
         this.signature_date = null;
@@ -233,7 +218,7 @@ class Layer2Transaction {
         this.fee = transaction.fee;
         this.source_address = transaction.source_address_pubkey;
         this.destination_address = transaction.destination_address_pubkey;
-        this.transaction_type = transaction.transaction_type;
+        this.transaction_type = transaction.transaction_type as TransactionType;
         this.layer2_transaction_id = transaction.layer2_transaction_id;
         this.signature = transaction.signature;
         this.signature_date = transaction.signature_date ? transaction.signature_date : null;
@@ -242,31 +227,4 @@ class Layer2Transaction {
     }   
 }
 
-class MessageBuilder{
-    layer2LedgerNodeId: string;
-    layer2LedgerNodeAssetId: number;
-    delimeter: string;
-
-    constructor(layer2LedgerNodeId: string, layer2LedgerAssetId: number){
-        this.layer2LedgerNodeId = layer2LedgerNodeId;
-        this.layer2LedgerNodeAssetId = layer2LedgerAssetId;
-        this.delimeter = " ";
-    }
-
-    buildTransferMessage(sourceAddressPubkey: string, destinationAddressPubkey: string, amount: number, fee: number, transactionIdNonce: string){
-        const message = (this.layer2LedgerNodeId + this.delimeter + this.layer2LedgerNodeAssetId + this.delimeter + Layer2LedgerTransactionType.TRANSFER + this.delimeter + sourceAddressPubkey + this.delimeter + destinationAddressPubkey + this.delimeter + amount + this.delimeter + fee + this.delimeter + transactionIdNonce);
-        return message;
-    }
-
-    buildGetDepositAddressMessage(layer2AddressPubKey: string, transactionIdNonce: string){
-        const message = (this.layer2LedgerNodeId + this.delimeter + this.layer2LedgerNodeAssetId + this.delimeter + Layer2LedgerTransactionType.INSTRUCTION_GET_DEPOSIT_ADDRESS + this.delimeter + layer2AddressPubKey + this.delimeter + transactionIdNonce);
-        return message;
-    }
-
-    buildWithdrawalRequestMessage(layer2SourceAddressPubKey: string, layer1WithdrawalAddress: string, transactionIdNonce: string, amount: number){
-        const message = (this.layer2LedgerNodeId + this.delimeter + this.layer2LedgerNodeAssetId + this.delimeter + Layer2LedgerTransactionType.WITHDRAWAL_INITIATED + this.delimeter + layer2SourceAddressPubKey + this.delimeter + layer1WithdrawalAddress + this.delimeter + transactionIdNonce + this.delimeter + amount );
-        return message;
-    }
-}
-
-export { Layer2Wallet, Layer2Address, Layer2Transaction, Layer2LedgerTransactionType, MessageBuilder };
+export { Layer2Wallet, Layer2Address, Layer2Transaction };

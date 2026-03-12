@@ -19,9 +19,11 @@
     "@noble/hashes": "^1.8.0",
     "@noble/secp256k1": "^2.3.0",
     "bs58": "^6.0.0",
-    "@wallet/api-layer2ledger": "workspace:*"
+    "@wallet/api-layer2ledger": "workspace:*",
+    "openl2_messaging": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "^25.4.0",
     "typescript": "^5.9.3"
   }
 }
