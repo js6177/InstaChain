@@ -98,3 +98,7 @@ async def test_db(
     await redis_conn.set(item.key, item.value)
 
     return CommonResponse(error_code=0, error_message="Successfully wrote to DB and Redis")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("layer2ledgerbatched.layer2ledgerapihandler.main:app", host="0.0.0.0", port=8080, reload=True)

@@ -11,28 +11,50 @@
             "module": "pytest",
             "args": ["tests/"],
             "python": "${command:python.interpreterPath}",
-            "justMyCode": true
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            }
         },
         {
             "name": "Python Debugger: Current File",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            }
+        },
+        {
+            "name": "Python Debugger: layer2ledgerapihandler",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/layer2ledgerbatched/layer2ledgerapihandler/main.py",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            }
         },
         {
             "name": "Python Debugger: layer2ledgerdbwriter",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/src/layer2ledgerbatched/layer2ledgerdbwriter/main.py",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            }
         },
         {
             "name": "Python Debugger: main.py",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/src/main.py",
-            "console": "integratedTerminal"
+            "program": "${workspaceFolder}/main.py",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            }
         }
     ]
 }
