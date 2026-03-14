@@ -37,7 +37,7 @@ async def get_node_info() -> GetNodeInfoResponse:
 
     # TODO: Confirm the correct derivation path
     node_info = NodeInfo(
-        asset_id=NODE_ASSET_ID,
+        asset_id=hex(NODE_ASSET_ID),
         deposit_address_derivation_path="m/44/1",
         layer1_network_info=layer1_network_info,
         node_id=settings.layer2ledger_node_id,

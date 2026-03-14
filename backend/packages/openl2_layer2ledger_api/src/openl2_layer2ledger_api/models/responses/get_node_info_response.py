@@ -21,7 +21,7 @@ class Version(BaseModel):
 
         
 class NodeInfo(BaseModel):
-    asset_id: int
+    asset_id: str
     deposit_address_derivation_path: str
     layer1_network_info: Layer1NetworkInfo
     node_id: str

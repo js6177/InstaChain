@@ -53,26 +53,15 @@
         ],
         "summary": "Get Deposit Address",
         "operationId": "get_deposit_address_deposit_get_deposit_address_post",
-        "parameters": [
-          {
-            "name": "environment",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "$ref": "#/components/schemas/Environment",
-              "default": "prod"
-            }
-          }
-        ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/GetDepositAddressRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -105,26 +94,15 @@
         ],
         "summary": "Deposit Confirmed",
         "operationId": "deposit_confirmed_deposit_deposit_confirmed_post",
-        "parameters": [
-          {
-            "name": "environment",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "$ref": "#/components/schemas/Environment",
-              "default": "prod"
-            }
-          }
-        ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/DepositConfirmedRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -482,14 +460,14 @@
         }
       }
     },
-    "/info/getNodeInfo": {
+    "/info/get_node_info": {
       "get": {
         "tags": [
           "info"
         ],
         "summary": "Get Node Info",
         "description": "Returns information about the node, such as node ID, name, asset ID, and version.",
-        "operationId": "get_node_info_info_getNodeInfo_get",
+        "operationId": "get_node_info_info_get_node_info_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -660,14 +638,6 @@
           "signature"
         ],
         "title": "DepositsConfirmed"
-      },
-      "Environment": {
-        "type": "string",
-        "enum": [
-          "test",
-          "prod"
-        ],
-        "title": "Environment"
       },
       "GetBalanceRequest": {
         "properties": {
@@ -1223,7 +1193,7 @@
       "NodeInfo": {
         "properties": {
           "asset_id": {
-            "type": "integer",
+            "type": "string",
             "title": "Asset Id"
           },
           "deposit_address_derivation_path": {

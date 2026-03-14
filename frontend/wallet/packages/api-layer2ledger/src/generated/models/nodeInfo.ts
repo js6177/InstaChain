@@ -8,7 +8,7 @@ import type { Layer1NetworkInfo } from "./layer1NetworkInfo";
 import type { Version } from "./version";
 
 export interface NodeInfo {
-  asset_id: number;
+  asset_id: string;
   deposit_address_derivation_path: string;
   layer1_network_info: Layer1NetworkInfo;
   node_id: string;

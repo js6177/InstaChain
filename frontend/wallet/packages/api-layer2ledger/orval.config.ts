@@ -2,7 +2,7 @@ import { defineConfig } from 'orval';
 
 export default defineConfig({
   api: {
-    input: './specs/openapi.json',
+    input: './specs/layer2ledgerapihandler_openapi.json',
     output: {
       target: './src/generated/api.ts',
       client: 'axios',

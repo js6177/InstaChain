@@ -14,4 +14,8 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src")
     },
   },
+  server: {
+    sourcemapIgnoreList: false, // Ensure VS Code doesn't skip "internal" files
+  },
+  build: { sourcemap: true }
 })

@@ -1,9 +1,10 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { getExplorer, getDeposit, getTransfer } from '@wallet/api-layer2ledger';
+import { getExplorer, getDeposit, getTransfer, getInfo } from '@wallet/api-layer2ledger';
 
 const explorerApi = getExplorer();
 const depositApi = getDeposit();
 const transferApi = getTransfer();
+const infoApi = getInfo();
 
 export const useAddressBalance = (publicKey: string) => {
     return useQuery({
@@ -35,6 +36,16 @@ export const useTransactions = (publicKey: string) => {
             return res;
         },
         enabled: !!publicKey,
+    });
+};
+
+export const useNodeInfo = () => {
+    return useQuery({
+        queryKey: ['NodeInfo'],
+        queryFn: async () => {
+            const res = await infoApi.getNodeInfoInfoGetNodeInfoGet();
+            return res;
+        }
     });
 };
 

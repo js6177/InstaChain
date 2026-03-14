@@ -15,7 +15,7 @@ export const getInfo = () => {
    */
   const getNodeInfoInfoGetNodeInfoGet = () => {
     return customInstance<GetNodeInfoResponse>({
-      url: `/info/getNodeInfo`,
+      url: `/info/get_node_info`,
       method: "GET",
     });
   };

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Accordion } from "@/components/ui/accordion";
 import { toast } from "sonner";
-import { useAddressBalance, useTransactions, useDepositAddressMutation, useTransferMutation } from "../hooks/useLayer2Queries";
+import { useAddressBalance, useTransactions, useDepositAddressMutation, useTransferMutation, useNodeInfo } from "../hooks/useLayer2Queries";
 import { TransactionItem } from "../components/TransactionItem";
 
 export function WalletPage() {
@@ -19,6 +19,7 @@ export function WalletPage() {
     // Queries
     const { data: balance, isLoading: isBalanceLoading, refetch: refetchBalance } = useAddressBalance(mainAddress?.public_key_str_base58 || "");
     const { data: transactionsData, isLoading: isTransactionsLoading, refetch: refetchTransactions } = useTransactions(mainAddress?.public_key_str_base58 || "");
+    const { data: nodeInfo, isLoading: isNodeInfoLoading } = useNodeInfo();
 
     const depositAddressMutation = useDepositAddressMutation();
     const transferMutation = useTransferMutation();
@@ -57,8 +58,7 @@ export function WalletPage() {
         if (!mainAddress) return;
         try {
             const nonce = crypto.randomUUID();
-            // TODO: to get this to work, get node_id from get_node_info API
-            const msg = buildGetDepositAddressMessage("placeholder-node", mainAddress.public_key_str_base58, nonce);
+            const msg = buildGetDepositAddressMessage(nodeInfo?.node_info.node_id || "", nodeInfo?.node_info.asset_id || "", mainAddress.public_key_str_base58, nonce);
             const sig = await mainAddress.signMessage(msg);
 
             const addr = await depositAddressMutation.mutateAsync({
@@ -84,8 +84,7 @@ export function WalletPage() {
             // TODO: get fee from get_fee API
             const fee = 10;
             const nonce = crypto.randomUUID();
-            // TODO: to get this to work, get node_id from get_node_info API
-            const msg = buildTransferMessage("placeholder-node", mainAddress.public_key_str_base58, transferTo, amt, fee, nonce);
+            const msg = buildTransferMessage(nodeInfo?.node_info.node_id || "", nodeInfo?.node_info.asset_id || "", mainAddress.public_key_str_base58, transferTo, amt, fee, nonce);
             const sig = await mainAddress.signMessage(msg);
 
             await transferMutation.mutateAsync({

@@ -5,10 +5,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type {
-  DepositConfirmedDepositDepositConfirmedPostParams,
   DepositConfirmedRequest,
   DepositConfirmedResponse,
-  GetDepositAddressDepositGetDepositAddressPostParams,
   GetDepositAddressRequest,
   GetDepositAddressResponse,
 } from ".././models";
@@ -21,14 +19,12 @@ export const getDeposit = () => {
    */
   const getDepositAddressDepositGetDepositAddressPost = (
     getDepositAddressRequest: GetDepositAddressRequest,
-    params?: GetDepositAddressDepositGetDepositAddressPostParams,
   ) => {
     return customInstance<GetDepositAddressResponse>({
       url: `/deposit/get_deposit_address`,
       method: "POST",
       headers: { "Content-Type": "application/json" },
       data: getDepositAddressRequest,
-      params,
     });
   };
   /**
@@ -36,14 +32,12 @@ export const getDeposit = () => {
    */
   const depositConfirmedDepositDepositConfirmedPost = (
     depositConfirmedRequest: DepositConfirmedRequest,
-    params?: DepositConfirmedDepositDepositConfirmedPostParams,
   ) => {
     return customInstance<DepositConfirmedResponse>({
       url: `/deposit/deposit_confirmed`,
       method: "POST",
       headers: { "Content-Type": "application/json" },
       data: depositConfirmedRequest,
-      params,
     });
   };
   return {

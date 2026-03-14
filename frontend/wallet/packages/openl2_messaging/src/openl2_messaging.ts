@@ -13,8 +13,8 @@ export const TransactionType = {
 
 export type TransactionType = typeof TransactionType[keyof typeof TransactionType];
 
-export function buildGetDepositAddressMessage(node_id: string, layer2_address_public_key: string, nonce: string): string {
-    return `${node_id} ${NODE_ASSET_ID} ${TransactionType.INSTRUCTION_GET_DEPOSIT_ADDRESS} ${layer2_address_public_key} ${nonce}`;
+export function buildGetDepositAddressMessage(node_id: string, node_asset_id: string, layer2_address_public_key: string, nonce: string): string {
+    return `${node_id} ${node_asset_id} ${TransactionType.INSTRUCTION_GET_DEPOSIT_ADDRESS} ${layer2_address_public_key} ${nonce}`;
 }
 
 export function buildDepositMessage(node_id: string, layer1_transaction_id: string, layer1_transaction_vout: number, layer1_address: string, amount: number, nonce: string): string {
@@ -33,10 +33,10 @@ export function buildLayer1AuditReportMessage(node_id: string, blockHeight: numb
     return `${node_id} ${TransactionType.INSTRUCTION_LAYER1_AUDIT} ${blockHeight} ${balance}`;
 }
 
-export function buildTransferMessage(node_id: string, source_pubkey: string, destination_address_pubkey: string, amount: number, fee: number, nonce: string): string {
-    return `${node_id} ${NODE_ASSET_ID} ${TransactionType.TRX_TRANSFER} ${source_pubkey} ${destination_address_pubkey} ${amount} ${fee} ${nonce}`;
+export function buildTransferMessage(node_id: string, node_asset_id: string, source_pubkey: string, destination_address_pubkey: string, amount: number, fee: number, nonce: string): string {
+    return `${node_id} ${node_asset_id} ${TransactionType.TRX_TRANSFER} ${source_pubkey} ${destination_address_pubkey} ${amount} ${fee} ${nonce}`;
 }
 
-export function buildWithdrawalRequestMessage(node_id: string, source_pubkey: string, withdrawal_address: string, nonce: string, amount: number): string {
-    return `${node_id} ${NODE_ASSET_ID} ${TransactionType.TRX_WITHDRAWAL_INITIATED} ${source_pubkey} ${withdrawal_address} ${nonce} ${amount}`;
+export function buildWithdrawalRequestMessage(node_id: string, node_asset_id: string, source_pubkey: string, withdrawal_address: string, nonce: string, amount: number): string {
+    return `${node_id} ${node_asset_id} ${TransactionType.TRX_WITHDRAWAL_INITIATED} ${source_pubkey} ${withdrawal_address} ${nonce} ${amount}`;
 }
