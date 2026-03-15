@@ -34,6 +34,34 @@ export function WalletPage() {
     const [withdrawTo, setWithdrawTo] = useState("");
     const [withdrawAmount, setWithdrawAmount] = useState("");
     const [depositAddress, setDepositAddress] = useState("");
+    const [saveSeedToLocalStorage, setSaveSeedToLocalStorage] = useState(false);
+    const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
+
+    const handleLoadFromLocalStorage = () => {
+        const stored = localStorage.getItem("debug_mnemonic");
+        if (stored) {
+            setMnemonicInput(stored);
+            toast.success("Mnemonic loaded from localStorage");
+        } else {
+            toast.error("No mnemonic found in localStorage");
+        }
+    };
+
+    const handleGenerate = () => {
+        generateWallet();
+        // Since generateWallet is synchronous in the store, we can access the updated state
+        // but it's safer to get it from the store directly or let the effect handle it.
+        // For debugging, we can just grab it from the store instance.
+        setTimeout(() => {
+            const mnemonic = useWalletStore.getState().wallet?.mnemonic;
+            if (saveSeedToLocalStorage && mnemonic) {
+                localStorage.setItem("debug_mnemonic", mnemonic.join(" "));
+                toast.info("Seed saved to localStorage");
+            }
+        }, 0);
+        setIsGenerateDialogOpen(false);
+        toast.success("New Wallet Generated!");
+    };
 
     const handleRestore = () => {
         const words = mnemonicInput.trim().split(" ");
@@ -46,6 +74,12 @@ export function WalletPage() {
                 toast.error("Invalid mnemonic. Make sure words are valid.");
                 return;
             }
+
+            if (saveSeedToLocalStorage) {
+                localStorage.setItem("debug_mnemonic", mnemonicInput.trim());
+                toast.info("Seed saved to localStorage");
+            }
+
             loadWalletFromMnemonic(words);
             setIsMnemonicDialogOpen(false);
             toast.success("Wallet loaded successfully!");
@@ -119,12 +153,36 @@ export function WalletPage() {
                     <p className="text-muted-foreground text-lg max-w-lg mx-auto">Generate a new Layer2 wallet or restore an existing one to get started.</p>
                 </div>
                 <div className="flex gap-4 mt-4">
-                    <Button size="lg" onClick={() => {
-                        generateWallet();
-                        toast.success("New Wallet Generated!");
-                    }}>
-                        Generate New Wallet
-                    </Button>
+                    <Dialog open={isGenerateDialogOpen} onOpenChange={setIsGenerateDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button size="lg">Generate New Wallet</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Generate New Wallet</DialogTitle>
+                                <DialogDescription>
+                                    This will create a new set of keys and a mnemonic phrase.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="py-4 space-y-4">
+                                <div className="flex items-center space-x-2">
+                                    <input
+                                        type="checkbox"
+                                        id="saveSeed"
+                                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                        checked={saveSeedToLocalStorage}
+                                        onChange={(e) => setSaveSeedToLocalStorage(e.target.checked)}
+                                    />
+                                    <Label htmlFor="saveSeed" className="cursor-pointer">
+                                        Store seed in localStorage (debug)
+                                    </Label>
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button onClick={handleGenerate}>Generate</Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
 
                     <Dialog open={isMnemonicDialogOpen} onOpenChange={setIsMnemonicDialogOpen}>
                         <DialogTrigger asChild>
@@ -146,7 +204,22 @@ export function WalletPage() {
                                     onChange={(e) => setMnemonicInput(e.target.value)}
                                 />
                             </div>
-                            <DialogFooter>
+                            <div className="flex items-center space-x-2 py-2">
+                                <input
+                                    type="checkbox"
+                                    id="saveSeedRestore"
+                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                    checked={saveSeedToLocalStorage}
+                                    onChange={(e) => setSaveSeedToLocalStorage(e.target.checked)}
+                                />
+                                <Label htmlFor="saveSeedRestore" className="cursor-pointer">
+                                    Store seed in localStorage (debug)
+                                </Label>
+                            </div>
+                            <DialogFooter className="flex justify-between sm:justify-between items-center w-full">
+                                <Button variant="ghost" size="sm" onClick={handleLoadFromLocalStorage} className="text-xs">
+                                    Load seed from localstorage
+                                </Button>
                                 <Button onClick={handleRestore}>Restore</Button>
                             </DialogFooter>
                         </DialogContent>
@@ -234,7 +307,7 @@ export function WalletPage() {
                                         </div>
                                     </div>
                                     <DialogFooter>
-                                        <Button disabled>Withdraw</Button>
+                                        <Button>Withdraw</Button>
                                     </DialogFooter>
                                 </DialogContent>
                             </Dialog>
