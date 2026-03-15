@@ -1,20 +1,30 @@
-from pydantic import BaseModel, Field, RootModel
+from pydantic import BaseModel, Field, RootModel, ConfigDict, AliasGenerator
 from typing import Any, Generic, TypeVar, Optional, Union
 
 T = TypeVar('T')
 
-class BitcoinRPCRequest(BaseModel):
+class BitcoinRpcBaseModel(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=AliasGenerator(
+            # Convert 'bip125_replaceable' -> 'bip125-replaceable'
+            alias=lambda field_name: field_name.replace('_', '-'),
+        ),
+        # Allows you to still use 'bip125_replaceable' in Python code
+        populate_by_name=True 
+    )
+
+class BitcoinRPCRequest(BitcoinRpcBaseModel):
     jsonrpc: str = "1.0"
     id: str = "bitcoin-core-rpc"
     method: str
     params: list[Any] = Field(default_factory=list)
 
-class BitcoinRPCError(BaseModel):
+class BitcoinRPCError(BitcoinRpcBaseModel):
     code: int
     message: str
     data: Optional[Any] = None
 
-class BitcoinRPCResponse(BaseModel, Generic[T]):
+class BitcoinRPCResponse(BitcoinRpcBaseModel, Generic[T]):
     result: Optional[T] = None
     error: Optional[BitcoinRPCError] = None
     id: str
@@ -27,21 +37,21 @@ class BitcoinRPCResponse(BaseModel, Generic[T]):
     def is_wallet_already_exists(self) -> bool:
         return self.error is not None and self.error.code == -4
 
-class GetBestBlockHashResponse(BaseModel):
+class GetBestBlockHashResponse(BitcoinRpcBaseModel):
     hash: str
 
-class SoftforkBIP9(BaseModel):
+class SoftforkBIP9(BitcoinRpcBaseModel):
     status: str
     bit: Optional[int] = None
     statistics: Optional[dict[str, Any]] = None
 
-class Softfork(BaseModel):
+class Softfork(BitcoinRpcBaseModel):
     type: str
     bip9: Optional[SoftforkBIP9] = None
     active: bool
     height: Optional[int] = None
 
-class GetBlockChainInfoResponse(BaseModel):
+class GetBlockChainInfoResponse(BitcoinRpcBaseModel):
     chain: str
     blocks: int
     headers: int
@@ -62,15 +72,15 @@ class GetBlockChainInfoResponse(BaseModel):
     target: Optional[str] = None
     time: Optional[int] = None
 
-class CreateWalletResponse(BaseModel):
+class CreateWalletResponse(BitcoinRpcBaseModel):
     name: str
     warning: Optional[str] = None
 
-class LoadWalletResponse(BaseModel):
+class LoadWalletResponse(BitcoinRpcBaseModel):
     name: str
     warning: Optional[str] = None
 
-class DescriptorImportRequest(BaseModel):
+class DescriptorImportRequest(BitcoinRpcBaseModel):
     desc: str
     active: bool = False
     timestamp: Union[int, str] = "now"
@@ -79,12 +89,12 @@ class DescriptorImportRequest(BaseModel):
     next_index: Optional[int] = None
     label: Optional[str] = None
 
-class ImportDescriptorResult(BaseModel):
+class ImportDescriptorResult(BitcoinRpcBaseModel):
     success: bool
     warnings: Optional[list[str]] = None
     error: Optional[dict[str, Any]] = None
 
-class ImportMultiRequest(BaseModel):
+class ImportMultiRequest(BitcoinRpcBaseModel):
     rescan: bool = True
     desc: Optional[str] = None
     scriptpubkey: Optional[str] = None
@@ -98,12 +108,12 @@ class ImportMultiRequest(BaseModel):
     label: Optional[str] = None
     timestamp: Union[int, str] = "now"
 
-class ImportMultiResult(BaseModel):
+class ImportMultiResult(BitcoinRpcBaseModel):
     success: bool
     warnings: Optional[list[str]] = None
     error: Optional[dict[str, Any]] = None
 
-class ListSinceBlockTransaction(BaseModel):
+class ListSinceBlockTransaction(BitcoinRpcBaseModel):
     involvesWatchonly: Optional[bool] = None
     address: Optional[str] = None
     category: str
@@ -127,11 +137,11 @@ class ListSinceBlockTransaction(BaseModel):
     abandoned: Optional[bool] = None
     to: Optional[str] = None
 
-class ListSinceBlockResponse(BaseModel):
+class ListSinceBlockResponse(BitcoinRpcBaseModel):
     transactions: list[ListSinceBlockTransaction]
     lastblock: str
 
-class GetTransactionDetail(BaseModel):
+class GetTransactionDetail(BitcoinRpcBaseModel):
     involvesWatchonly: Optional[bool] = None
     address: Optional[str] = None
     category: str
@@ -141,7 +151,7 @@ class GetTransactionDetail(BaseModel):
     fee: Optional[float] = None
     abandoned: Optional[bool] = None
 
-class GetTransactionResponse(BaseModel):
+class GetTransactionResponse(BitcoinRpcBaseModel):
     amount: float
     fee: Optional[float] = None
     confirmations: int
@@ -161,7 +171,7 @@ class GetTransactionResponse(BaseModel):
     hex: str
     decoded: Optional[dict[str, Any]] = None
 
-class AddressGroupingItem(RootModel):
+class AddressGroupingItem(BitcoinRpcBaseModel):
     root: list[Any]  # [address, amount, label]
 
     @property
@@ -178,7 +188,7 @@ class AddressGroupingItem(RootModel):
             return str(self.root[2])
         return None
 
-class GetBlockHeaderResponse(BaseModel):
+class GetBlockHeaderResponse(BitcoinRpcBaseModel):
     hash: str
     confirmations: int
     height: int
