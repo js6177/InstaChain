@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useWalletStore } from "@wallet/shared";
+import { MNEUMONIC_WORD_COUNT, useWalletStore } from "@wallet/shared";
 import { buildGetDepositAddressMessage, buildTransferMessage } from "openl2_messaging";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -37,8 +37,8 @@ export function WalletPage() {
 
     const handleRestore = () => {
         const words = mnemonicInput.trim().split(" ");
-        if (words.length !== 12) {
-            toast.error("Mnemonic must be exactly 12 words");
+        if (words.length !== MNEUMONIC_WORD_COUNT) {
+            toast.error(`Mnemonic phrase must be exactly ${MNEUMONIC_WORD_COUNT} words`);
             return;
         }
         try {
@@ -134,7 +134,7 @@ export function WalletPage() {
                             <DialogHeader>
                                 <DialogTitle>Restore Wallet</DialogTitle>
                                 <DialogDescription>
-                                    Enter your 12-word mnemonic phrase separated by spaces.
+                                    Enter your {MNEUMONIC_WORD_COUNT}-word mnemonic phrase separated by spaces.
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="py-2">

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, RootModel, ConfigDict, AliasGenerator
+from pydantic import BaseModel, Field, RootModel, ConfigDict, AliasGenerator, ValidationError
 from typing import Any, Generic, TypeVar, Optional, Union
 
 T = TypeVar('T')
@@ -12,6 +12,31 @@ class BitcoinRpcBaseModel(BaseModel):
         # Allows you to still use 'bip125_replaceable' in Python code
         populate_by_name=True 
     )
+
+    @classmethod
+    def model_validate(cls, obj: Any, *args, **kwargs):
+        try:
+            return super().model_validate(obj, *args, **kwargs)
+        except ValidationError as e:
+            print(e.json(indent=2))
+            # Log the specific field error here
+            print(f"DEBUG: Model {cls.__name__} failed validation.")
+            for error in e.errors():
+                print(f"  - Field '{error['loc']}': {error['msg']}")
+            raise e # Re-raise if you still want the app to handle the crash
+
+class BitcoinRpcRootModel(RootModel[T], Generic[T]):
+    @classmethod
+    def model_validate(cls, obj: Any, *args, **kwargs):
+        try:
+            return super().model_validate(obj, *args, **kwargs)
+        except ValidationError as e:
+            print(e.json(indent=2))
+            # Log the specific field error here
+            print(f"DEBUG: Model {cls.__name__} failed validation.")
+            for error in e.errors():
+                print(f"  - Field '{error['loc']}': {error['msg']}")
+            raise e # Re-raise if you still want the app to handle the crash
 
 class BitcoinRPCRequest(BitcoinRpcBaseModel):
     jsonrpc: str = "1.0"
@@ -171,9 +196,7 @@ class GetTransactionResponse(BitcoinRpcBaseModel):
     hex: str
     decoded: Optional[dict[str, Any]] = None
 
-class AddressGroupingItem(BitcoinRpcBaseModel):
-    root: list[Any]  # [address, amount, label]
-
+class AddressGroupingItem(BitcoinRpcRootModel[list[Any]]):
     @property
     def address(self) -> str:
         return str(self.root[0])
