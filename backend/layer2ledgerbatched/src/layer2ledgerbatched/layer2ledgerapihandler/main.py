@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await redis_client.aclose()
     await postgres_engine.dispose()
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, redirect_slashes=False)
 
 origins = [
     "http://localhost:5173",  # Allow your Vite frontend
