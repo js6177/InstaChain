@@ -101,4 +101,4 @@ async def test_db(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("layer2ledgerbatched.layer2ledgerapihandler.main:app", host="0.0.0.0", port=8080, reload=True)
+    uvicorn.run("layer2ledgerbatched.layer2ledgerapihandler.main:app", host="0.0.0.0", port=8080, reload=False)
