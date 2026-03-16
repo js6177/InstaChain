@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { MNEUMONIC_WORD_COUNT, useWalletStore } from "@wallet/shared";
-import { buildGetDepositAddressMessage, buildTransferMessage } from "openl2_messaging";
+import { buildGetDepositAddressMessage, buildTransferMessage, buildWithdrawalRequestMessage } from "openl2_messaging";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Accordion } from "@/components/ui/accordion";
 import { toast } from "sonner";
-import { useAddressBalance, useTransactions, useDepositAddressMutation, useTransferMutation, useNodeInfo } from "../hooks/useLayer2Queries";
+import { useAddressBalance, useTransactions, useDepositAddressMutation, useTransferMutation, useNodeInfo, useWithdrawMutation } from "../hooks/useLayer2Queries";
 import { TransactionItem } from "../components/TransactionItem";
 
 export function WalletPage() {
@@ -23,6 +23,7 @@ export function WalletPage() {
 
     const depositAddressMutation = useDepositAddressMutation();
     const transferMutation = useTransferMutation();
+    const withdrawMutation = useWithdrawMutation();
 
     const [depositDialogOpen, setDepositDialogOpen] = useState(false);
     const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
@@ -110,7 +111,7 @@ export function WalletPage() {
     const handleTransfer = async () => {
         if (!mainAddress) return;
         try {
-            const amt = parseFloat(transferAmount);
+            const amt = parseInt(transferAmount, 10);
             if (isNaN(amt) || amt <= 0) {
                 toast.error("Invalid amount");
                 return;
@@ -136,6 +137,47 @@ export function WalletPage() {
             refetchTransactions();
         } catch (e: unknown) {
             toast.error("Transfer failed: " + (e instanceof Error ? e.message : "Unknown error"));
+        }
+    };
+
+    const handleWithdraw = async () => {
+        if (!mainAddress) return;
+        try {
+            const amt = parseInt(withdrawAmount, 10);
+            if (isNaN(amt) || amt <= 0) {
+                toast.error("Invalid amount");
+                return;
+            }
+            if (!withdrawTo) {
+                toast.error("Destination address is required");
+                return;
+            }
+
+            const nonce = crypto.randomUUID();
+            const msg = buildWithdrawalRequestMessage(
+                nodeInfo?.node_info.node_id || "", 
+                nodeInfo?.node_info.asset_id || "", 
+                mainAddress.public_key_str_base58, 
+                withdrawTo, 
+                nonce, 
+                amt
+            );
+            const sig = await mainAddress.signMessage(msg);
+
+            await withdrawMutation.mutateAsync({
+                source_address_public_key: mainAddress.public_key_str_base58,
+                layer1_withdrawal_address: withdrawTo,
+                amount: amt,
+                layer2_transaction_id: nonce,
+                signature: sig
+            });
+
+            toast.success("Withdrawal requested!");
+            setWithdrawDialogOpen(false);
+            refetchBalance();
+            refetchTransactions();
+        } catch (e: unknown) {
+            toast.error("Withdrawal failed: " + (e instanceof Error ? e.message : "Unknown error"));
         }
     };
 
@@ -307,7 +349,9 @@ export function WalletPage() {
                                         </div>
                                     </div>
                                     <DialogFooter>
-                                        <Button>Withdraw</Button>
+                                        <Button onClick={handleWithdraw} disabled={withdrawMutation.isPending}>
+                                            {withdrawMutation.isPending ? "Withdrawing..." : "Withdraw"}
+                                        </Button>
                                     </DialogFooter>
                                 </DialogContent>
                             </Dialog>
