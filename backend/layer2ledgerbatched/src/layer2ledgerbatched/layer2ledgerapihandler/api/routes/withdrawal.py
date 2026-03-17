@@ -135,15 +135,6 @@ async def get_withdrawal_requests(
     )
     pending_withdrawals = result.scalars().all()
 
-    # 2. Update status to acknowledged
-    if pending_withdrawals:
-        await db.execute(
-            update(WithdrawalRequests)
-            .where(WithdrawalRequests.id.in_([p.id for p in pending_withdrawals]))
-            .values(status=WithdrawalStatus.WITHDRAWAL_STATUS_ACKNOWLEDGED)
-        )
-        await db.commit()
-
     # 3. Prepare response
     response_withdrawals = [
         WithdrawalRequestResponse(
@@ -159,6 +150,15 @@ async def get_withdrawal_requests(
         )
         for p in pending_withdrawals
     ]
+
+    # 2. Update status to acknowledged
+    if pending_withdrawals:
+        await db.execute(
+            update(WithdrawalRequests)
+            .where(WithdrawalRequests.id.in_([p.id for p in pending_withdrawals]))
+            .values(status=WithdrawalStatus.WITHDRAWAL_STATUS_ACKNOWLEDGED)
+        )
+        await db.commit()
 
     return GetWithdrawalRequestsResponse(
         withdrawal_requests=response_withdrawals,
