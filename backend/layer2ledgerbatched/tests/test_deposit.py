@@ -109,6 +109,10 @@ async def test_deposit_confirmed_success(postgresql_session: AsyncSession, redis
     )
     req_confirm = DepositConfirmedRequest(transactions=[deposit_confirmed])
 
+    # The expected format for layer1_transaction_id in the Transaction model is "txid:vout"
+    layer1_transaction_id_formatted = f'{deposit_confirmed.layer1_transaction_id}:{deposit_confirmed.layer1_transaction_vout}'
+
+
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post(f"{DEPOSIT_ROUTER_PREFIX}{DEPOSIT_CONFIRMED_ROUTE}", json=req_confirm.model_dump())
 
@@ -125,7 +129,7 @@ async def test_deposit_confirmed_success(postgresql_session: AsyncSession, redis
     assert pending_tx.transaction.amount == amount
     assert pending_tx.transaction.destination_address_pubkey == user_address.public_key_str_base58
     assert pending_tx.transaction.transaction_type == TransactionType.TRX_DEPOSIT
-    assert pending_tx.transaction.layer1_transaction_id == layer1_tx_id
+    assert pending_tx.transaction.layer1_transaction_id == layer1_transaction_id_formatted
 
     # Clean up redis
     await redis_client.delete(PENDING_TRANSACTIONS_LIST_KEY)

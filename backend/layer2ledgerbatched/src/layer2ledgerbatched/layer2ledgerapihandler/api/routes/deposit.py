@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends
 import redis
 from sqlalchemy import select
@@ -89,14 +91,16 @@ async def deposit_confirmed(
         if not layer2_address:
             return DepositConfirmedResponse(error_code=error_codes.ERROR_DEPOSIT_ADDRESS_NOT_FOUND, error_message=error_codes.get_error_message(error_codes.ERROR_DEPOSIT_ADDRESS_NOT_FOUND), transactions=successful_transactions)
 
+        # Generate random layer2_transaction_id
+        layer2_transaction_id = str(uuid.uuid4())
         redis_transaction = RedisTransaction(
             amount=deposit_confirmed.amount,
             fee=0,
             source_address_pubkey=settings.deposit_transaction_pubkey,
             destination_address_pubkey=layer2_address,
             transaction_type=TransactionType.TRX_DEPOSIT,
-            layer2_transaction_id=f'{deposit_confirmed.layer1_transaction_id}:0', # Assuming vout 0
-            layer1_transaction_id=deposit_confirmed.layer1_transaction_id,
+            layer2_transaction_id=layer2_transaction_id,
+            layer1_transaction_id=f'{deposit_confirmed.layer1_transaction_id}:{deposit_confirmed.layer1_transaction_vout}',
             signature=deposit_confirmed.signature,
             signature_date=0, # Should be part of request
         )

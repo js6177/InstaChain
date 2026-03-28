@@ -135,6 +135,15 @@ async def get_withdrawal_requests(
     )
     pending_withdrawals = result.scalars().all()
 
+    # 2. Update status to acknowledged
+    if pending_withdrawals:
+        await db.execute(
+            update(WithdrawalRequests)
+            .where(WithdrawalRequests.id.in_([p.id for p in pending_withdrawals]))
+            .values(status=WithdrawalStatus.WITHDRAWAL_STATUS_ACKNOWLEDGED)
+        )
+        await db.commit()
+
     # 3. Prepare response
     response_withdrawals = [
         WithdrawalRequestResponse(
@@ -150,15 +159,6 @@ async def get_withdrawal_requests(
         )
         for p in pending_withdrawals
     ]
-
-    # 2. Update status to acknowledged
-    if pending_withdrawals:
-        await db.execute(
-            update(WithdrawalRequests)
-            .where(WithdrawalRequests.id.in_([p.id for p in pending_withdrawals]))
-            .values(status=WithdrawalStatus.WITHDRAWAL_STATUS_ACKNOWLEDGED)
-        )
-        await db.commit()
 
     return GetWithdrawalRequestsResponse(
         withdrawal_requests=response_withdrawals,
@@ -258,11 +258,18 @@ async def withdrawal_confirmed(
         layer2_withdrawal_ids.update({row[0] for row in result})
 
         # 3. Update WithdrawalRequest for each layer2_withdrawal_id, since multiple withdrawals can be in one layer1 transaction
-        for lwid in layer2_withdrawal_ids:
+        for layer2_withdrawal_id in layer2_withdrawal_ids:
             await db.execute(
                 update(WithdrawalRequests)
-                .where(WithdrawalRequests.layer2_withdrawal_id == lwid)
+                .where(WithdrawalRequests.layer2_withdrawal_id == layer2_withdrawal_id)
                 .values(status=WithdrawalStatus.WITHDRAWAL_STATUS_CONFIRMED, layer1_transaction_id=tx.layer1_transaction_id)
+            )
+
+            #Update the layer1_transaction_id for the appropriate Transaction for each layer2_withdrawal_ids
+            await db.execute(
+                update(Transaction)
+                .where(Transaction.layer2_withdrawal_id == layer2_withdrawal_id)
+                .values(layer1_transaction_id=tx.layer1_transaction_id)
             )
 
         response_transactions.append(Layer1WithdrawalConfirmedTransactionStatus(
