@@ -174,7 +174,7 @@ class Layer2Bridge():
                         layer1_transaction_vout = trx.layer1_transaction_vout
                         if(Layer2Interface.SuccessOrDuplicateErrorCode(error_code)):
                             self.layer2BridgeDB.updateConfirmedTransaction(layer1_transaction_id, layer1_transaction_vout, DatabaseInterface.ConfirmedTransaction.CATEGORY_RECIEVE, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
-                            OnboardingLogger('Deposit confirmed. transaction_id:' + layer1_transaction_id + ' ' + str(layer1_transaction_vout))
+                            OnboardingLogger('Deposit confirmation acknowledged by layer2ledger. transaction_id:' + layer1_transaction_id + ' ' + str(layer1_transaction_vout))
             except Exception as e:
                 OnboardingLogger(f"Error sending confirmed deposits: {e}")
 

@@ -1,6 +1,6 @@
 from .ack_withdrawal_requests_response import AckWithdrawalRequestsResponse
 from .common_response import CommonResponse
-from .deposit_confirmed_response import Layer1DepositConfirmedTransaction, DepositConfirmedResponse
+from .deposit_confirmed_response import Layer1TransactionIdStatus, DepositConfirmedResponse
 from .get_balance_response import GetBalanceResponseBalance, GetBalanceResponse
 from .get_deposit_address_response import GetDepositAddressResponse
 from .get_fee_response import GetFeeResponse
@@ -20,7 +20,7 @@ from .withdrawal_request_response import WithdrawalRequestResponse
 __all__ = [
     "AckWithdrawalRequestsResponse",
     "CommonResponse",
-    "Layer1DepositConfirmedTransaction",
+    "Layer1TransactionIdStatus",
     "DepositConfirmedResponse",
     "GetBalanceResponseBalance",
     "GetBalanceResponse",

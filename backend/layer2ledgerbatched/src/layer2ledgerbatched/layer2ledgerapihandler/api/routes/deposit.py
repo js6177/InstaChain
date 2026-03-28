@@ -10,7 +10,7 @@ from layer2ledgerbatched.common.db.models import DepositAddresses, Transaction, 
 from openl2_layer2ledger_api.models.requests import GetDepositAddressRequest
 from openl2_layer2ledger_api.models.responses import GetDepositAddressResponse
 from openl2_layer2ledger_api.models.requests import DepositConfirmedRequest
-from openl2_layer2ledger_api.models.responses import DepositConfirmedResponse, Layer1DepositConfirmedTransaction
+from openl2_layer2ledger_api.models.responses import DepositConfirmedResponse, Layer1TransactionIdStatus
 from openl2_layer2ledger_api.models.responses import CommonResponse
 import layer2ledgerbatched.layer2ledgerapihandler.utils.error_message as error_codes
 from openl2_messaging import verifyGetDepositAddress, verifyDeposit, buildGetDepositAddressMessage, buildDepositMessage
@@ -71,7 +71,9 @@ async def deposit_confirmed(
     redis_client: redis.asyncio.Redis = Depends(get_redis),
     settings: Layer2LedgerAPIHandlerSettings = Depends(lambda: get_layer2ledgerbatched_layer2ledgerapihandler_config())
 ) -> DepositConfirmedResponse:
-    successful_transactions: list[Layer1DepositConfirmedTransaction] = []
+
+    # Result of each deposit transactions.
+    results: list[Layer1TransactionIdStatus] = []
     for deposit_confirmed in request.transactions:
         if not verifyDeposit(
             layer1_transaction_id=deposit_confirmed.layer1_transaction_id,
@@ -81,7 +83,16 @@ async def deposit_confirmed(
             nonce=deposit_confirmed.nonce,
             signature=deposit_confirmed.signature
         ):
-            return DepositConfirmedResponse(error_code=error_codes.ERROR_INVALID_SIGNATURE, error_message=error_codes.get_error_message(error_codes.ERROR_INVALID_SIGNATURE), transactions=successful_transactions)
+            results.append(Layer1TransactionIdStatus(layer1_transaction_id=deposit_confirmed.layer1_transaction_id, layer1_transaction_vout=deposit_confirmed.layer1_transaction_vout, error_code=error_codes.ERROR_INVALID_SIGNATURE, error_message=error_codes.get_error_message(error_codes.ERROR_INVALID_SIGNATURE)))
+            continue
+
+        #Check for duplicate nonce (layer2_transaction_id)
+        existing_transaction = await db.execute(
+            select(Transaction).where(Transaction.layer2_transaction_id == deposit_confirmed.nonce)
+        )
+        if existing_transaction.scalar_one_or_none() is not None:
+            results.append(Layer1TransactionIdStatus(layer1_transaction_id=deposit_confirmed.layer1_transaction_id, layer1_transaction_vout=deposit_confirmed.layer1_transaction_vout, error_code=error_codes.ERROR_DUPLICATE_TRANSACTION, error_message=error_codes.get_error_message(error_codes.ERROR_DUPLICATE_TRANSACTION)))
+            continue
 
         result = await db.execute(
             select(DepositAddresses.layer2_address).where(DepositAddresses.layer1_address == deposit_confirmed.layer1_address)
@@ -89,17 +100,16 @@ async def deposit_confirmed(
         layer2_address = result.scalar_one_or_none()
 
         if not layer2_address:
-            return DepositConfirmedResponse(error_code=error_codes.ERROR_DEPOSIT_ADDRESS_NOT_FOUND, error_message=error_codes.get_error_message(error_codes.ERROR_DEPOSIT_ADDRESS_NOT_FOUND), transactions=successful_transactions)
+            results.append(Layer1TransactionIdStatus(layer1_transaction_id=deposit_confirmed.layer1_transaction_id, layer1_transaction_vout=deposit_confirmed.layer1_transaction_vout, error_code=error_codes.ERROR_DEPOSIT_ADDRESS_NOT_FOUND, error_message=error_codes.get_error_message(error_codes.ERROR_DEPOSIT_ADDRESS_NOT_FOUND)))
+            continue
 
-        # Generate random layer2_transaction_id
-        layer2_transaction_id = str(uuid.uuid4())
         redis_transaction = RedisTransaction(
             amount=deposit_confirmed.amount,
             fee=0,
             source_address_pubkey=settings.deposit_transaction_pubkey,
             destination_address_pubkey=layer2_address,
             transaction_type=TransactionType.TRX_DEPOSIT,
-            layer2_transaction_id=layer2_transaction_id,
+            layer2_transaction_id=deposit_confirmed.nonce,
             layer1_transaction_id=f'{deposit_confirmed.layer1_transaction_id}:{deposit_confirmed.layer1_transaction_vout}',
             signature=deposit_confirmed.signature,
             signature_date=0, # Should be part of request
@@ -112,8 +122,8 @@ async def deposit_confirmed(
         )
 
         await redis_client.rpush(PENDING_TRANSACTIONS_LIST_KEY, pending_transaction.model_dump_json())
-        successful_transactions.append(
-            Layer1DepositConfirmedTransaction(
+        results.append(
+            Layer1TransactionIdStatus(
                 layer1_transaction_id=deposit_confirmed.layer1_transaction_id,
                 layer1_transaction_vout=deposit_confirmed.layer1_transaction_vout,
                 error_code=error_codes.ERROR_SUCCESS,
@@ -121,4 +131,4 @@ async def deposit_confirmed(
             )
         )
 
-    return DepositConfirmedResponse(error_code=error_codes.ERROR_SUCCESS, error_message=error_codes.get_error_message(error_codes.ERROR_SUCCESS), transactions=successful_transactions)
+    return DepositConfirmedResponse(error_code=error_codes.ERROR_SUCCESS, error_message=error_codes.get_error_message(error_codes.ERROR_SUCCESS), transactions=results)
