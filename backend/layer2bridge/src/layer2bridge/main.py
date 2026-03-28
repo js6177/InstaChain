@@ -119,14 +119,14 @@ class Layer2Bridge():
     async def getPendingWithdrawalsFromLayer2LedgerAndSaveToDb(self):
         #get pending withdrawals from the Layer2Ledger, and save it to the db
         lastwithdrawalTimestamp = int(self.layer2BridgeDB.getLastWithdrawalRequestTimestamp())
-        pendingWithdrawals = []
+        pendingWithdrawals: List[DatabaseInterface.PendingWithdrawal] = []
         try:
             response = await self.layer2Interface.getWithdrawalRequests(lastwithdrawalTimestamp)
             if response.error_code == 0:
                 for wr in response.withdrawal_requests:
                     withdrawal = DatabaseInterface.PendingWithdrawal(
                         layer2_withdrawal_id=wr.layer2_withdrawal_id,
-                        status=wr.status,
+                        status=DatabaseInterface.PendingWithdrawal.LAYER1_STATUS_PENDING,
                         transaction_id='',
                         amount=wr.amount,
                         fee=0,
