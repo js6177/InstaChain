@@ -3,6 +3,11 @@
 
 Wallet/*.json
 
+#general temp files
+*.tmp
+_temp/
+tmp/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
