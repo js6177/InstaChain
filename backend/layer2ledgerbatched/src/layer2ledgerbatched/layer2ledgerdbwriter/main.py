@@ -113,7 +113,7 @@ async def process_pending_transactions(environment: Environment = Environment.DE
             await redis_client.ltrim(PENDING_WITHDRAWALS_LIST_KEY, len(withdrawals_to_process), -1)
 
 
-#            # Release locks
+            # Release locks
             for pending_tx in transactions_to_process:
                 await lock_manager.release_multi_lock(pending_tx.addresses_locked, pending_tx.lock_token)
             for pending_withdrawal in withdrawals_to_process:
