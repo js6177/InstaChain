@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MNEUMONIC_WORD_COUNT, useWalletStore } from "@wallet/shared";
+import { MNEUMONIC_WORD_COUNT, useWalletStore, useDenominationStore, formatAmount, parseAmountToSats } from "@wallet/shared";
 import { buildGetDepositAddressMessage, buildTransferMessage, buildWithdrawalRequestMessage } from "openl2_messaging";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import { MnemonicDisplay } from "../components/MnemonicDisplay";
 
 export function WalletPage() {
     const { isLoaded, wallet, mainAddress, generateWallet, loadWalletFromMnemonic, logout, validateMnemonic } = useWalletStore();
+    const { denomination, toggleDenomination } = useDenominationStore();
     const [mnemonicInput, setMnemonicInput] = useState("");
     const [isMnemonicDialogOpen, setIsMnemonicDialogOpen] = useState(false);
 
@@ -112,7 +113,7 @@ export function WalletPage() {
     const handleTransfer = async () => {
         if (!mainAddress) return;
         try {
-            const amt = parseInt(transferAmount, 10);
+            const amt = parseAmountToSats(transferAmount, denomination);
             if (isNaN(amt) || amt <= 0) {
                 toast.error("Invalid amount");
                 return;
@@ -144,7 +145,7 @@ export function WalletPage() {
     const handleWithdraw = async () => {
         if (!mainAddress) return;
         try {
-            const amt = parseInt(withdrawAmount, 10);
+            const amt = parseAmountToSats(withdrawAmount, denomination);
             if (isNaN(amt) || amt <= 0) {
                 toast.error("Invalid amount");
                 return;
@@ -299,7 +300,7 @@ export function WalletPage() {
                         <div>
                             <p className="text-sm font-medium text-muted-foreground mb-1">Available Balance</p>
                             <div className="text-5xl font-extrabold tracking-tight">
-                                {isBalanceLoading ? "..." : (balance?.balance || 0)} <span className="text-2xl text-muted-foreground font-normal">sats</span>
+                                {isBalanceLoading ? "..." : formatAmount(balance?.balance, denomination)} <button onClick={toggleDenomination} className="text-2xl text-muted-foreground font-normal hover:text-foreground transition-colors">{denomination}</button>
                             </div>
                         </div>
 
@@ -340,10 +341,11 @@ export function WalletPage() {
                                         </DialogDescription>
                                     </DialogHeader>
                                     <div className="py-4 space-y-4">
-                                        <div>
-                                            <Label>Amount (sats)</Label>
-                                            <Input type="number" placeholder="Enter amount" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} />
+                                        <div className="flex justify-between items-center mb-1">
+                                            <Label>Amount ({denomination})</Label>
+                                            <button onClick={toggleDenomination} className="text-xs text-muted-foreground hover:text-foreground uppercase">{denomination} ⇄</button>
                                         </div>
+                                        <Input type="number" step={denomination === 'btc' ? '0.00000001' : '1'} placeholder="Enter amount" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} />
                                         <div>
                                             <Label>Destination Layer1 Address</Label>
                                             <Input placeholder="btc..." value={withdrawTo} onChange={(e) => setWithdrawTo(e.target.value)} />
@@ -373,10 +375,11 @@ export function WalletPage() {
                                             <Label>Destination Layer2 Address</Label>
                                             <Input placeholder="Enter destination pubkey" value={transferTo} onChange={(e) => setTransferTo(e.target.value)} />
                                         </div>
-                                        <div>
-                                            <Label>Amount (sats)</Label>
-                                            <Input type="number" placeholder="Enter amount" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} />
+                                        <div className="flex justify-between items-center mb-1">
+                                            <Label>Amount ({denomination})</Label>
+                                            <button onClick={toggleDenomination} className="text-xs text-muted-foreground hover:text-foreground uppercase">{denomination} ⇄</button>
                                         </div>
+                                        <Input type="number" step={denomination === 'btc' ? '0.00000001' : '1'} placeholder="Enter amount" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} />
                                     </div>
                                     <DialogFooter>
                                         <Button onClick={handleTransfer} disabled={transferMutation.isPending}>

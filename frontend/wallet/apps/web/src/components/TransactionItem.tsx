@@ -8,6 +8,7 @@ import type { GetTransactionsResponseTransaction } from "@wallet/api-layer2ledge
 import { TransactionType } from "openl2_messaging";
 import { ArrowDownIcon, ArrowUpIcon, ArrowRightLeftIcon } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useDenominationStore, formatAmount } from "@wallet/shared";
 
 interface TransactionItemProps {
     transaction: GetTransactionsResponseTransaction;
@@ -15,6 +16,7 @@ interface TransactionItemProps {
 }
 
 export function TransactionItem({ transaction, currentAddress }: TransactionItemProps) {
+    const { denomination } = useDenominationStore();
     const isOutgoing = currentAddress ? transaction.source_address_pubkey === currentAddress : false;
     const isIncoming = currentAddress ? transaction.destination_address_pubkey === currentAddress : false;
 
@@ -37,7 +39,8 @@ export function TransactionItem({ transaction, currentAddress }: TransactionItem
     };
 
     // Amount string with sign
-    const amountStr = isOutgoing ? `-${transaction.amount}` : (isIncoming ? `+${transaction.amount}` : transaction.amount.toString());
+    const formattedAmount = formatAmount(transaction.amount, denomination);
+    const amountStr = isOutgoing ? `-${formattedAmount} ${denomination}` : (isIncoming ? `+${formattedAmount} ${denomination}` : `${formattedAmount} ${denomination}`);
 
     return (
         <AccordionItem value={transaction.layer2_transaction_id} className="border bg-card rounded-md px-4 mb-2">
@@ -77,11 +80,11 @@ export function TransactionItem({ transaction, currentAddress }: TransactionItem
                     </div>
                     <div className="grid grid-cols-[120px_1fr] items-start">
                         <span className="text-muted-foreground">Amount:</span>
-                        <span>{transaction.amount} sats</span>
+                        <span>{formatAmount(transaction.amount, denomination)} {denomination}</span>
                     </div>
                     <div className="grid grid-cols-[120px_1fr] items-start">
                         <span className="text-muted-foreground">Fee:</span>
-                        <span>{transaction.fee} sats</span>
+                        <span>{formatAmount(transaction.fee, denomination)} {denomination}</span>
                     </div>
                     <div className="grid grid-cols-[120px_1fr] items-start">
                         <span className="text-muted-foreground">From:</span>
