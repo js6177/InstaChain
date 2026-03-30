@@ -400,8 +400,8 @@ export function WalletPage() {
             <div className="space-y-4">
                 <div className="flex justify-between items-center px-1">
                     <h3 className="text-xl font-bold tracking-tight">Recent Transactions</h3>
-                    <Button variant="link" size="sm" onClick={() => refetchTransactions()} disabled={isTransactionsLoading}>
-                        {isTransactionsLoading ? "Refreshing..." : "Refresh"}
+                    <Button variant="link" size="sm" onClick={() => { refetchTransactions(); refetchBalance(); }} disabled={isTransactionsLoading || isBalanceLoading}>
+                        {isTransactionsLoading || isBalanceLoading ? "Refreshing..." : "Refresh"}
                     </Button>
                 </div>
 
