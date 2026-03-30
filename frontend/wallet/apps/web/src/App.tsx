@@ -31,7 +31,7 @@ function App() {
         <div className="container mx-auto flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-6">
             <Link to="/wallet" className="flex items-center space-x-2">
-              <span className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-teal-400">
+              <span className="font-bold text-lg text-logo-color">
                 OpenL2
               </span>
             </Link>

@@ -192,7 +192,7 @@ export function WalletPage() {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 animate-in fade-in duration-500">
                 <div className="text-center space-y-2">
-                    <h1 className="text-5xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-teal-400">OpenL2 Web Wallet</h1>
+                    <h1 className="text-5xl font-extrabold tracking-tight text-logo-color">OpenL2 Web Wallet</h1>
                     <p className="text-muted-foreground text-lg max-w-lg mx-auto">Generate a new Layer2 wallet or restore an existing one to get started.</p>
                 </div>
                 <div className="flex gap-4 mt-4">
