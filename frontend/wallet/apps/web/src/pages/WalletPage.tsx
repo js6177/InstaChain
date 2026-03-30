@@ -10,6 +10,7 @@ import { Accordion } from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { useAddressBalance, useTransactions, useDepositAddressMutation, useTransferMutation, useNodeInfo, useWithdrawMutation } from "../hooks/useLayer2Queries";
 import { TransactionItem } from "../components/TransactionItem";
+import { MnemonicDisplay } from "../components/MnemonicDisplay";
 
 export function WalletPage() {
     const { isLoaded, wallet, mainAddress, generateWallet, loadWalletFromMnemonic, logout, validateMnemonic } = useWalletStore();
@@ -388,12 +389,7 @@ export function WalletPage() {
                     </div>
                 </CardContent>
                 <CardFooter className="bg-muted/10 pt-4 pb-4 px-6 border-t flex justify-between text-xs text-muted-foreground">
-                    <div>
-                        <span className="font-semibold text-foreground mr-1">Mnemonic Phrase:</span>
-                        <span className="blur-sm hover:blur-none transition-all duration-300 font-mono tracking-wide">
-                            {wallet?.mnemonic?.join(" ") || ""}
-                        </span>
-                    </div>
+                    <MnemonicDisplay mnemonic={wallet?.mnemonic} />
                 </CardFooter>
             </Card>
 
