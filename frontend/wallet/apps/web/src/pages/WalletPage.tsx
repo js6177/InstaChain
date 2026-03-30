@@ -157,11 +157,11 @@ export function WalletPage() {
 
             const nonce = crypto.randomUUID();
             const msg = buildWithdrawalRequestMessage(
-                nodeInfo?.node_info.node_id || "", 
-                nodeInfo?.node_info.asset_id || "", 
-                mainAddress.public_key_str_base58, 
-                withdrawTo, 
-                nonce, 
+                nodeInfo?.node_info.node_id || "",
+                nodeInfo?.node_info.asset_id || "",
+                mainAddress.public_key_str_base58,
+                withdrawTo,
+                nonce,
                 amt
             );
             const sig = await mainAddress.signMessage(msg);
@@ -281,9 +281,6 @@ export function WalletPage() {
             <div className="flex justify-between items-end">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Your Wallet</h1>
-                    <p className="text-muted-foreground text-sm flex items-center gap-2 mt-1">
-                        Securely interacting with Layer2
-                    </p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground">Close wallet</Button>
             </div>
