@@ -286,9 +286,9 @@ export function WalletPage() {
             </div>
 
             <Card className="border-2 shadow-sm">
-                <CardHeader className="bg-muted/50 pb-4">
+                <CardHeader className="pb-4">
                     <CardTitle className="text-lg text-muted-foreground font-medium uppercase tracking-wider">Main Address</CardTitle>
-                    <CardDescription className="text-xl font-mono text-foreground break-all bg-background border p-3 rounded-md mt-2">
+                    <CardDescription className="text-xl font-mono text-foreground break-all border p-3 rounded-md mt-2">
                         {mainAddress?.public_key_str_base58}
                     </CardDescription>
                 </CardHeader>

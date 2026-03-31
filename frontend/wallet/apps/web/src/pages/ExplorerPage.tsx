@@ -132,7 +132,7 @@ export function ExplorerPage() {
     return (
         <div className="max-w-4xl mx-auto w-full pt-4 pb-12">
             <div className="mb-8 text-center">
-                <h1 className="text-4xl font-extrabold tracking-tight mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-teal-400">Block Explorer</h1>
+                <h1 className="text-4xl font-extrabold tracking-tight mb-2">Block Explorer</h1>
                 <p className="text-muted-foreground">Search and view a Layer2 address or transaction</p>
             </div>
 
