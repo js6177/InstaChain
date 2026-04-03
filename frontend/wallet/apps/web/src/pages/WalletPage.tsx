@@ -10,7 +10,7 @@ import { Accordion } from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { useAddressBalance, useTransactions, useDepositAddressMutation, useTransferMutation, useNodeInfo, useWithdrawMutation } from "../hooks/useLayer2Queries";
 import { TransactionItem } from "../components/TransactionItem";
-import { MnemonicDisplay } from "../components/MnemonicDisplay";
+import { CopyableDisplay, FitTextMethod } from "../components/CopyableDisplay";
 
 export function WalletPage() {
     const { isLoaded, wallet, mainAddress, generateWallet, loadWalletFromMnemonic, logout, validateMnemonic } = useWalletStore();
@@ -287,10 +287,13 @@ export function WalletPage() {
 
             <Card className="border-2 shadow-sm">
                 <CardHeader className="pb-4">
-                    <CardTitle className="text-lg text-muted-foreground font-medium uppercase tracking-wider">Main Address</CardTitle>
-                    <CardDescription className="text-xl font-mono text-foreground break-all border p-3 rounded-md mt-2">
-                        {mainAddress?.public_key_str_base58}
-                    </CardDescription>
+                    <CopyableDisplay
+                        label="Main Address"
+                        labelClassName="text-lg text-muted-foreground font-medium uppercase tracking-wider"
+                        value={mainAddress?.public_key_str_base58}
+                        fitTextInView={true}
+                        fitTextInViewMethod={FitTextMethod.ShrinkTextFontSize}
+                    />
                 </CardHeader>
                 <CardContent className="pt-6">
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -389,7 +392,12 @@ export function WalletPage() {
                     </div>
                 </CardContent>
                 <CardFooter className="bg-muted/10 pt-4 pb-4 px-6 border-t flex justify-between text-xs text-muted-foreground">
-                    <MnemonicDisplay mnemonic={wallet?.mnemonic} />
+                    <CopyableDisplay
+                        label="Mnemonic Phrase:"
+                        value={wallet?.mnemonic}
+                        secret={true}
+                        textClassName="font-mono text-[11px] leading-relaxed break-words"
+                    />
                 </CardFooter>
             </Card>
 

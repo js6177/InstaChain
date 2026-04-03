@@ -59,7 +59,7 @@ export function TransactionItem({ transaction, currentAddress }: TransactionItem
                             </div>
                         </div>
                     </div>
-                    
+
                     <div className="flex flex-col items-end gap-1">
                         <span className={`font-mono font-bold ${isOutgoing ? 'text-red-500' : (isIncoming ? 'text-green-500' : '')}`}>
                             {amountStr}
