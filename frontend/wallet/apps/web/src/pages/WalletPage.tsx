@@ -208,6 +208,17 @@ export function WalletPage() {
         toggleDenomination();
     };
 
+    const handleSetMax = (setter: (val: string) => void) => {
+        if (!balance?.balance) return;
+        if (denomination === Denomination.Sats) {
+            setter(balance.balance.toString());
+        } else {
+            let btcStr = (balance.balance / 100_000_000).toFixed(8);
+            btcStr = btcStr.replace(/\.?0+$/, "");
+            setter(btcStr === "" ? "0" : btcStr);
+        }
+    };
+
     // Logout
     const handleLogout = () => {
         logout();
@@ -370,7 +381,10 @@ export function WalletPage() {
                                             <Label>Amount ({denomination})</Label>
                                             <button onClick={handleToggleDenomination} className="text-xs text-muted-foreground hover:text-foreground uppercase">{denomination} ⇄</button>
                                         </div>
-                                        <Input type="number" step={denomination === Denomination.Btc ? '0.00000001' : '1'} placeholder="Enter amount" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} />
+                                        <div className="flex gap-2">
+                                            <Input type="number" step={denomination === Denomination.Btc ? '0.00000001' : '1'} placeholder="Enter amount" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} />
+                                            <Button variant="secondary" onClick={() => handleSetMax(setWithdrawAmount)} title="Use max balance" className="px-3 shrink-0 uppercase text-xs font-semibold">Max</Button>
+                                        </div>
                                         <div>
                                             <Label>Destination Layer1 Address</Label>
                                             <Input placeholder="btc..." value={withdrawTo} onChange={(e) => setWithdrawTo(e.target.value)} />
@@ -404,7 +418,10 @@ export function WalletPage() {
                                             <Label>Amount ({denomination})</Label>
                                             <button onClick={handleToggleDenomination} className="text-xs text-muted-foreground hover:text-foreground uppercase">{denomination} ⇄</button>
                                         </div>
-                                        <Input type="number" step={denomination === Denomination.Btc ? '0.00000001' : '1'} placeholder="Enter amount" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} />
+                                        <div className="flex gap-2">
+                                            <Input type="number" step={denomination === Denomination.Btc ? '0.00000001' : '1'} placeholder="Enter amount" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} />
+                                            <Button variant="secondary" onClick={() => handleSetMax(setTransferAmount)} title="Use max balance" className="px-3 shrink-0 uppercase text-xs font-semibold">Max</Button>
+                                        </div>
                                     </div>
                                     <DialogFooter>
                                         <Button onClick={handleTransfer} disabled={transferMutation.isPending}>
