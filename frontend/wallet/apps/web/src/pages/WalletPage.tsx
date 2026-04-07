@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MNEUMONIC_WORD_COUNT, useWalletStore, useDenominationStore, formatAmount, parseAmountToSats } from "@wallet/shared";
+import { MNEUMONIC_WORD_COUNT, useWalletStore, useDenominationStore, formatAmount, parseAmountToSats, Denomination } from "@wallet/shared";
 import { buildGetDepositAddressMessage, buildTransferMessage, buildWithdrawalRequestMessage } from "openl2_messaging";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -183,6 +183,31 @@ export function WalletPage() {
         }
     };
 
+    const handleToggleDenomination = () => {
+        const isCurrentlySats = denomination === Denomination.Sats;
+
+        const convert = (amt: string) => {
+            if (!amt) return "";
+            const num = parseFloat(amt);
+            if (isNaN(num)) return amt;
+            if (isCurrentlySats) {
+                // sats to btc
+                let btcStr = (num / 100_000_000).toFixed(8);
+
+                //strip out trailing zeroes and decimal point
+                btcStr = btcStr.replace(/\.?0+$/, "");
+                return btcStr === "" ? "0" : btcStr;
+            } else {
+                // btc to sats
+                return Math.round(num * 100_000_000).toString();
+            }
+        };
+
+        setTransferAmount(prev => convert(prev));
+        setWithdrawAmount(prev => convert(prev));
+        toggleDenomination();
+    };
+
     // Logout
     const handleLogout = () => {
         logout();
@@ -300,7 +325,7 @@ export function WalletPage() {
                         <div>
                             <p className="text-sm font-medium text-muted-foreground mb-1">Available Balance</p>
                             <div className="text-5xl font-extrabold tracking-tight">
-                                {isBalanceLoading ? "..." : formatAmount(balance?.balance, denomination)} <button onClick={toggleDenomination} className="text-2xl text-muted-foreground font-normal hover:text-foreground transition-colors">{denomination}</button>
+                                {isBalanceLoading ? "..." : formatAmount(balance?.balance, denomination)} <button onClick={handleToggleDenomination} className="text-2xl text-muted-foreground font-normal hover:text-foreground transition-colors">{denomination}</button>
                             </div>
                         </div>
 
@@ -343,9 +368,9 @@ export function WalletPage() {
                                     <div className="py-4 space-y-4">
                                         <div className="flex justify-between items-center mb-1">
                                             <Label>Amount ({denomination})</Label>
-                                            <button onClick={toggleDenomination} className="text-xs text-muted-foreground hover:text-foreground uppercase">{denomination} ⇄</button>
+                                            <button onClick={handleToggleDenomination} className="text-xs text-muted-foreground hover:text-foreground uppercase">{denomination} ⇄</button>
                                         </div>
-                                        <Input type="number" step={denomination === 'btc' ? '0.00000001' : '1'} placeholder="Enter amount" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} />
+                                        <Input type="number" step={denomination === Denomination.Btc ? '0.00000001' : '1'} placeholder="Enter amount" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} />
                                         <div>
                                             <Label>Destination Layer1 Address</Label>
                                             <Input placeholder="btc..." value={withdrawTo} onChange={(e) => setWithdrawTo(e.target.value)} />
@@ -377,9 +402,9 @@ export function WalletPage() {
                                         </div>
                                         <div className="flex justify-between items-center mb-1">
                                             <Label>Amount ({denomination})</Label>
-                                            <button onClick={toggleDenomination} className="text-xs text-muted-foreground hover:text-foreground uppercase">{denomination} ⇄</button>
+                                            <button onClick={handleToggleDenomination} className="text-xs text-muted-foreground hover:text-foreground uppercase">{denomination} ⇄</button>
                                         </div>
-                                        <Input type="number" step={denomination === 'btc' ? '0.00000001' : '1'} placeholder="Enter amount" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} />
+                                        <Input type="number" step={denomination === Denomination.Btc ? '0.00000001' : '1'} placeholder="Enter amount" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} />
                                     </div>
                                     <DialogFooter>
                                         <Button onClick={handleTransfer} disabled={transferMutation.isPending}>
