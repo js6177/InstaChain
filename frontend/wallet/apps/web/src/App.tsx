@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { WalletPage } from "./pages/WalletPage";
 import { ExplorerPage } from "./pages/ExplorerPage";
 import { AboutPage } from "./pages/AboutPage";
+import { Toaster } from "@/components/ui/sonner";
 
 function App() {
   const { theme, toggleTheme } = useThemeStore();
@@ -61,6 +62,7 @@ function App() {
           <Route path="/about" element={<AboutPage />} />
         </Routes>
       </main>
+      <Toaster />
     </div>
   );
 }
