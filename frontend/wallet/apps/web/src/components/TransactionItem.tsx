@@ -8,7 +8,7 @@ import type { GetTransactionsResponseTransaction } from "@wallet/api-layer2ledge
 import { TransactionType } from "openl2_messaging";
 import { ArrowDownIcon, ArrowUpIcon, ArrowRightLeftIcon } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useDenominationStore, formatAmount, ROUTES } from "@wallet/shared";
+import { useDenominationStore, formatAmount, ROUTES, LABELS } from "@wallet/shared";
 
 interface TransactionItemProps {
     transaction: GetTransactionsResponseTransaction;
@@ -22,13 +22,13 @@ export function TransactionItem({ transaction, currentAddress }: TransactionItem
 
     const getTypeString = (type: number) => {
         switch (type) {
-            case TransactionType.TRX_TRANSFER: return "Transfer";
-            case TransactionType.TRX_DEPOSIT: return "Deposit";
-            case TransactionType.TRX_WITHDRAWAL_INITIATED: return "Withdrawal Initiated";
-            case TransactionType.TRX_WITHDRAWAL_BROADCASTED: return "Withdrawal Broadcasted";
-            case TransactionType.TRX_WITHDRAWAL_CANCELED: return "Withdrawal Canceled";
-            case TransactionType.TRX_WITHDRAWAL_CONFIRMED: return "Withdrawal Confirmed";
-            default: return "Unknown";
+            case TransactionType.TRX_TRANSFER: return LABELS.TX_TYPE_TRANSFER;
+            case TransactionType.TRX_DEPOSIT: return LABELS.TX_TYPE_DEPOSIT;
+            case TransactionType.TRX_WITHDRAWAL_INITIATED: return LABELS.TX_TYPE_WITHDRAWAL_INITIATED;
+            case TransactionType.TRX_WITHDRAWAL_BROADCASTED: return LABELS.TX_TYPE_WITHDRAWAL_BROADCASTED;
+            case TransactionType.TRX_WITHDRAWAL_CANCELED: return LABELS.TX_TYPE_WITHDRAWAL_CANCELED;
+            case TransactionType.TRX_WITHDRAWAL_CONFIRMED: return LABELS.TX_TYPE_WITHDRAWAL_CONFIRMED;
+            default: return LABELS.TX_TYPE_UNKNOWN;
         }
     };
 
@@ -77,33 +77,33 @@ export function TransactionItem({ transaction, currentAddress }: TransactionItem
             <AccordionContent className="text-sm border-t pt-3 pb-4">
                 <div className="space-y-2 font-mono text-xs">
                     <div className="grid grid-cols-[120px_1fr] items-start">
-                        <span className="text-muted-foreground">ID:</span>
+                        <span className="text-muted-foreground">{LABELS.KEY_ID}</span>
                         <Link to={ROUTES.buildExplorerTransaction(transaction.layer2_transaction_id)} className="break-all text-blue-500 hover:underline">
                             {transaction.layer2_transaction_id}
                         </Link>
                     </div>
                     <div className="grid grid-cols-[120px_1fr] items-start">
-                        <span className="text-muted-foreground">Type:</span>
+                        <span className="text-muted-foreground">{LABELS.KEY_TYPE}</span>
                         <span>{getTypeString(transaction.transaction_type)} ({transaction.transaction_type})</span>
                     </div>
                     <div className="grid grid-cols-[120px_1fr] items-start">
-                        <span className="text-muted-foreground">Amount:</span>
+                        <span className="text-muted-foreground">{LABELS.KEY_AMOUNT}</span>
                         <span>{formatAmount(transaction.amount, denomination)} {denomination}</span>
                     </div>
                     <div className="grid grid-cols-[120px_1fr] items-start">
-                        <span className="text-muted-foreground">Fee:</span>
+                        <span className="text-muted-foreground">{LABELS.KEY_FEE}</span>
                         <span>{formatAmount(transaction.fee, denomination)} {denomination}</span>
                     </div>
                     {transaction.transaction_type === TransactionType.TRX_TRANSFER ? (
                         <>
                             <div className="grid grid-cols-[120px_1fr] items-start">
-                                <span className="text-muted-foreground">From:</span>
+                                <span className="text-muted-foreground">{LABELS.KEY_FROM}</span>
                                 <Link to={ROUTES.buildExplorerAddress(transaction.source_address_pubkey)} className="break-all text-blue-500 hover:underline">
                                     {transaction.source_address_pubkey}
                                 </Link>
                             </div>
                             <div className="grid grid-cols-[120px_1fr] items-start">
-                                <span className="text-muted-foreground">To:</span>
+                                <span className="text-muted-foreground">{LABELS.KEY_TO}</span>
                                 <Link to={ROUTES.buildExplorerAddress(transaction.destination_address_pubkey)} className="break-all text-blue-500 hover:underline">
                                     {transaction.destination_address_pubkey}
                                 </Link>
@@ -111,16 +111,16 @@ export function TransactionItem({ transaction, currentAddress }: TransactionItem
                         </>
                     ) : (
                         <div className="grid grid-cols-[120px_1fr] items-start">
-                            <span className="text-muted-foreground">Layer1 TxID:</span>
-                            <span className="break-all text-foreground">{transaction.layer1_transaction_id || "Pending"}</span>
+                            <span className="text-muted-foreground">{LABELS.KEY_LAYER1_TXID}</span>
+                            <span className="break-all text-foreground">{transaction.layer1_transaction_id || LABELS.VALUE_PENDING}</span>
                         </div>
                     )}
                     <div className="grid grid-cols-[120px_1fr] items-start">
-                        <span className="text-muted-foreground">Date:</span>
+                        <span className="text-muted-foreground">{LABELS.KEY_DATE}</span>
                         <span>{new Date(transaction.timestamp).toLocaleString()}</span>
                     </div>
                     <div className="grid grid-cols-[120px_1fr] items-start">
-                        <span className="text-muted-foreground">Signature:</span>
+                        <span className="text-muted-foreground">{LABELS.KEY_SIGNATURE}</span>
                         <span className="break-all text-muted-foreground">{transaction.signature}</span>
                     </div>
                 </div>

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useDenominationStore, Denomination } from "@wallet/shared";
+import { useDenominationStore, Denomination, LABELS } from "@wallet/shared";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -59,7 +59,7 @@ export function AmountInput({ value, onChange, maxSatsValue }: AmountInputProps)
                 <Input 
                     type="number" 
                     step={denomination === Denomination.Btc ? '0.00000001' : '1'} 
-                    placeholder="Enter amount" 
+                    placeholder={LABELS.PLACEHOLDER_ENTER_AMOUNT} 
                     value={value} 
                     onChange={(e) => onChange(e.target.value)} 
                 />
@@ -68,10 +68,10 @@ export function AmountInput({ value, onChange, maxSatsValue }: AmountInputProps)
                         type="button"
                         variant="secondary" 
                         onClick={handleSetMax} 
-                        title="Use max balance" 
+                        title={LABELS.TITLE_USE_MAX_BALANCE} 
                         className="px-3 shrink-0 uppercase text-xs font-semibold"
                     >
-                        Max
+                        {LABELS.BUTTON_MAX}
                     </Button>
                 )}
             </div>

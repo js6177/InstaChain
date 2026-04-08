@@ -5,3 +5,4 @@ export * from './src/stores/denominationStore';
 export * from './src/wallet/wallet';
 export * from './src/wallet/wordlist';
 export * from './src/constants/routes';
+export * from './src/constants/labels';

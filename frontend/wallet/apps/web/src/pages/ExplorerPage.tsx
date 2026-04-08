@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Accordion } from "@/components/ui/accordion";
 import { useAddressBalance, useTransactions, useTransaction } from "../hooks/useLayer2Queries";
 import { TransactionItem } from "../components/TransactionItem";
-import { useDenominationStore, formatAmount, ROUTES, useWalletStore } from "@wallet/shared";
+import { useDenominationStore, formatAmount, ROUTES, useWalletStore, LABELS } from "@wallet/shared";
 
 function SearchBar() {
     const [searchParams] = useSearchParams();
@@ -30,7 +30,7 @@ function SearchBar() {
             />
             <Button type="submit">
                 <Search className="w-4 h-4 mr-2" />
-                Search
+                {LABELS.BUTTON_SEARCH}
             </Button>
         </form>
     );
@@ -71,8 +71,8 @@ function AddressView() {
 
             <div>
                 <h3 className="text-lg font-bold mb-4">Transactions</h3>
-                {isLoading && <p className="text-muted-foreground animate-pulse">Loading transactions...</p>}
-                {!isLoading && sortedTransactions.length === 0 && <p className="text-muted-foreground">No transactions found.</p>}
+                {isLoading && <p className="text-muted-foreground animate-pulse">{LABELS.TEXT_LOADING_TRANSACTIONS}</p>}
+                {!isLoading && sortedTransactions.length === 0 && <p className="text-muted-foreground">{LABELS.TEXT_NO_TRANSACTIONS}</p>}
                 {!isLoading && sortedTransactions.length > 0 && (
                     <Accordion type="single" collapsible className="w-full">
                         {sortedTransactions.map((tx) => (
@@ -98,9 +98,9 @@ function TransactionViewWrapper() {
 
     return (
         <div className="space-y-6 animate-in fade-in">
-            <h2 className="text-xl font-bold mb-4">Transaction Details</h2>
-            {isLoading && <p className="text-muted-foreground animate-pulse">Loading transaction...</p>}
-            {!isLoading && !txResponse?.transaction && <p className="text-red-500">Transaction not found.</p>}
+            <h2 className="text-xl font-bold mb-4">{LABELS.HEADING_TRANSACTION_DETAILS}</h2>
+            {isLoading && <p className="text-muted-foreground animate-pulse">{LABELS.TEXT_LOADING_TRANSACTIONS}</p>}
+            {!isLoading && !txResponse?.transaction && <p className="text-red-500">{LABELS.TEXT_TRANSACTION_NOT_FOUND}</p>}
             {!isLoading && txResponse?.transaction && (
                 <Accordion type="single" collapsible defaultValue={txResponse.transaction.layer2_transaction_id} className="w-full">
                     <TransactionItem 
@@ -129,7 +129,7 @@ function SearchRouter() {
         }
     }, [query, navigate]);
 
-    return <div className="text-center text-muted-foreground">Searching...</div>;
+    return <div className="text-center text-muted-foreground">{LABELS.TEXT_SEARCHING}</div>;
 }
 
 export function ExplorerPage() {

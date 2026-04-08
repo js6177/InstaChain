@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MNEUMONIC_WORD_COUNT, useWalletStore, useDenominationStore, formatAmount, parseAmountToSats, Denomination } from "@wallet/shared";
+import { MNEUMONIC_WORD_COUNT, useWalletStore, useDenominationStore, formatAmount, parseAmountToSats, Denomination, LABELS } from "@wallet/shared";
 import { buildGetDepositAddressMessage, buildTransferMessage, buildWithdrawalRequestMessage } from "openl2_messaging";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -308,7 +308,7 @@ export function WalletPage() {
                         <div className="flex gap-2 w-full md:w-auto">
                             <Dialog open={depositDialogOpen} onOpenChange={setDepositDialogOpen}>
                                 <DialogTrigger asChild>
-                                    <Button className="flex-1 md:flex-none bg-green-600 hover:bg-green-700">Deposit</Button>
+                                    <Button className="flex-1 md:flex-none bg-green-600 hover:bg-green-700">{LABELS.BUTTON_DEPOSIT}</Button>
                                 </DialogTrigger>
                                 <DialogContent>
                                     <DialogHeader>
@@ -319,7 +319,7 @@ export function WalletPage() {
                                     </DialogHeader>
                                     <div className="py-4 space-y-4">
                                         <Button variant="secondary" className="w-full" onClick={handleGetDepositAddress} disabled={depositAddressMutation.isPending}>
-                                            {depositAddressMutation.isPending ? "Generating..." : "Get Deposit Address"}
+                                            {depositAddressMutation.isPending ? LABELS.BUTTON_GENERATING : LABELS.BUTTON_GET_DEPOSIT_ADDRESS}
                                         </Button>
                                         {depositAddress && (
                                             <div className="p-4 bg-muted rounded border border-green-500/50 break-all font-mono text-center">
@@ -332,7 +332,7 @@ export function WalletPage() {
 
                             <Dialog open={withdrawDialogOpen} onOpenChange={setWithdrawDialogOpen}>
                                 <DialogTrigger asChild>
-                                    <Button className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700">Withdraw</Button>
+                                    <Button className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700">{LABELS.BUTTON_WITHDRAW}</Button>
                                 </DialogTrigger>
                                 <DialogContent>
                                     <DialogHeader>
@@ -350,7 +350,7 @@ export function WalletPage() {
                                     </div>
                                     <DialogFooter>
                                         <Button onClick={handleWithdraw} disabled={withdrawMutation.isPending}>
-                                            {withdrawMutation.isPending ? "Withdrawing..." : "Withdraw"}
+                                            {withdrawMutation.isPending ? LABELS.BUTTON_WITHDRAWING : LABELS.BUTTON_WITHDRAW}
                                         </Button>
                                     </DialogFooter>
                                 </DialogContent>
@@ -358,7 +358,7 @@ export function WalletPage() {
 
                             <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
                                 <DialogTrigger asChild>
-                                    <Button className="flex-1 md:flex-none">Transfer</Button>
+                                    <Button className="flex-1 md:flex-none">{LABELS.BUTTON_TRANSFER}</Button>
                                 </DialogTrigger>
                                 <DialogContent>
                                     <DialogHeader>
@@ -376,7 +376,7 @@ export function WalletPage() {
                                     </div>
                                     <DialogFooter>
                                         <Button onClick={handleTransfer} disabled={transferMutation.isPending}>
-                                            {transferMutation.isPending ? "Sending..." : "Transfer"}
+                                            {transferMutation.isPending ? LABELS.BUTTON_SENDING : LABELS.BUTTON_TRANSFER}
                                         </Button>
                                     </DialogFooter>
                                 </DialogContent>
@@ -396,21 +396,21 @@ export function WalletPage() {
 
             <div className="space-y-4">
                 <div className="flex justify-between items-center px-1">
-                    <h3 className="text-xl font-bold tracking-tight">Recent Transactions</h3>
+                    <h3 className="text-xl font-bold tracking-tight">{LABELS.HEADING_RECENT_TRANSACTIONS}</h3>
                     <Button variant="link" size="sm" onClick={() => { refetchTransactions(); refetchBalance(); }} disabled={isTransactionsLoading || isBalanceLoading}>
-                        {isTransactionsLoading || isBalanceLoading ? "Refreshing..." : "Refresh"}
+                        {isTransactionsLoading || isBalanceLoading ? LABELS.BUTTON_REFRESHING : LABELS.BUTTON_REFRESH}
                     </Button>
                 </div>
 
                 {isTransactionsLoading && (
                     <div className="text-center py-10 text-muted-foreground animate-pulse">
-                        Loading transactions...
+                        {LABELS.TEXT_LOADING_TRANSACTIONS}
                     </div>
                 )}
 
                 {!isTransactionsLoading && sortedTransactions.length === 0 && (
                     <div className="text-center py-10 bg-muted/30 rounded-lg border border-dashed">
-                        <p className="text-muted-foreground">No transactions found.</p>
+                        <p className="text-muted-foreground">{LABELS.TEXT_NO_TRANSACTIONS}</p>
                     </div>
                 )}
 
