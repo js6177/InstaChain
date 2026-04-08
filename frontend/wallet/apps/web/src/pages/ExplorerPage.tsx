@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Accordion } from "@/components/ui/accordion";
 import { useAddressBalance, useTransactions, useTransaction } from "../hooks/useLayer2Queries";
 import { TransactionItem } from "../components/TransactionItem";
-import { useDenominationStore, formatAmount } from "@wallet/shared";
+import { useDenominationStore, formatAmount, ROUTES } from "@wallet/shared";
 
 function SearchBar() {
     const [searchParams] = useSearchParams();
@@ -17,7 +17,7 @@ function SearchBar() {
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
         if (!query.trim()) return;
-        navigate(`/explorer/search?q=${encodeURIComponent(query.trim())}`);
+        navigate(ROUTES.buildExplorerSearch(query.trim()));
     };
 
     return (
@@ -118,9 +118,9 @@ function SearchRouter() {
         if (query) {
             // Todo: force transactions to be a specific length in the backend, in order to make searching/finding easier.
             if (query.length === 64 && /^[0-9a-fA-F]+$/.test(query)) {
-                navigate(`/explorer/transaction/${query}`, { replace: true });
+                navigate(ROUTES.buildExplorerTransaction(query), { replace: true });
             } else {
-                navigate(`/explorer/address/${query}`, { replace: true });
+                navigate(ROUTES.buildExplorerAddress(query), { replace: true });
             }
         }
     }, [query, navigate]);
@@ -140,9 +140,9 @@ export function ExplorerPage() {
 
             <Routes>
                 <Route path="/" element={<div className="text-center text-sm text-muted-foreground mt-10">Enter a query above to begin.</div>} />
-                <Route path="search" element={<SearchRouter />} />
-                <Route path="address/:addressId" element={<AddressView />} />
-                <Route path="transaction/:txId" element={<TransactionViewWrapper />} />
+                <Route path={ROUTES.EXPLORER_SEARCH} element={<SearchRouter />} />
+                <Route path={ROUTES.EXPLORER_ADDRESS} element={<AddressView />} />
+                <Route path={ROUTES.EXPLORER_TRANSACTION} element={<TransactionViewWrapper />} />
             </Routes>
         </div>
     );

@@ -8,7 +8,7 @@ import type { GetTransactionsResponseTransaction } from "@wallet/api-layer2ledge
 import { TransactionType } from "openl2_messaging";
 import { ArrowDownIcon, ArrowUpIcon, ArrowRightLeftIcon } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useDenominationStore, formatAmount } from "@wallet/shared";
+import { useDenominationStore, formatAmount, ROUTES } from "@wallet/shared";
 
 interface TransactionItemProps {
     transaction: GetTransactionsResponseTransaction;
@@ -52,7 +52,13 @@ export function TransactionItem({ transaction, currentAddress }: TransactionItem
                         </div>
                         <div className="overflow-hidden">
                             <p className="font-semibold text-sm w-32 truncate" title={transaction.layer2_transaction_id}>
-                                {transaction.layer2_transaction_id}
+                                <Link 
+                                    to={ROUTES.buildExplorerTransaction(transaction.layer2_transaction_id)} 
+                                    onClick={(e) => e.stopPropagation()} 
+                                    className="hover:underline"
+                                >
+                                    {transaction.layer2_transaction_id}
+                                </Link>
                             </p>
                             <div className="text-xs text-muted-foreground truncate w-48">
                                 {new Date(transaction.timestamp).toLocaleString()}
@@ -72,7 +78,9 @@ export function TransactionItem({ transaction, currentAddress }: TransactionItem
                 <div className="space-y-2 font-mono text-xs">
                     <div className="grid grid-cols-[120px_1fr] items-start">
                         <span className="text-muted-foreground">ID:</span>
-                        <span className="break-all">{transaction.layer2_transaction_id}</span>
+                        <Link to={ROUTES.buildExplorerTransaction(transaction.layer2_transaction_id)} className="break-all text-blue-500 hover:underline">
+                            {transaction.layer2_transaction_id}
+                        </Link>
                     </div>
                     <div className="grid grid-cols-[120px_1fr] items-start">
                         <span className="text-muted-foreground">Type:</span>
@@ -90,13 +98,13 @@ export function TransactionItem({ transaction, currentAddress }: TransactionItem
                         <>
                             <div className="grid grid-cols-[120px_1fr] items-start">
                                 <span className="text-muted-foreground">From:</span>
-                                <Link to={`/explorer/address/${transaction.source_address_pubkey}`} className="break-all text-blue-500 hover:underline">
+                                <Link to={ROUTES.buildExplorerAddress(transaction.source_address_pubkey)} className="break-all text-blue-500 hover:underline">
                                     {transaction.source_address_pubkey}
                                 </Link>
                             </div>
                             <div className="grid grid-cols-[120px_1fr] items-start">
                                 <span className="text-muted-foreground">To:</span>
-                                <Link to={`/explorer/address/${transaction.destination_address_pubkey}`} className="break-all text-blue-500 hover:underline">
+                                <Link to={ROUTES.buildExplorerAddress(transaction.destination_address_pubkey)} className="break-all text-blue-500 hover:underline">
                                     {transaction.destination_address_pubkey}
                                 </Link>
                             </div>
