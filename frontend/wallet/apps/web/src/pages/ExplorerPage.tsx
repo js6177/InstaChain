@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Accordion } from "@/components/ui/accordion";
 import { useAddressBalance, useTransactions, useTransaction } from "../hooks/useLayer2Queries";
 import { TransactionItem } from "../components/TransactionItem";
-import { useDenominationStore, formatAmount, ROUTES } from "@wallet/shared";
+import { useDenominationStore, formatAmount, ROUTES, useWalletStore } from "@wallet/shared";
 
 function SearchBar() {
     const [searchParams] = useSearchParams();
@@ -92,6 +92,7 @@ function AddressView() {
 function TransactionViewWrapper() {
     const { txId } = useParams();
     const { data: txResponse, isLoading } = useTransaction(txId || "");
+    const { mainAddress } = useWalletStore();
 
     if (!txId) return null;
 
@@ -102,7 +103,10 @@ function TransactionViewWrapper() {
             {!isLoading && !txResponse?.transaction && <p className="text-red-500">Transaction not found.</p>}
             {!isLoading && txResponse?.transaction && (
                 <Accordion type="single" collapsible defaultValue={txResponse.transaction.layer2_transaction_id} className="w-full">
-                    <TransactionItem transaction={txResponse.transaction} />
+                    <TransactionItem 
+                        transaction={txResponse.transaction} 
+                        currentAddress={mainAddress?.public_key_str_base58} 
+                    />
                 </Accordion>
             )}
         </div>
