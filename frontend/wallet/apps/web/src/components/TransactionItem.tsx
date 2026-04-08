@@ -8,7 +8,7 @@ import type { GetTransactionsResponseTransaction } from "@wallet/api-layer2ledge
 import { TransactionType } from "openl2_messaging";
 import { ArrowDownIcon, ArrowUpIcon, ArrowRightLeftIcon } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useDenominationStore, formatAmount, ROUTES, LABELS } from "@wallet/shared";
+import { useDenominationStore, formatAmount, ROUTES, LABELS, TEST_IDS } from "@wallet/shared";
 
 interface TransactionItemProps {
     transaction: GetTransactionsResponseTransaction;
@@ -51,7 +51,7 @@ export function TransactionItem({ transaction, currentAddress }: TransactionItem
                             {getIcon()}
                         </div>
                         <div className="overflow-hidden">
-                            <p className="font-semibold text-sm w-32 truncate" title={transaction.layer2_transaction_id}>
+                            <p className="font-semibold text-sm w-32 truncate" title={transaction.layer2_transaction_id} data-testid={TEST_IDS.TRANSACTION_TITLE}>
                                 <Link 
                                     to={ROUTES.buildExplorerTransaction(transaction.layer2_transaction_id)} 
                                     onClick={(e) => e.stopPropagation()} 

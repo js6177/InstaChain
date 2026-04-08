@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MNEUMONIC_WORD_COUNT, useWalletStore, useDenominationStore, formatAmount, parseAmountToSats, Denomination, LABELS } from "@wallet/shared";
+import { MNEUMONIC_WORD_COUNT, useWalletStore, useDenominationStore, formatAmount, parseAmountToSats, Denomination, LABELS, TEST_IDS } from "@wallet/shared";
 import { buildGetDepositAddressMessage, buildTransferMessage, buildWithdrawalRequestMessage } from "openl2_messaging";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -302,7 +302,7 @@ export function WalletPage() {
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                         <div>
                             <p className="text-sm font-medium text-muted-foreground mb-1">Available Balance</p>
-                            <div className="text-5xl font-extrabold tracking-tight">
+                            <div className="text-5xl font-extrabold tracking-tight" data-testid={TEST_IDS.BALANCE_DISPLAY}>
                                 {isBalanceLoading ? "..." : formatAmount(balance?.balance, denomination)} <button onClick={toggleDenomination} className="text-2xl text-muted-foreground font-normal hover:text-foreground transition-colors">{denomination}</button>
                             </div>
                         </div>

@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Accordion } from "@/components/ui/accordion";
 import { useAddressBalance, useTransactions, useTransaction } from "../hooks/useLayer2Queries";
 import { TransactionItem } from "../components/TransactionItem";
-import { useDenominationStore, formatAmount, ROUTES, useWalletStore, LABELS } from "@wallet/shared";
+import { useDenominationStore, formatAmount, ROUTES, useWalletStore, LABELS, TEST_IDS } from "@wallet/shared";
 
 function SearchBar() {
     const [searchParams] = useSearchParams();
@@ -59,7 +59,7 @@ function AddressView() {
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <p className="text-sm text-muted-foreground">Balance</p>
-                            <p className="text-2xl font-bold">{isBalanceLoading ? "..." : formatAmount(balance?.balance, denomination)} {denomination}</p>
+                            <p className="text-2xl font-bold" data-testid={TEST_IDS.BALANCE_DISPLAY}>{isBalanceLoading ? "..." : formatAmount(balance?.balance, denomination)} {denomination}</p>
                         </div>
                         <div>
                             <p className="text-sm text-muted-foreground">Transactions</p>

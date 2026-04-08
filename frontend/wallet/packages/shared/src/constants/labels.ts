@@ -50,3 +50,9 @@ export const LABELS = {
     PLACEHOLDER_ENTER_AMOUNT: "Enter amount",
     TITLE_USE_MAX_BALANCE: "Use max balance",
 } as const;
+
+export const TEST_IDS = {
+    BALANCE_DISPLAY: "balance-display",
+    TRANSACTION_TITLE: "transaction-item-title",
+} as const;
+
