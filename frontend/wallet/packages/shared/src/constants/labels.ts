@@ -11,6 +11,9 @@ export const LABELS = {
     BUTTON_GET_DEPOSIT_ADDRESS: "Get Deposit Address",
     BUTTON_MAX: "Max",
     BUTTON_SEARCH: "Search",
+    BUTTON_HIDE: "Hide",
+    BUTTON_CANCEL: "Cancel",
+    BUTTON_HIDE_PERMANENTLY: "Hide Permanently",
 
     // Transaction List / Explorer
     HEADING_RECENT_TRANSACTIONS: "Recent Transactions",
@@ -19,6 +22,8 @@ export const LABELS = {
     TEXT_TRANSACTION_NOT_FOUND: "Transaction not found.",
     HEADING_TRANSACTION_DETAILS: "Transaction Details",
     TEXT_SEARCHING: "Searching...",
+    DIALOG_HIDE_MNEMONIC_TITLE: "Hide Mnemonic?",
+    DIALOG_HIDE_MNEMONIC_DESC: "This will hide the mnemonic. Make sure you copied it down as it cannot be displayed again.",
 
     // Transaction Types
     TX_TYPE_TRANSFER: "Transfer",

@@ -40,6 +40,8 @@ export function WalletPage() {
     const [depositAddress, setDepositAddress] = useState("");
     const [saveSeedToLocalStorage, setSaveSeedToLocalStorage] = useState(false);
     const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
+    const [isMnemonicHidden, setIsMnemonicHidden] = useState(false);
+    const [isHideMnemonicDialogOpen, setIsHideMnemonicDialogOpen] = useState(false);
 
     const handleLoadFromLocalStorage = () => {
         const stored = localStorage.getItem("debug_mnemonic");
@@ -384,14 +386,37 @@ export function WalletPage() {
                         </div>
                     </div>
                 </CardContent>
-                <CardFooter className="bg-muted/10 pt-4 pb-4 px-6 border-t flex justify-between text-xs text-muted-foreground">
-                    <CopyableDisplay
-                        label="Mnemonic Phrase:"
-                        value={wallet?.mnemonic}
-                        secret={true}
-                        textClassName="font-mono text-[11px] leading-relaxed break-words"
-                    />
-                </CardFooter>
+                {!isMnemonicHidden && wallet?.mnemonic && (
+                    <CardFooter className="bg-muted/10 pt-4 pb-4 px-6 border-t flex flex-col gap-2 items-end">
+                        <div className="w-full flex justify-between text-xs text-muted-foreground">
+                            <CopyableDisplay
+                                label="Mnemonic Phrase:"
+                                value={wallet?.mnemonic}
+                                secret={true}
+                                textClassName="font-mono text-[11px] leading-relaxed break-words"
+                            />
+                        </div>
+                        <Dialog open={isHideMnemonicDialogOpen} onOpenChange={setIsHideMnemonicDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-500/10 h-7 text-xs">
+                                    {LABELS.BUTTON_HIDE}
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>{LABELS.DIALOG_HIDE_MNEMONIC_TITLE}</DialogTitle>
+                                    <DialogDescription>
+                                        {LABELS.DIALOG_HIDE_MNEMONIC_DESC}
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <DialogFooter>
+                                    <Button variant="outline" onClick={() => setIsHideMnemonicDialogOpen(false)}>{LABELS.BUTTON_CANCEL}</Button>
+                                    <Button variant="destructive" onClick={() => { setIsMnemonicHidden(true); setIsHideMnemonicDialogOpen(false); }}>{LABELS.BUTTON_HIDE_PERMANENTLY}</Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    </CardFooter>
+                )}
             </Card>
 
             <div className="space-y-4">
