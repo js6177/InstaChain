@@ -86,18 +86,27 @@ export function TransactionItem({ transaction, currentAddress }: TransactionItem
                         <span className="text-muted-foreground">Fee:</span>
                         <span>{formatAmount(transaction.fee, denomination)} {denomination}</span>
                     </div>
-                    <div className="grid grid-cols-[120px_1fr] items-start">
-                        <span className="text-muted-foreground">From:</span>
-                        <Link to={`/explorer/address/${transaction.source_address_pubkey}`} className="break-all text-blue-500 hover:underline">
-                            {transaction.source_address_pubkey}
-                        </Link>
-                    </div>
-                    <div className="grid grid-cols-[120px_1fr] items-start">
-                        <span className="text-muted-foreground">To:</span>
-                        <Link to={`/explorer/address/${transaction.destination_address_pubkey}`} className="break-all text-blue-500 hover:underline">
-                            {transaction.destination_address_pubkey}
-                        </Link>
-                    </div>
+                    {transaction.transaction_type === TransactionType.TRX_TRANSFER ? (
+                        <>
+                            <div className="grid grid-cols-[120px_1fr] items-start">
+                                <span className="text-muted-foreground">From:</span>
+                                <Link to={`/explorer/address/${transaction.source_address_pubkey}`} className="break-all text-blue-500 hover:underline">
+                                    {transaction.source_address_pubkey}
+                                </Link>
+                            </div>
+                            <div className="grid grid-cols-[120px_1fr] items-start">
+                                <span className="text-muted-foreground">To:</span>
+                                <Link to={`/explorer/address/${transaction.destination_address_pubkey}`} className="break-all text-blue-500 hover:underline">
+                                    {transaction.destination_address_pubkey}
+                                </Link>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="grid grid-cols-[120px_1fr] items-start">
+                            <span className="text-muted-foreground">Layer1 TxID:</span>
+                            <span className="break-all text-foreground">{transaction.layer1_transaction_id || "Pending"}</span>
+                        </div>
+                    )}
                     <div className="grid grid-cols-[120px_1fr] items-start">
                         <span className="text-muted-foreground">Date:</span>
                         <span>{new Date(transaction.timestamp).toLocaleString()}</span>
