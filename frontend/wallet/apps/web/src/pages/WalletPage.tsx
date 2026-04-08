@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { useAddressBalance, useTransactions, useDepositAddressMutation, useTransferMutation, useNodeInfo, useWithdrawMutation } from "../hooks/useLayer2Queries";
 import { TransactionItem } from "../components/TransactionItem";
 import { CopyableDisplay, FitTextMethod } from "../components/CopyableDisplay";
+import { AmountInput } from "../components/AmountInput";
 
 export function WalletPage() {
     const { isLoaded, wallet, mainAddress, generateWallet, loadWalletFromMnemonic, logout, validateMnemonic } = useWalletStore();
@@ -183,42 +184,6 @@ export function WalletPage() {
         }
     };
 
-    const handleToggleDenomination = () => {
-        const isCurrentlySats = denomination === Denomination.Sats;
-
-        const convert = (amt: string) => {
-            if (!amt) return "";
-            const num = parseFloat(amt);
-            if (isNaN(num)) return amt;
-            if (isCurrentlySats) {
-                // sats to btc
-                let btcStr = (num / 100_000_000).toFixed(8);
-
-                //strip out trailing zeroes and decimal point
-                btcStr = btcStr.replace(/\.?0+$/, "");
-                return btcStr === "" ? "0" : btcStr;
-            } else {
-                // btc to sats
-                return Math.round(num * 100_000_000).toString();
-            }
-        };
-
-        setTransferAmount(prev => convert(prev));
-        setWithdrawAmount(prev => convert(prev));
-        toggleDenomination();
-    };
-
-    const handleSetMax = (setter: (val: string) => void) => {
-        if (!balance?.balance) return;
-        if (denomination === Denomination.Sats) {
-            setter(balance.balance.toString());
-        } else {
-            let btcStr = (balance.balance / 100_000_000).toFixed(8);
-            btcStr = btcStr.replace(/\.?0+$/, "");
-            setter(btcStr === "" ? "0" : btcStr);
-        }
-    };
-
     // Logout
     const handleLogout = () => {
         logout();
@@ -336,7 +301,7 @@ export function WalletPage() {
                         <div>
                             <p className="text-sm font-medium text-muted-foreground mb-1">Available Balance</p>
                             <div className="text-5xl font-extrabold tracking-tight">
-                                {isBalanceLoading ? "..." : formatAmount(balance?.balance, denomination)} <button onClick={handleToggleDenomination} className="text-2xl text-muted-foreground font-normal hover:text-foreground transition-colors">{denomination}</button>
+                                {isBalanceLoading ? "..." : formatAmount(balance?.balance, denomination)} <button onClick={toggleDenomination} className="text-2xl text-muted-foreground font-normal hover:text-foreground transition-colors">{denomination}</button>
                             </div>
                         </div>
 
@@ -377,14 +342,7 @@ export function WalletPage() {
                                         </DialogDescription>
                                     </DialogHeader>
                                     <div className="py-4 space-y-4">
-                                        <div className="flex justify-between items-center mb-1">
-                                            <Label>Amount ({denomination})</Label>
-                                            <button onClick={handleToggleDenomination} className="text-xs text-muted-foreground hover:text-foreground uppercase">{denomination} ⇄</button>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <Input type="number" step={denomination === Denomination.Btc ? '0.00000001' : '1'} placeholder="Enter amount" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} />
-                                            <Button variant="secondary" onClick={() => handleSetMax(setWithdrawAmount)} title="Use max balance" className="px-3 shrink-0 uppercase text-xs font-semibold">Max</Button>
-                                        </div>
+                                        <AmountInput value={withdrawAmount} onChange={setWithdrawAmount} maxSatsValue={balance?.balance} />
                                         <div>
                                             <Label>Destination Layer1 Address</Label>
                                             <Input placeholder="btc..." value={withdrawTo} onChange={(e) => setWithdrawTo(e.target.value)} />
@@ -414,14 +372,7 @@ export function WalletPage() {
                                             <Label>Destination Layer2 Address</Label>
                                             <Input placeholder="Enter destination pubkey" value={transferTo} onChange={(e) => setTransferTo(e.target.value)} />
                                         </div>
-                                        <div className="flex justify-between items-center mb-1">
-                                            <Label>Amount ({denomination})</Label>
-                                            <button onClick={handleToggleDenomination} className="text-xs text-muted-foreground hover:text-foreground uppercase">{denomination} ⇄</button>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <Input type="number" step={denomination === Denomination.Btc ? '0.00000001' : '1'} placeholder="Enter amount" value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} />
-                                            <Button variant="secondary" onClick={() => handleSetMax(setTransferAmount)} title="Use max balance" className="px-3 shrink-0 uppercase text-xs font-semibold">Max</Button>
-                                        </div>
+                                        <AmountInput value={transferAmount} onChange={setTransferAmount} maxSatsValue={balance?.balance} />
                                     </div>
                                     <DialogFooter>
                                         <Button onClick={handleTransfer} disabled={transferMutation.isPending}>
