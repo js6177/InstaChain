@@ -14,6 +14,8 @@ export const LABELS = {
     BUTTON_HIDE: "Hide",
     BUTTON_CANCEL: "Cancel",
     BUTTON_HIDE_PERMANENTLY: "Hide Permanently",
+    BUTTON_RESTORE_WALLET: "Restore Wallet",
+    BUTTON_RESTORE: "Restore",
 
     // Transaction List / Explorer
     HEADING_RECENT_TRANSACTIONS: "Recent Transactions",
@@ -54,5 +56,8 @@ export const LABELS = {
 export const TEST_IDS = {
     BALANCE_DISPLAY: "balance-display",
     TRANSACTION_TITLE: "transaction-item-title",
+    RESTORE_WALLET_TRIGGER: "restore-wallet-trigger",
+    MNEMONIC_INPUT: "mnemonic-input",
+    RESTORE_WALLET_BUTTON: "restore-wallet-button",
 } as const;
 

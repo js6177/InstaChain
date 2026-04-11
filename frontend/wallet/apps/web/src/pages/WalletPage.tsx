@@ -233,11 +233,11 @@ export function WalletPage() {
 
                     <Dialog open={isMnemonicDialogOpen} onOpenChange={setIsMnemonicDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button size="lg" variant="outline">Restore Wallet</Button>
+                            <Button size="lg" variant="outline" data-testid={TEST_IDS.RESTORE_WALLET_TRIGGER}>{LABELS.BUTTON_RESTORE_WALLET}</Button>
                         </DialogTrigger>
                         <DialogContent>
                             <DialogHeader>
-                                <DialogTitle>Restore Wallet</DialogTitle>
+                                <DialogTitle>{LABELS.BUTTON_RESTORE_WALLET}</DialogTitle>
                                 <DialogDescription>
                                     Enter your {MNEUMONIC_WORD_COUNT}-word mnemonic phrase separated by spaces.
                                 </DialogDescription>
@@ -246,6 +246,7 @@ export function WalletPage() {
                                 <Label htmlFor="mnemonic" className="sr-only">Mnemonic Phase</Label>
                                 <Input
                                     id="mnemonic"
+                                    data-testid={TEST_IDS.MNEMONIC_INPUT}
                                     placeholder="word1 word2 ... word12"
                                     value={mnemonicInput}
                                     onChange={(e) => setMnemonicInput(e.target.value)}
@@ -267,7 +268,7 @@ export function WalletPage() {
                                 <Button variant="ghost" size="sm" onClick={handleLoadFromLocalStorage} className="text-xs">
                                     Load seed from localstorage
                                 </Button>
-                                <Button onClick={handleRestore}>Restore</Button>
+                                <Button onClick={handleRestore} data-testid={TEST_IDS.RESTORE_WALLET_BUTTON}>{LABELS.BUTTON_RESTORE}</Button>
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>

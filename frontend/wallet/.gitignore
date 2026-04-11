@@ -45,3 +45,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# keys
+*.keys.json
