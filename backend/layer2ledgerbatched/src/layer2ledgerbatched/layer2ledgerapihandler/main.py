@@ -122,6 +122,7 @@ app = FastAPI(lifespan=lifespan, redirect_slashes=False)
 origins = [
     "http://localhost:5173",  # Allow the Vite frontend
     "http://127.0.0.1:5173", # Allow the Vite frontend
+    "http://localhost:63315",  # Allow vitest tests
 ]
 
 app.add_middleware(
