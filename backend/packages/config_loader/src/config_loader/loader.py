@@ -20,6 +20,7 @@ class Services(StrEnum):
 class Environment(StrEnum):
     DEV = "dev"
     PROD = "prod"
+    TEST = "test"
     DEFAULT = "prod" # default to prod if not specified
 
 def get_output_directory() -> Path:
