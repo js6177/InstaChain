@@ -22,6 +22,44 @@ class Environment(StrEnum):
     PROD = "prod"
     DEFAULT = "prod" # default to prod if not specified
 
+def get_output_directory() -> Path:
+    """
+    Returns the path to the output directory where logs and other output files will be stored.
+    The directory is determined based on the following criteria:
+    1. If the environment variable OPENL2_OUTPUT_PATH is set, use that path.
+    2. Local project root directory (where the .git folder is located) in the '/.output' directory.
+    3. System output directory ('~/.openl2/output/' for linux, and 'C:\ProgramData\openl2\output\' for windows).
+    """
+    env_path = os.getenv("OPENL2_OUTPUT_PATH")
+    if env_path:
+        return Path(env_path)
+
+    current_path = Path.cwd()
+    for parent in current_path.parents:
+        if (parent / ".git").exists():
+            local_output_path = parent / ".output"
+            local_output_path.mkdir(exist_ok=True)
+            return local_output_path
+
+    if platform.system() == "Windows":
+        system_output_path = Path("C:/ProgramData/.openl2/output/")
+    elif platform.system() == "Linux":
+        system_output_path = Path.home() / ".openl2/output/"
+    else:
+        raise OSError("Unsupported operating system")
+
+    system_output_path.mkdir(parents=True, exist_ok=True)
+    return system_output_path
+
+def get_env_specific_output_directory(environment: str = Environment.DEFAULT.value) -> Path:
+    """
+    Returns the path to the output directory for a specific environment (e.g., dev, staging, prod).
+    """
+    base_output_path = get_output_directory()
+    env_specific_path = base_output_path / environment
+    env_specific_path.mkdir(exist_ok=True)
+    return env_specific_path
+
 # Gets the directory where all the configuration files are stored, based on these 3 criteria:
 # 1. If the environment variable OPENL2_CONFIG_PATH is set, use that path.
 # 2. Local project root directory (where the .git folder is located) in the '/.config' directory.

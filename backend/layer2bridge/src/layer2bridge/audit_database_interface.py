@@ -1,6 +1,6 @@
 from __future__ import annotations
 import datetime
-import string
+from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
@@ -51,8 +51,8 @@ class AuditLayer1Address(Base):
         return AuditLayer1Address(layer1_address, layer1_address_label, balance)
 
 class AuditDatabaseInterface:
-    def __init__(self, dbPath: string):
-        sqlAlchemyPath = 'sqlite:///' + dbPath
+    def __init__(self, dbPath: Path):
+        sqlAlchemyPath = 'sqlite:///' + str(dbPath)
         self.engine = create_engine(sqlAlchemyPath, echo=False)
         Base.metadata.create_all(self.engine)
 

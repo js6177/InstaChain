@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 from typing import Dict, List
 import os
 from layer2bridge import database_interface as DatabaseInterface
@@ -7,7 +8,7 @@ import traceback
 from layer2bridge import layer2interface as Layer2Interface
 from layer2bridge.full_node_interface import BitcoinRPC
 from layer2bridge.onboarding_logger import OnboardingLogger
-from config_loader.loader import get_layer2ledgerbridge_config
+from config_loader.loader import get_layer2ledgerbridge_config, get_env_specific_output_directory
 from config_models.models import Layer2BridgeSettings
 from openl2_layer2ledger_api.models.requests import (
     Layer1BroadcastedWithdrawalTransaction,
@@ -37,15 +38,15 @@ async def main():
 
 class Layer2Bridge():
     settings: Layer2BridgeSettings
-    database_layer2bridge_full_path: str
-    database_audit_full_path: str
+    database_layer2bridge_full_path: Path
+    database_audit_full_path: Path
     layer2BridgeDB: DatabaseInterface.DB = None
     auditDB: AuditDatabaseInterface.AuditDatabaseInterface = None
 
     def loadConfig(self):
         self.settings = get_layer2ledgerbridge_config()
-        self.database_layer2bridge_full_path = DEFAULT_WORKING_DIRECTORY + self.settings.database_layer2bridge_name
-        self.database_audit_full_path = DEFAULT_WORKING_DIRECTORY + (self.settings.database_audit_name or DEFAULT_AUDIT_DB_NAME)
+        self.database_layer2bridge_full_path = get_env_specific_output_directory() / self.settings.database_layer2bridge_name
+        self.database_audit_full_path = get_env_specific_output_directory() / (self.settings.database_audit_name or DEFAULT_AUDIT_DB_NAME)
 
     async def run(self):
         self.loadConfig()

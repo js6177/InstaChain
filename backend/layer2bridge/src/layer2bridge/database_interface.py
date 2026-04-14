@@ -1,3 +1,4 @@
+from pathlib import Path
 import sqlite3
 from typing import List, Dict, Any
 from bitcoin_core_rpc import (
@@ -101,7 +102,7 @@ class PendingWithdrawal():
 class DB():
     conn = None
     cursor = None
-    def __init__(self, wallet_name, *args, **kwargs):
+    def __init__(self, wallet_name: Path, *args, **kwargs):
         self.conn = sqlite3.connect(wallet_name or DEFAULT_DATABASE_NAME)
         self.cursor = self.conn.cursor()
         return super().__init__(*args, **kwargs)

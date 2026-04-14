@@ -1,4 +1,6 @@
 from .loader import (
+    get_output_directory,
+    get_env_specific_output_directory,
     get_config_directory,
     get_env_specific_config_directory,
     get_bitcoincore_conf_directory,
@@ -15,6 +17,8 @@ from .loader import (
 )
 
 __all__ = [
+    "get_output_directory",
+    "get_env_specific_output_directory",
     "get_config_directory",
     "get_env_specific_config_directory",
     "get_bitcoincore_conf_directory",
