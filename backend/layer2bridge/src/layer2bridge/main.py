@@ -127,7 +127,7 @@ class Layer2Bridge():
                 for wr in response.withdrawal_requests:
                     withdrawal = DatabaseInterface.PendingWithdrawal(
                         layer2_withdrawal_id=wr.layer2_withdrawal_id,
-                        status=DatabaseInterface.PendingWithdrawal.LAYER1_STATUS_PENDING,
+                        status=int(DatabaseInterface.PendingWithdrawal.Layer1Status.PENDING),
                         transaction_id='',
                         amount=wr.amount,
                         fee=0,
@@ -174,7 +174,12 @@ class Layer2Bridge():
                         layer1_transaction_id = trx.layer1_transaction_id
                         layer1_transaction_vout = trx.layer1_transaction_vout
                         if(Layer2Interface.SuccessOrDuplicateErrorCode(error_code)):
-                            self.layer2BridgeDB.updateConfirmedTransaction(layer1_transaction_id, layer1_transaction_vout, DatabaseInterface.ConfirmedTransaction.CATEGORY_RECIEVE, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
+                            self.layer2BridgeDB.updateConfirmedTransaction(
+                                layer1_transaction_id,
+                                layer1_transaction_vout,
+                                DatabaseInterface.ConfirmedTransaction.Category.RECIEVE.value,
+                                int(DatabaseInterface.ConfirmedTransaction.Layer2Status.CONFIRMED),
+                            )
                             OnboardingLogger('Deposit confirmation acknowledged by layer2ledger. transaction_id:' + layer1_transaction_id + ' ' + str(layer1_transaction_vout))
             except Exception as e:
                 OnboardingLogger(f"Error sending confirmed deposits: {e}")
@@ -193,7 +198,12 @@ class Layer2Bridge():
                         layer1_transaction_id = trx.layer1_transaction_id
                         layer1_transaction_vout = trx.layer1_transaction_vout
                         if(Layer2Interface.SuccessOrDuplicateErrorCode(error_code)):
-                            self.layer2BridgeDB.updateConfirmedTransaction(layer1_transaction_id, layer1_transaction_vout, DatabaseInterface.ConfirmedTransaction.CATEGORY_SEND, DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_CONFIRMED)
+                            self.layer2BridgeDB.updateConfirmedTransaction(
+                                layer1_transaction_id,
+                                layer1_transaction_vout,
+                                DatabaseInterface.ConfirmedTransaction.Category.SEND.value,
+                                int(DatabaseInterface.ConfirmedTransaction.Layer2Status.CONFIRMED),
+                            )
                             OnboardingLogger('Withdrawal confirmed. transaction_id:' + layer1_transaction_id + ' ' + str(layer1_transaction_vout))
             except Exception as e:
                 OnboardingLogger(f"Error sending confirmed withdrawals: {e}")
@@ -213,7 +223,7 @@ class Layer2Bridge():
                 try:
                     withdrawalTrxId = await self.bitcoinRPC.broadcastTransaction(self.withdrawalTransactionOutputs)
                     for key, withdrawalOutput in self.withdrawalTransactionOutputs.items():
-                        withdrawalOutput.status = DatabaseInterface.PendingWithdrawal.LAYER1_STATUS_BROADCASTED
+                        withdrawalOutput.status = int(DatabaseInterface.PendingWithdrawal.Layer1Status.BROADCASTED)
                         self.layer2BridgeDB.updatePendingWithdrawal(withdrawalOutput.layer2_withdrawal_id, withdrawalOutput.status, withdrawalTrxId, 0)
                     
                     bitcoinRpcGetTransactionResponse = await self.bitcoinRPC.getTransaction(withdrawalTrxId)

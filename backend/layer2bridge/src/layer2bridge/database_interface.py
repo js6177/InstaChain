@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from enum import Enum, IntEnum
 from pathlib import Path
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy import Index, Integer, String, create_engine
 from sqlalchemy.orm import Mapped, Session, declarative_base, mapped_column, sessionmaker
@@ -25,12 +26,13 @@ class ConfirmedTransaction(Base):
 
     __allow_unmapped__ = True
 
-    #values for layer2 status (deposits)
-    LAYER2_STATUS_PENDING: ClassVar[int] = 1
-    LAYER2_STATUS_CONFIRMED: ClassVar[int] = 2
+    class Layer2Status(IntEnum):
+        PENDING = 1
+        CONFIRMED = 2
 
-    CATEGORY_SEND: ClassVar[str] = "send"
-    CATEGORY_RECIEVE: ClassVar[str] = "receive"
+    class Category(str, Enum):
+        SEND = "send"
+        RECIEVE = "receive"
 
     transaction_id: Mapped[str] = mapped_column(String, primary_key=True)
     layer2_status: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -76,7 +78,7 @@ class ConfirmedTransaction(Base):
     ) -> ConfirmedTransaction:
         self.setValues(
             transaction.txid,
-            ConfirmedTransaction.LAYER2_STATUS_PENDING,
+            int(ConfirmedTransaction.Layer2Status.PENDING),
             transaction.vout,
             int(transaction.amount * SATOSHI_PER_BITCOIN),
             0,
@@ -97,7 +99,7 @@ class ConfirmedTransaction(Base):
     ) -> ConfirmedTransaction:
         self.setValues(
             transaction_id,
-            ConfirmedTransaction.LAYER2_STATUS_PENDING,
+            int(ConfirmedTransaction.Layer2Status.PENDING),
             transactionDetail.vout,
             int(transactionDetail.amount * SATOSHI_PER_BITCOIN),
             int((transactionDetail.fee or 0) * SATOSHI_PER_BITCOIN),
@@ -130,11 +132,11 @@ class PendingWithdrawal(Base):
 
     __allow_unmapped__ = True
 
-    #values for layer1 status (withdrawal requests)
-    LAYER1_STATUS_PENDING: ClassVar[int] = 1
-    LAYER1_STATUS_BROADCASTED: ClassVar[int] = 2
-    LAYER1_STATUS_BROADCASTED_REMOVED_FROM_MEMPOOL: ClassVar[int] = 3
-    LAYER1_STATUS_CONFIRMED: ClassVar[int] = 4
+    class Layer1Status(IntEnum):
+        PENDING = 1
+        BROADCASTED = 2
+        BROADCASTED_REMOVED_FROM_MEMPOOL = 3
+        CONFIRMED = 4
 
     layer2_withdrawal_id: Mapped[str] = mapped_column(String, primary_key=True)
     status: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -218,7 +220,7 @@ class DB:
     def getPendingWithdrawals(self) -> List[PendingWithdrawal]:
         pending_rows = (
             self.session.query(PendingWithdrawal)
-            .filter(PendingWithdrawal.status == PendingWithdrawal.LAYER1_STATUS_PENDING)
+            .filter(PendingWithdrawal.status == int(PendingWithdrawal.Layer1Status.PENDING))
             .all()
         )
         withdrawals: List[PendingWithdrawal] = [
@@ -319,7 +321,7 @@ class DB:
     def getAllPendingConfirmedTransactions(self) -> List[ConfirmedTransaction]:
         rows = (
             self.session.query(ConfirmedTransaction)
-            .filter(ConfirmedTransaction.layer2_status == ConfirmedTransaction.LAYER2_STATUS_PENDING)
+            .filter(ConfirmedTransaction.layer2_status == int(ConfirmedTransaction.Layer2Status.PENDING))
             .all()
         )
         transactions: List[ConfirmedTransaction] = [
@@ -342,7 +344,7 @@ class DB:
         rows = (
             self.session.query(ConfirmedTransaction)
             .filter(
-                ConfirmedTransaction.layer2_status == ConfirmedTransaction.LAYER2_STATUS_PENDING,
+                ConfirmedTransaction.layer2_status == int(ConfirmedTransaction.Layer2Status.PENDING),
                 ConfirmedTransaction.category == category,
             )
             .all()
@@ -365,10 +367,10 @@ class DB:
         return transactions
 
     def getPendingConfirmedDepositTransactions(self) -> List[ConfirmedTransaction]:
-        return self.getPendingConfirmedTransactions(ConfirmedTransaction.CATEGORY_RECIEVE)
+        return self.getPendingConfirmedTransactions(ConfirmedTransaction.Category.RECIEVE.value)
 
     def getPendingConfirmedWithdrawalTransactions(self) -> List[ConfirmedTransaction]:
-        return self.getPendingConfirmedTransactions(ConfirmedTransaction.CATEGORY_SEND)
+        return self.getPendingConfirmedTransactions(ConfirmedTransaction.Category.SEND.value)
 
     def updateConfirmedTransaction(
         self,

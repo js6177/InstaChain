@@ -138,7 +138,7 @@ async def test_getPendingWithdrawalsFromDb(bridge: Layer2Bridge):
     # Setup DB
     withdrawal = DatabaseInterface.PendingWithdrawal(
         layer2_withdrawal_id="w2",
-        status=DatabaseInterface.PendingWithdrawal.LAYER1_STATUS_PENDING,
+        status=int(DatabaseInterface.PendingWithdrawal.Layer1Status.PENDING),
         amount=100000,
         destination_address="dest2",
         withdrawal_requested_timestamp=3000
@@ -154,14 +154,14 @@ async def test_getPendingWithdrawalsFromDb(bridge: Layer2Bridge):
     assert "w2" in bridge.withdrawalTransactionOutputs
     assert bridge.withdrawalTransactionOutputs["w2"].amount == 100000
     assert bridge.withdrawalTransactionOutputs["w2"].destination_address == "dest2"
-    assert bridge.withdrawalTransactionOutputs["w2"].status == DatabaseInterface.PendingWithdrawal.LAYER1_STATUS_PENDING
+    assert bridge.withdrawalTransactionOutputs["w2"].status == int(DatabaseInterface.PendingWithdrawal.Layer1Status.PENDING)
 
 @pytest.mark.asyncio
 async def test_getPendingWithdrawalsFromDb_skipsSmallAmount(bridge: Layer2Bridge):
     # Setup DB
     withdrawal = DatabaseInterface.PendingWithdrawal(
         layer2_withdrawal_id="w3",
-        status=DatabaseInterface.PendingWithdrawal.LAYER1_STATUS_PENDING,
+        status=int(DatabaseInterface.PendingWithdrawal.Layer1Status.PENDING),
         amount=500,
         destination_address="dest3",
         withdrawal_requested_timestamp=4000
@@ -182,10 +182,10 @@ async def test_sendPendingConfirmedDepositsToLayer2Ledger(bridge: Layer2Bridge):
     tx = DatabaseInterface.ConfirmedTransaction(
         transaction_id="tx_dep1",
         transaction_vout=0,
-        layer2_status=DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_PENDING,
+        layer2_status=int(DatabaseInterface.ConfirmedTransaction.Layer2Status.PENDING),
         amount=100000,
         address="addr_dep1",
-        category=DatabaseInterface.ConfirmedTransaction.CATEGORY_RECIEVE
+        category=DatabaseInterface.ConfirmedTransaction.Category.RECIEVE.value
     )
     bridge.layer2BridgeDB.insertConfirmedTransaction(tx)
     
@@ -214,10 +214,10 @@ async def test_sendPendingConfirmedWithdrawalsToLayer2Ledger(bridge: Layer2Bridg
     tx = DatabaseInterface.ConfirmedTransaction(
         transaction_id="tx_wd1",
         transaction_vout=1,
-        layer2_status=DatabaseInterface.ConfirmedTransaction.LAYER2_STATUS_PENDING,
+        layer2_status=int(DatabaseInterface.ConfirmedTransaction.Layer2Status.PENDING),
         amount=50000,
         address="addr_wd1",
-        category=DatabaseInterface.ConfirmedTransaction.CATEGORY_SEND
+        category=DatabaseInterface.ConfirmedTransaction.Category.SEND.value
     )
     bridge.layer2BridgeDB.insertConfirmedTransaction(tx)
     
@@ -245,7 +245,7 @@ async def test_broadcastPendingWithdrawals(bridge: Layer2Bridge):
     # Setup DB and state
     withdrawal = DatabaseInterface.PendingWithdrawal(
         layer2_withdrawal_id="l2w1",
-        status=DatabaseInterface.PendingWithdrawal.LAYER1_STATUS_PENDING,
+        status=int(DatabaseInterface.PendingWithdrawal.Layer1Status.PENDING),
         amount=60000,
         destination_address="dest_addr1",
         withdrawal_requested_timestamp=1000
@@ -298,5 +298,5 @@ async def test_broadcastPendingWithdrawals(bridge: Layer2Bridge):
     # Check if withdrawal status was updated in DB
     updated_withdrawal = bridge.layer2BridgeDB.getPendingWithdrawal("l2w1")
     assert updated_withdrawal is not None
-    assert updated_withdrawal.status == DatabaseInterface.PendingWithdrawal.LAYER1_STATUS_BROADCASTED
+    assert updated_withdrawal.status == int(DatabaseInterface.PendingWithdrawal.Layer1Status.BROADCASTED)
     assert updated_withdrawal.transaction_id == "tx_broadcast1"
