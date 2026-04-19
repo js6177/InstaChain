@@ -18,6 +18,7 @@ class RedisTransaction(BaseModel):
     signature_date: int
     layer1_transaction_id: str = ""
     layer2_withdrawal_id: str = ""
+    batch_height: int = 0
 
     class Config:
         from_attributes = True

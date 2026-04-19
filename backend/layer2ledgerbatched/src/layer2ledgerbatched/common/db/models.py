@@ -101,6 +101,7 @@ class WithdrawalRequests(Base):
     withdrawal_requested_timestamp_str: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    batch_height: Mapped[int] = mapped_column(Integer, default=0, index=True)
 
 
 class ConfirmedWithdrawals(Base):
@@ -172,5 +173,6 @@ class Transaction(MappedAsDataclass, Base):
     signature_date: Mapped[int] = mapped_column(BigInteger)
     layer1_transaction_id: Mapped[str] = mapped_column(String)
     layer2_withdrawal_id: Mapped[str] = mapped_column(String)
+    batch_height: Mapped[int] = mapped_column(Integer, default=0, index=True)
 
 

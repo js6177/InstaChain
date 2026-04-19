@@ -23,6 +23,7 @@ class RedisWithdrawalRequest(BaseModel):
     withdrawal_requested_timestamp_str: datetime.datetime = Field(
         default_factory=datetime.datetime.utcnow
     )
+    batch_height: int = 0
 
     class Config:
         from_attributes = True

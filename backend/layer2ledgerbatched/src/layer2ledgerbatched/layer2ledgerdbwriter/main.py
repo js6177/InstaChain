@@ -3,7 +3,7 @@ import json
 import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 import layer2ledgerbatched.common.redis.redis_driver.redis_driver as redis_driver
 
@@ -40,8 +40,19 @@ async def setup_clients(environment:Environment = Environment.DEFAULT) -> tuple[
 
     return redis_client, db, lock_manager
 
+async def get_current_batch_height(db: AsyncSession) -> int:
+    stmt_tx = select(func.max(Transaction.batch_height))
+    stmt_wr = select(func.max(WithdrawalRequests.batch_height))
+    
+    max_tx = (await db.execute(stmt_tx)).scalar() or 0
+    max_wr = (await db.execute(stmt_wr)).scalar() or 0
+    
+    return max(max_tx, max_wr)
+
 async def process_pending_transactions(environment: Environment = Environment.DEFAULT) -> None:
     redis_client, db, lock_manager = await setup_clients(environment)
+
+    current_batch_height = await get_current_batch_height(db)
 
     while True:
         try:
@@ -52,12 +63,14 @@ async def process_pending_transactions(environment: Environment = Environment.DE
                 await asyncio.sleep(1)
                 continue
 
+            current_batch_height += 1
 
             new_transactions: list[Transaction] = []
             new_withdrawals: list[WithdrawalRequests] = []
             balance_updates: dict[str, int] = {} # address -> balance change
             
             for pending_tx in transactions_to_process:
+                pending_tx.transaction.batch_height = current_batch_height
                 new_transactions.append(pending_tx.transaction.to_sqlalchemy())
                 
                 source_addr = pending_tx.transaction.source_address_pubkey
@@ -73,6 +86,9 @@ async def process_pending_transactions(environment: Environment = Environment.DE
                 balance_updates[dest_addr] += amount
 
             for pending_withdrawal in withdrawals_to_process:
+                pending_withdrawal.transaction.batch_height = current_batch_height
+                pending_withdrawal.withdrawal_request.batch_height = current_batch_height
+                
                 new_transactions.append(pending_withdrawal.transaction.to_sqlalchemy())
                 new_withdrawals.append(pending_withdrawal.withdrawal_request.to_sqlalchemy())
 
