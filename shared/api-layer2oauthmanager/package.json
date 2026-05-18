@@ -1,0 +1,16 @@
+{
+  "name": "@openl2/api-layer2oauthmanager",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@openl2/layer2oauthmanager": "workspace:*",
+    "elysia": "latest"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

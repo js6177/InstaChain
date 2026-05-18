@@ -17,6 +17,14 @@ export default defineConfig({
   },
   server: {
     sourcemapIgnoreList: false, // Ensure VS Code doesn't skip "internal" files
+    watch: {
+      ignored: [
+        '**/node_modules/**', 
+        '**/backend/**',      // Don't watch the backend from the frontend
+        '**/dist/**', 
+        '**/.turbo/**'        // Ignore Turborepo cache
+      ]
+    }
   },
   build: { sourcemap: true },
   test: {

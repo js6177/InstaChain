@@ -1,0 +1,1 @@
+export type { App } from '@openl2/layer2oauthmanager'

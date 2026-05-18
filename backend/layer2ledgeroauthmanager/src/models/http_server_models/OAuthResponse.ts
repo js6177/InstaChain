@@ -1,9 +1,12 @@
-import { type ErrorResponse } from "./Common/ErrorResponse";
-import { type OAuthUser } from "../db_models/OAuthUser";
-import { type UserKeys } from "models/db_models/UserKeys";
+import { t } from 'elysia';
+import { ErrorResponse } from "./Common/ErrorResponse";
+import { OAuthUserSchema } from "../db_models/OAuthUser";
+import { UserKeysSchema } from "../db_models/UserKeys";
 
-export interface OAuthResponse {
-    error_response: ErrorResponse;
-    user: OAuthUser | null;
-    user_keys: UserKeys | null;
-}
+export const OAuthResponse = t.Object({
+    error_response: ErrorResponse,
+    user: t.Nullable(OAuthUserSchema),
+    user_keys: t.Nullable(UserKeysSchema)
+});
+
+export type OAuthResponse = typeof OAuthResponse.static;

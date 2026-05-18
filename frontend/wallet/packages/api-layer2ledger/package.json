@@ -1,5 +1,5 @@
 {
-  "name": "@wallet/api-layer2ledger",
+  "name": "@openl2/api-layer2ledger",
   "module": "index.ts",
   "type": "module",
   "main": "./src/index.ts",

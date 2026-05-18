@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { getExplorer, getDeposit, getTransfer, getInfo, getWithdrawal } from '@wallet/api-layer2ledger';
+import { getExplorer, getDeposit, getTransfer, getInfo, getWithdrawal } from '@openl2/api-layer2ledger';
 
 const explorerApi = getExplorer();
 const depositApi = getDeposit();

@@ -1,3 +1,3 @@
 import { create } from 'zustand';
 
-import { NodeInfo } from '@wallet/api-layer2ledger';
+import { NodeInfo } from '@openl2/api-layer2ledger';
