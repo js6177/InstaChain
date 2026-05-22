@@ -2,15 +2,26 @@ import { create } from 'zustand';
 import { Layer2Wallet, Layer2Address } from '../wallet/wallet';
 import { MNEUMONIC_WORD_COUNT, MNEUMONIC_WORDLIST } from '../wallet/wordlist';
 
+export interface OAuthUserInfo {
+    username: string;
+    name: string;
+    profile_pic_url: string;
+    profile_url: string;
+    profile_description: string | null;
+    service_name: string;
+}
+
 interface WalletState {
     wallet: Layer2Wallet | null;
     mainAddress: Layer2Address | null;
     isLoaded: boolean;
     error: string | null;
+    oauthUser: OAuthUserInfo | null;
 
     // Actions
     generateWallet: () => void;
     loadWalletFromMnemonic: (mnemonicWords: string[]) => void;
+    setOAuthUser: (user: OAuthUserInfo | null) => void;
     logout: () => void;
     validateMnemonic: (mnemonicWords: string[]) => boolean;
 }
@@ -20,6 +31,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     mainAddress: null,
     isLoaded: false,
     error: null,
+    oauthUser: null,
 
     generateWallet: () => {
         try {
@@ -55,12 +67,17 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         }
     },
 
+    setOAuthUser: (user: OAuthUserInfo | null) => {
+        set({ oauthUser: user });
+    },
+
     logout: () => {
         set({
             wallet: null,
             mainAddress: null,
             isLoaded: false,
             error: null,
+            oauthUser: null,
         });
     },
 

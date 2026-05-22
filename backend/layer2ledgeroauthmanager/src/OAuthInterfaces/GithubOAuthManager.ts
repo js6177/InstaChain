@@ -19,12 +19,12 @@ export class GithubOAuthManager {
     };
   
     async getGithubAccessToken(code: string): Promise<string> {
-        const response = await axios.post<{ access_token: string }>(GITHUB_TOKEN_URL, null, {
-          params: {
+        const response = await axios.post<{ access_token: string }>(GITHUB_TOKEN_URL, {
             client_id: this.config.clientId,
             client_secret: this.config.clientSecret,
             code,
-          },
+            redirect_uri: this.config.redirectUri,
+        }, {
           headers: {
             Accept: 'application/json',
           },
@@ -35,7 +35,7 @@ export class GithubOAuthManager {
       async getGithubUserInfo(accessToken: string, mongoDb: DatabaseInterface): Promise<[OAuthUser, UserKeys]> {
         const response = await axios.get<GithubUserInfo>(GITHUB_USER_URL, {
           headers: {
-            Authorization: `token ${accessToken}`,
+            Authorization: `Bearer ${accessToken}`,
           },
         });
         const githubUserInfo: GithubUserInfo = response.data as GithubUserInfo;

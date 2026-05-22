@@ -31,16 +31,15 @@ export class TwitterOAuthManager {
     try {
       const response = await axios.post<{ access_token: string }>(
         TWITTER_TOKEN_URL,
-        null,
         {
-          params: {
-            client_id: this.config.clientId,
-            client_secret: this.config.clientSecret,
-            redirect_uri: "http://localhost:3000/oauth2/twitter/callback",
-            grant_type: "authorization_code",
-            code: authorizationCode,
-            code_verifier: codeVerifier,
-          },
+          client_id: this.config.clientId,
+          client_secret: this.config.clientSecret,
+          redirect_uri: this.config.redirectUri,
+          grant_type: "authorization_code",
+          code: authorizationCode,
+          code_verifier: codeVerifier,
+        },
+        {
           headers: {
             Accept: "application/json",
             "Content-Type": "application/x-www-form-urlencoded",

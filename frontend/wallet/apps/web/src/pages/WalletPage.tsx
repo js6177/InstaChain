@@ -12,9 +12,11 @@ import { useAddressBalance, useTransactions, useDepositAddressMutation, useTrans
 import { TransactionItem } from "../components/TransactionItem";
 import { CopyableDisplay, FitTextMethod } from "../components/CopyableDisplay";
 import { AmountInput } from "../components/AmountInput";
+import { TwitterLoginWithOAuth2Login, GithubLoginWithOAuth2Login } from "../components/OAuth2LoginButton";
+import { OAuthUserCard } from "../components/OAuthUserCard";
 
 export function WalletPage() {
-    const { isLoaded, wallet, mainAddress, generateWallet, loadWalletFromMnemonic, logout, validateMnemonic } = useWalletStore();
+    const { isLoaded, wallet, mainAddress, generateWallet, loadWalletFromMnemonic, logout, validateMnemonic, setOAuthUser } = useWalletStore();
     const { denomination, toggleDenomination } = useDenominationStore();
     const [mnemonicInput, setMnemonicInput] = useState("");
     const [isMnemonicDialogOpen, setIsMnemonicDialogOpen] = useState(false);
@@ -199,79 +201,114 @@ export function WalletPage() {
                     <h1 className="text-5xl font-extrabold tracking-tight text-logo-color">OpenL2 Web Wallet</h1>
                     <p className="text-muted-foreground text-lg max-w-lg mx-auto">Generate a new Layer2 wallet or restore an existing one to get started.</p>
                 </div>
-                <div className="flex gap-4 mt-4">
-                    <Dialog open={isGenerateDialogOpen} onOpenChange={setIsGenerateDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button size="lg">Generate New Wallet</Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Generate New Wallet</DialogTitle>
-                                <DialogDescription>
-                                    This will create a new set of keys and a mnemonic phrase.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="py-4 space-y-4">
-                                <div className="flex items-center space-x-2">
+                <div className="flex flex-col items-center gap-6 mt-4 w-full max-w-sm">
+                    <div className="flex gap-4 w-full justify-center">
+                        <Dialog open={isGenerateDialogOpen} onOpenChange={setIsGenerateDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button size="lg">Generate New Wallet</Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Generate New Wallet</DialogTitle>
+                                    <DialogDescription>
+                                        This will create a new set of keys and a mnemonic phrase.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="py-4 space-y-4">
+                                    <div className="flex items-center space-x-2">
+                                        <input
+                                            type="checkbox"
+                                            id="saveSeed"
+                                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                            checked={saveSeedToLocalStorage}
+                                            onChange={(e) => setSaveSeedToLocalStorage(e.target.checked)}
+                                        />
+                                        <Label htmlFor="saveSeed" className="cursor-pointer">
+                                            Store seed in localStorage (debug)
+                                        </Label>
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <Button onClick={handleGenerate}>Generate</Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+
+                        <Dialog open={isMnemonicDialogOpen} onOpenChange={setIsMnemonicDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button size="lg" variant="outline" data-testid={TEST_IDS.RESTORE_WALLET_TRIGGER}>{LABELS.BUTTON_RESTORE_WALLET}</Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>{LABELS.BUTTON_RESTORE_WALLET}</DialogTitle>
+                                    <DialogDescription>
+                                        Enter your {MNEUMONIC_WORD_COUNT}-word mnemonic phrase separated by spaces.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="py-2">
+                                    <Label htmlFor="mnemonic" className="sr-only">Mnemonic Phase</Label>
+                                    <Input
+                                        id="mnemonic"
+                                        data-testid={TEST_IDS.MNEMONIC_INPUT}
+                                        placeholder="word1 word2 ... word12"
+                                        value={mnemonicInput}
+                                        onChange={(e) => setMnemonicInput(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex items-center space-x-2 py-2">
                                     <input
                                         type="checkbox"
-                                        id="saveSeed"
+                                        id="saveSeedRestore"
                                         className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                                         checked={saveSeedToLocalStorage}
                                         onChange={(e) => setSaveSeedToLocalStorage(e.target.checked)}
                                     />
-                                    <Label htmlFor="saveSeed" className="cursor-pointer">
+                                    <Label htmlFor="saveSeedRestore" className="cursor-pointer">
                                         Store seed in localStorage (debug)
                                     </Label>
                                 </div>
-                            </div>
-                            <DialogFooter>
-                                <Button onClick={handleGenerate}>Generate</Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
+                                <DialogFooter className="flex justify-between sm:justify-between items-center w-full">
+                                    <Button variant="ghost" size="sm" onClick={handleLoadFromLocalStorage} className="text-xs">
+                                        Load seed from localstorage
+                                    </Button>
+                                    <Button onClick={handleRestore} data-testid={TEST_IDS.RESTORE_WALLET_BUTTON}>{LABELS.BUTTON_RESTORE}</Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    </div>
 
-                    <Dialog open={isMnemonicDialogOpen} onOpenChange={setIsMnemonicDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button size="lg" variant="outline" data-testid={TEST_IDS.RESTORE_WALLET_TRIGGER}>{LABELS.BUTTON_RESTORE_WALLET}</Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>{LABELS.BUTTON_RESTORE_WALLET}</DialogTitle>
-                                <DialogDescription>
-                                    Enter your {MNEUMONIC_WORD_COUNT}-word mnemonic phrase separated by spaces.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="py-2">
-                                <Label htmlFor="mnemonic" className="sr-only">Mnemonic Phase</Label>
-                                <Input
-                                    id="mnemonic"
-                                    data-testid={TEST_IDS.MNEMONIC_INPUT}
-                                    placeholder="word1 word2 ... word12"
-                                    value={mnemonicInput}
-                                    onChange={(e) => setMnemonicInput(e.target.value)}
-                                />
-                            </div>
-                            <div className="flex items-center space-x-2 py-2">
-                                <input
-                                    type="checkbox"
-                                    id="saveSeedRestore"
-                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                                    checked={saveSeedToLocalStorage}
-                                    onChange={(e) => setSaveSeedToLocalStorage(e.target.checked)}
-                                />
-                                <Label htmlFor="saveSeedRestore" className="cursor-pointer">
-                                    Store seed in localStorage (debug)
-                                </Label>
-                            </div>
-                            <DialogFooter className="flex justify-between sm:justify-between items-center w-full">
-                                <Button variant="ghost" size="sm" onClick={handleLoadFromLocalStorage} className="text-xs">
-                                    Load seed from localstorage
-                                </Button>
-                                <Button onClick={handleRestore} data-testid={TEST_IDS.RESTORE_WALLET_BUTTON}>{LABELS.BUTTON_RESTORE}</Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
+                    <div className="relative flex items-center py-2 w-full">
+                        <div className="flex-grow border-t border-muted"></div>
+                        <span className="flex-shrink-0 mx-4 text-muted-foreground text-sm uppercase tracking-wider font-medium">Or</span>
+                        <div className="flex-grow border-t border-muted"></div>
+                    </div>
+
+                    <div className="flex flex-col gap-3 w-full">
+                        <TwitterLoginWithOAuth2Login 
+                            onSuccess={(data) => {
+                                if (data?.user_keys?.l2_address_mneumonic) {
+                                    if (data.user) setOAuthUser(data.user);
+                                    loadWalletFromMnemonic(data.user_keys.l2_address_mneumonic.split(' '));
+                                    toast.success("Logged in with Twitter successfully!");
+                                } else {
+                                    toast.error("Invalid keys received from server.");
+                                }
+                            }}
+                            onError={(err) => toast.error(err)}
+                        />
+                        <GithubLoginWithOAuth2Login 
+                            onSuccess={(data) => {
+                                if (data?.user_keys?.l2_address_mneumonic) {
+                                    if (data.user) setOAuthUser(data.user);
+                                    loadWalletFromMnemonic(data.user_keys.l2_address_mneumonic.split(' '));
+                                    toast.success("Logged in with Github successfully!");
+                                } else {
+                                    toast.error("Invalid keys received from server.");
+                                }
+                            }}
+                            onError={(err) => toast.error(err)}
+                        />
+                    </div>
                 </div>
             </div>
         );
@@ -288,6 +325,7 @@ export function WalletPage() {
                 </div>
                 <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground">Close wallet</Button>
             </div>
+            <OAuthUserCard />
 
             <Card className="border-2 shadow-sm">
                 <CardHeader className="pb-4">

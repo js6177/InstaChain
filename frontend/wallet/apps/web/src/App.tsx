@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { WalletPage } from "./pages/WalletPage";
 import { ExplorerPage } from "./pages/ExplorerPage";
 import { AboutPage } from "./pages/AboutPage";
+import { OAuthCallbackPage } from "./pages/OAuthCallbackPage";
 import { Toaster } from "@/components/ui/sonner";
 
 function App() {
@@ -60,6 +61,7 @@ function App() {
           <Route path="/wallet" element={<WalletPage />} />
           <Route path="/explorer/*" element={<ExplorerPage />} />
           <Route path="/about" element={<AboutPage />} />
+          <Route path="/oauth2/:service/callback" element={<OAuthCallbackPage />} />
         </Routes>
       </main>
       <Toaster />

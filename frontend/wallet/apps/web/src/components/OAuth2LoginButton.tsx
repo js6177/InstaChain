@@ -1,0 +1,147 @@
+import React, { useEffect, useState } from "react";
+// @ts-ignore
+import OAuth2LoginImport from 'react-simple-oauth2-login';
+// @ts-ignore
+const OAuth2Login = OAuth2LoginImport.default || OAuth2LoginImport;
+import { treaty } from "@elysiajs/eden";
+import type { App } from "@openl2/api-layer2oauthmanager";
+
+const oauthApi = treaty<App>('http://localhost:4000') as any;
+
+const GOOGLE_OAuth2_CLIENT_ID: string = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || "639252016244-74f6is7u2ultdb4g1cn248pn1090k19t.apps.googleusercontent.com";
+const GITHUB_OAuth2_CLIENT_ID: string = import.meta.env.VITE_GITHUB_OAUTH_CLIENT_ID || "Ov23likC7DPlra38cJvQ";
+const TWITTER_OAuth2_CLIENT_ID: string = import.meta.env.VITE_TWITTER_OAUTH_CLIENT_ID || "MlZNU3FNYWVta2hBN2xYSG9XR2w6MTpjaQ";
+
+const GITHUB_AUTHORIZATION_URL = "https://github.com/login/oauth/authorize";
+const GITHUB_REDIRECT_URL = `${window.location.origin}/oauth2/github/callback`;
+
+const TWITTER_AUTHORIZATION_URL = "https://twitter.com/i/oauth2/authorize";
+const TWITTER_REDIRECT_URL = `${window.location.origin}/oauth2/twitter/callback`;
+
+// Implement PKCE SHA256 logic using Web Crypto API to avoid lodash/crypto-js
+async function sha256(plain: string) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(plain);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  // Base64URL encoding
+  return btoa(String.fromCharCode(...new Uint8Array(hash)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+function generateRandomString(length: number) {
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let text = '';
+  for (let i = 0; i < length; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  return text;
+}
+
+interface OAuthProps {
+  onSuccess: (data: any) => void;
+  onError: (error: string) => void;
+}
+
+export function TwitterLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
+  const [PKCE_code, setPKCE_code] = useState<string>("");
+  const [PKCE_code_sha256, setPKCE_code_sha256] = useState<string>("");
+  const [isExchanging, setIsExchanging] = useState(false);
+
+  useEffect(() => {
+    const code = generateRandomString(43); // Ensure sufficient length for PKCE
+    setPKCE_code(code);
+    sha256(code).then(setPKCE_code_sha256);
+  }, []);
+
+  const handleOAuthExchange = async (code: string) => {
+    setIsExchanging(true);
+    try {
+      const response = await oauthApi.oauth.exchange.post({
+        code,
+        service: 'twitter',
+        code_verifier: PKCE_code
+      });
+
+      if (response.error) {
+         throw new Error(response.error.value?.error || 'Unknown error');
+      }
+
+      onSuccess(response.data);
+    } catch (err) {
+      onError((err as Error).message);
+    } finally {
+      setIsExchanging(false);
+    }
+  };
+
+  return (
+    <OAuth2Login
+      authorizationUrl={TWITTER_AUTHORIZATION_URL}
+      responseType="code"
+      clientId={TWITTER_OAuth2_CLIENT_ID}
+      redirectUri={TWITTER_REDIRECT_URL}
+      scope="tweet.read users.read"
+      state={generateRandomString(10)}
+      buttonText={isExchanging ? "Logging in..." : "Login with X"}
+      className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full"
+      isCrossOrigin={false}
+      onSuccess={(response: any) => {
+        if(response.code !== null){
+          handleOAuthExchange(response.code);
+        }
+      }}
+      onFailure={() => {
+        onError("Twitter login failed");
+      }}
+      extraParams={{ code_challenge: PKCE_code_sha256, code_challenge_method: 'S256' }}
+    />
+  );
+}
+
+export function GithubLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
+  const [isExchanging, setIsExchanging] = useState(false);
+
+  const handleOAuthExchange = async (code: string) => {
+      setIsExchanging(true);
+      try {
+        const response = await oauthApi.oauth.exchange.post({
+          code,
+          service: 'github',
+          code_verifier: null
+        });
+
+        if (response.error) {
+           throw new Error(response.error.value?.error || 'Unknown error');
+        }
+
+        onSuccess(response.data);
+      } catch (err) {
+        onError((err as Error).message);
+      } finally {
+        setIsExchanging(false);
+      }
+  };
+    
+  return (
+    <OAuth2Login
+      authorizationUrl={GITHUB_AUTHORIZATION_URL}
+      responseType="code"
+      clientId={GITHUB_OAuth2_CLIENT_ID}
+      redirectUri={GITHUB_REDIRECT_URL}
+      scope=""
+      buttonText={isExchanging ? "Logging in..." : "Login with Github"}
+      className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full"
+      isCrossOrigin={false}
+      onSuccess={(response: any) => {
+        if(response.code !== null){
+          handleOAuthExchange(response.code);
+        }
+      }}
+      onFailure={() => {
+        onError("Github login failed");
+      }}
+    />
+  );
+}
