@@ -26,4 +26,5 @@ export interface ConfigInterface {
     github?: OAuth2ServiceParams;
     google?: OAuth2ServiceParams;
     facebook?: OAuth2ServiceParams;
+    discord?: OAuth2ServiceParams;
 }

@@ -8,6 +8,7 @@ import { TwitterOAuthManager } from 'OAuthInterfaces/TwitterOAuthManger';
 import { GithubOAuthManager } from 'OAuthInterfaces/GithubOAuthManager';
 import { GoogleOAuthManager } from 'OAuthInterfaces/GoogleOAuthManager';
 import { FacebookOAuthManager } from 'OAuthInterfaces/FacebookOAuthManager';
+import { DiscordOAuthManager } from 'OAuthInterfaces/DiscordOAuthManager';
 import { OAuthRequest } from 'models/http_server_models/OAuthRequest';
 import { OAuthResponse } from 'models/http_server_models/OAuthResponse';
 import { type OAuthUser } from 'models/db_models/OAuthUser';
@@ -28,10 +29,12 @@ let twitterOAuthManager: TwitterOAuthManager | null = null;
 let githubOAuthManager: GithubOAuthManager | null = null;
 let googleOAuthManager: GoogleOAuthManager | null = null;
 let facebookOAuthManager: FacebookOAuthManager | null = null;
+let discordOAuthManager: DiscordOAuthManager | null = null;
 if (config.twitter) { twitterOAuthManager = new TwitterOAuthManager(config.twitter); }
 if (config.github) { githubOAuthManager = new GithubOAuthManager(config.github); }
 if (config.google) { googleOAuthManager = new GoogleOAuthManager(config.google); }
 if (config.facebook) { facebookOAuthManager = new FacebookOAuthManager(config.facebook); }
+if (config.discord) { discordOAuthManager = new DiscordOAuthManager(config.discord); }
 
 const mongoDb: DatabaseInterface = new DatabaseInterface(config.mongoDb);
 const connected: boolean = await mongoDb.connect();
@@ -100,6 +103,23 @@ const app = new Elysia()
       try {
         accessToken = await facebookOAuthManager.getFacebookAccessToken(requestBody.code);
         let [userInfo, userKeys] = await facebookOAuthManager.getFacebookUserInfo(accessToken, mongoDb);
+        let oauthResponse: OAuthResponse = {
+          error_response: {
+            error_code: 0,
+            error_message: 'Success'
+          },
+          user: userInfo,
+          user_keys: userKeys
+        }
+        return oauthResponse;
+      } catch (error) {
+        set.status = 500;
+        return { error: 'Internal Server Error' };
+      }
+    } else if (requestBody.service === 'discord' && discordOAuthManager) {
+      try {
+        accessToken = await discordOAuthManager.getDiscordAccessToken(requestBody.code);
+        let [userInfo, userKeys] = await discordOAuthManager.getDiscordUserInfo(accessToken, mongoDb);
         let oauthResponse: OAuthResponse = {
           error_response: {
             error_code: 0,
