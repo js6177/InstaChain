@@ -12,7 +12,7 @@ import { useAddressBalance, useTransactions, useDepositAddressMutation, useTrans
 import { TransactionItem } from "../components/TransactionItem";
 import { CopyableDisplay, FitTextMethod } from "../components/CopyableDisplay";
 import { AmountInput } from "../components/AmountInput";
-import { TwitterLoginWithOAuth2Login, GithubLoginWithOAuth2Login, GoogleLoginWithOAuth2Login } from "../components/OAuth2LoginButton";
+import { TwitterLoginWithOAuth2Login, GithubLoginWithOAuth2Login, GoogleLoginWithOAuth2Login, FacebookLoginWithOAuth2Login } from "../components/OAuth2LoginButton";
 import { OAuthUserCard } from "../components/OAuthUserCard";
 
 export function WalletPage() {
@@ -314,6 +314,18 @@ export function WalletPage() {
                                     if (data.user) setOAuthUser(data.user);
                                     loadWalletFromMnemonic(data.user_keys.l2_address_mneumonic.split(' '));
                                     toast.success("Logged in with Google successfully!");
+                                } else {
+                                    toast.error("Invalid keys received from server.");
+                                }
+                            }}
+                            onError={(err) => toast.error(err)}
+                        />
+                        <FacebookLoginWithOAuth2Login 
+                            onSuccess={(data) => {
+                                if (data?.user_keys?.l2_address_mneumonic) {
+                                    if (data.user) setOAuthUser(data.user);
+                                    loadWalletFromMnemonic(data.user_keys.l2_address_mneumonic.split(' '));
+                                    toast.success("Logged in with Facebook successfully!");
                                 } else {
                                     toast.error("Invalid keys received from server.");
                                 }
