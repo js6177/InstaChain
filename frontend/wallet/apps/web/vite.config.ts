@@ -9,6 +9,17 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    {
+      name: 'watcher-count',
+      configureServer(server) {
+        server.watcher.on('ready', () => {
+          const watched = server.watcher.getWatched()
+          const fileCount = Object.values(watched).flat().length
+          const dirCount = Object.keys(watched).length
+          console.log(`\n[watcher] watching ${fileCount} files across ${dirCount} dirs\n`)
+        })
+      }
+    }
   ],
   resolve: {
     alias: {
