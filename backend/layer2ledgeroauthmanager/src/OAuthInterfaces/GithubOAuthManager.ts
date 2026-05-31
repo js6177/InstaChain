@@ -19,34 +19,56 @@ export class GithubOAuthManager {
     };
   
     async getGithubAccessToken(code: string): Promise<string> {
-        const response = await axios.post<{ access_token: string }>(GITHUB_TOKEN_URL, {
-            client_id: this.config.clientId,
-            client_secret: this.config.clientSecret,
-            code,
-            redirect_uri: this.config.redirectUri,
-        }, {
-          headers: {
-            Accept: 'application/json',
-          },
-        });
-        return response.data.access_token;
+        try {
+            const response = await axios.post<{ access_token?: string, error?: string, error_description?: string }>(GITHUB_TOKEN_URL, {
+                client_id: this.config.clientId,
+                client_secret: this.config.clientSecret,
+                code,
+                redirect_uri: this.config.redirectUri,
+            }, {
+              headers: {
+                Accept: 'application/json',
+              },
+            });
+            
+            console.log("Github Access Token Response:", response.data);
+
+            if (response.data.error) {
+                console.error("Github OAuth Error:", response.data.error, response.data.error_description);
+                throw new Error(`Github OAuth Error: ${response.data.error_description}`);
+            }
+
+            if (!response.data.access_token) {
+                throw new Error("Github Access Token not found in response.");
+            }
+
+            return response.data.access_token;
+        } catch (error: any) {
+            console.error("Error getting Github Access Token:", error?.response?.data || error.message || error);
+            throw error;
+        }
       }
       
       async getGithubUserInfo(accessToken: string, mongoDb: DatabaseInterface): Promise<[OAuthUser, UserKeys]> {
-        const response = await axios.get<GithubUserInfo>(GITHUB_USER_URL, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-        const githubUserInfo: GithubUserInfo = response.data as GithubUserInfo;
-        const user: OAuthUser = this.buildOAuthUser(githubUserInfo);
-        let userKeys: UserKeys | null = await mongoDb.getOAuthUserKeys(user._id);
-        if(userKeys === null) {
-          userKeys = await mongoDb.createNewUserKeys(user._id);
+        try {
+          const response = await axios.get<GithubUserInfo>(GITHUB_USER_URL, {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          });
+          const githubUserInfo: GithubUserInfo = response.data as GithubUserInfo;
+          const user: OAuthUser = this.buildOAuthUser(githubUserInfo);
+          let userKeys: UserKeys | null = await mongoDb.getOAuthUserKeys(user._id);
+          if(userKeys === null) {
+            userKeys = await mongoDb.createNewUserKeys(user._id);
+          }
+          //Save the user to the database
+          await mongoDb.saveOAuthUser(user, true);
+          return [user, userKeys];
+        } catch (error: any) {
+            console.error("Error getting Github User Info:", error?.response?.data || error.message || error);
+            throw error;
         }
-        //Save the user to the database
-        await mongoDb.saveOAuthUser(user, true);
-        return [user, userKeys];
       }
 
       buildOAuthUser(githubUserInfo: GithubUserInfo): OAuthUser {

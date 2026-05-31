@@ -9,17 +9,17 @@ import type { App } from "@openl2/api-layer2oauthmanager";
 const oauthApi = treaty<App>('http://localhost:4000') as any;
 
 const GOOGLE_OAuth2_CLIENT_ID: string = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || "17462425659-3bj289qvtabukac8khb1k9egrft3mkmv.apps.googleusercontent.com";
-const GITHUB_OAuth2_CLIENT_ID: string = import.meta.env.VITE_GITHUB_OAUTH_CLIENT_ID || "Ov23likC7DPlra38cJvQ";
+const GITHUB_OAuth2_CLIENT_ID: string = import.meta.env.VITE_GITHUB_OAUTH_CLIENT_ID || "Ov23lib6aYPuNReWkLjX";
 const TWITTER_OAuth2_CLIENT_ID: string = import.meta.env.VITE_TWITTER_OAUTH_CLIENT_ID || "MlZNU3FNYWVta2hBN2xYSG9XR2w6MTpjaQ";
 
 const GOOGLE_AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_REDIRECT_URL = "http://localhost:5173/oauth2/google/callback";
 
 const GITHUB_AUTHORIZATION_URL = "https://github.com/login/oauth/authorize";
-const GITHUB_REDIRECT_URL = `${window.location.origin}/oauth2/github/callback`;
+const GITHUB_REDIRECT_URL = "http://localhost:5173/oauth2/github/callback";
 
 const TWITTER_AUTHORIZATION_URL = "https://twitter.com/i/oauth2/authorize";
-const TWITTER_REDIRECT_URL = `${window.location.origin}/oauth2/twitter/callback`;
+const TWITTER_REDIRECT_URL = "http://localhost:5173/oauth2/twitter/callback";
 
 // Implement PKCE SHA256 logic using Web Crypto API to avoid lodash/crypto-js
 async function sha256(plain: string) {
@@ -68,7 +68,7 @@ export function TwitterLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) 
       });
 
       if (response.error) {
-         throw new Error(response.error.value?.error || 'Unknown error');
+        throw new Error(response.error.value?.error || 'Unknown error');
       }
 
       onSuccess(response.data);
@@ -91,7 +91,7 @@ export function TwitterLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) 
       className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full"
       isCrossOrigin={false}
       onSuccess={(response: any) => {
-        if(response.code !== null){
+        if (response.code !== null) {
           handleOAuthExchange(response.code);
         }
       }}
@@ -107,26 +107,26 @@ export function GithubLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
   const [isExchanging, setIsExchanging] = useState(false);
 
   const handleOAuthExchange = async (code: string) => {
-      setIsExchanging(true);
-      try {
-        const response = await oauthApi.oauth.exchange.post({
-          code,
-          service: 'github',
-          code_verifier: null
-        });
+    setIsExchanging(true);
+    try {
+      const response = await oauthApi.oauth.exchange.post({
+        code,
+        service: 'github',
+        code_verifier: null
+      });
 
-        if (response.error) {
-           throw new Error(response.error.value?.error || 'Unknown error');
-        }
-
-        onSuccess(response.data);
-      } catch (err) {
-        onError((err as Error).message);
-      } finally {
-        setIsExchanging(false);
+      if (response.error) {
+        throw new Error(response.error.value?.error || 'Unknown error');
       }
+
+      onSuccess(response.data);
+    } catch (err) {
+      onError((err as Error).message);
+    } finally {
+      setIsExchanging(false);
+    }
   };
-    
+
   return (
     <OAuth2Login
       authorizationUrl={GITHUB_AUTHORIZATION_URL}
@@ -138,7 +138,7 @@ export function GithubLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
       className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full"
       isCrossOrigin={false}
       onSuccess={(response: any) => {
-        if(response.code !== null){
+        if (response.code !== null) {
           handleOAuthExchange(response.code);
         }
       }}
@@ -153,26 +153,26 @@ export function GoogleLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
   const [isExchanging, setIsExchanging] = useState(false);
 
   const handleOAuthExchange = async (code: string) => {
-      setIsExchanging(true);
-      try {
-        const response = await oauthApi.oauth.exchange.post({
-          code,
-          service: 'google',
-          code_verifier: null
-        });
+    setIsExchanging(true);
+    try {
+      const response = await oauthApi.oauth.exchange.post({
+        code,
+        service: 'google',
+        code_verifier: null
+      });
 
-        if (response.error) {
-           throw new Error(response.error.value?.error || 'Unknown error');
-        }
-
-        onSuccess(response.data);
-      } catch (err) {
-        onError((err as Error).message);
-      } finally {
-        setIsExchanging(false);
+      if (response.error) {
+        throw new Error(response.error.value?.error || 'Unknown error');
       }
+
+      onSuccess(response.data);
+    } catch (err) {
+      onError((err as Error).message);
+    } finally {
+      setIsExchanging(false);
+    }
   };
-    
+
   return (
     <OAuth2Login
       authorizationUrl={GOOGLE_AUTHORIZATION_URL}
@@ -184,7 +184,7 @@ export function GoogleLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
       className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full"
       isCrossOrigin={false}
       onSuccess={(response: any) => {
-        if(response.code !== null){
+        if (response.code !== null) {
           handleOAuthExchange(response.code);
         }
       }}

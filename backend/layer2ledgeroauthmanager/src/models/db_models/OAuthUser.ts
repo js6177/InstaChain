@@ -8,13 +8,13 @@ import { t } from 'elysia';
 
 export const OAuthUserSchema = t.Object({
     service_name: t.String(), // The name of the service a user is logged/signed in with (i.e. twitter, github, etc.)
-    service_specific_id: t.String(), // Their ID in the service (i.e. Twitter ID, Github ID, etc.)
+    service_specific_id: t.String(), // Their ID in the service (i.e. Twitter ID, Github ID, etc..)
     _id: t.String(), // The primary key of the object, which is a combination of the service_name and service_specific_id
     layer2_authorization_token: t.String(), // The token that is saved in the client's browser
     layer2_authorization_token_expiration_timestamp: t.Number(), // The expiration timestamp of the token in epoch time
     username: t.String(),
-    name: t.String(),
-    profile_pic_url: t.String(),
+    name: t.Nullable(t.String()),
+    profile_pic_url: t.Nullable(t.String()),
     profile_url: t.String(),
     profile_description: t.Nullable(t.String()), // Can be the bio/description of the user in the social media service
     first_login_date: t.Date(), // Date when the user first signed up with OAuth2 to Layer2
