@@ -8,6 +8,12 @@ import { Accordion } from "@/components/ui/accordion";
 import { useAddressBalance, useTransactions, useTransaction } from "../hooks/useLayer2Queries";
 import { TransactionItem } from "../components/TransactionItem";
 import { useDenominationStore, formatAmount, ROUTES, useWalletStore, LABELS, TEST_IDS } from "@wallet/shared";
+import { OAuthUserCard } from "../components/OAuthUserCard";
+import { treaty } from "@elysiajs/eden";
+import type { App } from "@openl2/api-layer2oauthmanager";
+import { LAYER2_OAUTH_API_URL } from "../config";
+
+const oauthApi = treaty<App>(LAYER2_OAUTH_API_URL) as any;
 
 function SearchBar() {
     const [searchParams] = useSearchParams();
@@ -132,6 +138,93 @@ function SearchRouter() {
     return <div className="text-center text-muted-foreground">{LABELS.TEXT_SEARCHING}</div>;
 }
 
+function OAuthUserExplorerView() {
+    const { service_name, service_specific_id } = useParams();
+    const { denomination } = useDenominationStore();
+    
+    const [userData, setUserData] = useState<any>(null);
+    const [pubkey, setPubkey] = useState<string>("");
+    const [isLoadingUser, setIsLoadingUser] = useState(true);
+    const [error, setError] = useState("");
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            setIsLoadingUser(true);
+            try {
+                const res = await oauthApi.oauth.findUserById.post({ service_name, service_specific_id });
+                if (res.error) {
+                    throw new Error(res.error.value?.error || "Failed to fetch user");
+                }
+                const data = res.data;
+                
+                setUserData(data.user);
+                if (data.layer2_address_pubkey) {
+                    setPubkey(data.layer2_address_pubkey);
+                }
+            } catch (err: any) {
+                setError(err.message);
+            } finally {
+                setIsLoadingUser(false);
+            }
+        };
+        if (service_name && service_specific_id) {
+            fetchUser();
+        }
+    }, [service_name, service_specific_id]);
+
+    const { data: balance, isLoading: isBalanceLoading } = useAddressBalance(pubkey || "");
+    const { data: txData, isLoading: isTxLoading } = useTransactions(pubkey || "");
+
+    if (isLoadingUser) return <p className="text-muted-foreground animate-pulse text-center mt-10">{LABELS.TEXT_SEARCHING}</p>;
+    if (error) return <p className="text-red-500 text-center mt-10">Error: {error}</p>;
+    if (!userData) return <p className="text-muted-foreground text-center mt-10">User not found</p>;
+
+    const isLoading = isBalanceLoading || isTxLoading;
+    const transactionsList = txData?.transaction_groups?.flatMap((group: any) => group.transactions) || [];
+    const sortedTransactions = transactionsList.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    return (
+        <div className="space-y-6 animate-in fade-in">
+            <OAuthUserCard user={userData} />
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-xl">Address Overview</CardTitle>
+                    <CardDescription className="font-mono break-all text-foreground mt-2">{pubkey || "No Layer2 Address found"}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <p className="text-sm text-muted-foreground">Balance</p>
+                            <p className="text-2xl font-bold" data-testid={TEST_IDS.BALANCE_DISPLAY}>{(isBalanceLoading && pubkey) ? "..." : formatAmount(balance?.balance, denomination)} {denomination}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-muted-foreground">Transactions</p>
+                            <p className="text-2xl font-bold">{(isTxLoading && pubkey) ? "..." : transactionsList.length}</p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <div>
+                <h3 className="text-lg font-bold mb-4">Transactions</h3>
+                {isLoading && pubkey && <p className="text-muted-foreground animate-pulse">{LABELS.TEXT_LOADING_TRANSACTIONS}</p>}
+                {!isLoading && pubkey && sortedTransactions.length === 0 && <p className="text-muted-foreground">{LABELS.TEXT_NO_TRANSACTIONS}</p>}
+                {!isLoading && pubkey && sortedTransactions.length > 0 && (
+                    <Accordion type="single" collapsible className="w-full">
+                        {sortedTransactions.map((tx: any) => (
+                            <TransactionItem
+                                key={tx.layer2_transaction_id}
+                                transaction={tx}
+                                currentAddress={pubkey}
+                            />
+                        ))}
+                    </Accordion>
+                )}
+            </div>
+        </div>
+    );
+}
+
 export function ExplorerPage() {
     return (
         <div className="max-w-4xl mx-auto w-full pt-4 pb-12">
@@ -147,6 +240,7 @@ export function ExplorerPage() {
                 <Route path={ROUTES.EXPLORER_SEARCH} element={<SearchRouter />} />
                 <Route path={ROUTES.EXPLORER_ADDRESS} element={<AddressView />} />
                 <Route path={ROUTES.EXPLORER_TRANSACTION} element={<TransactionViewWrapper />} />
+                <Route path={ROUTES.EXPLORER_OAUTH_USER} element={<OAuthUserExplorerView />} />
             </Routes>
         </div>
     );

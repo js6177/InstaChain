@@ -27,4 +27,5 @@ export interface ConfigInterface {
     google?: OAuth2ServiceParams;
     facebook?: OAuth2ServiceParams;
     discord?: OAuth2ServiceParams;
+    tiktok?: OAuth2ServiceParams;
 }

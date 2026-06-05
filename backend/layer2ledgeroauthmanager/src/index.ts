@@ -18,7 +18,9 @@ import { SearchUserRequest } from 'models/http_server_models/SearchUserRequest';
 import { SearchUserResponse } from 'models/http_server_models/SearchUserResponse';
 import { FindOauthUserRequest } from 'models/http_server_models/FindOauthUserRequest';
 import { FindOAuthUserResponse } from 'models/http_server_models/FindOauthUserResponse';
-import { OAUTH_EXCHANGE, OAUTH_L2_TOKEN_AUTHORIZE, USER_FIND, USER_SEARCH } from './utils/routes';
+import { FindOauth2UserByIdRequest } from 'models/http_server_models/FindOauth2UserByIdRequest';
+import { FindOauth2UserByIdResponse } from 'models/http_server_models/FindOauth2UserByIdResponse';
+import { OAUTH_EXCHANGE, OAUTH_L2_TOKEN_AUTHORIZE, USER_FIND, USER_SEARCH, USER_FIND_BY_ID } from './utils/routes';
 
 const config: ConfigInterface = loadConfig('../config.json');
 
@@ -237,6 +239,44 @@ const app = new Elysia()
     response: {
       200: FindOAuthUserResponse,
       400: t.Object({ error: t.String() }),
+      500: t.Object({ error: t.String() })
+    }
+  })
+  .post(USER_FIND_BY_ID, async ({ body, set }) => {
+    try {
+      const requestBody: FindOauth2UserByIdRequest = body;
+      const user = await mongoDb.getOAuthUser(requestBody.service_name, requestBody.service_specific_id);
+      
+      if (user) {
+        let pubkey: string | undefined;
+        const keys = await mongoDb.getOAuthUserKeys(user._id);
+        if (keys && keys.l2_address_public_key) {
+          pubkey = keys.l2_address_public_key;
+        }
+        
+        let response: FindOauth2UserByIdResponse = {
+          error_response: {
+            error_code: 0,
+            error_message: 'Success'
+          },
+          user: user,
+          layer2_address_pubkey: pubkey
+        };
+        return response;
+      } else {
+        set.status = 404;
+        return { error: 'Could not find user' };
+      }
+    } catch (error) {
+      console.error(error);
+      set.status = 500;
+      return { error: 'Internal Server Error' };
+    }
+  }, {
+    body: FindOauth2UserByIdRequest,
+    response: {
+      200: FindOauth2UserByIdResponse,
+      404: t.Object({ error: t.String() }),
       500: t.Object({ error: t.String() })
     }
   })

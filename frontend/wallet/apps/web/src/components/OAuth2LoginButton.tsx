@@ -5,8 +5,9 @@ import OAuth2LoginImport from 'react-simple-oauth2-login';
 const OAuth2Login = OAuth2LoginImport.default || OAuth2LoginImport;
 import { treaty } from "@elysiajs/eden";
 import type { App } from "@openl2/api-layer2oauthmanager";
+import { LAYER2_OAUTH_API_URL } from "../config";
 
-const oauthApi = treaty<App>('http://localhost:4000') as any;
+const oauthApi = treaty<App>(LAYER2_OAUTH_API_URL) as any;
 
 const GOOGLE_OAuth2_CLIENT_ID: string = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || "17462425659-3bj289qvtabukac8khb1k9egrft3mkmv.apps.googleusercontent.com";
 const GITHUB_OAuth2_CLIENT_ID: string = import.meta.env.VITE_GITHUB_OAUTH_CLIENT_ID || "Ov23lib6aYPuNReWkLjX";
