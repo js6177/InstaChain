@@ -1,7 +1,8 @@
 import { t } from 'elysia';
+import { OAuthServiceSchema } from './OAuthRequest';
 
 export const FindOauth2UserByIdRequest = t.Object({
-    service_name: t.String(),
+    service_name: OAuthServiceSchema,
     service_specific_id: t.String()
 });
 

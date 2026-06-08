@@ -137,7 +137,9 @@ function SearchRouter() {
 function OAuthUserExplorerView() {
     const { service_name, service_specific_id } = useParams();
     const { denomination } = useDenominationStore();
-    const { data, isLoading: isLoadingUser, error } = useFindOAuthUserById(service_name, service_specific_id);
+    // Cast the route param to the OAuthService enum
+    const serviceEnum = service_name as unknown as OAuthService;
+    const { data, isLoading: isLoadingUser, error } = useFindOAuthUserById(serviceEnum, service_specific_id);
 
     const userData = data?.user;
     const pubkey = data?.layer2_address_pubkey ?? "";

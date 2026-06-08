@@ -1,4 +1,5 @@
 import { Elysia } from 'elysia';
+import { OAuthService } from 'models/http_server_models/OAuthRequest';
 import { cors } from '@elysiajs/cors';
 import { DatabaseInterface } from './DatabaseInterface';
 import { loadConfig } from 'ConfigInterface';
@@ -50,7 +51,7 @@ const app = new Elysia()
   .post(OAUTH_EXCHANGE, async ({ body, set }) => {
     const requestBody: OAuthRequest = body;
     let accessToken = '';
-    if (requestBody.service === 'twitter' && twitterOAuthManager && requestBody.code_verifier) {
+    if (requestBody.service === OAuthService.Twitter && twitterOAuthManager && requestBody.code_verifier) {
       try {
         accessToken = await twitterOAuthManager.getTwitterAccessToken(requestBody.code, requestBody.code_verifier);
         let [userInfo, userKeys] = await twitterOAuthManager.getTwitterUserInfo(accessToken, mongoDb);
@@ -67,7 +68,7 @@ const app = new Elysia()
         set.status = 500;
         return { error: 'Internal Server Error' };
       }
-    } else if (requestBody.service === 'github' && githubOAuthManager) {
+    } else if (requestBody.service === OAuthService.Github && githubOAuthManager) {
       try {
         accessToken = await githubOAuthManager.getGithubAccessToken(requestBody.code);
         let [userInfo, userKeys] = await githubOAuthManager.getGithubUserInfo(accessToken, mongoDb);
@@ -84,7 +85,7 @@ const app = new Elysia()
         set.status = 500;
         return { error: 'Internal Server Error' };
       }
-    } else if (requestBody.service === 'google' && googleOAuthManager) {
+    } else if (requestBody.service === OAuthService.Google && googleOAuthManager) {
       try {
         accessToken = await googleOAuthManager.getGoogleAccessToken(requestBody.code);
         let [userInfo, userKeys] = await googleOAuthManager.getGoogleUserInfo(accessToken, mongoDb);
@@ -101,7 +102,7 @@ const app = new Elysia()
         set.status = 500;
         return { error: 'Internal Server Error' };
       }
-    } else if (requestBody.service === 'facebook' && facebookOAuthManager) {
+    } else if (requestBody.service === OAuthService.Facebook && facebookOAuthManager) {
       try {
         accessToken = await facebookOAuthManager.getFacebookAccessToken(requestBody.code);
         let [userInfo, userKeys] = await facebookOAuthManager.getFacebookUserInfo(accessToken, mongoDb);
@@ -118,7 +119,7 @@ const app = new Elysia()
         set.status = 500;
         return { error: 'Internal Server Error' };
       }
-    } else if (requestBody.service === 'discord' && discordOAuthManager) {
+    } else if (requestBody.service === OAuthService.Discord && discordOAuthManager) {
       try {
         accessToken = await discordOAuthManager.getDiscordAccessToken(requestBody.code);
         let [userInfo, userKeys] = await discordOAuthManager.getDiscordUserInfo(accessToken, mongoDb);

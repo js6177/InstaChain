@@ -1,4 +1,5 @@
 import { useQuery, useMutation, type UseQueryResult, type UseMutationResult } from '@tanstack/react-query';
+import type { OAuthService } from '@openl2/api-layer2oauthmanager';
 import { treaty } from '@elysiajs/eden';
 import type {
     AuthorizeWithLayer2AuthTokenRequest,
@@ -62,7 +63,7 @@ async function postOAuthExchange(params: OAuthRequest): Promise<OAuthResponse> {
 }
 
 export const useFindOAuthUserById = (
-    serviceName: string | undefined,
+    serviceName: OAuthService | undefined,
     serviceSpecificId: string | undefined,
 ): UseQueryResult<FindOauth2UserByIdResponse, Error> => {
     return useQuery<FindOauth2UserByIdResponse, Error>({

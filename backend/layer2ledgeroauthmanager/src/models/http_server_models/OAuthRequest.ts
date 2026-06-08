@@ -1,19 +1,21 @@
 import { t } from 'elysia';
 
-export const OAuthServiceSchema = t.Union([
-    t.Literal('twitter'),
-    t.Literal('github'),
-    t.Literal('google'),
-    t.Literal('facebook'),
-    t.Literal('discord'),
-]);
+// TypeScript enum for OAuth services
+export enum OAuthService {
+  Twitter = 'twitter',
+  Github = 'github',
+  Google = 'google',
+  Facebook = 'facebook',
+  Discord = 'discord',
+}
 
-export type OAuthService = typeof OAuthServiceSchema.static;
+// Elysia validation schema based on the enum
+export const OAuthServiceSchema = t.Enum(OAuthService);
 
 export const OAuthRequest = t.Object({
-    code: t.String(),
-    service: OAuthServiceSchema,
-    code_verifier: t.Nullable(t.String())
+  code: t.String(),
+  service: OAuthServiceSchema,
+  code_verifier: t.Nullable(t.String()),
 });
 
 export type OAuthRequest = typeof OAuthRequest.static;
