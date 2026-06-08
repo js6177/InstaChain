@@ -6,14 +6,10 @@ import { Search } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion } from "@/components/ui/accordion";
 import { useAddressBalance, useTransactions, useTransaction } from "../hooks/useLayer2Queries";
+import { useFindOAuthUserById } from "../hooks/useLayer2LedgerOauthManagerQueries";
 import { TransactionItem } from "../components/TransactionItem";
 import { useDenominationStore, formatAmount, ROUTES, useWalletStore, LABELS, TEST_IDS } from "@wallet/shared";
 import { OAuthUserCard } from "../components/OAuthUserCard";
-import { treaty } from "@elysiajs/eden";
-import type { App } from "@openl2/api-layer2oauthmanager";
-import { LAYER2_OAUTH_API_URL } from "../config";
-
-const oauthApi = treaty<App>(LAYER2_OAUTH_API_URL) as any;
 
 function SearchBar() {
     const [searchParams] = useSearchParams();
@@ -141,42 +137,16 @@ function SearchRouter() {
 function OAuthUserExplorerView() {
     const { service_name, service_specific_id } = useParams();
     const { denomination } = useDenominationStore();
-    
-    const [userData, setUserData] = useState<any>(null);
-    const [pubkey, setPubkey] = useState<string>("");
-    const [isLoadingUser, setIsLoadingUser] = useState(true);
-    const [error, setError] = useState("");
+    const { data, isLoading: isLoadingUser, error } = useFindOAuthUserById(service_name, service_specific_id);
 
-    useEffect(() => {
-        const fetchUser = async () => {
-            setIsLoadingUser(true);
-            try {
-                const res = await oauthApi.oauth.findUserById.post({ service_name, service_specific_id });
-                if (res.error) {
-                    throw new Error(res.error.value?.error || "Failed to fetch user");
-                }
-                const data = res.data;
-                
-                setUserData(data.user);
-                if (data.layer2_address_pubkey) {
-                    setPubkey(data.layer2_address_pubkey);
-                }
-            } catch (err: any) {
-                setError(err.message);
-            } finally {
-                setIsLoadingUser(false);
-            }
-        };
-        if (service_name && service_specific_id) {
-            fetchUser();
-        }
-    }, [service_name, service_specific_id]);
+    const userData = data?.user;
+    const pubkey = data?.layer2_address_pubkey ?? "";
 
-    const { data: balance, isLoading: isBalanceLoading } = useAddressBalance(pubkey || "");
-    const { data: txData, isLoading: isTxLoading } = useTransactions(pubkey || "");
+    const { data: balance, isLoading: isBalanceLoading } = useAddressBalance(pubkey);
+    const { data: txData, isLoading: isTxLoading } = useTransactions(pubkey);
 
     if (isLoadingUser) return <p className="text-muted-foreground animate-pulse text-center mt-10">{LABELS.TEXT_SEARCHING}</p>;
-    if (error) return <p className="text-red-500 text-center mt-10">Error: {error}</p>;
+    if (error) return <p className="text-red-500 text-center mt-10">Error: {error.message}</p>;
     if (!userData) return <p className="text-muted-foreground text-center mt-10">User not found</p>;
 
     const isLoading = isBalanceLoading || isTxLoading;

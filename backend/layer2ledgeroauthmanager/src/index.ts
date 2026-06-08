@@ -225,6 +225,7 @@ const app = new Elysia()
           },
           user: user,
         }
+        console.log("Search User Response:", searchUserResponse);
         return searchUserResponse;
       } else {
         set.status = 400;
@@ -262,6 +263,7 @@ const app = new Elysia()
           user: user,
           layer2_address_pubkey: pubkey
         };
+        console.log("Find User By ID Response:", response); 
         return response;
       } else {
         set.status = 404;

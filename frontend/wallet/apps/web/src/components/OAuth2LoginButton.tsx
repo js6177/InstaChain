@@ -3,11 +3,8 @@ import React, { useEffect, useState } from "react";
 import OAuth2LoginImport from 'react-simple-oauth2-login';
 // @ts-ignore
 const OAuth2Login = OAuth2LoginImport.default || OAuth2LoginImport;
-import { treaty } from "@elysiajs/eden";
-import type { App } from "@openl2/api-layer2oauthmanager";
-import { LAYER2_OAUTH_API_URL } from "../config";
-
-const oauthApi = treaty<App>(LAYER2_OAUTH_API_URL) as any;
+import type { OAuthService, OAuthResponse } from '@openl2/api-layer2oauthmanager';
+import { useOAuthExchangeMutation } from '../hooks/useLayer2LedgerOauthManagerQueries';
 
 const GOOGLE_OAuth2_CLIENT_ID: string = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || "17462425659-3bj289qvtabukac8khb1k9egrft3mkmv.apps.googleusercontent.com";
 const GITHUB_OAuth2_CLIENT_ID: string = import.meta.env.VITE_GITHUB_OAUTH_CLIENT_ID || "Ov23lib6aYPuNReWkLjX";
@@ -30,6 +27,15 @@ const FACEBOOK_REDIRECT_URL = "http://localhost:5173/oauth2/facebook/callback";
 const DISCORD_AUTHORIZATION_URL = "https://discord.com/api/oauth2/authorize";
 const DISCORD_REDIRECT_URL = "http://localhost:5173/oauth2/discord/callback";
 
+interface OAuthProps {
+  onSuccess: (data: OAuthResponse) => void;
+  onError: (error: string) => void;
+}
+
+interface OAuthCodeResponse {
+  code: string | null;
+}
+
 // Implement PKCE SHA256 logic using Web Crypto API to avoid lodash/crypto-js
 async function sha256(plain: string) {
   const encoder = new TextEncoder();
@@ -51,42 +57,40 @@ function generateRandomString(length: number) {
   return text;
 }
 
-interface OAuthProps {
-  onSuccess: (data: any) => void;
-  onError: (error: string) => void;
+function useOAuthCodeExchange(
+  service: OAuthService,
+  codeVerifier: string | null,
+  onSuccess: (data: OAuthResponse) => void,
+  onError: (error: string) => void,
+) {
+  const { mutateAsync, isPending } = useOAuthExchangeMutation();
+
+  const handleOAuthExchange = async (code: string) => {
+    try {
+      const data = await mutateAsync({
+        code,
+        service,
+        code_verifier: codeVerifier,
+      });
+      onSuccess(data);
+    } catch (err) {
+      onError((err as Error).message);
+    }
+  };
+
+  return { handleOAuthExchange, isExchanging: isPending };
 }
 
 export function TwitterLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
   const [PKCE_code, setPKCE_code] = useState<string>("");
   const [PKCE_code_sha256, setPKCE_code_sha256] = useState<string>("");
-  const [isExchanging, setIsExchanging] = useState(false);
+  const { handleOAuthExchange, isExchanging } = useOAuthCodeExchange('twitter', PKCE_code, onSuccess, onError);
 
   useEffect(() => {
     const code = generateRandomString(43); // Ensure sufficient length for PKCE
     setPKCE_code(code);
     sha256(code).then(setPKCE_code_sha256);
   }, []);
-
-  const handleOAuthExchange = async (code: string) => {
-    setIsExchanging(true);
-    try {
-      const response = await oauthApi.oauth.exchange.post({
-        code,
-        service: 'twitter',
-        code_verifier: PKCE_code
-      });
-
-      if (response.error) {
-        throw new Error(response.error.value?.error || 'Unknown error');
-      }
-
-      onSuccess(response.data);
-    } catch (err) {
-      onError((err as Error).message);
-    } finally {
-      setIsExchanging(false);
-    }
-  };
 
   return (
     <OAuth2Login
@@ -99,7 +103,7 @@ export function TwitterLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) 
       buttonText={isExchanging ? "Logging in..." : "Login with X"}
       className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full"
       isCrossOrigin={false}
-      onSuccess={(response: any) => {
+      onSuccess={(response: OAuthCodeResponse) => {
         if (response.code !== null) {
           handleOAuthExchange(response.code);
         }
@@ -113,28 +117,7 @@ export function TwitterLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) 
 }
 
 export function GithubLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
-  const [isExchanging, setIsExchanging] = useState(false);
-
-  const handleOAuthExchange = async (code: string) => {
-    setIsExchanging(true);
-    try {
-      const response = await oauthApi.oauth.exchange.post({
-        code,
-        service: 'github',
-        code_verifier: null
-      });
-
-      if (response.error) {
-        throw new Error(response.error.value?.error || 'Unknown error');
-      }
-
-      onSuccess(response.data);
-    } catch (err) {
-      onError((err as Error).message);
-    } finally {
-      setIsExchanging(false);
-    }
-  };
+  const { handleOAuthExchange, isExchanging } = useOAuthCodeExchange('github', null, onSuccess, onError);
 
   return (
     <OAuth2Login
@@ -146,7 +129,7 @@ export function GithubLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
       buttonText={isExchanging ? "Logging in..." : "Login with Github"}
       className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full"
       isCrossOrigin={false}
-      onSuccess={(response: any) => {
+      onSuccess={(response: OAuthCodeResponse) => {
         if (response.code !== null) {
           handleOAuthExchange(response.code);
         }
@@ -159,28 +142,7 @@ export function GithubLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
 }
 
 export function GoogleLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
-  const [isExchanging, setIsExchanging] = useState(false);
-
-  const handleOAuthExchange = async (code: string) => {
-    setIsExchanging(true);
-    try {
-      const response = await oauthApi.oauth.exchange.post({
-        code,
-        service: 'google',
-        code_verifier: null
-      });
-
-      if (response.error) {
-        throw new Error(response.error.value?.error || 'Unknown error');
-      }
-
-      onSuccess(response.data);
-    } catch (err) {
-      onError((err as Error).message);
-    } finally {
-      setIsExchanging(false);
-    }
-  };
+  const { handleOAuthExchange, isExchanging } = useOAuthCodeExchange('google', null, onSuccess, onError);
 
   return (
     <OAuth2Login
@@ -192,7 +154,7 @@ export function GoogleLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
       buttonText={isExchanging ? "Logging in..." : "Login with Google"}
       className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full"
       isCrossOrigin={false}
-      onSuccess={(response: any) => {
+      onSuccess={(response: OAuthCodeResponse) => {
         if (response.code !== null) {
           handleOAuthExchange(response.code);
         }
@@ -205,28 +167,7 @@ export function GoogleLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
 }
 
 export function FacebookLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
-  const [isExchanging, setIsExchanging] = useState(false);
-
-  const handleOAuthExchange = async (code: string) => {
-    setIsExchanging(true);
-    try {
-      const response = await oauthApi.oauth.exchange.post({
-        code,
-        service: 'facebook',
-        code_verifier: null
-      });
-
-      if (response.error) {
-        throw new Error(response.error.value?.error || 'Unknown error');
-      }
-
-      onSuccess(response.data);
-    } catch (err) {
-      onError((err as Error).message);
-    } finally {
-      setIsExchanging(false);
-    }
-  };
+  const { handleOAuthExchange, isExchanging } = useOAuthCodeExchange('facebook', null, onSuccess, onError);
 
   return (
     <OAuth2Login
@@ -238,7 +179,7 @@ export function FacebookLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps)
       buttonText={isExchanging ? "Logging in..." : "Login with Facebook"}
       className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full"
       isCrossOrigin={false}
-      onSuccess={(response: any) => {
+      onSuccess={(response: OAuthCodeResponse) => {
         if (response.code !== null) {
           handleOAuthExchange(response.code);
         }
@@ -251,28 +192,7 @@ export function FacebookLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps)
 }
 
 export function DiscordLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
-  const [isExchanging, setIsExchanging] = useState(false);
-
-  const handleOAuthExchange = async (code: string) => {
-    setIsExchanging(true);
-    try {
-      const response = await oauthApi.oauth.exchange.post({
-        code,
-        service: 'discord',
-        code_verifier: null
-      });
-
-      if (response.error) {
-        throw new Error(response.error.value?.error || 'Unknown error');
-      }
-
-      onSuccess(response.data);
-    } catch (err) {
-      onError((err as Error).message);
-    } finally {
-      setIsExchanging(false);
-    }
-  };
+  const { handleOAuthExchange, isExchanging } = useOAuthCodeExchange('discord', null, onSuccess, onError);
 
   return (
     <OAuth2Login
@@ -284,7 +204,7 @@ export function DiscordLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) 
       buttonText={isExchanging ? "Logging in..." : "Login with Discord"}
       className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full"
       isCrossOrigin={false}
-      onSuccess={(response: any) => {
+      onSuccess={(response: OAuthCodeResponse) => {
         if (response.code !== null) {
           handleOAuthExchange(response.code);
         }
