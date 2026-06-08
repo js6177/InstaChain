@@ -72,6 +72,9 @@ export const useFindOAuthUserById = (
             service_specific_id: serviceSpecificId!,
         }),
         enabled: !!serviceName && !!serviceSpecificId,
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
     });
 };
 
