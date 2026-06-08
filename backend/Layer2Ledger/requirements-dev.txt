@@ -1,9 +1,0 @@
-pylint
-flake8
-mypy
-pytest-profiling
-pytest-asyncio
-snakeviz
-locust
-gunicorn
-httpx

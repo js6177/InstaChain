@@ -1,6 +1,0 @@
-indexes:
-
-- kind: WithdrawalRequests
-  properties:
-   - name: status 
-   - name: withdrawal_requested_timestamp
