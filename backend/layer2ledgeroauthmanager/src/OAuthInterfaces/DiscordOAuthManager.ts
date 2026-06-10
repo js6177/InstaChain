@@ -26,7 +26,7 @@ export class DiscordOAuthManager {
             params.append('client_secret', this.config.clientSecret);
             params.append('grant_type', 'authorization_code');
             params.append('code', code);
-            params.append('redirect_uri', this.config.redirectUri);
+            params.append('redirect_uri', this.config.redirectUri!);
 
             const response = await axios.post<{ access_token: string }>(DISCORD_TOKEN_URL, params, {
                 headers: {
