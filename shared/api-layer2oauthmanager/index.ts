@@ -1,5 +1,5 @@
+export { OAuthService } from '@openl2/layer2oauthmanager/http-server-models';
 export type {
-    OAuthService,
     OAuthRequest,
     OAuthResponse,
     AuthorizeWithLayer2AuthTokenRequest,

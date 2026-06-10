@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import OAuth2LoginImport from 'react-simple-oauth2-login';
 // @ts-ignore
 const OAuth2Login = OAuth2LoginImport.default || OAuth2LoginImport;
-import type { OAuthService, OAuthResponse } from '@openl2/api-layer2oauthmanager';
+import { OAuthService, type OAuthResponse } from '@openl2/api-layer2oauthmanager';
 import { useOAuthExchangeMutation } from '../hooks/useLayer2LedgerOauthManagerQueries';
 
 const GOOGLE_OAuth2_CLIENT_ID: string = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || "17462425659-3bj289qvtabukac8khb1k9egrft3mkmv.apps.googleusercontent.com";
@@ -84,7 +84,7 @@ function useOAuthCodeExchange(
 export function TwitterLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
   const [PKCE_code, setPKCE_code] = useState<string>("");
   const [PKCE_code_sha256, setPKCE_code_sha256] = useState<string>("");
-  const { handleOAuthExchange, isExchanging } = useOAuthCodeExchange('twitter', PKCE_code, onSuccess, onError);
+  const { handleOAuthExchange, isExchanging } = useOAuthCodeExchange(OAuthService.Twitter, PKCE_code, onSuccess, onError);
 
   useEffect(() => {
     const code = generateRandomString(43); // Ensure sufficient length for PKCE
@@ -117,7 +117,7 @@ export function TwitterLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) 
 }
 
 export function GithubLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
-  const { handleOAuthExchange, isExchanging } = useOAuthCodeExchange('github', null, onSuccess, onError);
+  const { handleOAuthExchange, isExchanging } = useOAuthCodeExchange(OAuthService.Github, null, onSuccess, onError);
 
   return (
     <OAuth2Login
@@ -142,7 +142,7 @@ export function GithubLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
 }
 
 export function GoogleLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
-  const { handleOAuthExchange, isExchanging } = useOAuthCodeExchange('google', null, onSuccess, onError);
+  const { handleOAuthExchange, isExchanging } = useOAuthCodeExchange(OAuthService.Google, null, onSuccess, onError);
 
   return (
     <OAuth2Login
@@ -167,7 +167,7 @@ export function GoogleLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
 }
 
 export function FacebookLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
-  const { handleOAuthExchange, isExchanging } = useOAuthCodeExchange('facebook', null, onSuccess, onError);
+  const { handleOAuthExchange, isExchanging } = useOAuthCodeExchange(OAuthService.Facebook, null, onSuccess, onError);
 
   return (
     <OAuth2Login
@@ -192,7 +192,7 @@ export function FacebookLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps)
 }
 
 export function DiscordLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
-  const { handleOAuthExchange, isExchanging } = useOAuthCodeExchange('discord', null, onSuccess, onError);
+  const { handleOAuthExchange, isExchanging } = useOAuthCodeExchange(OAuthService.Discord, null, onSuccess, onError);
 
   return (
     <OAuth2Login

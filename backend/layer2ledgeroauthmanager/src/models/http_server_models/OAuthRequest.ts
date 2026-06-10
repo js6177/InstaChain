@@ -1,13 +1,14 @@
 import { t } from 'elysia';
 
-// TypeScript enum for OAuth services
-export enum OAuthService {
-  Twitter = 'twitter',
-  Github = 'github',
-  Google = 'google',
-  Facebook = 'facebook',
-  Discord = 'discord',
-}
+export const OAuthService = {
+  Twitter: 'twitter',
+  Github: 'github',
+  Google: 'google',
+  Facebook: 'facebook',
+  Discord: 'discord',
+} as const;
+
+export type OAuthService = (typeof OAuthService)[keyof typeof OAuthService];
 
 // Elysia validation schema based on the enum
 export const OAuthServiceSchema = t.Enum(OAuthService);

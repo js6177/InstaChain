@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Accordion } from "@/components/ui/accordion";
 import { useAddressBalance, useTransactions, useTransaction } from "../hooks/useLayer2Queries";
 import { useFindOAuthUserById } from "../hooks/useLayer2LedgerOauthManagerQueries";
+import type { OAuthService } from "@openl2/api-layer2oauthmanager";
 import { TransactionItem } from "../components/TransactionItem";
 import { useDenominationStore, formatAmount, ROUTES, useWalletStore, LABELS, TEST_IDS } from "@wallet/shared";
 import { OAuthUserCard } from "../components/OAuthUserCard";

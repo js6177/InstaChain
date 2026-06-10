@@ -1,4 +1,5 @@
-export type { OAuthService, OAuthRequest } from './models/http_server_models/OAuthRequest';
+export { OAuthService } from './models/http_server_models/OAuthRequest';
+export type { OAuthRequest } from './models/http_server_models/OAuthRequest';
 export type { OAuthResponse } from './models/http_server_models/OAuthResponse';
 export type { AuthorizeWithLayer2AuthTokenRequest } from './models/http_server_models/AuthorizeWithLayer2AuthTokenRequest';
 export type { SearchUserRequest } from './models/http_server_models/SearchUserRequest';
