@@ -20,6 +20,7 @@
     "@noble/secp256k1": "^2.3.0",
     "bs58": "^6.0.0",
     "@openl2/api-layer2ledger": "workspace:*",
+    "@openl2/api-layer2oauthmanager": "workspace:*",
     "openl2_messaging": "workspace:*"
   },
   "devDependencies": {

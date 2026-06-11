@@ -118,6 +118,7 @@
         "@noble/hashes": "^1.8.0",
         "@noble/secp256k1": "^2.3.0",
         "@openl2/api-layer2ledger": "workspace:*",
+        "@openl2/api-layer2oauthmanager": "workspace:*",
         "bs58": "^6.0.0",
         "openl2_messaging": "workspace:*",
         "zod": "^4.1.13",

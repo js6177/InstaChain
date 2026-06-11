@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { MNEUMONIC_WORD_COUNT, useWalletStore, useDenominationStore, formatAmount, parseAmountToSats, Denomination, LABELS, TEST_IDS, type OAuthUserInfo } from "@wallet/shared";
-import type { OAuthResponse, OAuthUserType } from "@openl2/api-layer2oauthmanager";
+import { MNEUMONIC_WORD_COUNT, useWalletStore, useDenominationStore, formatAmount, parseAmountToSats, Denomination, LABELS, TEST_IDS } from "@wallet/shared";
 import { buildGetDepositAddressMessage, buildTransferMessage, buildWithdrawalRequestMessage } from "openl2_messaging";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -15,17 +14,6 @@ import { CopyableDisplay, FitTextMethod } from "../components/CopyableDisplay";
 import { AmountInput } from "../components/AmountInput";
 import { TwitterLoginWithOAuth2Login, GithubLoginWithOAuth2Login, GoogleLoginWithOAuth2Login, FacebookLoginWithOAuth2Login, DiscordLoginWithOAuth2Login } from "../components/OAuth2LoginButton";
 import { OAuthUserCard } from "../components/OAuthUserCard";
-
-function toOAuthUserInfo(user: OAuthUserType): OAuthUserInfo {
-    return {
-        username: user.username,
-        name: user.name ?? '',
-        profile_pic_url: user.profile_pic_url ?? '',
-        profile_url: user.profile_url,
-        profile_description: user.profile_description,
-        service_name: user.service_name,
-    };
-}
 
 export function WalletPage() {
     const { isLoaded, wallet, mainAddress, generateWallet, loadWalletFromMnemonic, logout, validateMnemonic, setOAuthUser } = useWalletStore();
@@ -299,7 +287,7 @@ export function WalletPage() {
                         <TwitterLoginWithOAuth2Login 
                             onSuccess={(data) => {
                                 if (data?.user_keys?.l2_address_mneumonic) {
-                                    if (data.user) setOAuthUser(toOAuthUserInfo(data.user));
+                                    if (data.user) setOAuthUser(data.user);
                                     loadWalletFromMnemonic(data.user_keys.l2_address_mneumonic.split(' '));
                                     toast.success("Logged in with Twitter successfully!");
                                 } else {
@@ -311,7 +299,7 @@ export function WalletPage() {
                         <GithubLoginWithOAuth2Login 
                             onSuccess={(data) => {
                                 if (data?.user_keys?.l2_address_mneumonic) {
-                                    if (data.user) setOAuthUser(toOAuthUserInfo(data.user));
+                                    if (data.user) setOAuthUser(data.user);
                                     loadWalletFromMnemonic(data.user_keys.l2_address_mneumonic.split(' '));
                                     toast.success("Logged in with Github successfully!");
                                 } else {
@@ -323,7 +311,7 @@ export function WalletPage() {
                         <GoogleLoginWithOAuth2Login 
                             onSuccess={(data) => {
                                 if (data?.user_keys?.l2_address_mneumonic) {
-                                    if (data.user) setOAuthUser(toOAuthUserInfo(data.user));
+                                    if (data.user) setOAuthUser(data.user);
                                     loadWalletFromMnemonic(data.user_keys.l2_address_mneumonic.split(' '));
                                     toast.success("Logged in with Google successfully!");
                                 } else {
@@ -335,7 +323,7 @@ export function WalletPage() {
                         <FacebookLoginWithOAuth2Login 
                             onSuccess={(data) => {
                                 if (data?.user_keys?.l2_address_mneumonic) {
-                                    if (data.user) setOAuthUser(toOAuthUserInfo(data.user));
+                                    if (data.user) setOAuthUser(data.user);
                                     loadWalletFromMnemonic(data.user_keys.l2_address_mneumonic.split(' '));
                                     toast.success("Logged in with Facebook successfully!");
                                 } else {
@@ -347,7 +335,7 @@ export function WalletPage() {
                         <DiscordLoginWithOAuth2Login 
                             onSuccess={(data) => {
                                 if (data?.user_keys?.l2_address_mneumonic) {
-                                    if (data.user) setOAuthUser(toOAuthUserInfo(data.user));
+                                    if (data.user) setOAuthUser(data.user);
                                     loadWalletFromMnemonic(data.user_keys.l2_address_mneumonic.split(' '));
                                     toast.success("Logged in with Discord successfully!");
                                 } else {

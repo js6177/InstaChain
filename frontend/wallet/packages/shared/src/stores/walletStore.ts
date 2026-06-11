@@ -1,27 +1,19 @@
 import { create } from 'zustand';
+import type { OAuthUserType } from '@openl2/api-layer2oauthmanager';
 import { Layer2Wallet, Layer2Address } from '../wallet/wallet';
 import { MNEUMONIC_WORD_COUNT, MNEUMONIC_WORDLIST } from '../wallet/wordlist';
-
-export interface OAuthUserInfo {
-    username: string;
-    name: string;
-    profile_pic_url: string;
-    profile_url: string;
-    profile_description: string | null;
-    service_name: string;
-}
 
 interface WalletState {
     wallet: Layer2Wallet | null;
     mainAddress: Layer2Address | null;
     isLoaded: boolean;
     error: string | null;
-    oauthUser: OAuthUserInfo | null;
+    oauthUser: OAuthUserType | null;
 
     // Actions
     generateWallet: () => void;
     loadWalletFromMnemonic: (mnemonicWords: string[]) => void;
-    setOAuthUser: (user: OAuthUserInfo | null) => void;
+    setOAuthUser: (user: OAuthUserType | null) => void;
     logout: () => void;
     validateMnemonic: (mnemonicWords: string[]) => boolean;
 }
@@ -67,7 +59,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         }
     },
 
-    setOAuthUser: (user: OAuthUserInfo | null) => {
+    setOAuthUser: (user: OAuthUserType | null) => {
         set({ oauthUser: user });
     },
 
