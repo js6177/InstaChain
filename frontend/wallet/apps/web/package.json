@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@elysiajs/eden": "^1.4.9",
+    "@icons-pack/react-simple-icons": "^13.13.0",
     "@openl2/api-layer2ledger": "workspace:*",
     "@openl2/api-layer2oauthmanager": "workspace:*",
     "@radix-ui/react-slot": "^1.2.4",
