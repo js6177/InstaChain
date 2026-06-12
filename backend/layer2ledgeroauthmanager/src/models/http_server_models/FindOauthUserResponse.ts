@@ -6,7 +6,7 @@ import { OAuthUserAuxillaryInfo } from "./Common/OAuthUserAuxillaryInfo";
 // layer2_address_public_key is the public key of the user's layer 2 address
 export const FindOAuthUserResponse = t.Object({
     error_response: ErrorResponse,
-    user: OAuthUserAuxillaryInfo
+    user: t.Nullable(OAuthUserAuxillaryInfo)
 });
 
 export type FindOAuthUserResponse = typeof FindOAuthUserResponse.static;

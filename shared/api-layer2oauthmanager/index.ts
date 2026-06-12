@@ -1,4 +1,4 @@
-export { OAuthService } from '@openl2/layer2oauthmanager/http-server-models';
+export { OAuthService, ErrorCodes, getErrorMessage, buildErrorResponse } from '@openl2/layer2oauthmanager/http-server-models';
 export type {
     OAuthRequest,
     OAuthResponse,
@@ -9,6 +9,7 @@ export type {
     FindOAuthUserResponse,
     FindOauth2UserByIdRequest,
     FindOauth2UserByIdResponse,
+    ErrorCode,
     ErrorResponse,
     OAuthUserType,
     UserKeysType,

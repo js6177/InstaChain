@@ -3,6 +3,7 @@ import type { OAuthService } from '@openl2/api-layer2oauthmanager';
 import { treaty } from '@elysiajs/eden';
 import type {
     AuthorizeWithLayer2AuthTokenRequest,
+    ErrorResponse,
     FindOAuthUserResponse,
     FindOauth2UserByIdRequest,
     FindOauth2UserByIdResponse,
@@ -16,50 +17,45 @@ import { LAYER2_OAUTH_API_URL } from '../config';
 
 const oauthApi = treaty(LAYER2_OAUTH_API_URL) as any;
 
-type TreatyError = { value?: { error?: string } };
+type TreatyResult<T> = {
+    data: T | null;
+    error: { value?: T } | null;
+};
 
-function getTreatyErrorMessage(error: TreatyError): string {
-    return error.value?.error ?? 'Request failed';
+function unwrapOAuthApiResponse<T extends { error_response: ErrorResponse }>(res: TreatyResult<T>): T {
+    const response = (res.data ?? res.error?.value) as T | null | undefined;
+    if (!response) {
+        throw new Error('Request failed');
+    }
+    if (response.error_response.error_code !== 0) {
+        throw new Error(response.error_response.error_message);
+    }
+    return response;
 }
 
 async function postOAuthFindUserById(params: FindOauth2UserByIdRequest): Promise<FindOauth2UserByIdResponse> {
-    const res = await oauthApi.oauth.findUserById.post(params);
-    if (res.error) {
-        throw new Error(getTreatyErrorMessage(res.error));
-    }
-    return res.data;
+    const res = await oauthApi.oauth.findUserById.post(params) as TreatyResult<FindOauth2UserByIdResponse>;
+    return unwrapOAuthApiResponse(res);
 }
 
 async function postOAuthSearchUser(params: SearchUserRequest): Promise<SearchUserResponse> {
-    const res = await oauthApi.user.search.post(params);
-    if (res.error) {
-        throw new Error(getTreatyErrorMessage(res.error));
-    }
-    return res.data;
+    const res = await oauthApi.user.search.post(params) as TreatyResult<SearchUserResponse>;
+    return unwrapOAuthApiResponse(res);
 }
 
 async function postOAuthFindUser(params: FindOauthUserRequest): Promise<FindOAuthUserResponse> {
-    const res = await oauthApi.user.find.post(params);
-    if (res.error) {
-        throw new Error(getTreatyErrorMessage(res.error));
-    }
-    return res.data;
+    const res = await oauthApi.user.find.post(params) as TreatyResult<FindOAuthUserResponse>;
+    return unwrapOAuthApiResponse(res);
 }
 
 async function postOAuthL2TokenAuthorize(params: AuthorizeWithLayer2AuthTokenRequest): Promise<OAuthResponse> {
-    const res = await oauthApi.oauth.l2_token_authorize.post(params);
-    if (res.error) {
-        throw new Error(getTreatyErrorMessage(res.error));
-    }
-    return res.data;
+    const res = await oauthApi.oauth.l2_token_authorize.post(params) as TreatyResult<OAuthResponse>;
+    return unwrapOAuthApiResponse(res);
 }
 
 async function postOAuthExchange(params: OAuthRequest): Promise<OAuthResponse> {
-    const res = await oauthApi.oauth.exchange.post(params);
-    if (res.error) {
-        throw new Error(getTreatyErrorMessage(res.error));
-    }
-    return res.data;
+    const res = await oauthApi.oauth.exchange.post(params) as TreatyResult<OAuthResponse>;
+    return unwrapOAuthApiResponse(res);
 }
 
 export const useFindOAuthUserById = (

@@ -8,6 +8,9 @@ export type { FindOauthUserRequest } from './models/http_server_models/FindOauth
 export type { FindOAuthUserResponse } from './models/http_server_models/FindOauthUserResponse';
 export type { FindOauth2UserByIdRequest } from './models/http_server_models/FindOauth2UserByIdRequest';
 export type { FindOauth2UserByIdResponse } from './models/http_server_models/FindOauth2UserByIdResponse';
+export { ErrorCodes, getErrorMessage } from './models/http_server_models/ErrorCodes';
+export type { ErrorCode } from './models/http_server_models/ErrorCodes';
+export { buildErrorResponse } from './models/http_server_models/Common/ErrorResponse';
 export type { ErrorResponse } from './models/http_server_models/Common/ErrorResponse';
 export type { OAuthUserType } from './models/db_models/OAuthUser';
 export type { UserKeysType } from './models/db_models/UserKeys';

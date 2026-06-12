@@ -1,4 +1,5 @@
 import { t } from 'elysia';
+import { type ErrorCode, getErrorMessage } from '../ErrorCodes';
 
 export const ErrorResponse = t.Object({
     error_code: t.Number(),
@@ -6,3 +7,10 @@ export const ErrorResponse = t.Object({
 });
 
 export type ErrorResponse = typeof ErrorResponse.static;
+
+export function buildErrorResponse(code: ErrorCode): ErrorResponse {
+    return {
+        error_code: code,
+        error_message: getErrorMessage(code),
+    };
+}

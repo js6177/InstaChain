@@ -14,7 +14,6 @@ import { OAuthRequest } from 'models/http_server_models/OAuthRequest';
 import { OAuthResponse } from 'models/http_server_models/OAuthResponse';
 import { type OAuthUser } from 'models/db_models/OAuthUser';
 import { AuthorizeWithLayer2AuthTokenRequest } from 'models/http_server_models/AuthorizeWithLayer2AuthTokenRequest';
-import { UserKeys } from 'models/db_models/UserKeys';
 import { SearchUserRequest } from 'models/http_server_models/SearchUserRequest';
 import { SearchUserResponse } from 'models/http_server_models/SearchUserResponse';
 import { FindOauthUserRequest } from 'models/http_server_models/FindOauthUserRequest';
@@ -22,6 +21,36 @@ import { FindOAuthUserResponse } from 'models/http_server_models/FindOauthUserRe
 import { FindOauth2UserByIdRequest } from 'models/http_server_models/FindOauth2UserByIdRequest';
 import { FindOauth2UserByIdResponse } from 'models/http_server_models/FindOauth2UserByIdResponse';
 import { OAUTH_EXCHANGE, OAUTH_L2_TOKEN_AUTHORIZE, USER_FIND, USER_SEARCH, USER_FIND_BY_ID } from './utils/routes';
+import { ErrorCodes, type ErrorCode } from 'models/http_server_models/ErrorCodes';
+import { buildErrorResponse } from 'models/http_server_models/Common/ErrorResponse';
+
+function buildOAuthErrorResponse(code: ErrorCode): OAuthResponse {
+  return {
+    error_response: buildErrorResponse(code),
+    user: null,
+    user_keys: null,
+  };
+}
+
+function buildSearchUserErrorResponse(code: ErrorCode): SearchUserResponse {
+  return {
+    error_response: buildErrorResponse(code),
+    users: null,
+  };
+}
+
+function buildFindOAuthUserErrorResponse(code: ErrorCode): FindOAuthUserResponse {
+  return {
+    error_response: buildErrorResponse(code),
+    user: null,
+  };
+}
+
+function buildFindOauth2UserByIdErrorResponse(code: ErrorCode): FindOauth2UserByIdResponse {
+  return {
+    error_response: buildErrorResponse(code),
+  };
+}
 
 const config: ConfigInterface = loadConfig('../config.json');
 
@@ -56,96 +85,81 @@ const app = new Elysia()
         accessToken = await twitterOAuthManager.getTwitterAccessToken(requestBody.code, requestBody.code_verifier);
         let [userInfo, userKeys] = await twitterOAuthManager.getTwitterUserInfo(accessToken, mongoDb);
         let oauthResponse: OAuthResponse = {
-          error_response: {
-            error_code: 0,
-            error_message: 'Success'
-          },
+          error_response: buildErrorResponse(ErrorCodes.Success),
           user: userInfo,
           user_keys: userKeys
         }
         return oauthResponse;
       } catch (error) {
         set.status = 500;
-        return { error: 'Internal Server Error' };
+        return buildOAuthErrorResponse(ErrorCodes.InternalServerError);
       }
     } else if (requestBody.service === OAuthService.Github && githubOAuthManager) {
       try {
         accessToken = await githubOAuthManager.getGithubAccessToken(requestBody.code);
         let [userInfo, userKeys] = await githubOAuthManager.getGithubUserInfo(accessToken, mongoDb);
         let oauthResponse: OAuthResponse = {
-          error_response: {
-            error_code: 0,
-            error_message: 'Success'
-          },
+          error_response: buildErrorResponse(ErrorCodes.Success),
           user: userInfo,
           user_keys: userKeys
         }
         return oauthResponse;
       } catch (error) {
         set.status = 500;
-        return { error: 'Internal Server Error' };
+        return buildOAuthErrorResponse(ErrorCodes.InternalServerError);
       }
     } else if (requestBody.service === OAuthService.Google && googleOAuthManager) {
       try {
         accessToken = await googleOAuthManager.getGoogleAccessToken(requestBody.code);
         let [userInfo, userKeys] = await googleOAuthManager.getGoogleUserInfo(accessToken, mongoDb);
         let oauthResponse: OAuthResponse = {
-          error_response: {
-            error_code: 0,
-            error_message: 'Success'
-          },
+          error_response: buildErrorResponse(ErrorCodes.Success),
           user: userInfo,
           user_keys: userKeys
         }
         return oauthResponse;
       } catch (error) {
         set.status = 500;
-        return { error: 'Internal Server Error' };
+        return buildOAuthErrorResponse(ErrorCodes.InternalServerError);
       }
     } else if (requestBody.service === OAuthService.Facebook && facebookOAuthManager) {
       try {
         accessToken = await facebookOAuthManager.getFacebookAccessToken(requestBody.code);
         let [userInfo, userKeys] = await facebookOAuthManager.getFacebookUserInfo(accessToken, mongoDb);
         let oauthResponse: OAuthResponse = {
-          error_response: {
-            error_code: 0,
-            error_message: 'Success'
-          },
+          error_response: buildErrorResponse(ErrorCodes.Success),
           user: userInfo,
           user_keys: userKeys
         }
         return oauthResponse;
       } catch (error) {
         set.status = 500;
-        return { error: 'Internal Server Error' };
+        return buildOAuthErrorResponse(ErrorCodes.InternalServerError);
       }
     } else if (requestBody.service === OAuthService.Discord && discordOAuthManager) {
       try {
         accessToken = await discordOAuthManager.getDiscordAccessToken(requestBody.code);
         let [userInfo, userKeys] = await discordOAuthManager.getDiscordUserInfo(accessToken, mongoDb);
         let oauthResponse: OAuthResponse = {
-          error_response: {
-            error_code: 0,
-            error_message: 'Success'
-          },
+          error_response: buildErrorResponse(ErrorCodes.Success),
           user: userInfo,
           user_keys: userKeys
         }
         return oauthResponse;
       } catch (error) {
         set.status = 500;
-        return { error: 'Internal Server Error' };
+        return buildOAuthErrorResponse(ErrorCodes.InternalServerError);
       }
     }
 
     set.status = 400;
-    return { error: 'Unsupported service' };
+    return buildOAuthErrorResponse(ErrorCodes.UnsupportedService);
   }, {
     body: OAuthRequest,
     response: {
       200: OAuthResponse,
-      400: t.Object({ error: t.String() }),
-      500: t.Object({ error: t.String() })
+      400: OAuthResponse,
+      500: OAuthResponse,
     }
   })
   .post(OAUTH_L2_TOKEN_AUTHORIZE, async ({ body, set }) => {
@@ -154,29 +168,26 @@ const app = new Elysia()
       const [user, user_keys] = await mongoDb.authorizeOAuthUserWithLayer2Token(requestBody.layer2_oauth_token);
       if (user) {
         let oauthResponse: OAuthResponse = {
-          error_response: {
-            error_code: 0,
-            error_message: 'Success'
-          },
+          error_response: buildErrorResponse(ErrorCodes.Success),
           user: user,
           user_keys: user_keys
         }
         return oauthResponse;
       } else {
         set.status = 400;
-        return { error: 'Could not find user' };
+        return buildOAuthErrorResponse(ErrorCodes.UserNotFound);
       }
     }
     catch (error) {
       set.status = 500;
-      return { error: 'Internal Server Error' };
+      return buildOAuthErrorResponse(ErrorCodes.InternalServerError);
     }
   }, {
     body: AuthorizeWithLayer2AuthTokenRequest,
     response: {
       200: OAuthResponse,
-      400: t.Object({ error: t.String() }),
-      500: t.Object({ error: t.String() })
+      400: OAuthResponse,
+      500: OAuthResponse,
     }
   })
   .post(USER_SEARCH, async ({ body, set }) => {
@@ -190,28 +201,25 @@ const app = new Elysia()
       }
       if (user) {
         let searchUserResponse: SearchUserResponse = {
-          error_response: {
-            error_code: 0,
-            error_message: 'Success'
-          },
+          error_response: buildErrorResponse(ErrorCodes.Success),
           users: [user]
         }
         return searchUserResponse;
       } else {
         set.status = 400;
-        return { error: 'Could not find user' };
+        return buildSearchUserErrorResponse(ErrorCodes.UserNotFound);
       }
     }
     catch (error) {
       set.status = 500;
-      return { error: 'Internal Server Error' };
+      return buildSearchUserErrorResponse(ErrorCodes.InternalServerError);
     }
   }, {
     body: SearchUserRequest,
     response: {
       200: SearchUserResponse,
-      400: t.Object({ error: t.String() }),
-      500: t.Object({ error: t.String() })
+      400: SearchUserResponse,
+      500: SearchUserResponse,
     }
   })
   .post(USER_FIND, async ({ body, set }) => {
@@ -220,28 +228,25 @@ const app = new Elysia()
       const user = await mongoDb.findUser(null, requestBody.profile_url, true);
       if (user) {
         let searchUserResponse: FindOAuthUserResponse = {
-          error_response: {
-            error_code: 0,
-            error_message: 'Success'
-          },
+          error_response: buildErrorResponse(ErrorCodes.Success),
           user: user,
         }
         console.log("Search User Response:", searchUserResponse);
         return searchUserResponse;
       } else {
         set.status = 400;
-        return { error: 'Could not find user' };
+        return buildFindOAuthUserErrorResponse(ErrorCodes.UserNotFound);
       }
     } catch (error) {
       set.status = 500;
-      return { error: 'Internal Server Error' };
+      return buildFindOAuthUserErrorResponse(ErrorCodes.InternalServerError);
     }
   }, {
     body: FindOauthUserRequest,
     response: {
       200: FindOAuthUserResponse,
-      400: t.Object({ error: t.String() }),
-      500: t.Object({ error: t.String() })
+      400: FindOAuthUserResponse,
+      500: FindOAuthUserResponse,
     }
   })
   .post(USER_FIND_BY_ID, async ({ body, set }) => {
@@ -257,10 +262,7 @@ const app = new Elysia()
         }
         
         let response: FindOauth2UserByIdResponse = {
-          error_response: {
-            error_code: 0,
-            error_message: 'Success'
-          },
+          error_response: buildErrorResponse(ErrorCodes.Success),
           user: user,
           layer2_address_pubkey: pubkey
         };
@@ -268,19 +270,19 @@ const app = new Elysia()
         return response;
       } else {
         set.status = 404;
-        return { error: 'Could not find user' };
+        return buildFindOauth2UserByIdErrorResponse(ErrorCodes.UserNotFound);
       }
     } catch (error) {
       console.error(error);
       set.status = 500;
-      return { error: 'Internal Server Error' };
+      return buildFindOauth2UserByIdErrorResponse(ErrorCodes.InternalServerError);
     }
   }, {
     body: FindOauth2UserByIdRequest,
     response: {
       200: FindOauth2UserByIdResponse,
-      404: t.Object({ error: t.String() }),
-      500: t.Object({ error: t.String() })
+      404: FindOauth2UserByIdResponse,
+      500: FindOauth2UserByIdResponse,
     }
   })
   .listen({
@@ -290,5 +292,4 @@ const app = new Elysia()
     console.log(`Server is running on http://${host}:${port}`);
   });
 
-import { t } from 'elysia';
 export type App = typeof app
