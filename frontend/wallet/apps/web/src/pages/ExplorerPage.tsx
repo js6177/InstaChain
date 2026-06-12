@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Accordion } from "@/components/ui/accordion";
 import { useAddressBalance, useTransactions, useTransaction } from "../hooks/useLayer2Queries";
 import { useFindOAuthUserById } from "../hooks/useLayer2LedgerOauthManagerQueries";
-import type { OAuthService } from "@openl2/api-layer2oauthmanager";
+import type { FindOauth2UserByIdRequest, OAuthService } from "@openl2/api-layer2oauthmanager";
 import { TransactionItem } from "../components/TransactionItem";
 import { useDenominationStore, formatAmount, ROUTES, useWalletStore, LABELS, TEST_IDS } from "@wallet/shared";
 import { OAuthUserCard } from "../components/OAuthUserCard";
@@ -138,9 +138,13 @@ function SearchRouter() {
 function OAuthUserExplorerView() {
     const { service_name, service_specific_id } = useParams();
     const { denomination } = useDenominationStore();
-    // Cast the route param to the OAuthService enum
-    const serviceEnum = service_name as unknown as OAuthService;
-    const { data, isLoading: isLoadingUser, error } = useFindOAuthUserById(serviceEnum, service_specific_id);
+    const findUserByIdRequest: FindOauth2UserByIdRequest | undefined = service_name && service_specific_id
+        ? {
+            service_name: service_name as unknown as OAuthService,
+            service_specific_id,
+        }
+        : undefined;
+    const { data, isLoading: isLoadingUser, error } = useFindOAuthUserById(findUserByIdRequest);
 
     const userData = data?.user;
     const pubkey = data?.layer2_address_pubkey ?? "";

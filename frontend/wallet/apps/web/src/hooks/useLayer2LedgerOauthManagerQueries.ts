@@ -1,5 +1,4 @@
 import { useQuery, useMutation, type UseQueryResult, type UseMutationResult } from '@tanstack/react-query';
-import type { OAuthService } from '@openl2/api-layer2oauthmanager';
 import { treaty } from '@elysiajs/eden';
 import type {
     AuthorizeWithLayer2AuthTokenRequest,
@@ -13,6 +12,7 @@ import type {
     SearchUserRequest,
     SearchUserResponse,
 } from '@openl2/api-layer2oauthmanager';
+import { ErrorCodes } from '@openl2/layer2oauthmanager/http-server-models';
 import { LAYER2_OAUTH_API_URL } from '../config';
 
 const oauthApi = treaty(LAYER2_OAUTH_API_URL) as any;
@@ -27,7 +27,7 @@ function unwrapOAuthApiResponse<T extends { error_response: ErrorResponse }>(res
     if (!response) {
         throw new Error('Request failed');
     }
-    if (response.error_response.error_code !== 0) {
+    if (response.error_response.error_code !== ErrorCodes.Success) {
         throw new Error(response.error_response.error_message);
     }
     return response;
@@ -59,16 +59,12 @@ async function postOAuthExchange(params: OAuthRequest): Promise<OAuthResponse> {
 }
 
 export const useFindOAuthUserById = (
-    serviceName: OAuthService | undefined,
-    serviceSpecificId: string | undefined,
+    params: FindOauth2UserByIdRequest | undefined,
 ): UseQueryResult<FindOauth2UserByIdResponse, Error> => {
     return useQuery<FindOauth2UserByIdResponse, Error>({
-        queryKey: ['OAuthFindUserById', serviceName, serviceSpecificId],
-        queryFn: () => postOAuthFindUserById({
-            service_name: serviceName!,
-            service_specific_id: serviceSpecificId!,
-        }),
-        enabled: !!serviceName && !!serviceSpecificId,
+        queryKey: ['OAuthFindUserById', params],
+        queryFn: () => postOAuthFindUserById(params!),
+        enabled: !!params?.service_name && !!params?.service_specific_id,
         staleTime: Infinity,
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
