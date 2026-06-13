@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useDenominationStore, Denomination, LABELS } from "@wallet/shared";
+import { useDenominationStore, Denomination, LABELS } from "@openl2/wallet-shared";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";

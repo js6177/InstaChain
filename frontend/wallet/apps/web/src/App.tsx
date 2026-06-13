@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
-import { useThemeStore } from "@wallet/shared";
+import { useThemeStore } from "@openl2/wallet-shared";
 import { Toggle } from "@/components/ui/toggle";
 import { Moon, Sun } from "lucide-react";
 import { useEffect } from "react";

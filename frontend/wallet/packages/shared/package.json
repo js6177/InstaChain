@@ -1,5 +1,5 @@
 {
-  "name": "@wallet/shared",
+  "name": "@openl2/wallet-shared",
   "version": "0.0.0",
   "type": "module",
   "main": "./index.ts",

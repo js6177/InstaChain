@@ -3,7 +3,7 @@ import { render } from 'vitest-browser-react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import App from '@/App'
-import { Layer2Wallet, useWalletStore, TEST_IDS } from '@wallet/shared'
+import { Layer2Wallet, useWalletStore, TEST_IDS } from '@openl2/wallet-shared'
 import { TestKeysModel } from './test-keys.model'
 
 test('wallet is restored from mnemonic', async () => {

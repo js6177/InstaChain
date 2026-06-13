@@ -8,7 +8,7 @@ import type { GetTransactionsResponseTransaction } from "@openl2/api-layer2ledge
 import { TransactionType } from "@openl2/openl2-messaging";
 import { ArrowDownIcon, ArrowUpIcon, ArrowRightLeftIcon } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useDenominationStore, formatAmount, ROUTES, LABELS, TEST_IDS } from "@wallet/shared";
+import { useDenominationStore, formatAmount, ROUTES, LABELS, TEST_IDS } from "@openl2/wallet-shared";
 
 interface TransactionItemProps {
     transaction: GetTransactionsResponseTransaction;

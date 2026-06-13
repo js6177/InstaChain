@@ -9,7 +9,7 @@ import { useAddressBalance, useTransactions, useTransaction } from "../hooks/use
 import { useFindOAuthUserById } from "../hooks/useLayer2LedgerOauthManagerQueries";
 import type { FindOauth2UserByIdRequest, OAuthService } from "@openl2/api-layer2oauthmanager";
 import { TransactionItem } from "../components/TransactionItem";
-import { useDenominationStore, formatAmount, ROUTES, useWalletStore, LABELS, TEST_IDS } from "@wallet/shared";
+import { useDenominationStore, formatAmount, ROUTES, useWalletStore, LABELS, TEST_IDS } from "@openl2/wallet-shared";
 import { OAuthUserCard } from "../components/OAuthUserCard";
 
 function SearchBar() {

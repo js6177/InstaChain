@@ -1,4 +1,4 @@
-import { useWalletStore, ROUTES } from "@wallet/shared";
+import { useWalletStore, ROUTES } from "@openl2/wallet-shared";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
