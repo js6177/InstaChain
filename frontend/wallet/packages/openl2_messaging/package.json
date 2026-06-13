@@ -1,5 +1,5 @@
 {
-  "name": "openl2_messaging",
+  "name": "@openl2/openl2-messaging",
   "version": "1.0.0",
   "description": "TypeScript clone of openl2_messaging package for layer2ledger API",
   "main": "src/index.ts",

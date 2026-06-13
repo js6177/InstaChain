@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { MNEUMONIC_WORD_COUNT, useWalletStore, useDenominationStore, formatAmount, parseAmountToSats, Denomination, LABELS, TEST_IDS } from "@wallet/shared";
-import { buildGetDepositAddressMessage, buildTransferMessage, buildWithdrawalRequestMessage } from "openl2_messaging";
+import { buildGetDepositAddressMessage, buildTransferMessage, buildWithdrawalRequestMessage } from "@openl2/openl2-messaging";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";

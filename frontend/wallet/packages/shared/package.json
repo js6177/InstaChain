@@ -21,7 +21,7 @@
     "bs58": "^6.0.0",
     "@openl2/api-layer2ledger": "workspace:*",
     "@openl2/api-layer2oauthmanager": "workspace:*",
-    "openl2_messaging": "workspace:*"
+    "@openl2/openl2-messaging": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.4.0",

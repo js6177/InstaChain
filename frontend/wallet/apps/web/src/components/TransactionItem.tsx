@@ -5,7 +5,7 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import type { GetTransactionsResponseTransaction } from "@openl2/api-layer2ledger";
-import { TransactionType } from "openl2_messaging";
+import { TransactionType } from "@openl2/openl2-messaging";
 import { ArrowDownIcon, ArrowUpIcon, ArrowRightLeftIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useDenominationStore, formatAmount, ROUTES, LABELS, TEST_IDS } from "@wallet/shared";
