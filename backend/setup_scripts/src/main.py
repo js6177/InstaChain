@@ -1,4 +1,4 @@
-from config_models import Layer2LedgerCommonSettings, SettingsLayer2Address, Layer2LedgerAPIHandlerSettings, PostgresqlDatabaseSettings, RedisSettings, Layer2LedgerDockerEnvSettings, Layer2BridgeBitcoinConfFileSettings, Layer2BridgeSettings, CommonBackendSettings
+from config_models import Layer2LedgerCommonSettings, SettingsLayer2Address, Layer2LedgerAPIHandlerSettings, PostgresqlDatabaseSettings, RedisSettings, Layer2LedgerDockerEnvSettings, Layer2LedgerOAuthManagerDockerEnvSettings, Layer2LedgerOAuthManagerConfig, Layer2BridgeBitcoinConfFileSettings, Layer2BridgeSettings, CommonBackendSettings
 from config_loader import get_config_directory, get_env_specific_config_directory, get_project_root, get_config_file_path, get_layer2bridge_bitcoinconf_file_path, get_bitcoincore_conf_directory, Services
 from misc_utils import generate_secure_password, generate_alphanumeric_id
 from layer2address import Layer2Address
@@ -37,6 +37,52 @@ def get_layer2ledgerbatched_docker_env_settings(environment: str) -> Layer2Ledge
     config_file_path = root_path / 'backend/layer2ledgerbatched' / f'.env.{environment}'
     settings = Layer2LedgerDockerEnvSettings.load_from_path(str(config_file_path))
     return settings
+
+def get_layer2ledgeroauthmanager_docker_env_settings(environment: str) -> Layer2LedgerOAuthManagerDockerEnvSettings:
+    root_path = get_project_root()
+    config_file_path = root_path / 'backend' / 'layer2ledgeroauthmanager' / f'.env.{environment}'
+    return Layer2LedgerOAuthManagerDockerEnvSettings.load_from_path(str(config_file_path))
+
+def generate_layer2ledgeroauthmanager_config(environment: str, containered: bool = True) -> None:
+    print(f"\nGenerating OAuth manager config for environment: {environment}")
+
+    project_root = get_project_root()
+    out_config_dir = get_env_specific_config_directory(environment=environment)
+    if not out_config_dir.exists():
+        out_config_dir.mkdir(parents=True, exist_ok=True)
+
+    oauth_docker_env = get_layer2ledgeroauthmanager_docker_env_settings(environment)
+    mongo_host = oauth_docker_env.mongodb_host if containered else "localhost"
+    server_host = "0.0.0.0" if containered else oauth_docker_env.server_host
+
+    config_path = get_config_file_path(Services.LAYER2LEDGEROAUTHMANAGER, environment)
+    default_config_path = project_root / 'backend' / 'layer2ledgeroauthmanager' / 'config.json'
+
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            config_data = json.load(f)
+    elif default_config_path.exists():
+        with open(default_config_path, 'r') as f:
+            config_data = json.load(f)
+    else:
+        config_data = {}
+
+    config_data["server"] = {
+        "port": oauth_docker_env.server_port,
+        "host": server_host,
+    }
+    config_data["mongoDb"] = {
+        "host": mongo_host,
+        "port": oauth_docker_env.mongodb_port,
+        "dbName": oauth_docker_env.mongodb_db_name,
+    }
+
+    config: Layer2LedgerOAuthManagerConfig = Layer2LedgerOAuthManagerConfig.model_validate(config_data)
+
+    with open(config_path, 'w') as f:
+        json.dump(config.model_dump(mode='json', by_alias=True), f, indent=4)
+
+    print(f"Generated OAuth manager config at: {config_path}")
 
 def generate_keys(env: str, containered: bool = True) -> Tuple[Layer2BridgeSettings, MasterKeys]:
     print(f"\nLoading configurations for environment: {env}")
@@ -250,13 +296,17 @@ async def main() -> None:
     parser.add_argument('-env', type=str, default='dev', help='Environment to use (default: dev)')
     parser.add_argument('-generate-keys', action='store_true', help='Generate keys and save to config files')
     parser.add_argument('-import-keys-to-bitcoin-core', action='store_true', help='Import generated keys to Bitcoin Core')
+    parser.add_argument('-generate-oauth-config', action='store_true', help='Generate layer2ledgeroauthmanager config.json from docker env file')
     parser.add_argument('-containered', type=str2bool, default=True, help='Whether the setup is for a containered environment (default: True)')
     parser.add_argument('-overwrite-bitcoinconf', action='store_true', default=False, help='Overwrite the system bitcoin.conf with the project one (only if -containered is False) (default: True)')
     args = parser.parse_args()
 
-    if not args.generate_keys and not args.import_keys_to_bitcoin_core:
+    if not args.generate_keys and not args.import_keys_to_bitcoin_core and not args.generate_oauth_config:
         parser.print_help()
         return
+
+    if args.generate_oauth_config:
+        generate_layer2ledgeroauthmanager_config(args.env, containered=args.containered)
 
     bridge_settings = None
     btc_keys = None

@@ -1,5 +1,5 @@
 import axios from "axios";
-import { type OAuth2ServiceParams } from  "models/config_models/Config";
+import { type OAuth2ServiceParams } from '@openl2/config-loader';
 import { OAuthUserModel, type OAuthUser } from "models/db_models/OAuthUser";
 import { type DatabaseInterface } from "../DatabaseInterface";
 import { GenerateUUID, MillisecondsInMonth } from "../utils/utils";

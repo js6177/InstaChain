@@ -8,6 +8,7 @@ from config_models.models import (
     Layer2LedgerAPIHandlerSettings,
     Layer2BridgeSettings,
     CommonBackendSettings,
+    Layer2LedgerOAuthManagerConfig,
 )
 
 class Services(StrEnum):
@@ -187,3 +188,12 @@ def get_backend_common_config(environment: str = Environment.DEFAULT.value) -> C
     with open(config_file, "r") as f:
         config_data = json.load(f)
     return CommonBackendSettings.model_validate(config_data)
+
+def get_layer2ledgeroauthmanager_config(environment: str = Environment.DEFAULT.value) -> Layer2LedgerOAuthManagerConfig:
+    """
+    Returns the layer2ledgeroauthmanager config for the given environment.
+    """
+    config_file = get_config_file_path(Services.LAYER2LEDGEROAUTHMANAGER, environment)
+    with open(config_file, "r") as f:
+        config_data = json.load(f)
+    return Layer2LedgerOAuthManagerConfig.model_validate(config_data)

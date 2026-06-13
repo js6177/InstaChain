@@ -1,16 +1,111 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
+    "inputs": [
+        {
+            "id": "setupScriptCommand",
+            "type": "pickString",
+            "description": "Setup script command",
+            "options": [
+                "-generate-oauth-config",
+                "-generate-keys",
+                "-import-keys-to-bitcoin-core"
+            ],
+            "default": "-generate-oauth-config"
+        },
+        {
+            "id": "setupScriptEnv",
+            "type": "pickString",
+            "description": "Environment",
+            "options": [
+                "dev",
+                "prod",
+                "test"
+            ],
+            "default": "dev"
+        },
+        {
+            "id": "setupScriptContainered",
+            "type": "pickString",
+            "description": "Containered setup",
+            "options": [
+                "true",
+                "false"
+            ],
+            "default": "true"
+        }
+    ],
     "configurations": [
-        
+        {
+            "name": "Setup Scripts: main.py (with args)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/main.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${command:python.interpreterPath}",
+            "args": [
+                "${input:setupScriptCommand}",
+                "-env",
+                "${input:setupScriptEnv}",
+                "-containered",
+                "${input:setupScriptContainered}"
+            ],
+            "justMyCode": true
+        },
+        {
+            "name": "Setup Scripts: Generate OAuth Config",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/main.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${command:python.interpreterPath}",
+            "args": [
+                "-generate-oauth-config",
+                "-env",
+                "dev"
+            ],
+            "justMyCode": true
+        },
+        {
+            "name": "Setup Scripts: Generate Keys",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/main.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${command:python.interpreterPath}",
+            "args": [
+                "-generate-keys",
+                "-env",
+                "dev"
+            ],
+            "justMyCode": true
+        },
+        {
+            "name": "Setup Scripts: Import Keys to Bitcoin Core",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/main.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${command:python.interpreterPath}",
+            "args": [
+                "-import-keys-to-bitcoin-core",
+                "-env",
+                "dev"
+            ],
+            "justMyCode": true
+        },
         {
             "name": "Python Debugger: Current File",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${command:python.interpreterPath}",
+            "justMyCode": true
         }
     ]
 }

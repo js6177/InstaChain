@@ -1,0 +1,19 @@
+{
+  "name": "@openl2/config-loader",
+  "module": "./index.ts",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": {
+      "types": "./index.ts",
+      "import": "./index.ts",
+      "default": "./index.ts"
+    }
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

@@ -1,6 +1,7 @@
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator, ConfigDict
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import string
+from pathlib import Path
 from typing import Optional
 
 # Layer2Ledger settings
@@ -40,6 +41,63 @@ class Layer2LedgerDockerEnvSettings(BaseSettings):
         template = string.Template(self.database_url.replace("${", "$"))
         self.redis_url = template.safe_substitute(self.model_dump())
         return self
+
+
+class Layer2LedgerOAuthManagerDockerEnvSettings(BaseSettings):
+    server_host: str
+    server_port: int
+    mongodb_host: str
+    mongodb_port: int
+    mongodb_db_name: str
+    layer2oauth_port: int
+
+    model_config = SettingsConfigDict(env_file='.env')
+
+    @classmethod
+    def load_from_path(cls, env_path: str):
+        path = Path(env_path)
+        if not path.is_file():
+            raise FileNotFoundError(f"Environment file not found: {env_path}")
+        return cls(_env_file=env_path)
+
+
+class OAuth2ServiceParams(BaseModel):
+    client_id: str = Field(alias="clientId")
+    client_secret: str = Field(alias="clientSecret")
+    redirect_uri: str | None = Field(default=None, alias="redirectUri")
+    authorization_uri: str | None = Field(default=None, alias="authorizationUri")
+    token_uri: str | None = Field(default=None, alias="tokenUri")
+    use_basic_authorization_header: bool | None = Field(default=None, alias="useBasicAuthorizationHeader")
+    scopes: list[str] | None = None
+    fields: list[str] | None = None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class ExpressServerConfig(BaseModel):
+    port: int
+    host: str
+
+
+class MongoDbConfig(BaseModel):
+    host: str
+    port: int
+    db_name: str = Field(alias="dbName")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class Layer2LedgerOAuthManagerConfig(BaseModel):
+    server: ExpressServerConfig
+    mongo_db: MongoDbConfig = Field(alias="mongoDb")
+    twitter: OAuth2ServiceParams | None = None
+    github: OAuth2ServiceParams | None = None
+    google: OAuth2ServiceParams | None = None
+    facebook: OAuth2ServiceParams | None = None
+    discord: OAuth2ServiceParams | None = None
+    tiktok: OAuth2ServiceParams | None = None
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 # Settings of the subprojects, written as json files

@@ -2,8 +2,7 @@ import { Elysia } from 'elysia';
 import { OAuthService } from 'models/http_server_models/OAuthRequest';
 import { cors } from '@elysiajs/cors';
 import { DatabaseInterface } from './DatabaseInterface';
-import { loadConfig } from 'ConfigInterface';
-import type { ConfigInterface } from "models/config_models/Config";
+import { loadOAuthManagerConfig, type ConfigInterface } from '@openl2/config-loader';
 
 import { TwitterOAuthManager } from 'OAuthInterfaces/TwitterOAuthManger';
 import { GithubOAuthManager } from 'OAuthInterfaces/GithubOAuthManager';
@@ -52,7 +51,7 @@ function buildFindOauth2UserByIdErrorResponse(code: ErrorCode): FindOauth2UserBy
   };
 }
 
-const config: ConfigInterface = loadConfig('../config.json');
+const config: ConfigInterface = loadOAuthManagerConfig();
 
 const port = config.server.port;
 const host = config.server.host;
@@ -77,6 +76,7 @@ if (!connected) {
 
 const app = new Elysia()
   .use(cors())
+  .get('/health', () => ({ status: 'ok' }))
   .post(OAUTH_EXCHANGE, async ({ body, set }) => {
     const requestBody: OAuthRequest = body;
     let accessToken = '';

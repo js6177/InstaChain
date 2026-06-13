@@ -2,7 +2,7 @@ export const db_name: string = "my_db";
 import mongoose from 'mongoose';
 
 
-import { type MongoDbConfig } from 'models/config_models/Config';
+import { type MongoDbConfig } from '@openl2/config-loader';
 import {OAuthUserModel, type OAuthUser} from 'models/db_models/OAuthUser';
 import {UserKeys, UserKeysModel} from 'models/db_models/UserKeys';
 import {GenerateMneumonic} from 'utils/mneumonic';

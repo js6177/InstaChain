@@ -14,6 +14,7 @@ from .loader import (
     get_layer2ledgerbatched_layer2ledgerapihandler_config,
     get_layer2ledgerbridge_config,
     get_backend_common_config,
+    get_layer2ledgeroauthmanager_config,
 )
 
 __all__ = [
@@ -32,4 +33,5 @@ __all__ = [
     "get_layer2ledgerbatched_layer2ledgerapihandler_config",
     "get_layer2ledgerbridge_config",
     "get_backend_common_config",
+    "get_layer2ledgeroauthmanager_config",
 ]
