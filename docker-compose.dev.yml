@@ -1,0 +1,16 @@
+# Dev overlay for layer2ledgeroauthmanager (debugger attach on LAYER2OAUTH_DEBUG_PORT).
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build layer2ledger-mongodb layer2ledgeroauthmanager
+services:
+  layer2ledgeroauthmanager:
+    ports:
+      - "${LAYER2OAUTH_DEBUG_PORT:-6499}:6499"
+    command:
+      - bun run dev:debug
+    volumes:
+      - ./backend/layer2ledgeroauthmanager/src:/app/backend/layer2ledgeroauthmanager/src:ro
+      - ./shared/config-loader:/app/shared/config-loader:ro
+      - ./shared/pubkey-utils:/app/shared/pubkey-utils:ro
+    healthcheck:
+      disable: true
+    restart: "no"

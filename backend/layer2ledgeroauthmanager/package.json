@@ -32,6 +32,7 @@
   },
   "scripts": {
     "dev": "bun run src/index.ts",
+    "dev:debug": "bun --inspect-wait=0.0.0.0:6499 run src/index.ts",
     "start": "bun run src/index.ts",
     "build": "tsc"
   }

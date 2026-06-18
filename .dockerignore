@@ -1,0 +1,8 @@
+**/node_modules
+**/.turbo
+**/dist
+**/.next
+**/build
+.git
+.config
+*.md
