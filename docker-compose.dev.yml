@@ -6,7 +6,9 @@ services:
     ports:
       - "${LAYER2OAUTH_DEBUG_PORT:-6499}:6499"
     command:
-      - bun run dev:debug
+      - bun
+      - run
+      - dev:debug
     volumes:
       - ./backend/layer2ledgeroauthmanager/src:/app/backend/layer2ledgeroauthmanager/src:ro
       - ./shared/config-loader:/app/shared/config-loader:ro
