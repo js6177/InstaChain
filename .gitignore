@@ -1,7 +1,6 @@
 # recommended python gitignore file, take from
 # https://github.com/github/gitignore/blob/main/Python.gitignore
 
-Wallet/*.json
 
 #general temp files
 *.tmp
@@ -309,8 +308,3 @@ dist
 .pnp.*
 
 #misc
-Wallet-JS/.todo.txt
-Wallet-JS/tmp/
-Wallet-JS/.vscode/settings.json
-Node/Layer2Ledger/.vscode/settings.json
-Node/Layer2Bridge/.vscode/settings.json
