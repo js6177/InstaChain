@@ -12,7 +12,7 @@ import type {
     SearchUserRequest,
     SearchUserResponse,
 } from '@openl2/api-layer2oauthmanager';
-import { ErrorCodes } from '@openl2/layer2oauthmanager/http-server-models';
+import { ErrorCodes } from '@openl2/api-layer2oauthmanager';
 import { LAYER2_OAUTH_API_URL } from '../config';
 
 const oauthApi = treaty(LAYER2_OAUTH_API_URL) as any;

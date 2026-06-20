@@ -76,3 +76,23 @@ services:
     healthcheck:
       disable: true
     restart: "no"
+
+  wallet-web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.wallet-web
+      target: dev
+    ports: !override
+      - "${WALLET_WEB_PORT:-5173}:5173"
+    env_file:
+      - ./frontend/wallet/.env.docker
+    volumes:
+      - ./frontend/wallet/apps/web/src:/app/frontend/wallet/apps/web/src:ro
+      - ./frontend/wallet/packages:/app/frontend/wallet/packages:ro
+      - ./shared:/app/shared:ro
+    depends_on:
+      layer2ledgerapihandler:
+        condition: service_started
+      layer2ledgeroauthmanager:
+        condition: service_started
+    restart: "no"

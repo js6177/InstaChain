@@ -13,19 +13,19 @@ const FACEBOOK_OAuth2_CLIENT_ID: string = import.meta.env.VITE_FACEBOOK_OAUTH_CL
 const DISCORD_OAuth2_CLIENT_ID: string = import.meta.env.VITE_DISCORD_OAUTH_CLIENT_ID || "1510783980168024164";
 
 const GOOGLE_AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth";
-const GOOGLE_REDIRECT_URL = "http://localhost:5173/oauth2/google/callback";
+const GOOGLE_REDIRECT_URL = `${import.meta.env.VITE_APP_ORIGIN || "http://localhost:5173"}/oauth2/google/callback`;
 
 const GITHUB_AUTHORIZATION_URL = "https://github.com/login/oauth/authorize";
-const GITHUB_REDIRECT_URL = "http://localhost:5173/oauth2/github/callback";
+const GITHUB_REDIRECT_URL = `${import.meta.env.VITE_APP_ORIGIN || "http://localhost:5173"}/oauth2/github/callback`;
 
 const TWITTER_AUTHORIZATION_URL = "https://twitter.com/i/oauth2/authorize";
-const TWITTER_REDIRECT_URL = "http://localhost:5173/oauth2/twitter/callback";
+const TWITTER_REDIRECT_URL = `${import.meta.env.VITE_APP_ORIGIN || "http://localhost:5173"}/oauth2/twitter/callback`;
 
 const FACEBOOK_AUTHORIZATION_URL = "https://www.facebook.com/v19.0/dialog/oauth";
-const FACEBOOK_REDIRECT_URL = "http://localhost:5173/oauth2/facebook/callback";
+const FACEBOOK_REDIRECT_URL = `${import.meta.env.VITE_APP_ORIGIN || "http://localhost:5173"}/oauth2/facebook/callback`;
 
 const DISCORD_AUTHORIZATION_URL = "https://discord.com/api/oauth2/authorize";
-const DISCORD_REDIRECT_URL = "http://localhost:5173/oauth2/discord/callback";
+const DISCORD_REDIRECT_URL = `${import.meta.env.VITE_APP_ORIGIN || "http://localhost:5173"}/oauth2/discord/callback`;
 
 interface OAuthProps {
   onSuccess: (data: OAuthResponse) => void;

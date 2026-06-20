@@ -25,6 +25,8 @@ downloads/
 eggs/
 .eggs/
 lib/
+!frontend/wallet/apps/web/src/lib/
+!frontend/wallet/apps/web/src/lib/**
 lib64/
 parts/
 sdist/
