@@ -1,35 +1,45 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "type": "chrome",
-            "request": "launch",
-            "name": "Debug Vite in Chrome",
-            "url": "http://localhost:5173",
-            "userDataDir": "/home/js/.config/google-chrome/Profile 1",
-            "runtimeArgs": [
-                "--profile-directory=Profile 1"
-            ],
-            "webRoot": "${workspaceFolder}/apps/web",
-            "sourceMaps": true,
-            "sourceMapPathOverrides": {
-                "/src/*": "${workspaceFolder}/apps/web/src/*",
-                "/@fs/*": "*",
-                "../src/*": "${workspaceFolder}/apps/web/src/*"
-            },
-            "resolveSourceMapLocations": [
-                "${workspaceFolder}/apps/web/**",
-                "!**/node_modules/**"
-            ]
-        },
-        {
-            "type": "chrome",
-            "request": "attach",
-            "name": "Attach to Chrome",
-            "port": 9222,
-            "url": "http://localhost:5173",
-            "webRoot": "${workspaceFolder}"
-        }
-        
-    ]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "chrome",
+      "request": "attach",
+      "name": "Attach: wallet-web (Docker)",
+      "port": 9222,
+      "address": "127.0.0.1",
+      "urlFilter": "http://localhost:5173/*",
+      "webRoot": "${workspaceFolder}/apps/web",
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "/app/frontend/wallet/apps/web/src/*": "${workspaceFolder}/apps/web/src/*",
+        "/app/frontend/wallet/apps/web/*": "${workspaceFolder}/apps/web/*",
+        "/app/frontend/wallet/packages/*": "${workspaceFolder}/packages/*",
+        "/src/*": "${workspaceFolder}/apps/web/src/*",
+        "../src/*": "${workspaceFolder}/apps/web/src/*",
+        "/@fs/*": "*"
+      },
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/apps/web/**",
+        "${workspaceFolder}/packages/**",
+        "!**/node_modules/**"
+      ]
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Debug Vite in Chrome (local)",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/apps/web",
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "/src/*": "${workspaceFolder}/apps/web/src/*",
+        "/@fs/*": "*",
+        "../src/*": "${workspaceFolder}/apps/web/src/*"
+      },
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/apps/web/**",
+        "!**/node_modules/**"
+      ]
+    }
+  ]
 }
