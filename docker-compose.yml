@@ -47,6 +47,11 @@ services:
       - "${LAYER2LEDGER_FASTAPI_PORT:-8000}:8000"
     env_file:
       - ./backend/layer2ledgerbatched/.env.${ENVIRONMENT:-dev}
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      OPENL2_CONFIG_PATH: /app/.config
+    volumes:
+      - ./.config:/app/.config:ro
     depends_on:
       layer2ledger-postgres:
         condition: service_healthy
@@ -60,6 +65,11 @@ services:
       dockerfile: ../docker/Dockerfile.layer2ledgerdbwriter
     env_file:
       - ./backend/layer2ledgerbatched/.env.${ENVIRONMENT:-dev}
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      OPENL2_CONFIG_PATH: /app/.config
+    volumes:
+      - ./.config:/app/.config:ro
     depends_on:
       layer2ledger-postgres:
         condition: service_healthy

@@ -24,6 +24,12 @@ class Environment(StrEnum):
     TEST = "test"
     DEFAULT = "prod" # default to prod if not specified
 
+def resolve_environment(environment: str | None = None) -> str:
+    """Use explicit arg, else ENVIRONMENT env var, else Environment.DEFAULT."""
+    if environment is not None:
+        return environment
+    return os.getenv("ENVIRONMENT", Environment.DEFAULT.value)
+
 def get_output_directory() -> Path:
     """
     Returns the path to the output directory where logs and other output files will be stored.
@@ -153,46 +159,51 @@ def get_project_root() -> Path:
             return parent
     raise FileNotFoundError("Project root with .git folder not found.")
 
-def get_layer2ledgerbatched_common_config(environment: str = Environment.DEFAULT.value) -> Layer2LedgerCommonSettings:
+def get_layer2ledgerbatched_common_config(environment: str | None = None) -> Layer2LedgerCommonSettings:
     """
     Returns the Layer2LedgerCommonSettings model for the given environment.
     """
+    environment = resolve_environment(environment)
     config_file = get_config_file_path(Services.LAYER2LEDGERBATCHED_COMMON, environment)
     with open(config_file, "r") as f:
         config_data = json.load(f)
     return Layer2LedgerCommonSettings.model_validate(config_data)
 
-def get_layer2ledgerbatched_layer2ledgerapihandler_config(environment: str = Environment.DEFAULT.value) -> Layer2LedgerAPIHandlerSettings:
+def get_layer2ledgerbatched_layer2ledgerapihandler_config(environment: str | None = None) -> Layer2LedgerAPIHandlerSettings:
     """
     Returns the Layer2LedgerAPIHandlerSettings model for the given environment.
     """
+    environment = resolve_environment(environment)
     config_file = get_config_file_path(Services.LAYER2LEDGERBATCHED_LAYER2LEDGERAPIHANDLER, environment)
     with open(config_file, "r") as f:
         config_data = json.load(f)
     return Layer2LedgerAPIHandlerSettings.model_validate(config_data)
 
-def get_layer2ledgerbridge_config(environment: str = Environment.DEFAULT.value) -> Layer2BridgeSettings:
+def get_layer2ledgerbridge_config(environment: str | None = None) -> Layer2BridgeSettings:
     """
     Returns the Layer2BridgeSettings model for the given environment.
     """
+    environment = resolve_environment(environment)
     config_file = get_config_file_path(Services.LAYER2LEDGERBRIDGE, environment)
     with open(config_file, "r") as f:
         config_data = json.load(f)
     return Layer2BridgeSettings.model_validate(config_data)
 
-def get_backend_common_config(environment: str = Environment.DEFAULT.value) -> CommonBackendSettings:
+def get_backend_common_config(environment: str | None = None) -> CommonBackendSettings:
     """
     Returns the CommonBackendSettings model for the given environment.
     """
+    environment = resolve_environment(environment)
     config_file = get_config_file_path(Services.BACKEND_COMMON, environment)
     with open(config_file, "r") as f:
         config_data = json.load(f)
     return CommonBackendSettings.model_validate(config_data)
 
-def get_layer2ledgeroauthmanager_config(environment: str = Environment.DEFAULT.value) -> Layer2LedgerOAuthManagerConfig:
+def get_layer2ledgeroauthmanager_config(environment: str | None = None) -> Layer2LedgerOAuthManagerConfig:
     """
     Returns the layer2ledgeroauthmanager config for the given environment.
     """
+    environment = resolve_environment(environment)
     config_file = get_config_file_path(Services.LAYER2LEDGEROAUTHMANAGER, environment)
     with open(config_file, "r") as f:
         config_data = json.load(f)

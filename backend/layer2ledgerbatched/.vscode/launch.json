@@ -55,6 +55,46 @@
             "env": {
                 "PYTHONPATH": "${workspaceFolder}/src"
             }
+        },
+        {
+            "name": "Attach: layer2ledgerapihandler (Docker)",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {
+                "host": "127.0.0.1",
+                "port": 5678
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/src",
+                    "remoteRoot": "/app/layer2ledgerbatched/src"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/../packages",
+                    "remoteRoot": "/app/packages"
+                }
+            ],
+            "justMyCode": true
+        },
+        {
+            "name": "Attach: layer2ledgerdbwriter (Docker)",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {
+                "host": "127.0.0.1",
+                "port": 5679
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/src",
+                    "remoteRoot": "/app/layer2ledgerbatched/src"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/../packages",
+                    "remoteRoot": "/app/packages"
+                }
+            ],
+            "justMyCode": true
         }
     ]
 }

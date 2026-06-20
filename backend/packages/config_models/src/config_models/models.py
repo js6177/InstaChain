@@ -21,7 +21,7 @@ class Layer2LedgerDockerEnvSettings(BaseSettings):
 
     layer2ledger_fastapi_port: int
 
-    model_config = SettingsConfigDict(env_file='.env')
+    model_config = SettingsConfigDict(env_file='.env', extra='ignore')
 
     @classmethod
     def load_from_path(cls, env_path: str):

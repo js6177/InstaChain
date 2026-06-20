@@ -7,14 +7,14 @@ from sqlalchemy import select, func
 
 import layer2ledgerbatched.common.redis.redis_driver.redis_driver as redis_driver
 
-from config_loader.loader import Environment, get_layer2ledgerbatched_common_config
+from config_loader.loader import get_layer2ledgerbatched_common_config
 from layer2ledgerbatched.common.db.models import Transaction, Layer2AddressBalance, TransactionType, Base, model_to_dict, WithdrawalRequests
 from layer2ledgerbatched.common.redis.redis_driver.distributed_lock import DistributedLock
 from layer2ledgerbatched.common.redis.redis_models.transactions import PendingTransaction, PENDING_TRANSACTIONS_LIST_KEY
 from layer2ledgerbatched.common.redis.redis_models.withdrawal import PendingWithdrawal, PENDING_WITHDRAWALS_LIST_KEY
 
-async def setup_clients(environment:Environment = Environment.DEFAULT) -> tuple[redis.Redis, AsyncSession, DistributedLock]:
-    settings = get_layer2ledgerbatched_common_config(environment.value)
+async def setup_clients() -> tuple[redis.Redis, AsyncSession, DistributedLock]:
+    settings = get_layer2ledgerbatched_common_config()
     redis_pool = redis.ConnectionPool.from_url(
         f"redis://{settings.redis.host}:{settings.redis.port}",
         max_connections=20
@@ -49,8 +49,8 @@ async def get_current_batch_height(db: AsyncSession) -> int:
     
     return max(max_tx, max_wr)
 
-async def process_pending_transactions(environment: Environment = Environment.DEFAULT) -> None:
-    redis_client, db, lock_manager = await setup_clients(environment)
+async def process_pending_transactions() -> None:
+    redis_client, db, lock_manager = await setup_clients()
 
     current_batch_height = await get_current_batch_height(db)
 

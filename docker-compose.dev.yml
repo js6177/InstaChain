@@ -1,7 +1,67 @@
-# Dev overlay for layer2ledgeroauthmanager (debugger attach on LAYER2OAUTH_DEBUG_PORT).
+# Dev overlay: remote debug ports and source bind mounts.
 # Usage:
-#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build layer2ledger-mongodb layer2ledgeroauthmanager
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#   make dev
 services:
+  layer2ledgerapihandler:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.layer2ledgerapihandler
+      args:
+        INSTALL_DEBUG: "1"
+    ports:
+      - "${LAYER2LEDGER_APIHANDLER_DEBUG_PORT:-5678}:5678"
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      OPENL2_CONFIG_PATH: /app/.config
+      PYTHONPATH: /app/layer2ledgerbatched/src
+    command:
+      - python
+      - -m
+      - debugpy
+      - --listen
+      - 0.0.0.0:5678
+      - --wait-for-client
+      - -m
+      - uvicorn
+      - layer2ledgerbatched.layer2ledgerapihandler.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+    volumes:
+      - ./.config:/app/.config:ro
+      - ./backend/layer2ledgerbatched/src:/app/layer2ledgerbatched/src:ro
+      - ./backend/packages:/app/packages:ro
+    restart: "no"
+
+  layer2ledgerdbwriter:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.layer2ledgerdbwriter
+      args:
+        INSTALL_DEBUG: "1"
+    ports:
+      - "${LAYER2LEDGER_DBWRITER_DEBUG_PORT:-5679}:5679"
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      OPENL2_CONFIG_PATH: /app/.config
+      PYTHONPATH: /app/layer2ledgerbatched/src
+    command:
+      - python
+      - -m
+      - debugpy
+      - --listen
+      - 0.0.0.0:5679
+      - --wait-for-client
+      - -m
+      - layer2ledgerbatched.layer2ledgerdbwriter.main
+    volumes:
+      - ./.config:/app/.config:ro
+      - ./backend/layer2ledgerbatched/src:/app/layer2ledgerbatched/src:ro
+      - ./backend/packages:/app/packages:ro
+    restart: "no"
+
   layer2ledgeroauthmanager:
     ports:
       - "${LAYER2OAUTH_DEBUG_PORT:-6499}:6499"
