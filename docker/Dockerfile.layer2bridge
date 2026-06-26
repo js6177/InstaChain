@@ -1,0 +1,30 @@
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm as builder
+
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+
+WORKDIR /app
+
+COPY layer2bridge/pyproject.toml layer2bridge/uv.lock layer2bridge/README.md layer2bridge/
+COPY packages/ packages/
+
+RUN cd layer2bridge && uv sync --frozen --no-install-project --no-dev
+
+COPY layer2bridge layer2bridge/
+
+ARG INSTALL_DEBUG=0
+RUN cd layer2bridge && uv sync --frozen --no-dev \
+    && if [ "$INSTALL_DEBUG" = "1" ]; then uv sync --frozen --group dev; fi
+
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY --from=builder /app/layer2bridge/.venv /app/layer2bridge/.venv
+COPY --from=builder /app/layer2bridge /app/layer2bridge
+COPY --from=builder /app/packages/ /app/packages/
+
+ENV PATH="/app/layer2bridge/.venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
+
+CMD ["python", "-m", "layer2bridge.main"]

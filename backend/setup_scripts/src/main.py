@@ -147,14 +147,25 @@ def generate_keys(env: str, containered: bool = True) -> Tuple[Layer2BridgeSetti
     new_btc_rpcpassword = generate_secure_password(16)
     
 
-    selected_chain = layer2bridge_bitcoinconfig_obj.get('chain')
+    selected_chain = str(layer2bridge_bitcoinconfig_obj.get('chain', 'testnet4')).strip()
+    layer2bridge_bitcoinconfig_obj['chain'] = selected_chain
     layer2bridge_bitcoinconfig_obj[selected_chain]['rpcpassword'] = new_btc_rpcpassword
+    if containered:
+        layer2bridge_bitcoinconfig_obj[selected_chain]['rpcbind'] = '0.0.0.0'
+        layer2bridge_bitcoinconfig_obj[selected_chain]['rpcallowip'] = '0.0.0.0/0'
     print(f"Chain specified in bitcoin.conf: {selected_chain}")
     selected_chain_info  = layer2bridge_bitcoinconfig_obj.get(selected_chain, {})
 
+    rpc_host = layer2ledgerbatched_docker_env.bitcoin_rpc_host if containered else "localhost"
+    layer2_node_url = (
+        f"http://{layer2ledgerbatched_docker_env.layer2ledger_apihandler_host}:{layer2ledgerbatched_docker_env.layer2ledger_fastapi_port}"
+        if containered
+        else f"http://localhost:{layer2ledgerbatched_docker_env.layer2ledger_fastapi_port}"
+    )
+
     layer2bridge_bitcoinconf_settings = Layer2BridgeBitcoinConfFileSettings(
         chain=selected_chain,
-        rpchost="localhost",
+        rpchost=rpc_host,
         rpcport=selected_chain_info.get('rpcport'),
         rpcuser=selected_chain_info.get('rpcuser'),
         rpcpassword=selected_chain_info.get('rpcpassword'),
@@ -164,7 +175,7 @@ def generate_keys(env: str, containered: bool = True) -> Tuple[Layer2BridgeSetti
         rpc_settings=layer2bridge_bitcoinconf_settings,
         database_layer2bridge_name='layer2bridge_db.' + env,
         wallet_name='wallet-' + env,
-        layer2_node_url=f'http://localhost:{layer2ledgerbatched_docker_env.layer2ledger_fastapi_port}',
+        layer2_node_url=layer2_node_url,
         onboarding_signing_private_key=layer2bridge_signing_address.private_key_str_base58
     )
 

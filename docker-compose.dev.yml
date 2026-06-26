@@ -81,6 +81,23 @@ services:
       disable: true
     restart: "no"
 
+  layer2bridge:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.layer2bridge
+      args:
+        INSTALL_DEBUG: "1"
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      OPENL2_CONFIG_PATH: /app/.config
+      OPENL2_OUTPUT_PATH: /app/.output
+    volumes:
+      - ./.config:/app/.config:ro
+      - layer2bridge_output:/app/.output
+      - ./backend/layer2bridge/src:/app/layer2bridge/src:ro
+      - ./backend/packages:/app/packages:ro
+    restart: "no"
+
   wallet-web:
     build:
       context: .

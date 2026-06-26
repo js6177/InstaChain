@@ -103,6 +103,40 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  bitcoin-core:
+    image: bitcoin/bitcoin:28.0
+    entrypoint: ["/bin/sh", "/usr/local/bin/bitcoin-core-entrypoint.sh"]
+    volumes:
+      - bitcoin_core_data:/home/bitcoin/.bitcoin
+      - ./.config/${ENVIRONMENT:-prod}/bitcoin.conf:/config/bitcoin.conf:ro
+      - ./docker/bitcoin-core-entrypoint.sh:/usr/local/bin/bitcoin-core-entrypoint.sh:ro
+      - ./docker/bitcoin-core-healthcheck.sh:/usr/local/bin/bitcoin-core-healthcheck.sh:ro
+    healthcheck:
+      test: ["CMD", "sh", "/usr/local/bin/bitcoin-core-healthcheck.sh"]
+      interval: 30s
+      timeout: 15s
+      retries: 10
+      start_period: 120s
+    restart: unless-stopped
+
+  layer2bridge:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.layer2bridge
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-prod}
+      OPENL2_CONFIG_PATH: /app/.config
+      OPENL2_OUTPUT_PATH: /app/.output
+    volumes:
+      - ./.config:/app/.config:ro
+      - layer2bridge_output:/app/.output
+    depends_on:
+      bitcoin-core:
+        condition: service_healthy
+      layer2ledgerapihandler:
+        condition: service_started
+    restart: unless-stopped
+
   wallet-web:
     build:
       context: .
@@ -121,3 +155,5 @@ volumes:
   postgres_data:
   redis_data:
   mongodb_data:
+  bitcoin_core_data:
+  layer2bridge_output:
