@@ -22,6 +22,8 @@ class Layer2LedgerDockerEnvSettings(BaseSettings):
     layer2ledger_fastapi_port: int
 
     bitcoin_rpc_host: str
+    bitcoin_rpc_import_host: str
+    bitcoin_rpc_port: int
     layer2ledger_apihandler_host: str
 
     model_config = SettingsConfigDict(env_file='.env', extra='ignore')

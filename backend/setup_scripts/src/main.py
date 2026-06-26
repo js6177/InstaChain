@@ -11,6 +11,7 @@ import asyncio
 import json
 import argparse
 import shutil
+import time
 from configobj import ConfigObj
 from pathlib import Path
 from typing import Tuple, Optional
@@ -42,6 +43,52 @@ def get_layer2ledgeroauthmanager_docker_env_settings(environment: str) -> Layer2
     root_path = get_project_root()
     config_file_path = root_path / 'backend' / 'layer2ledgeroauthmanager' / f'.env.{environment}'
     return Layer2LedgerOAuthManagerDockerEnvSettings.load_from_path(str(config_file_path))
+
+def load_bitcoin_rpc_settings_for_import(environment: str, containered: bool) -> Layer2BridgeBitcoinConfFileSettings:
+    """Load RPC credentials from the same bitcoin.conf the bitcoin-core container uses."""
+    conf_path = get_config_file_path('bitcoin.conf', environment)
+    if not conf_path.exists():
+        raise FileNotFoundError(f"bitcoin.conf not found at {conf_path}. Run with -generate-keys first.")
+
+    config_obj = ConfigObj(str(conf_path), encoding='utf-8')
+    chain = str(config_obj.get('chain', 'testnet4')).strip()
+    chain_section = config_obj.get(chain)
+    if not chain_section:
+        raise ValueError(f"Missing [{chain}] section in {conf_path}")
+
+    docker_env = get_layer2ledgerbatched_docker_env_settings(environment)
+    rpchost = docker_env.bitcoin_rpc_import_host if containered else "127.0.0.1"
+
+    return Layer2BridgeBitcoinConfFileSettings(
+        chain=chain,
+        rpcuser=str(chain_section.get('rpcuser')),
+        rpcpassword=str(chain_section.get('rpcpassword')),
+        rpchost=rpchost,
+        rpcport=int(chain_section.get('rpcport', docker_env.bitcoin_rpc_port)),
+    )
+
+async def wait_for_bitcoin_rpc(
+    rpc_settings: Layer2BridgeBitcoinConfFileSettings,
+    timeout_sec: int = 120,
+) -> None:
+    deadline = time.monotonic() + timeout_sec
+    last_error: Exception | None = None
+
+    while time.monotonic() < deadline:
+        try:
+            client = BitcoinRPCClient(rpc_settings)
+            await client.getblockchaininfo()
+            return
+        except Exception as exc:
+            last_error = exc
+            await asyncio.sleep(2)
+
+    raise ConnectionError(
+        "Could not connect to Bitcoin Core RPC at "
+        f"{rpc_settings.rpchost}:{rpc_settings.rpcport} after {timeout_sec}s. "
+        "Ensure the bitcoin-core container is running and RPC is published "
+        f"(docker compose up -d --force-recreate bitcoin-core). Last error: {last_error}"
+    )
 
 def generate_layer2ledgeroauthmanager_config(environment: str, containered: bool = True) -> None:
     print(f"\nGenerating OAuth manager config for environment: {environment}")
@@ -207,7 +254,12 @@ def generate_keys(env: str, containered: bool = True) -> Tuple[Layer2BridgeSetti
 
     return layer2bridge_settings, btc_keys
 
-async def import_keys_to_bitcoin_core(env: str, bridge_settings: Optional[Layer2BridgeSettings] = None, btc_keys: Optional[MasterKeys] = None) -> None:
+async def import_keys_to_bitcoin_core(
+    env: str,
+    bridge_settings: Optional[Layer2BridgeSettings] = None,
+    btc_keys: Optional[MasterKeys] = None,
+    containered: bool = True,
+) -> None:
     if bridge_settings is None:
         bridge_settings_path = get_config_file_path(Services.LAYER2LEDGERBRIDGE, env)
         print(f"Loading bridge settings from: {bridge_settings_path}")
@@ -226,10 +278,23 @@ async def import_keys_to_bitcoin_core(env: str, bridge_settings: Optional[Layer2
         with open(temp_keys_path, 'r') as f:
             btc_keys = MasterKeys.model_validate_json(f.read())
 
+    try:
+        rpc_settings = load_bitcoin_rpc_settings_for_import(env, containered)
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"Error: {exc}")
+        return
+
     print(f"\nImporting keys to Bitcoin Core wallet: {bridge_settings.wallet_name}")
+    print(f"Connecting to Bitcoin Core RPC at {rpc_settings.rpchost}:{rpc_settings.rpcport}")
+
+    try:
+        await wait_for_bitcoin_rpc(rpc_settings)
+    except ConnectionError as exc:
+        print(exc)
+        return
     
     # Initialize RPC client without wallet name first to create/load wallet
-    rpc_client = BitcoinRPCClient(bridge_settings.rpc_settings)
+    rpc_client = BitcoinRPCClient(rpc_settings)
     
     # Try to load wallet
     load_resp = await rpc_client.loadwallet(bridge_settings.wallet_name)
@@ -342,7 +407,7 @@ async def main() -> None:
 
 
     if args.import_keys_to_bitcoin_core:
-        await import_keys_to_bitcoin_core(args.env, bridge_settings, btc_keys)
+        await import_keys_to_bitcoin_core(args.env, bridge_settings, btc_keys, containered=args.containered)
 
 
 if __name__ == "__main__":

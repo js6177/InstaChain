@@ -106,6 +106,8 @@ services:
   bitcoin-core:
     image: bitcoin/bitcoin:28.0
     entrypoint: ["/bin/sh", "/usr/local/bin/bitcoin-core-entrypoint.sh"]
+    ports:
+      - "127.0.0.1:${BITCOIN_RPC_PORT:-8334}:8334"
     volumes:
       - bitcoin_core_data:/home/bitcoin/.bitcoin
       - ./.config/${ENVIRONMENT:-prod}/bitcoin.conf:/config/bitcoin.conf:ro
