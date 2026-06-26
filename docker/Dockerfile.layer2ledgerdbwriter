@@ -16,7 +16,7 @@ COPY packages/ packages/
 # Install dependencies WITHOUT the local project
 RUN cd layer2ledgerbatched && uv sync --frozen --no-install-project --no-dev
 
-# Copy layer2ledgerapihandler source code
+# Copy layer2ledgerbatched source code
 COPY layer2ledgerbatched layer2ledgerbatched/
 
 # Install the service itself
@@ -37,4 +37,4 @@ COPY --from=builder /app/packages/ /app/packages/
 ENV PATH="/app/layer2ledgerbatched/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-CMD ["python", "-m", "layer2ledgerdbwriter.main"]
+CMD ["python", "-m", "layer2ledgerbatched.layer2ledgerdbwriter.main"]
