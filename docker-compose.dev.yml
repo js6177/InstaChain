@@ -65,11 +65,15 @@ services:
   layer2ledgeroauthmanager:
     ports:
       - "${LAYER2OAUTH_DEBUG_PORT:-6499}:6499"
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      OPENL2_CONFIG_PATH: /app/.config
     command:
       - bun
       - run
       - dev:debug
     volumes:
+      - ./.config:/app/.config:ro
       - ./backend/layer2ledgeroauthmanager/src:/app/backend/layer2ledgeroauthmanager/src:ro
       - ./shared/config-loader:/app/shared/config-loader:ro
       - ./shared/pubkey-utils:/app/shared/pubkey-utils:ro

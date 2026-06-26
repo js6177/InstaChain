@@ -26,4 +26,5 @@ export {
   parseDockerEnvFile,
   loadOAuthManagerDockerEnvSettings,
   buildOAuthManagerConfigFromEnv,
+  resolveEnvironment,
 } from './src/env';

@@ -17,8 +17,6 @@ COPY --from=installer /app .
 
 WORKDIR /app/backend/layer2ledgeroauthmanager
 
-ENV ENVIRONMENT=dev
-ENV OPENL2_OAUTH_CONFIG_PATH=/app/config/config.json
 
 EXPOSE 4000
 

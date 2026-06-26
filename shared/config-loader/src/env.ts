@@ -3,6 +3,14 @@ import type {
   ConfigInterface,
   Layer2LedgerOAuthManagerDockerEnvSettings,
 } from './models';
+import { Environment, type EnvironmentName } from './services';
+export function resolveEnvironment(environment?: EnvironmentName): EnvironmentName {
+  if (environment !== undefined) {
+    return environment;
+  }
+  return (process.env.ENVIRONMENT ?? Environment.DEFAULT) as EnvironmentName;
+}
+
 
 function parseEnvValue(rawValue: string): string {
   const trimmed = rawValue.trim();

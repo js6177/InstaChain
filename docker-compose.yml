@@ -1,10 +1,12 @@
+# Base stack: production-like defaults (ENVIRONMENT defaults to prod).
+# For local development with debug ports and source mounts, use: make dev
 version: '3.8'
 
 services:
   layer2ledger-postgres:
     image: postgres:16-alpine
     env_file:
-      - ./backend/layer2ledgerbatched/.env.${ENVIRONMENT:-dev}
+      - ./backend/layer2ledgerbatched/.env.${ENVIRONMENT:-prod}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -46,9 +48,9 @@ services:
     ports:
       - "${LAYER2LEDGER_FASTAPI_PORT:-8000}:8000"
     env_file:
-      - ./backend/layer2ledgerbatched/.env.${ENVIRONMENT:-dev}
+      - ./backend/layer2ledgerbatched/.env.${ENVIRONMENT:-prod}
     environment:
-      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      ENVIRONMENT: ${ENVIRONMENT:-prod}
       OPENL2_CONFIG_PATH: /app/.config
     volumes:
       - ./.config:/app/.config:ro
@@ -64,9 +66,9 @@ services:
       context: ./backend
       dockerfile: ../docker/Dockerfile.layer2ledgerdbwriter
     env_file:
-      - ./backend/layer2ledgerbatched/.env.${ENVIRONMENT:-dev}
+      - ./backend/layer2ledgerbatched/.env.${ENVIRONMENT:-prod}
     environment:
-      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      ENVIRONMENT: ${ENVIRONMENT:-prod}
       OPENL2_CONFIG_PATH: /app/.config
     volumes:
       - ./.config:/app/.config:ro
@@ -84,12 +86,12 @@ services:
     ports:
       - "${LAYER2OAUTH_PORT:-4000}:4000"
     env_file:
-      - ./backend/layer2ledgeroauthmanager/.env.${ENVIRONMENT:-dev}
+      - ./backend/layer2ledgeroauthmanager/.env.${ENVIRONMENT:-prod}
     environment:
-      ENVIRONMENT: ${ENVIRONMENT:-dev}
-      OPENL2_OAUTH_CONFIG_PATH: /app/config/config.json
+      ENVIRONMENT: ${ENVIRONMENT:-prod}
+      OPENL2_CONFIG_PATH: /app/.config
     volumes:
-      - ./.config/${ENVIRONMENT:-dev}/layer2ledgeroauthmanager-config.json:/app/config/config.json:ro
+      - ./.config:/app/.config:ro
     depends_on:
       layer2ledger-mongodb:
         condition: service_healthy
