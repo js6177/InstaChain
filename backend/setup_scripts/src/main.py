@@ -53,7 +53,7 @@ def generate_layer2ledgeroauthmanager_config(environment: str, containered: bool
 
     oauth_docker_env = get_layer2ledgeroauthmanager_docker_env_settings(environment)
     mongo_host = oauth_docker_env.mongodb_host if containered else "localhost"
-    server_host = "0.0.0.0" if containered else oauth_docker_env.server_host
+    server_host = oauth_docker_env.server_host
 
     config_path = get_config_file_path(Services.LAYER2LEDGEROAUTHMANAGER, environment)
     default_config_path = project_root / 'backend' / 'layer2ledgeroauthmanager' / 'config.json'
