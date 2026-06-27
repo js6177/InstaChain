@@ -1,6 +1,10 @@
 # Production-like stack (ENVIRONMENT defaults to prod in docker-compose.yml).
 # Generate config first (includes bitcoin.conf + layer2ledgerbridge-config.json):
 #   cd backend/setup_scripts && uv run python -m main -env prod -containered true -generate-keys -generate-oauth-config
+# Bitcoin chain data is stored in the named volume openl2-bitcoin-core-data.
+# bitcoind receives a graceful RPC stop on container shutdown (stop_grace_period: 5m).
+# Safe: docker compose up -d --force-recreate bitcoin-core
+# Avoid: docker compose down -v  (removes volumes)
 prod:
 	docker compose up --build
 # Dev overlay: debug ports, source bind mounts (ENVIRONMENT defaults to dev in docker-compose.dev.yml).

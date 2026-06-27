@@ -106,6 +106,8 @@ services:
   bitcoin-core:
     image: bitcoin/bitcoin:28.0
     entrypoint: ["/bin/sh", "/usr/local/bin/bitcoin-core-entrypoint.sh"]
+    stop_grace_period: 5m
+    stop_signal: SIGTERM
     ports:
       - "127.0.0.1:${BITCOIN_RPC_PORT:-8334}:8334"
     volumes:
@@ -158,4 +160,5 @@ volumes:
   redis_data:
   mongodb_data:
   bitcoin_core_data:
+    name: openl2-bitcoin-core-data
   layer2bridge_output:

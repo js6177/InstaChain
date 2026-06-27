@@ -3,10 +3,15 @@
 CONF=/home/bitcoin/.bitcoin/bitcoin.conf
 DATADIR=/home/bitcoin/.bitcoin
 
-CHAIN=""
-if [ -f "$CONF" ]; then
-  CHAIN=$(grep -E '^[[:space:]]*chain[[:space:]]*=' "$CONF" | tail -1 | sed 's/^[[:space:]]*chain[[:space:]]*=[[:space:]]*//;s/[[:space:]]*$//')
-fi
+read_chain_from_conf() {
+  if [ ! -f "$1" ]; then
+    return
+  fi
+  grep -E '^[[:space:]]*chain[[:space:]]*=' "$1" | tail -1 \
+    | sed -E 's/^[[:space:]]*chain[[:space:]]*=[[:space:]]*//;s/[[:space:]]+$//;s/^[[:space:]]+//'
+}
+
+CHAIN="$(read_chain_from_conf "$CONF")"
 
 if [ -n "$CHAIN" ] && [ "$CHAIN" != "main" ] && [ "$CHAIN" != "mainnet" ]; then
   INFO=$(bitcoin-cli -datadir="$DATADIR" -conf="$CONF" "-chain=$CHAIN" getblockchaininfo 2>/dev/null) || exit 1
