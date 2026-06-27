@@ -104,8 +104,9 @@ services:
     restart: unless-stopped
 
   bitcoin-core:
-    image: bitcoin/bitcoin:28.0
-    entrypoint: ["/bin/sh", "/usr/local/bin/bitcoin-core-entrypoint.sh"]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.bitcoin-core
     stop_grace_period: 5m
     stop_signal: SIGTERM
     ports:
@@ -113,10 +114,8 @@ services:
     volumes:
       - bitcoin_core_data:/home/bitcoin/.bitcoin
       - ./.config/${ENVIRONMENT:-prod}/bitcoin.conf:/config/bitcoin.conf:ro
-      - ./docker/bitcoin-core-entrypoint.sh:/usr/local/bin/bitcoin-core-entrypoint.sh:ro
-      - ./docker/bitcoin-core-healthcheck.sh:/usr/local/bin/bitcoin-core-healthcheck.sh:ro
     healthcheck:
-      test: ["CMD", "sh", "/usr/local/bin/bitcoin-core-healthcheck.sh"]
+      test: ["CMD", "python3", "/usr/local/bin/bitcoin-core-healthcheck.py"]
       interval: 30s
       timeout: 15s
       retries: 10

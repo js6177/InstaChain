@@ -1,0 +1,15 @@
+FROM bitcoin/bitcoin:28.0
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY docker/bitcoin_core_common.py \
+     docker/bitcoin-core-entrypoint.py \
+     docker/bitcoin-core-healthcheck.py \
+     /usr/local/bin/
+
+RUN chmod +x /usr/local/bin/bitcoin-core-entrypoint.py \
+             /usr/local/bin/bitcoin-core-healthcheck.py
+
+ENTRYPOINT ["python3", "/usr/local/bin/bitcoin-core-entrypoint.py"]
