@@ -4,6 +4,7 @@ export type {
   MongoDbConfig,
   ConfigInterface,
   Layer2LedgerOAuthManagerDockerEnvSettings,
+  Layer2LedgerDockerEnvSettings,
 } from './src/models';
 export {
   Services,

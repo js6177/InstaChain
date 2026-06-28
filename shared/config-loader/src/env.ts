@@ -64,6 +64,18 @@ function requireEnvNumber(values: Record<string, string>, key: string): number {
   return value;
 }
 
+function optionalEnvNumber(values: Record<string, string>, key: string): number | undefined {
+  const value = values[key];
+  if (!value) {
+    return undefined;
+  }
+  const parsed = Number(value);
+  if (Number.isNaN(parsed)) {
+    throw new Error(`Environment variable ${key} must be a number`);
+  }
+  return parsed;
+}
+
 export function loadOAuthManagerDockerEnvSettings(
   envPath: string,
 ): Layer2LedgerOAuthManagerDockerEnvSettings {
@@ -76,6 +88,7 @@ export function loadOAuthManagerDockerEnvSettings(
     mongodbPort: requireEnvNumber(values, 'MONGODB_PORT'),
     mongodbDbName: requireEnvValue(values, 'MONGODB_DB_NAME'),
     layer2oauthPort: requireEnvNumber(values, 'LAYER2OAUTH_PORT'),
+    layer2oauthDebugPort: optionalEnvNumber(values, 'LAYER2OAUTH_DEBUG_PORT'),
   };
 }
 

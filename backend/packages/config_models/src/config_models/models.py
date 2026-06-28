@@ -21,6 +21,9 @@ class Layer2LedgerDockerEnvSettings(BaseSettings):
 
     layer2ledger_fastapi_port: int
 
+    layer2ledger_apihandler_debug_port: int | None = None
+    layer2ledger_dbwriter_debug_port: int | None = None
+
     bitcoin_rpc_host: str
     bitcoin_rpc_import_host: str
     bitcoin_rpc_port: int
@@ -55,8 +58,9 @@ class Layer2LedgerOAuthManagerDockerEnvSettings(BaseSettings):
     mongodb_port: int
     mongodb_db_name: str
     layer2oauth_port: int
+    layer2oauth_debug_port: int | None = None
 
-    model_config = SettingsConfigDict(env_file='.env')
+    model_config = SettingsConfigDict(env_file='.env', extra='ignore')
 
     @classmethod
     def load_from_path(cls, env_path: str):

@@ -38,4 +38,24 @@ export interface Layer2LedgerOAuthManagerDockerEnvSettings {
   mongodbPort: number;
   mongodbDbName: string;
   layer2oauthPort: number;
+  layer2oauthDebugPort?: number;
+}
+
+export interface Layer2LedgerDockerEnvSettings {
+  postgresUser: string;
+  postgresPassword: string;
+  postgresDb: string;
+  postgresHost: string;
+  postgresPort: number;
+  redisHost: string;
+  redisPort: number;
+  databaseUrl: string;
+  redisUrl: string;
+  layer2ledgerFastapiPort: number;
+  layer2ledgerApihandlerDebugPort?: number;
+  layer2ledgerDbwriterDebugPort?: number;
+  bitcoinRpcHost: string;
+  bitcoinRpcImportHost: string;
+  bitcoinRpcPort: number;
+  layer2ledgerApihandlerHost: string;
 }
