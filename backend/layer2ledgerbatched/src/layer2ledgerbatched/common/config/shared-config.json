@@ -7,7 +7,7 @@
         "db_password": "postgres",
         "db_host": "localhost",
         "db_port": "5432",
-        "db_name": "layer2ledgerbatched_dev"
+        "db_name": "layer2ledgerbatched_test"
       },
       "redis": {
         "host": "localhost",

@@ -1,0 +1,150 @@
+# Test overlay — used with docker-compose.yml via python3 run-tests.py (make test)
+# Sets ENVIRONMENT=test for backend services. Does not define bitcoin-core changes
+# (run-tests.py leaves a running healthy bitcoin-core container untouched).
+
+services:
+  layer2ledger-postgres:
+    env_file:
+      - ./backend/layer2ledgerbatched/.env.test
+    environment:
+      ENVIRONMENT: test
+
+  layer2ledger-redis:
+    environment:
+      ENVIRONMENT: test
+
+  layer2ledger-mongodb:
+    environment:
+      ENVIRONMENT: test
+
+  layer2ledgerapihandler:
+    env_file:
+      - ./backend/layer2ledgerbatched/.env.test
+    environment:
+      ENVIRONMENT: test
+      OPENL2_CONFIG_PATH: /app/.config
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/')\"",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  layer2ledgerdbwriter:
+    env_file:
+      - ./backend/layer2ledgerbatched/.env.test
+    environment:
+      ENVIRONMENT: test
+      OPENL2_CONFIG_PATH: /app/.config
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "tr '\\0' ' ' < /proc/1/cmdline | grep -q 'layer2ledgerdbwriter.main'",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  layer2ledgeroauthmanager:
+    env_file:
+      - ./backend/layer2ledgeroauthmanager/.env.test
+    environment:
+      ENVIRONMENT: test
+      OPENL2_CONFIG_PATH: /app/.config
+
+  layer2bridge:
+    environment:
+      ENVIRONMENT: test
+      OPENL2_CONFIG_PATH: /app/.config
+      OPENL2_OUTPUT_PATH: /app/.output
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "tr '\\0' ' ' < /proc/1/cmdline | grep -q 'layer2bridge.main'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  test-layer2ledgerbatched:
+    profiles: [test]
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.test.layer2ledgerbatched
+    environment:
+      ENVIRONMENT: test
+      OPENL2_CONFIG_PATH: /app/.config
+      PYTHONPATH: /app/layer2ledgerbatched/src
+    volumes:
+      - ./.config:/app/.config:ro
+    depends_on:
+      layer2ledger-postgres:
+        condition: service_healthy
+      layer2ledger-redis:
+        condition: service_healthy
+    restart: "no"
+
+  test-layer2bridge:
+    profiles: [test]
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.test.layer2bridge
+    environment:
+      ENVIRONMENT: test
+      OPENL2_CONFIG_PATH: /app/.config
+      OPENL2_OUTPUT_PATH: /app/.output
+    volumes:
+      - ./.config:/app/.config:ro
+    depends_on:
+      layer2ledger-postgres:
+        condition: service_healthy
+      layer2ledger-redis:
+        condition: service_healthy
+      layer2ledgerapihandler:
+        condition: service_healthy
+      layer2ledgerdbwriter:
+        condition: service_healthy
+      layer2bridge:
+        condition: service_healthy
+      bitcoin-core:
+        condition: service_healthy
+    restart: "no"
+
+  test-bitcoin-core-rpc:
+    profiles: [test]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.test.bitcoin-core-rpc
+    environment:
+      ENVIRONMENT: test
+      OPENL2_CONFIG_PATH: /app/.config
+    volumes:
+      - ./.config:/app/.config:ro
+    depends_on:
+      bitcoin-core:
+        condition: service_healthy
+    restart: "no"
+
+  test-layer2ledgeroauthmanager:
+    profiles: [test]
+    image: curlimages/curl:8.11.1
+    command:
+      [
+        "curl",
+        "-fsS",
+        "http://layer2ledgeroauthmanager:4000/health",
+      ]
+    depends_on:
+      layer2ledger-mongodb:
+        condition: service_healthy
+      layer2ledgeroauthmanager:
+        condition: service_healthy
+    restart: "no"

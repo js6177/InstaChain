@@ -1,0 +1,21 @@
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm
+
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app/packages/bitcoin_core_rpc
+
+COPY backend/packages/bitcoin_core_rpc/pyproject.toml backend/packages/bitcoin_core_rpc/uv.lock backend/packages/bitcoin_core_rpc/README.md ./
+COPY backend/packages/config_models /app/packages/config_models/
+
+RUN uv sync --frozen --no-install-project --group dev
+
+COPY backend/packages/bitcoin_core_rpc ./
+COPY backend/packages/config_models /app/packages/config_models/
+
+RUN uv sync --frozen --group dev
+
+COPY docker/test_bitcoin_core_rpc_entrypoint.py /usr/local/bin/test_bitcoin_core_rpc_entrypoint.py
+
+CMD ["python", "/usr/local/bin/test_bitcoin_core_rpc_entrypoint.py"]

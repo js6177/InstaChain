@@ -40,7 +40,9 @@ def get_output_directory() -> Path:
     """
     env_path = os.getenv("OPENL2_OUTPUT_PATH")
     if env_path:
-        return Path(env_path)
+        output_path = Path(env_path)
+        output_path.mkdir(parents=True, exist_ok=True)
+        return output_path
 
     current_path = Path.cwd()
     for parent in current_path.parents:
@@ -65,7 +67,7 @@ def get_env_specific_output_directory(environment: str = Environment.DEFAULT.val
     """
     base_output_path = get_output_directory()
     env_specific_path = base_output_path / environment
-    env_specific_path.mkdir(exist_ok=True)
+    env_specific_path.mkdir(parents=True, exist_ok=True)
     return env_specific_path
 
 # Gets the directory where all the configuration files are stored, based on these 3 criteria:

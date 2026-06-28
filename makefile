@@ -12,3 +12,6 @@ prod:
 #   cd backend/setup_scripts && uv run python -m main -env dev -containered true -generate-keys -generate-oauth-config
 dev:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+test:
+	python3 run-tests.py

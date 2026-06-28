@@ -4,6 +4,7 @@ import pytest_asyncio
 from redis.asyncio import ConnectionPool, Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from config_loader.loader import Environment, get_layer2ledgerbatched_common_config, get_layer2ledgerbatched_layer2ledgerapihandler_config
 from config_models.models import Layer2LedgerCommonSettings, Layer2LedgerAPIHandlerSettings
@@ -39,9 +40,13 @@ async def postgresql_session() -> AsyncGenerator[AsyncSession, None]:
     engine = create_async_engine(settings.database.database_url, echo=False, pool_size=10, pool_timeout=30)
     async_session = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
-            await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(Base.metadata.create_all)
     async with async_session() as session:
+        # Delete rows instead of drop_all — drop_all needs ACCESS EXCLUSIVE locks and
+        # hangs when apihandler/dbwriter (or other pools) hold connections to this DB.
+        for table in reversed(Base.metadata.sorted_tables):
+            await session.execute(delete(table))
+        await session.commit()
         yield session
     await engine.dispose()
 

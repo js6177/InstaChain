@@ -8,7 +8,11 @@ import traceback
 from layer2bridge import layer2interface as Layer2Interface
 from layer2bridge.full_node_interface import BitcoinRPC
 from layer2bridge.onboarding_logger import OnboardingLogger
-from config_loader.loader import get_layer2ledgerbridge_config, get_env_specific_output_directory, Environment
+from config_loader.loader import (
+    get_layer2ledgerbridge_config,
+    get_env_specific_output_directory,
+    resolve_environment,
+)
 from config_models.models import Layer2BridgeSettings
 from openl2_layer2ledger_api.models.requests import (
     Layer1BroadcastedWithdrawalTransaction,
@@ -43,7 +47,8 @@ class Layer2Bridge():
     layer2BridgeDB: DatabaseInterface.DB = None
     auditDB: AuditDatabaseInterface.AuditDatabaseInterface = None
 
-    def loadConfig(self, environment: str = Environment.DEFAULT.value):
+    def loadConfig(self, environment: str | None = None):
+        environment = resolve_environment(environment)
         self.settings = get_layer2ledgerbridge_config(environment)
         self.database_layer2bridge_full_path = get_env_specific_output_directory(environment) / self.settings.database_layer2bridge_name
         self.database_audit_full_path = get_env_specific_output_directory(environment) / (self.settings.database_audit_name or DEFAULT_AUDIT_DB_NAME)

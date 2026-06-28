@@ -1,0 +1,33 @@
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm AS builder
+
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY layer2ledgerbatched/pyproject.toml layer2ledgerbatched/uv.lock layer2ledgerbatched/README.md layer2ledgerbatched/
+COPY packages/ packages/
+
+RUN cd layer2ledgerbatched && uv sync --frozen --no-install-project --group dev
+
+COPY layer2ledgerbatched layer2ledgerbatched/
+
+RUN cd layer2ledgerbatched && uv sync --frozen --group dev
+
+FROM python:3.12-slim
+
+WORKDIR /app/layer2ledgerbatched
+
+COPY --from=builder /app/layer2ledgerbatched/.venv /app/layer2ledgerbatched/.venv
+COPY --from=builder /app/layer2ledgerbatched /app/layer2ledgerbatched
+COPY --from=builder /app/packages/ /app/packages/
+
+ENV PATH="/app/layer2ledgerbatched/.venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app/layer2ledgerbatched/src
+
+CMD ["pytest", "tests/", "-v"]
