@@ -1,0 +1,45 @@
+FROM oven/bun:1.3.3 AS base
+WORKDIR /app
+
+FROM base AS pruner
+COPY . .
+RUN bunx turbo@2.8.14 prune web --docker
+
+FROM base AS test
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
+    chromium-driver \
+    ca-certificates \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libcups2 \
+    libdbus-1-3 \
+    libdrm2 \
+    libgbm1 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libx11-xcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    xdg-utils \
+    && ln -sf /usr/bin/chromium /usr/bin/google-chrome \
+    && ln -sf /usr/bin/chromium /usr/bin/google-chrome-stable \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=pruner /app/out/json/ .
+RUN bun install --frozen-lockfile
+COPY --from=pruner /app/out/full/ .
+COPY frontend/wallet/apps/web/src/lib ./frontend/wallet/apps/web/src/lib
+COPY frontend/wallet/.env.test.docker ./frontend/wallet/apps/web/.env.test
+
+WORKDIR /app/frontend/wallet/apps/web
+
+ENV VITEST_DOCKER=1
+ENV CHROME_BIN=/usr/bin/chromium
+ENV CHROMEDRIVER=/usr/bin/chromedriver
+
+CMD ["bun", "run", "test", "--", "run"]

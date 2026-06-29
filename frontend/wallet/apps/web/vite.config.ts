@@ -4,6 +4,8 @@ import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 import { webdriverio } from '@vitest/browser-webdriverio'
 
+const isDocker = process.env.VITEST_DOCKER === '1'
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
@@ -48,10 +50,29 @@ export default defineConfig({
     include: ['test/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     browser: {
       enabled: true,
+      // Non-headless mode leaves Vitest's loading overlay on top of the iframe,
+      // which intercepts WebDriver clicks. Default to headless; set VITEST_HEADLESS=0 to debug visually.
+      headless: process.env.VITEST_HEADLESS !== '0',
+      viewport: { width: 1280, height: 720 },
       provider: webdriverio(),
       instances: [
-        { browser: 'chrome' }
-      ]
-    }
-  }
+        {
+          browser: 'chrome',
+          ...(isDocker
+            ? {
+                launch: {
+                  options: {
+                    args: [
+                      '--no-sandbox',
+                      '--disable-dev-shm-usage',
+                      '--disable-gpu',
+                    ],
+                  },
+                },
+              }
+            : {}),
+        },
+      ],
+    },
+  },
 })

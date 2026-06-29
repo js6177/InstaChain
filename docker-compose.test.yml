@@ -148,3 +148,32 @@ services:
       layer2ledgeroauthmanager:
         condition: service_healthy
     restart: "no"
+
+  test-wallet-web:
+    profiles: [test]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.test.wallet-web
+    environment:
+      ENVIRONMENT: test
+      VITEST_DOCKER: "1"
+    env_file:
+      - ./frontend/wallet/.env.test.docker
+    depends_on:
+      layer2ledger-postgres:
+        condition: service_healthy
+      layer2ledger-redis:
+        condition: service_healthy
+      layer2ledger-mongodb:
+        condition: service_healthy
+      layer2ledgerapihandler:
+        condition: service_healthy
+      layer2ledgerdbwriter:
+        condition: service_healthy
+      layer2ledgeroauthmanager:
+        condition: service_healthy
+      layer2bridge:
+        condition: service_healthy
+      bitcoin-core:
+        condition: service_healthy
+    restart: "no"

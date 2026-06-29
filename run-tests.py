@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Run backend unit/functional tests inside Docker containers.
+"""Run backend and frontend tests inside Docker containers.
 
 - Starts infrastructure with ENVIRONMENT=test
 - Runs layer2ledgerbatched pytest before apihandler/dbwriter (avoids DB/Redis lock contention)
-- Starts application services, then runs integration test containers
+- Starts application services, then runs integration test containers (including wallet vitest)
 - Leaves a running healthy bitcoin-core container untouched
 """
 
@@ -39,6 +39,7 @@ TEST_SERVICES = (
     "test-layer2bridge",
     "test-bitcoin-core-rpc",
     "test-layer2ledgeroauthmanager",
+    "test-wallet-web",
 )
 
 UNIT_TEST_SERVICES = ("test-layer2ledgerbatched",)
@@ -47,6 +48,7 @@ INTEGRATION_TEST_SERVICES = (
     "test-layer2bridge",
     "test-bitcoin-core-rpc",
     "test-layer2ledgeroauthmanager",
+    "test-wallet-web",
 )
 
 SETUP_UV_IMAGE = os.environ.get(

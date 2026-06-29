@@ -84,6 +84,10 @@ test('UI: wallet restoration through the UI', async () => {
     const { logout } = useWalletStore.getState();
     logout(); // Start clean
 
+    // Wait for the wallet landing page before interacting (ensures iframe content is ready)
+    const welcomeText = screen.getByText(/OpenL2 Web Wallet/i)
+    await expect.element(welcomeText).toBeVisible()
+
     // 1. Find and click "Restore Wallet" button using data-testid
     const restoreTrigger = screen.getByTestId(TEST_IDS.RESTORE_WALLET_TRIGGER)
     await expect.element(restoreTrigger).toBeVisible()
