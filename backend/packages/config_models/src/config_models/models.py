@@ -21,6 +21,8 @@ class Layer2LedgerDockerEnvSettings(BaseSettings):
 
     layer2ledger_fastapi_port: int
 
+    testhelper_port: int = 8001
+
     layer2ledger_apihandler_debug_port: int | None = None
     layer2ledger_dbwriter_debug_port: int | None = None
 
@@ -146,6 +148,11 @@ class Layer2LedgerCommonSettings(BaseModel):
     redis: RedisSettings
     drop_tables_after_test_completed: Optional[bool] = True
     drop_tables_before_test_completed: Optional[bool] = True
+
+
+class Layer2LedgerTestHelperSettings(BaseModel):
+    host: str = "0.0.0.0"
+    port: int = 8001
 
 
 # Layer2Bridge settings

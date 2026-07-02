@@ -1,6 +1,10 @@
 # Test overlay — used with docker-compose.yml via python3 run-tests.py (make test)
 # Sets ENVIRONMENT=test for backend services. Does not define bitcoin-core changes
 # (run-tests.py leaves a running healthy bitcoin-core container untouched).
+#
+# Services with profiles: [test] are not stopped by plain `docker compose down`.
+# Use: docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test down
+# Or: make test-down / make test-down-v
 
 services:
   layer2ledger-postgres:
@@ -73,6 +77,36 @@ services:
       timeout: 5s
       retries: 12
       start_period: 30s
+
+  layer2ledger-testhelper:
+    profiles: [test]
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.layer2ledgertesthelper
+    ports:
+      - "${TESTHELPER_PORT:-8001}:8001"
+    env_file:
+      - ./backend/layer2ledgerbatched/.env.test
+    environment:
+      ENVIRONMENT: test
+      OPENL2_CONFIG_PATH: /app/.config
+      PYTHONPATH: /app/layer2ledgerbatched/src
+    volumes:
+      - ./.config:/app/.config:ro
+    depends_on:
+      layer2ledger-postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/testhelper/health')\"",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    restart: "no"
 
   test-layer2ledgerbatched:
     profiles: [test]
@@ -149,16 +183,39 @@ services:
         condition: service_healthy
     restart: "no"
 
+  test-layer2ledger-seed:
+    profiles: [test]
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.test.layer2ledger-seed
+    environment:
+      ENVIRONMENT: test
+      OPENL2_CONFIG_PATH: /app/.config
+      PYTHONPATH: /app/layer2ledgerbatched/src
+    volumes:
+      - ./.config:/app/.config:ro
+      - ./backend/layer2ledgerbatched/test-seed-config.json:/app/test-seed-config.json:ro
+      - ./frontend/wallet/apps/web/test/test.keys.json:/seed/test.keys.json:ro
+    depends_on:
+      layer2ledger-postgres:
+        condition: service_healthy
+      layer2ledgerapihandler:
+        condition: service_healthy
+    restart: "no"
+
   test-wallet-web:
     profiles: [test]
     build:
       context: .
       dockerfile: docker/Dockerfile.test.wallet-web
+    shm_size: '1gb'
     environment:
       ENVIRONMENT: test
       VITEST_DOCKER: "1"
     env_file:
       - ./frontend/wallet/.env.test.docker
+    volumes:
+      - ./.config/test/layer2ledgerbridge-config.json:/app/frontend/wallet/apps/web/test/test.bridge-config.json:ro
     depends_on:
       layer2ledger-postgres:
         condition: service_healthy
@@ -169,6 +226,8 @@ services:
       layer2ledgerapihandler:
         condition: service_healthy
       layer2ledgerdbwriter:
+        condition: service_healthy
+      layer2ledger-testhelper:
         condition: service_healthy
       layer2ledgeroauthmanager:
         condition: service_healthy

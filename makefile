@@ -15,3 +15,10 @@ dev:
 
 test:
 	python3 run-tests.py
+
+# Tear down the test stack, including profile-gated services (e.g. layer2ledger-testhelper).
+test-down:
+	docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test down
+
+test-down-v:
+	docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test down -v

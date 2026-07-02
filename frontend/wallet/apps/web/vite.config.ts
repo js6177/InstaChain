@@ -6,6 +6,23 @@ import { webdriverio } from '@vitest/browser-webdriverio'
 
 const isDocker = process.env.VITEST_DOCKER === '1'
 
+const dockerChromeProviderOptions = {
+  capabilities: {
+    'goog:chromeOptions': {
+      binary: process.env.CHROME_BIN ?? '/usr/bin/chromium',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+      ],
+    },
+    'wdio:chromedriverOptions': {
+      binary: process.env.CHROMEDRIVER ?? '/usr/bin/chromedriver',
+    },
+  },
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
@@ -46,33 +63,34 @@ export default defineConfig({
   },
   build: { sourcemap: true },
   test: {
-    setupFiles: ['./src/vitest.setup.ts'],
-    include: ['test/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    browser: {
-      enabled: true,
-      // Non-headless mode leaves Vitest's loading overlay on top of the iframe,
-      // which intercepts WebDriver clicks. Default to headless; set VITEST_HEADLESS=0 to debug visually.
-      headless: process.env.VITEST_HEADLESS !== '0',
-      viewport: { width: 1280, height: 720 },
-      provider: webdriverio(),
-      instances: [
-        {
-          browser: 'chrome',
-          ...(isDocker
-            ? {
-                launch: {
-                  options: {
-                    args: [
-                      '--no-sandbox',
-                      '--disable-dev-shm-usage',
-                      '--disable-gpu',
-                    ],
-                  },
-                },
-              }
-            : {}),
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'browser',
+          setupFiles: ['./src/vitest.setup.ts'],
+          include: ['test/**/*.{test,spec}.{tsx,jsx}'],
+          browser: {
+            enabled: true,
+            // Non-headless mode leaves Vitest's loading overlay on top of the iframe,
+            // which intercepts WebDriver clicks. Default to headless; set VITEST_HEADLESS=0 to debug visually.
+            headless: process.env.VITEST_HEADLESS !== '0',
+            viewport: { width: 1280, height: 720 },
+            provider: webdriverio(isDocker ? dockerChromeProviderOptions : {}),
+            instances: [{ browser: 'chrome' }],
+          },
         },
-      ],
-    },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'integration',
+          setupFiles: ['./test/vitest.integration.setup.ts'],
+          include: ['test/**/*.integration.test.ts'],
+          environment: 'node',
+          testTimeout: 60_000,
+        },
+      },
+    ],
   },
 })

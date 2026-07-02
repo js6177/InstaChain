@@ -39,6 +39,7 @@ TEST_SERVICES = (
     "test-layer2bridge",
     "test-bitcoin-core-rpc",
     "test-layer2ledgeroauthmanager",
+    "test-layer2ledger-seed",
     "test-wallet-web",
 )
 
@@ -48,8 +49,13 @@ INTEGRATION_TEST_SERVICES = (
     "test-layer2bridge",
     "test-bitcoin-core-rpc",
     "test-layer2ledgeroauthmanager",
+    "test-layer2ledger-seed",
     "test-wallet-web",
 )
+
+# Long-running services in the "test" compose profile. `compose run` starts these as
+# dependencies but does not stop them when the one-shot test container exits.
+PROFILE_BACKGROUND_SERVICES = ("layer2ledger-testhelper",)
 
 SETUP_UV_IMAGE = os.environ.get(
     "SETUP_UV_IMAGE", "ghcr.io/astral-sh/uv:python3.12-bookworm"
@@ -282,7 +288,12 @@ class DockerComposeTestRunner:
                 failed = True
         return failed
 
+    def stop_test_profile_services(self) -> None:
+        log("Stopping test-profile background services...")
+        self.run_quiet(["--profile", "test", "stop", *PROFILE_BACKGROUND_SERVICES])
+
     def cleanup_test_containers(self) -> None:
+        self.stop_test_profile_services()
         log("Removing stopped test containers (if any)...")
         self.run_quiet(["--profile", "test", "rm", "-sf", *TEST_SERVICES])
 

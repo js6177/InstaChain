@@ -9,11 +9,13 @@ from config_models.models import (
     Layer2BridgeSettings,
     CommonBackendSettings,
     Layer2LedgerOAuthManagerConfig,
+    Layer2LedgerTestHelperSettings,
 )
 
 class Services(StrEnum):
     LAYER2LEDGERBATCHED_COMMON = 'layer2ledgerbatched-common'
     LAYER2LEDGERBATCHED_LAYER2LEDGERAPIHANDLER = 'layer2ledgerbatched-layer2ledgerapihandler'
+    LAYER2LEDGERBATCHED_TESTHELPER = 'layer2ledgerbatched-testhelper'
     LAYER2LEDGEROAUTHMANAGER = 'layer2ledgeroauthmanager'
     LAYER2LEDGERBRIDGE = 'layer2ledgerbridge'
     BACKEND_COMMON = 'backend-common' # settings shared between all backend components
@@ -180,6 +182,19 @@ def get_layer2ledgerbatched_layer2ledgerapihandler_config(environment: str | Non
     with open(config_file, "r") as f:
         config_data = json.load(f)
     return Layer2LedgerAPIHandlerSettings.model_validate(config_data)
+
+def get_layer2ledgerbatched_testhelper_config(environment: str | None = None) -> Layer2LedgerTestHelperSettings:
+    """
+    Returns the Layer2LedgerTestHelperSettings model for the given environment.
+    Falls back to defaults when the config file has not been generated yet.
+    """
+    environment = resolve_environment(environment)
+    config_file = get_config_file_path(Services.LAYER2LEDGERBATCHED_TESTHELPER, environment)
+    if not config_file.is_file():
+        return Layer2LedgerTestHelperSettings()
+    with open(config_file, "r") as f:
+        config_data = json.load(f)
+    return Layer2LedgerTestHelperSettings.model_validate(config_data)
 
 def get_layer2ledgerbridge_config(environment: str | None = None) -> Layer2BridgeSettings:
     """

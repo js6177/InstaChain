@@ -1,4 +1,4 @@
-from config_models import Layer2LedgerCommonSettings, SettingsLayer2Address, Layer2LedgerAPIHandlerSettings, PostgresqlDatabaseSettings, RedisSettings, Layer2LedgerDockerEnvSettings, Layer2LedgerOAuthManagerDockerEnvSettings, Layer2LedgerOAuthManagerConfig, Layer2BridgeBitcoinConfFileSettings, Layer2BridgeSettings, CommonBackendSettings
+from config_models import Layer2LedgerCommonSettings, SettingsLayer2Address, Layer2LedgerAPIHandlerSettings, PostgresqlDatabaseSettings, RedisSettings, Layer2LedgerDockerEnvSettings, Layer2LedgerOAuthManagerDockerEnvSettings, Layer2LedgerOAuthManagerConfig, Layer2BridgeBitcoinConfFileSettings, Layer2BridgeSettings, CommonBackendSettings, Layer2LedgerTestHelperSettings
 from config_loader import get_config_directory, get_env_specific_config_directory, get_project_root, get_config_file_path, get_layer2bridge_bitcoinconf_file_path, get_bitcoincore_conf_directory, Services
 from misc_utils import generate_secure_password, generate_alphanumeric_id
 from layer2address import Layer2Address
@@ -239,6 +239,13 @@ def generate_keys(env: str, containered: bool = True) -> Tuple[Layer2BridgeSetti
 
     with open(get_config_file_path(Services.LAYER2LEDGERBATCHED_LAYER2LEDGERAPIHANDLER, env), 'w') as f:
         f.write(layer2ledgerbatched_layer2ledgerapihandler_settings.model_dump_json(indent=4))
+
+    layer2ledgerbatched_testhelper_settings = Layer2LedgerTestHelperSettings(
+        host="0.0.0.0",
+        port=layer2ledgerbatched_docker_env.testhelper_port,
+    )
+    with open(get_config_file_path(Services.LAYER2LEDGERBATCHED_TESTHELPER, env), 'w') as f:
+        f.write(layer2ledgerbatched_testhelper_settings.model_dump_json(indent=4))
 
     with open(get_config_file_path(Services.LAYER2LEDGERBRIDGE, env), 'w') as f:
         f.write(layer2bridge_settings.model_dump_json(indent=4))
