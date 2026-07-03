@@ -1,5 +1,6 @@
 import asyncio
 import json
+import signal
 import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -52,104 +53,140 @@ async def get_current_batch_height(db: AsyncSession) -> int:
 async def process_pending_transactions() -> None:
     redis_client, db, lock_manager = await setup_clients()
 
-    current_batch_height = await get_current_batch_height(db)
+    try:
+        current_batch_height = await get_current_batch_height(db)
 
-    while True:
-        try:
-            # Fetch pending transactions from Redis
-            transactions_to_process: list[PendingTransaction] = await redis_driver.GetPendingTransactions(redis_client, 0, 999)
-            withdrawals_to_process: list[PendingWithdrawal] = await redis_driver.GetPendingWithdrawals(redis_client, 0, 999)
-            if not transactions_to_process and not withdrawals_to_process:
-                await asyncio.sleep(1)
-                continue
+        while True:
+            try:
+                # Fetch pending transactions from Redis
+                transactions_to_process: list[PendingTransaction] = await redis_driver.GetPendingTransactions(redis_client, 0, 999)
+                withdrawals_to_process: list[PendingWithdrawal] = await redis_driver.GetPendingWithdrawals(redis_client, 0, 999)
+                if not transactions_to_process and not withdrawals_to_process:
+                    await asyncio.sleep(1)
+                    continue
 
-            current_batch_height += 1
+                current_batch_height += 1
 
-            new_transactions: list[Transaction] = []
-            new_withdrawals: list[WithdrawalRequests] = []
-            balance_updates: dict[str, int] = {} # address -> balance change
-            
-            for pending_tx in transactions_to_process:
-                pending_tx.transaction.batch_height = current_batch_height
-                new_transactions.append(pending_tx.transaction.to_sqlalchemy())
+                new_transactions: list[Transaction] = []
+                new_withdrawals: list[WithdrawalRequests] = []
+                balance_updates: dict[str, int] = {} # address -> balance change
                 
-                source_addr = pending_tx.transaction.source_address_pubkey
-                dest_addr = pending_tx.transaction.destination_address_pubkey
-                amount = pending_tx.transaction.amount
+                for pending_tx in transactions_to_process:
+                    pending_tx.transaction.batch_height = current_batch_height
+                    new_transactions.append(pending_tx.transaction.to_sqlalchemy())
+                    
+                    source_addr = pending_tx.transaction.source_address_pubkey
+                    dest_addr = pending_tx.transaction.destination_address_pubkey
+                    amount = pending_tx.transaction.amount
 
-                if source_addr not in balance_updates:
-                    balance_updates[source_addr] = 0
-                balance_updates[source_addr] -= amount
+                    if source_addr not in balance_updates:
+                        balance_updates[source_addr] = 0
+                    balance_updates[source_addr] -= amount
 
-                if dest_addr not in balance_updates:
-                    balance_updates[dest_addr] = 0
-                balance_updates[dest_addr] += amount
+                    if dest_addr not in balance_updates:
+                        balance_updates[dest_addr] = 0
+                    balance_updates[dest_addr] += amount
 
-            for pending_withdrawal in withdrawals_to_process:
-                pending_withdrawal.transaction.batch_height = current_batch_height
-                pending_withdrawal.withdrawal_request.batch_height = current_batch_height
+                for pending_withdrawal in withdrawals_to_process:
+                    pending_withdrawal.transaction.batch_height = current_batch_height
+                    pending_withdrawal.withdrawal_request.batch_height = current_batch_height
+                    
+                    new_transactions.append(pending_withdrawal.transaction.to_sqlalchemy())
+                    new_withdrawals.append(pending_withdrawal.withdrawal_request.to_sqlalchemy())
+
+                    source_addr = pending_withdrawal.transaction.source_address_pubkey
+                    amount = pending_withdrawal.transaction.amount
+
+                    if source_addr not in balance_updates:
+                        balance_updates[source_addr] = 0
+                    balance_updates[source_addr] -= amount
                 
-                new_transactions.append(pending_withdrawal.transaction.to_sqlalchemy())
-                new_withdrawals.append(pending_withdrawal.withdrawal_request.to_sqlalchemy())
+                #construct a list of Layer2AddressBalance objects
+                address_balances: list[Layer2AddressBalance] = []
+                for address, balance_change in balance_updates.items():
+                    address_balances.append(Layer2AddressBalance(address=address, balance=balance_change))
 
-                source_addr = pending_withdrawal.transaction.source_address_pubkey
-                amount = pending_withdrawal.transaction.amount
+                # convert the list of Layer2AddressBalance objects to list of dicts, so we can use in pg_insert().values()
+                address_balances_dicts = [model_to_dict(ab) for ab in address_balances]
 
-                if source_addr not in balance_updates:
-                    balance_updates[source_addr] = 0
-                balance_updates[source_addr] -= amount
+
+                db.add_all(new_transactions)
+                db.add_all(new_withdrawals)
+
+                stmt = pg_insert(Layer2AddressBalance).values(address_balances_dicts)
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=[Layer2AddressBalance.address],
+                    set_={
+                        Layer2AddressBalance.balance: Layer2AddressBalance.balance + stmt.excluded.balance
+                    }
+                )
             
-            #construct a list of Layer2AddressBalance objects
-            address_balances: list[Layer2AddressBalance] = []
-            for address, balance_change in balance_updates.items():
-                address_balances.append(Layer2AddressBalance(address=address, balance=balance_change))
+                await db.execute(stmt)
+                await db.commit()
+                
+                # Remove processed transactions from Redis
+                await redis_client.ltrim(PENDING_TRANSACTIONS_LIST_KEY, len(transactions_to_process), -1)
 
-            # convert the list of Layer2AddressBalance objects to list of dicts, so we can use in pg_insert().values()
-            address_balances_dicts = [model_to_dict(ab) for ab in address_balances]
-
-
-            db.add_all(new_transactions)
-            db.add_all(new_withdrawals)
-
-            stmt = pg_insert(Layer2AddressBalance).values(address_balances_dicts)
-            stmt = stmt.on_conflict_do_update(
-                index_elements=[Layer2AddressBalance.address],
-                set_={
-                    Layer2AddressBalance.balance: Layer2AddressBalance.balance + stmt.excluded.balance
-                }
-            )
-        
-            await db.execute(stmt)
-            await db.commit()
-            
-            # Remove processed transactions from Redis
-            await redis_client.ltrim(PENDING_TRANSACTIONS_LIST_KEY, len(transactions_to_process), -1)
-
-            # Remove processed withdrawals from Redis
-            await redis_client.ltrim(PENDING_WITHDRAWALS_LIST_KEY, len(withdrawals_to_process), -1)
+                # Remove processed withdrawals from Redis
+                await redis_client.ltrim(PENDING_WITHDRAWALS_LIST_KEY, len(withdrawals_to_process), -1)
 
 
-            # Release locks
-            for pending_tx in transactions_to_process:
-                await lock_manager.release_multi_lock(pending_tx.addresses_locked, pending_tx.lock_token)
-            for pending_withdrawal in withdrawals_to_process:
-                await lock_manager.release_multi_lock(pending_withdrawal.addresses_locked, pending_withdrawal.lock_token)
-            
+                # Release locks
+                for pending_tx in transactions_to_process:
+                    await lock_manager.release_multi_lock(pending_tx.addresses_locked, pending_tx.lock_token)
+                for pending_withdrawal in withdrawals_to_process:
+                    await lock_manager.release_multi_lock(pending_withdrawal.addresses_locked, pending_withdrawal.lock_token)
+                
 
-        except Exception as e:
-            print(f"Error processing transactions: {e}")
-            await db.rollback()
-            await asyncio.sleep(5)
+            except Exception as e:
+                print(f"Error processing transactions: {e}")
+                await db.rollback()
+                await asyncio.sleep(5)
+    except asyncio.CancelledError:
+        print("Layer2LedgerDbWriter shutdown requested...")
+        raise
+    finally:
+        await db.close()
+        await redis_client.aclose()
 
 
 async def main_async():
     print("Starting Layer2LedgerDbWriter...")
-    await asyncio.gather(
-        process_pending_transactions()
-    )
+    await process_pending_transactions()
+
+
+def run_until_signal(coro) -> None:
+    """Run an async main coroutine until SIGTERM/SIGINT cancels it.
+
+    Uses loop.add_signal_handler (not signal.signal) so the signal wakes the event
+    loop immediately via its wakeup fd — otherwise a long `await asyncio.sleep(...)`
+    would delay delivery until the sleep ends and Docker would SIGKILL at the grace
+    period instead.
+    """
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    main_task = loop.create_task(coro)
+
+    def request_shutdown() -> None:
+        main_task.cancel()
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            loop.add_signal_handler(sig, request_shutdown)
+        except NotImplementedError:
+            # add_signal_handler is unavailable on some platforms (e.g. Windows).
+            signal.signal(sig, lambda _s, _f: main_task.cancel())
+
+    try:
+        loop.run_until_complete(main_task)
+    except asyncio.CancelledError:
+        pass
+    finally:
+        loop.close()
+
 
 def main():
-    asyncio.run(main_async())
+    run_until_signal(main_async())
 
 if __name__ == "__main__":
     main()

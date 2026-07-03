@@ -1,4 +1,5 @@
 import asyncio
+import signal
 from pathlib import Path
 from typing import Dict, List
 import os
@@ -267,5 +268,36 @@ class Layer2Bridge():
             except Exception as e:
                 OnboardingLogger(f"Error updating audit DB: {e}")
 
+
+def run_until_signal(coro) -> None:
+    """Run an async main coroutine until SIGTERM/SIGINT cancels it.
+
+    Uses loop.add_signal_handler (not signal.signal) so the signal wakes the event
+    loop immediately via its wakeup fd — otherwise a long `await asyncio.sleep(...)`
+    would delay delivery until the sleep ends and Docker would SIGKILL at the grace
+    period instead.
+    """
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    main_task = loop.create_task(coro)
+
+    def request_shutdown() -> None:
+        main_task.cancel()
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            loop.add_signal_handler(sig, request_shutdown)
+        except NotImplementedError:
+            # add_signal_handler is unavailable on some platforms (e.g. Windows).
+            signal.signal(sig, lambda _s, _f: main_task.cancel())
+
+    try:
+        loop.run_until_complete(main_task)
+    except asyncio.CancelledError:
+        pass
+    finally:
+        loop.close()
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    run_until_signal(main())
