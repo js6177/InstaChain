@@ -1,0 +1,20 @@
+Install:
+uv
+bun
+docker
+
+For setup scripts:
+Microsoft Visual C++ 14.0 or greater (https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+
+
+
+cd '/backend/setup_scripts'
+uv run src/main.py -env=test -containered=true -generate-keys -generate-oauth-config
+
+To run all tests in docker containers:
+make test
+
+To debug/run the frontend tests in vscode with the backend in docker containers:
+make backend-test
+cp frontend/wallet/apps/web/.env.test.local.example frontend/wallet/apps/web/.env.test.local
+cd frontend/wallet/apps/web && bun run test
