@@ -11,7 +11,7 @@ from layer2ledgerbatched.testhelper.api_paths import (
     SEED_MNEMONIC_ROUTE,
     TESTHELPER_ROUTER_PREFIX,
 )
-from layer2ledgerbatched.testhelper.errors import testhelper_http_error
+from layer2ledgerbatched.testhelper.errors import http_error_from_exception
 from layer2ledgerbatched.testhelper.schemas import (
     HealthResponse,
     SeedBalanceRequest,
@@ -42,7 +42,7 @@ async def seed_balance(
         )
     except Exception as exc:
         await db.rollback()
-        raise testhelper_http_error(exc) from exc
+        raise http_error_from_exception(exc) from exc
     return SeedResponse(
         address=request.address,
         balance=request.balance,
@@ -66,7 +66,7 @@ async def seed_mnemonic(
         )
     except Exception as exc:
         await db.rollback()
-        raise testhelper_http_error(exc) from exc
+        raise http_error_from_exception(exc) from exc
     return SeedResponse(
         address=address.public_key_str_base58,
         balance=request.balance,

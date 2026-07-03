@@ -41,7 +41,7 @@ def build_error_response(status_code: int, detail: TestHelperErrorDetail) -> JSO
     )
 
 
-def testhelper_http_error(exc: BaseException, *, status_code: int = 500) -> HTTPException:
+def http_error_from_exception(exc: BaseException, *, status_code: int = 500) -> HTTPException:
     return HTTPException(
         status_code=status_code,
         detail=exception_detail(exc),

@@ -63,6 +63,15 @@ export default defineConfig({
   },
   build: { sourcemap: true },
   test: {
+    coverage: {
+      // istanbul instruments source at transform time, so it works with the
+      // webdriverio browser provider (v8 coverage requires CDP/Playwright).
+      provider: 'istanbul',
+      // 'text' prints the coverage summary to the console; 'cobertura' writes the XML report.
+      reporter: ['text', 'cobertura'],
+      reportsDirectory: path.resolve(__dirname, '../../.coverage'),
+      include: ['src/**'],
+    },
     projects: [
       {
         extends: true,

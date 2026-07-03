@@ -275,12 +275,33 @@ class DockerComposeTestRunner:
         for service in APP_SERVICES:
             self.wait_for_healthy(service)
 
+    def ensure_testhelper(self) -> None:
+        """Rebuild testhelper so it always runs the current seed.py (not a stale image).
+
+        `compose run` reuses a healthy layer2ledger-testhelper left over from
+        `make backend-test` or a prior `make test` without rebuilding it.
+        """
+        log("Building and starting layer2ledger-testhelper (force-recreate)...")
+        self.run(
+            [
+                "--profile",
+                "test",
+                "up",
+                "-d",
+                "--build",
+                "--force-recreate",
+                "layer2ledger-testhelper",
+            ],
+            check=True,
+        )
+        self.wait_for_healthy("layer2ledger-testhelper")
+
     def run_test_services(self, services: tuple[str, ...]) -> bool:
         failed = False
         for test_service in services:
             log(f"Running {test_service}...")
             if self.run_quiet(
-                ["--profile", "test", "run", "--rm", test_service]
+                ["--profile", "test", "run", "--rm", "--build", test_service]
             ):
                 log(f"PASSED: {test_service}")
             else:
@@ -310,6 +331,8 @@ class DockerComposeTestRunner:
             exit_code = 1
 
         self.start_app_services()
+
+        self.ensure_testhelper()
 
         log("Running integration test containers...")
         if self.run_test_services(INTEGRATION_TEST_SERVICES):

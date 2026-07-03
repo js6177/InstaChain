@@ -156,6 +156,18 @@ export function getTestHelperBaseUrl(): string {
   )
 }
 
+function getRepoBridgeConfigPaths(): string[] {
+  const environment =
+    process.env.ENVIRONMENT ?? process.env.VITE_ENVIRONMENT ?? 'test'
+  const configRoot =
+    process.env.OPENL2_CONFIG_PATH ?? join(testDir, '../../../../../.config')
+
+  return [
+    join(testDir, 'test.bridge-config.json'),
+    join(configRoot, environment, 'layer2ledgerbridge-config.json'),
+  ]
+}
+
 export async function loadBridgeConfig(): Promise<void> {
   if (bridgeConfig) return
 
@@ -165,12 +177,14 @@ export async function loadBridgeConfig(): Promise<void> {
     return
   }
 
-  try {
-    const raw = await readFile(join(testDir, 'test.bridge-config.json'), 'utf-8')
-    bridgeConfig = parseBridgeConfigFile(JSON.parse(raw))
-    return
-  } catch {
-    // Optional file — mounted in Docker integration runs.
+  for (const configPath of getRepoBridgeConfigPaths()) {
+    try {
+      const raw = await readFile(configPath, 'utf-8')
+      bridgeConfig = parseBridgeConfigFile(JSON.parse(raw))
+      if (bridgeConfig) return
+    } catch {
+      // Try the next candidate path.
+    }
   }
 
   const configUrl =
@@ -190,7 +204,9 @@ export function getBridgeSigningPrivateKey(): string {
   const key = bridgeConfig?.onboarding_signing_private_key
   if (!key) {
     throw new Error(
-      'Bridge signing key is not configured. Mount test.bridge-config.json or set VITE_TEST_BRIDGE_SIGNING_PRIVATE_KEY.',
+      'Bridge signing key is not configured. Set VITE_TEST_BRIDGE_SIGNING_PRIVATE_KEY, ' +
+        'place test.bridge-config.json in the test directory, or generate .config/test/ ' +
+        '(see backend/setup_scripts).',
     )
   }
   return key

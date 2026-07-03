@@ -8,6 +8,8 @@
     "build": "tsc -b tsconfig.app.json tsconfig.node.json && vite build",
     "lint": "eslint .",
     "test": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:integration": "vitest run --project integration",
     "preview": "vite preview"
   },
   "dependencies": {

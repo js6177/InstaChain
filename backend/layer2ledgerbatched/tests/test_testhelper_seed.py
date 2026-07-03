@@ -8,8 +8,8 @@ from layer2ledgerbatched.layer2ledgerapihandler.utils.wallet import address_from
 from layer2ledgerbatched.testhelper.config import TestMnemonicKeysFile, TestSeedConfig
 from layer2ledgerbatched.testhelper.errors import (
     exception_detail,
+    http_error_from_exception,
     parse_error_detail,
-    testhelper_http_error,
 )
 
 
@@ -95,8 +95,8 @@ def test_exception_detail_includes_traceback() -> None:
     assert "ValueError: seed failed" in detail.traceback
 
 
-def test_testhelper_http_error_wraps_detail() -> None:
-    exc = testhelper_http_error(RuntimeError("db unavailable"))
+def test_http_error_from_exception_wraps_detail() -> None:
+    exc = http_error_from_exception(RuntimeError("db unavailable"))
 
     assert exc.status_code == 500
     detail = parse_error_detail(exc.detail)
