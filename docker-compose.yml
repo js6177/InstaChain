@@ -107,7 +107,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.bitcoin-core
-    stop_grace_period: 5m
+    stop_grace_period: 30s
     stop_signal: SIGTERM
     ports:
       - "127.0.0.1:${BITCOIN_RPC_PORT:-8334}:8334"
@@ -120,6 +120,9 @@ services:
       timeout: 15s
       retries: 10
       start_period: 120s
+      # Probe frequently during start_period so the container is marked healthy
+      # within seconds of bitcoind being ready (instead of waiting a full interval).
+      start_interval: 3s
     restart: unless-stopped
 
   layer2bridge:

@@ -3,6 +3,11 @@
 #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 #   make dev
 services:
+  bitcoin-core:
+    volumes: !override
+      - bitcoin_core_data:/home/bitcoin/.bitcoin
+      - ./.config/dev/bitcoin.conf:/config/bitcoin.conf:ro
+
   layer2ledgerapihandler:
     build:
       context: ./backend

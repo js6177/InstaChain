@@ -1,12 +1,19 @@
 # Test overlay — used with docker-compose.yml via python3 run-tests.py (make test)
-# Sets ENVIRONMENT=test for backend services. Does not define bitcoin-core changes
-# (run-tests.py leaves a running healthy bitcoin-core container untouched).
+# Sets ENVIRONMENT=test for backend services.
+#
+# bitcoin-core must use .config/test/bitcoin.conf (RPC credentials must match layer2bridge).
+# run-tests.py sets ENVIRONMENT=test in the shell; backend-test relies on the volume override below.
 #
 # Services with profiles: [test] are not stopped by plain `docker compose down`.
 # Use: docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test down
 # Or: make test-down / make test-down-v
 
 services:
+  bitcoin-core:
+    volumes: !override
+      - bitcoin_core_data:/home/bitcoin/.bitcoin
+      - ./.config/test/bitcoin.conf:/config/bitcoin.conf:ro
+
   layer2ledger-postgres:
     env_file:
       - ./backend/layer2ledgerbatched/.env.test
