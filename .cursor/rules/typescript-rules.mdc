@@ -1,0 +1,8 @@
+---
+description: 
+alwaysApply: true
+---
+
+When writing unit tests for the frontend UI, if a test involves finding an element by it's label, add the label as a constant to the constants/labels.ts
+
+When http server API, elysia should be used along with TypeBox (Elysia.t) to define the API's request and respone models.

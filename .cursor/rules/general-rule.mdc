@@ -1,0 +1,6 @@
+---
+description: 
+alwaysApply: true
+---
+
+Always add types to complex models (i.e. pydantic for python and interface for typescript), instead of using dicts.
