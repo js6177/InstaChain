@@ -85,7 +85,7 @@ class DockerComposeTestRunner:
         self.root = root
         self.env = os.environ.copy()
         self.env["ENVIRONMENT"] = "test"
-        self.compose = ["docker", "compose"]
+        self.compose = ["docker", "compose", "--progress", "quiet"]
         for compose_file in COMPOSE_FILES:
             self.compose.extend(["-f", compose_file])
 

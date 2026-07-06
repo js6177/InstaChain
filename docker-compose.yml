@@ -1,6 +1,5 @@
 # Base stack: production-like defaults (ENVIRONMENT defaults to prod).
 # For local development with debug ports and source mounts, use: make dev
-version: '3.8'
 
 services:
   layer2ledger-postgres:
