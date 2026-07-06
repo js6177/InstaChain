@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-// @ts-ignore
+// @ts-expect-error
 import OAuth2LoginImport from 'react-simple-oauth2-login';
-// @ts-ignore
+// @ts-expect-error
 const OAuth2Login = OAuth2LoginImport.default || OAuth2LoginImport;
 import { OAuthService, type OAuthResponse } from '@openl2/api-layer2oauthmanager';
 import { useOAuthExchangeMutation } from '../hooks/useLayer2LedgerOauthManagerQueries';

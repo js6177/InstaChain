@@ -2,11 +2,11 @@ export const db_name: string = "my_db";
 import mongoose from 'mongoose';
 
 
-import { type MongoDbConfig } from '@openl2/config-loader';
+import type { MongoDbConfig } from '@openl2/config-loader';
 import {OAuthUserModel, type OAuthUser} from 'models/db_models/OAuthUser';
-import {UserKeys, UserKeysModel} from 'models/db_models/UserKeys';
+import {type UserKeys, UserKeysModel} from 'models/db_models/UserKeys';
 import {GenerateMneumonic} from 'utils/mneumonic';
-import { type Layer2OAuthToken } from 'models/http_server_models/AuthorizeWithLayer2AuthTokenRequest';
+import type { Layer2OAuthToken } from 'models/http_server_models/AuthorizeWithLayer2AuthTokenRequest';
 import type { OAuthUserAuxillaryInfo } from 'models/http_server_models/Common/OAuthUserAuxillaryInfo';
 //import {createLayer2AddressPubkey} from 'utils/WalletUtils';
 import {createLayer2AddressPubkey} from '@openl2/pubkey-utils'

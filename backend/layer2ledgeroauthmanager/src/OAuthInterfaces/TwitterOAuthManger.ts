@@ -1,9 +1,9 @@
 import axios from "axios";
-import { type OAuth2ServiceParams } from '@openl2/config-loader';
+import type { OAuth2ServiceParams } from '@openl2/config-loader';
 import { OAuthUserModel, type OAuthUser } from "models/db_models/OAuthUser";
-import { type DatabaseInterface } from "DatabaseInterface";
+import type { DatabaseInterface } from "DatabaseInterface";
 import { GenerateUUID, MillisecondsInMonth } from "utils/utils";
-import { type TwitterUserInfoData, type TwitterUserInfo } from "models/oauth2_models/Twitter";
+import type { TwitterUserInfoData, TwitterUserInfo } from "models/oauth2_models/Twitter";
 import type { UserKeys } from "models/db_models/UserKeys";
 import {standardizeProfileUrl, buildTwitterUrl } from "utils/OAuthHelperUtils";
 

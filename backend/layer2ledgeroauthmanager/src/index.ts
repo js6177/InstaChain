@@ -11,7 +11,7 @@ import { FacebookOAuthManager } from 'OAuthInterfaces/FacebookOAuthManager';
 import { DiscordOAuthManager } from 'OAuthInterfaces/DiscordOAuthManager';
 import { OAuthRequest } from 'models/http_server_models/OAuthRequest';
 import { OAuthResponse } from 'models/http_server_models/OAuthResponse';
-import { type OAuthUser } from 'models/db_models/OAuthUser';
+import type { OAuthUser } from 'models/db_models/OAuthUser';
 import { AuthorizeWithLayer2AuthTokenRequest } from 'models/http_server_models/AuthorizeWithLayer2AuthTokenRequest';
 import { SearchUserRequest } from 'models/http_server_models/SearchUserRequest';
 import { SearchUserResponse } from 'models/http_server_models/SearchUserResponse';
@@ -83,8 +83,8 @@ const app = new Elysia()
     if (requestBody.service === OAuthService.Twitter && twitterOAuthManager && requestBody.code_verifier) {
       try {
         accessToken = await twitterOAuthManager.getTwitterAccessToken(requestBody.code, requestBody.code_verifier);
-        let [userInfo, userKeys] = await twitterOAuthManager.getTwitterUserInfo(accessToken, mongoDb);
-        let oauthResponse: OAuthResponse = {
+        const [userInfo, userKeys] = await twitterOAuthManager.getTwitterUserInfo(accessToken, mongoDb);
+        const oauthResponse: OAuthResponse = {
           error_response: buildErrorResponse(ErrorCodes.Success),
           user: userInfo,
           user_keys: userKeys
@@ -97,8 +97,8 @@ const app = new Elysia()
     } else if (requestBody.service === OAuthService.Github && githubOAuthManager) {
       try {
         accessToken = await githubOAuthManager.getGithubAccessToken(requestBody.code);
-        let [userInfo, userKeys] = await githubOAuthManager.getGithubUserInfo(accessToken, mongoDb);
-        let oauthResponse: OAuthResponse = {
+        const [userInfo, userKeys] = await githubOAuthManager.getGithubUserInfo(accessToken, mongoDb);
+        const oauthResponse: OAuthResponse = {
           error_response: buildErrorResponse(ErrorCodes.Success),
           user: userInfo,
           user_keys: userKeys
@@ -111,8 +111,8 @@ const app = new Elysia()
     } else if (requestBody.service === OAuthService.Google && googleOAuthManager) {
       try {
         accessToken = await googleOAuthManager.getGoogleAccessToken(requestBody.code);
-        let [userInfo, userKeys] = await googleOAuthManager.getGoogleUserInfo(accessToken, mongoDb);
-        let oauthResponse: OAuthResponse = {
+        const [userInfo, userKeys] = await googleOAuthManager.getGoogleUserInfo(accessToken, mongoDb);
+        const oauthResponse: OAuthResponse = {
           error_response: buildErrorResponse(ErrorCodes.Success),
           user: userInfo,
           user_keys: userKeys
@@ -125,8 +125,8 @@ const app = new Elysia()
     } else if (requestBody.service === OAuthService.Facebook && facebookOAuthManager) {
       try {
         accessToken = await facebookOAuthManager.getFacebookAccessToken(requestBody.code);
-        let [userInfo, userKeys] = await facebookOAuthManager.getFacebookUserInfo(accessToken, mongoDb);
-        let oauthResponse: OAuthResponse = {
+        const [userInfo, userKeys] = await facebookOAuthManager.getFacebookUserInfo(accessToken, mongoDb);
+        const oauthResponse: OAuthResponse = {
           error_response: buildErrorResponse(ErrorCodes.Success),
           user: userInfo,
           user_keys: userKeys
@@ -139,8 +139,8 @@ const app = new Elysia()
     } else if (requestBody.service === OAuthService.Discord && discordOAuthManager) {
       try {
         accessToken = await discordOAuthManager.getDiscordAccessToken(requestBody.code);
-        let [userInfo, userKeys] = await discordOAuthManager.getDiscordUserInfo(accessToken, mongoDb);
-        let oauthResponse: OAuthResponse = {
+        const [userInfo, userKeys] = await discordOAuthManager.getDiscordUserInfo(accessToken, mongoDb);
+        const oauthResponse: OAuthResponse = {
           error_response: buildErrorResponse(ErrorCodes.Success),
           user: userInfo,
           user_keys: userKeys
@@ -167,7 +167,7 @@ const app = new Elysia()
       const requestBody: AuthorizeWithLayer2AuthTokenRequest = body;
       const [user, user_keys] = await mongoDb.authorizeOAuthUserWithLayer2Token(requestBody.layer2_oauth_token);
       if (user) {
-        let oauthResponse: OAuthResponse = {
+        const oauthResponse: OAuthResponse = {
           error_response: buildErrorResponse(ErrorCodes.Success),
           user: user,
           user_keys: user_keys
@@ -200,7 +200,7 @@ const app = new Elysia()
         user = await mongoDb.searchUser(null, requestBody.keyword);
       }
       if (user) {
-        let searchUserResponse: SearchUserResponse = {
+        const searchUserResponse: SearchUserResponse = {
           error_response: buildErrorResponse(ErrorCodes.Success),
           users: [user]
         }
@@ -227,7 +227,7 @@ const app = new Elysia()
       const requestBody: FindOauthUserRequest = body;
       const user = await mongoDb.findUser(null, requestBody.profile_url, true);
       if (user) {
-        let searchUserResponse: FindOAuthUserResponse = {
+        const searchUserResponse: FindOAuthUserResponse = {
           error_response: buildErrorResponse(ErrorCodes.Success),
           user: user,
         }
@@ -261,7 +261,7 @@ const app = new Elysia()
           pubkey = keys.l2_address_public_key;
         }
         
-        let response: FindOauth2UserByIdResponse = {
+        const response: FindOauth2UserByIdResponse = {
           error_response: buildErrorResponse(ErrorCodes.Success),
           user: user,
           layer2_address_pubkey: pubkey
