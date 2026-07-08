@@ -2,12 +2,14 @@ import { beforeAll, describe, expect, it } from 'vitest'
 
 import {
   createRandomWallet,
+  confirmLayer1Deposit,
   depositToAddress,
   expectDepositTransaction,
   expectTransferTransaction,
   expectWithdrawalTransaction,
   getAddressBalance,
   getAddressTransactions,
+  getDepositAddress,
   getTransferFee,
   isLedgerIntegrationEnabled,
   loadBridgeConfig,
@@ -22,6 +24,39 @@ const describeIntegration = describe.runIf(isLedgerIntegrationEnabled())
 describeIntegration('Ledger API functional integration', () => {
   beforeAll(async () => {
     await loadBridgeConfig()
+  })
+
+  it('returns a layer1 testnet deposit address', async () => {
+    const wallet = createRandomWallet()
+
+    const depositAddress = await getDepositAddress(wallet)
+
+    expect(depositAddress).toBeTruthy()
+    expect(depositAddress.startsWith('tb1')).toBe(true)
+
+    const secondDepositAddress = await getDepositAddress(wallet)
+    expect(secondDepositAddress).not.toBe(depositAddress)
+    expect(secondDepositAddress.startsWith('tb1')).toBe(true)
+  })
+
+  it('layer1 deposit to deposit address credits layer2 balance and records a deposit', async () => {
+    const depositAmount = 30_000
+    const wallet = createRandomWallet()
+    const address = wallet.addresses[0]
+
+    expect(await getAddressBalance(address.public_key_str_base58)).toBe(0)
+
+    const layer1DepositAddress = await getDepositAddress(wallet)
+    expect(layer1DepositAddress.startsWith('tb1')).toBe(true)
+
+    await confirmLayer1Deposit(layer1DepositAddress, depositAmount)
+    await waitForBalance(address.public_key_str_base58, depositAmount)
+
+    const balance = await getAddressBalance(address.public_key_str_base58)
+    expect(balance).toBe(depositAmount)
+
+    const transactions = await getAddressTransactions(address.public_key_str_base58)
+    expectDepositTransaction(transactions, depositAmount, address.public_key_str_base58)
   })
 
   it('deposit credits address balance and records a deposit transaction', async () => {

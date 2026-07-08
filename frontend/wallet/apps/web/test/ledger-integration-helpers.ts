@@ -380,39 +380,45 @@ export async function waitForMinBalance(
   )
 }
 
-export async function depositToAddress(
-  wallet: Layer2Wallet,
-  amountSats: number,
-): Promise<string> {
-  await loadBridgeConfig()
+export async function getDepositAddress(wallet: Layer2Wallet): Promise<string> {
   const mainAddress = wallet.addresses[0]
   const node = await getNodeContext()
   const depositApi = getDeposit()
 
-  const depositAddressNonce = crypto.randomUUID()
-  const depositAddressMessage = buildGetDepositAddressMessage(
+  const nonce = crypto.randomUUID()
+  const message = buildGetDepositAddressMessage(
     node.node_id,
     node.asset_id,
     mainAddress.public_key_str_base58,
-    depositAddressNonce,
+    nonce,
   )
-  const depositAddressSignature = await mainAddress.signMessage(depositAddressMessage)
+  const signature = await mainAddress.signMessage(message)
 
-  const depositAddressResponse =
-    await depositApi.getDepositAddressDepositGetDepositAddressPost({
-      layer2_address_pubkey: mainAddress.public_key_str_base58,
-      nonce: depositAddressNonce,
-      signature: depositAddressSignature,
-    })
+  const response = await depositApi.getDepositAddressDepositGetDepositAddressPost({
+    layer2_address_pubkey: mainAddress.public_key_str_base58,
+    nonce,
+    signature,
+  })
 
-  if (depositAddressResponse.error_code !== API_SUCCESS) {
-    throw new Error(`get_deposit_address failed: ${depositAddressResponse.error_message}`)
+  if (response.error_code !== API_SUCCESS) {
+    throw new Error(`get_deposit_address failed: ${response.error_message}`)
   }
 
-  const layer1DepositAddress = depositAddressResponse.layer1_deposit_address
+  const layer1DepositAddress = response.layer1_deposit_address
   if (!layer1DepositAddress) {
     throw new Error('get_deposit_address returned no layer1 address')
   }
+
+  return layer1DepositAddress
+}
+
+export async function confirmLayer1Deposit(
+  layer1DepositAddress: string,
+  amountSats: number,
+): Promise<string> {
+  await loadBridgeConfig()
+  const node = await getNodeContext()
+  const depositApi = getDeposit()
 
   const layer1TxId = `test-l1-tx-${crypto.randomUUID()}`
   const confirmNonce = crypto.randomUUID()
@@ -445,6 +451,14 @@ export async function depositToAddress(
   }
 
   return confirmNonce
+}
+
+export async function depositToAddress(
+  wallet: Layer2Wallet,
+  amountSats: number,
+): Promise<string> {
+  const layer1DepositAddress = await getDepositAddress(wallet)
+  return confirmLayer1Deposit(layer1DepositAddress, amountSats)
 }
 
 export async function transferBetweenAddresses(
