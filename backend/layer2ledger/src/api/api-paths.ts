@@ -1,0 +1,20 @@
+export const DEPOSIT_ROUTER_PREFIX = '/deposit';
+export const TRANSFER_ROUTER_PREFIX = '/transfer';
+export const WITHDRAWAL_ROUTER_PREFIX = '/withdrawal';
+export const EXPLORER_ROUTER_PREFIX = '/explorer';
+export const INFO_ROUTER_PREFIX = '/info';
+export const AUDIT_ROUTER_PREFIX = '/audit';
+
+export const GET_DEPOSIT_ADDRESS_ROUTE = '/get_deposit_address';
+export const DEPOSIT_CONFIRMED_ROUTE = '/deposit_confirmed';
+export const PUSH_TRANSACTION_ROUTE = '/push_transaction';
+export const REQUEST_WITHDRAWAL_ROUTE = '/request_withdrawal';
+export const GET_WITHDRAWAL_REQUESTS_ROUTE = '/get_withdrawal_requests';
+export const WITHDRAWAL_BROADCASTED_ROUTE = '/withdrawal_broadcasted';
+export const WITHDRAWAL_CONFIRMED_ROUTE = '/withdrawal_confirmed';
+export const GET_BALANCE_ROUTE = '/get_balance';
+export const GET_TRANSACTION_ROUTE = '/get_transaction';
+export const GET_ALL_TRANSACTIONS_ROUTE = '/get_all_transactions';
+export const GET_FEE_ROUTE = '/get_fee';
+export const GET_NODE_INFO_ROUTE = '/get_node_info';
+export const POST_LAYER1_AUDIT_REPORT_ROUTE = '/post_layer1_audit_report';

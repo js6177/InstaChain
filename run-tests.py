@@ -2,7 +2,7 @@
 """Run backend and frontend tests inside Docker containers.
 
 - Starts infrastructure with ENVIRONMENT=test
-- Runs layer2ledgerbatched pytest before apihandler/dbwriter (avoids DB/Redis lock contention)
+- Runs layer2ledger unit tests before apihandler/dbwriter (avoids DB/Redis lock contention)
 - Starts application services, then runs integration test containers (including wallet vitest)
 - Leaves a running healthy bitcoin-core container untouched
 """
@@ -35,7 +35,7 @@ APP_SERVICES = (
 )
 
 TEST_SERVICES = (
-    "test-layer2ledgerbatched",
+    "test-layer2ledger",
     "test-layer2bridge",
     "test-bitcoin-core-rpc",
     "test-layer2ledgeroauthmanager",
@@ -43,7 +43,7 @@ TEST_SERVICES = (
     "test-wallet-web",
 )
 
-UNIT_TEST_SERVICES = ("test-layer2ledgerbatched",)
+UNIT_TEST_SERVICES = ("test-layer2ledger",)
 
 INTEGRATION_TEST_SERVICES = (
     "test-layer2bridge",
@@ -326,7 +326,7 @@ class DockerComposeTestRunner:
 
         exit_code = 0
 
-        log("Running layer2ledgerbatched unit tests (no live apihandler/dbwriter)...")
+        log("Running layer2ledger unit tests (no live apihandler/dbwriter)...")
         if self.run_test_services(UNIT_TEST_SERVICES):
             exit_code = 1
 

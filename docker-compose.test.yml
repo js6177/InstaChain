@@ -16,7 +16,7 @@ services:
 
   layer2ledger-postgres:
     env_file:
-      - ./backend/layer2ledgerbatched/.env.test
+      - ./backend/layer2ledger/.env.test
     environment:
       ENVIRONMENT: test
 
@@ -30,7 +30,7 @@ services:
 
   layer2ledgerapihandler:
     env_file:
-      - ./backend/layer2ledgerbatched/.env.test
+      - ./backend/layer2ledger/.env.test
     environment:
       ENVIRONMENT: test
       OPENL2_CONFIG_PATH: /app/.config
@@ -38,7 +38,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/')\"",
+          "bun -e \"fetch('http://127.0.0.1:8000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
         ]
       interval: 5s
       timeout: 5s
@@ -47,7 +47,7 @@ services:
 
   layer2ledgerdbwriter:
     env_file:
-      - ./backend/layer2ledgerbatched/.env.test
+      - ./backend/layer2ledger/.env.test
     environment:
       ENVIRONMENT: test
       OPENL2_CONFIG_PATH: /app/.config
@@ -55,7 +55,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "tr '\\0' ' ' < /proc/1/cmdline | grep -q 'layer2ledgerdbwriter.main'",
+          "tr '\\0' ' ' < /proc/1/cmdline | grep -q 'layer2ledgerdbwriter/index.ts'",
         ]
       interval: 5s
       timeout: 5s
@@ -78,7 +78,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "tr '\\0' ' ' < /proc/1/cmdline | grep -q 'layer2bridge.main'",
+          "tr '\\0' ' ' < /proc/1/cmdline | grep -q 'src/main.ts'",
         ]
       interval: 10s
       timeout: 5s
@@ -88,16 +88,15 @@ services:
   layer2ledger-testhelper:
     profiles: [test]
     build:
-      context: ./backend
-      dockerfile: ../docker/Dockerfile.layer2ledgertesthelper
+      context: .
+      dockerfile: docker/Dockerfile.layer2ledgertesthelper
     ports:
       - "${TESTHELPER_PORT:-8001}:8001"
     env_file:
-      - ./backend/layer2ledgerbatched/.env.test
+      - ./backend/layer2ledger/.env.test
     environment:
       ENVIRONMENT: test
       OPENL2_CONFIG_PATH: /app/.config
-      PYTHONPATH: /app/layer2ledgerbatched/src
     volumes:
       - ./.config:/app/.config:ro
     depends_on:
@@ -107,7 +106,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/testhelper/health')\"",
+          "bun -e \"fetch('http://127.0.0.1:8001/testhelper/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
         ]
       interval: 5s
       timeout: 5s
@@ -115,15 +114,14 @@ services:
       start_period: 15s
     restart: "no"
 
-  test-layer2ledgerbatched:
+  test-layer2ledger:
     profiles: [test]
     build:
-      context: ./backend
-      dockerfile: ../docker/Dockerfile.test.layer2ledgerbatched
+      context: .
+      dockerfile: docker/Dockerfile.test.layer2ledger
     environment:
       ENVIRONMENT: test
       OPENL2_CONFIG_PATH: /app/.config
-      PYTHONPATH: /app/layer2ledgerbatched/src
     volumes:
       - ./.config:/app/.config:ro
     depends_on:
@@ -136,8 +134,8 @@ services:
   test-layer2bridge:
     profiles: [test]
     build:
-      context: ./backend
-      dockerfile: ../docker/Dockerfile.test.layer2bridge
+      context: .
+      dockerfile: docker/Dockerfile.test.layer2bridge-ts
     environment:
       ENVIRONMENT: test
       OPENL2_CONFIG_PATH: /app/.config
@@ -193,8 +191,8 @@ services:
   test-layer2ledger-seed:
     profiles: [test]
     build:
-      context: ./backend
-      dockerfile: ../docker/Dockerfile.test.layer2ledger-seed
+      context: .
+      dockerfile: docker/Dockerfile.test.layer2ledger-seed
     environment:
       ENVIRONMENT: test
       OPENL2_CONFIG_PATH: /app/.config
@@ -234,8 +232,9 @@ services:
         condition: service_healthy
       layer2ledgerdbwriter:
         condition: service_healthy
-      layer2ledger-testhelper:
-        condition: service_healthy
+      # testhelper is started by run-tests.py (ensure_testhelper) before integration
+      # tests. Do not list it here — compose run would recreate it, re-run migrations,
+      # and wipe seed data before vitest runs.
       layer2ledgeroauthmanager:
         condition: service_healthy
       layer2bridge:

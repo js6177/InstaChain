@@ -1,30 +1,23 @@
 # Setting up
 
 The OpenL2 project is split into a backend and frontend. The backend itself is split into multiple services. To setup the backend, see the README in the backend folder.
-Once the backend is setup (after you finish running setup_scripts), you will need to generate the openapi spec from the backend, and import it into the frontend so they can talk to each other.
 
-In the backend, go to
+## Layer2 Ledger API client
 
-`/backend/layer2ledgerbatched`
+The Layer2 Ledger HTTP API is defined in `backend/layer2ledger`. Consumers (frontend wallet and `layer2bridge-ts`) import the typed Eden treaty client and shared request/response models from the shared package:
 
-and run 
+`/shared/api-layer2ledger` (`@openl2/api-layer2ledger`)
 
-`uv run tools/dump_fastapi_openapi.py`
+Example:
 
-This should generate an openapi spec at the location:
+```typescript
+import {
+  createLayer2LedgerClient,
+  unwrapLayer2LedgerResponse,
+} from '@openl2/api-layer2ledger';
 
-`OpenAPI schema dumped to /backend/layer2ledgerbatched/docs/layer2ledgerapihandler_openapi.json`
-
-Move that spec to `/frontend/wallet/packages/api-layer2ledger/specs`
-
-And import it into the frontend project so that the frontend has access tot he request/response models and a way to call them.
-
-To import it, use orval. Navigate to the api-layer2ledger package.
-
-`/frontend/wallet/packages/api-layer2ledger`
-
-and run
-
-`bun run orval`
-
-This will generate the appropriate client required to call the layer2ledger API in `/src/`
+const ledgerApi = createLayer2LedgerClient('http://localhost:8000');
+const balance = unwrapLayer2LedgerResponse(
+  await ledgerApi.explorer.get_balance.post({ public_keys: [publicKey] }),
+);
+```

@@ -59,3 +59,61 @@ export interface Layer2LedgerDockerEnvSettings {
   bitcoinRpcPort: number;
   layer2ledgerApihandlerHost: string;
 }
+
+export interface PostgresqlDatabaseSettings {
+  db_user: string;
+  db_password: string;
+  db_host: string;
+  db_port: string;
+  db_name: string;
+}
+
+export interface RedisSettings {
+  host: string;
+  port: number;
+}
+
+export interface Layer2LedgerCommonConfig {
+  database: PostgresqlDatabaseSettings;
+  redis: RedisSettings;
+  drop_tables_after_test_completed?: boolean;
+  drop_tables_before_test_completed?: boolean;
+}
+
+export interface SettingsLayer2Address {
+  mneumonic?: string | null;
+  private_key: string;
+  public_key: string;
+}
+
+export interface Layer2LedgerAPIHandlerConfig {
+  layer2ledger_node_id: string;
+  deposit_wallet_master_pubkey: string;
+  minimum_layer1_transaction_amount: number;
+  layer2bridge_signing_address: SettingsLayer2Address;
+  deposit_transaction_pubkey: string;
+  layer2bridge_signing_key_uses_functional_test_keys: boolean;
+  onboarding_layer2_deposit_address: SettingsLayer2Address;
+}
+
+export interface CommonBackendConfig {
+  node_id: string;
+  layer2bridge_signing_public_key: string;
+}
+
+export interface Layer2BridgeBitcoinConfFileSettings {
+  chain: string;
+  rpcuser: string;
+  rpcpassword: string;
+  rpchost: string;
+  rpcport: number;
+}
+
+export interface Layer2BridgeConfig {
+  rpc_settings: Layer2BridgeBitcoinConfFileSettings;
+  database_layer2bridge_name: string;
+  wallet_name: string;
+  layer2_node_url: string;
+  onboarding_signing_private_key: string;
+  database_audit_name?: string | null;
+}

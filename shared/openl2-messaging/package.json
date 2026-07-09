@@ -1,0 +1,17 @@
+{
+  "name": "@openl2/openl2-messaging",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.5.4"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

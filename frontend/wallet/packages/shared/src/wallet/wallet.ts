@@ -3,7 +3,7 @@ import { sha256 } from '@noble/hashes/sha2';
 import bs58 from 'bs58';
 import { hmac } from '@noble/hashes/hmac';
 import { MNEUMONIC_WORD_COUNT, MNEUMONIC_WORDLIST } from './wordlist';
-import type {GetTransactionsResponseTransaction} from '../../../api-layer2ledger/src/generated/models/getTransactionsResponseTransaction';
+import type { GetTransactionsResponseTransaction } from '@openl2/api-layer2ledger';
 import type { TransactionType } from '@openl2/openl2-messaging';
 
 secp.etc.hmacSha256Sync = (key, ...msgs) => hmac(sha256, key, secp.etc.concatBytes(...msgs));

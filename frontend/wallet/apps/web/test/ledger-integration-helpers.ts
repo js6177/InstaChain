@@ -1,9 +1,7 @@
 import {
-  getDeposit,
-  getExplorer,
-  getInfo,
-  getTransfer,
-  getWithdrawal,
+  createLayer2LedgerClient,
+  ErrorCodes,
+  unwrapLayer2LedgerResponse,
   type GetTransactionsResponse,
   type GetTransactionsResponseTransaction,
 } from '@openl2/api-layer2ledger'
@@ -27,7 +25,12 @@ import { fileURLToPath } from 'node:url'
 
 const testDir = dirname(fileURLToPath(import.meta.url))
 
-const API_SUCCESS = 0
+const API_SUCCESS = ErrorCodes.SUCCESS
+
+function getLedgerApi() {
+  const apiBase = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+  return createLayer2LedgerClient(apiBase)
+}
 
 interface BridgeConfigFile {
   onboarding_signing_private_key: string
@@ -296,8 +299,7 @@ export async function seedWalletAddress(
 }
 
 export async function getNodeContext() {
-  const infoApi = getInfo()
-  const response = await infoApi.getNodeInfoInfoGetNodeInfoGet()
+  const response = unwrapLayer2LedgerResponse(await getLedgerApi().info.get_node_info.get())
   if (response.error_code !== API_SUCCESS || !response.node_info) {
     throw new Error(`get_node_info failed: ${response.error_message}`)
   }
@@ -305,19 +307,21 @@ export async function getNodeContext() {
 }
 
 export async function getTransferFee(): Promise<number> {
-  const explorer = getExplorer()
-  const response = await explorer.getFeeExplorerGetFeePost({})
+  const response = unwrapLayer2LedgerResponse(
+    await getLedgerApi().explorer.get_fee.post({}),
+  )
   if (response.error_code !== API_SUCCESS) {
     throw new Error(`get_fee failed: ${response.error_message}`)
   }
-  return response.fee
+  return response.fee ?? 0
 }
 
 export async function getAddressBalance(publicKey: string): Promise<number> {
-  const explorer = getExplorer()
-  const response = await explorer.getBalanceExplorerGetBalancePost({
-    public_keys: [publicKey],
-  })
+  const response = unwrapLayer2LedgerResponse(
+    await getLedgerApi().explorer.get_balance.post({
+      public_keys: [publicKey],
+    }),
+  )
   if (response.error_code !== API_SUCCESS) {
     throw new Error(`get_balance failed: ${response.error_message}`)
   }
@@ -328,10 +332,11 @@ export async function getAddressBalance(publicKey: string): Promise<number> {
 export async function getAddressTransactions(
   publicKey: string,
 ): Promise<GetTransactionsResponseTransaction[]> {
-  const explorer = getExplorer()
-  const response = await explorer.getAllTransactionsExplorerGetAllTransactionsPost({
-    public_keys: [publicKey],
-  })
+  const response = unwrapLayer2LedgerResponse(
+    await getLedgerApi().explorer.get_all_transactions.post({
+      public_keys: [publicKey],
+    }),
+  )
   if (response.error_code !== API_SUCCESS) {
     throw new Error(`get_all_transactions failed: ${response.error_message}`)
   }
@@ -383,7 +388,6 @@ export async function waitForMinBalance(
 export async function getDepositAddress(wallet: Layer2Wallet): Promise<string> {
   const mainAddress = wallet.addresses[0]
   const node = await getNodeContext()
-  const depositApi = getDeposit()
 
   const nonce = crypto.randomUUID()
   const message = buildGetDepositAddressMessage(
@@ -394,11 +398,13 @@ export async function getDepositAddress(wallet: Layer2Wallet): Promise<string> {
   )
   const signature = await mainAddress.signMessage(message)
 
-  const response = await depositApi.getDepositAddressDepositGetDepositAddressPost({
-    layer2_address_pubkey: mainAddress.public_key_str_base58,
-    nonce,
-    signature,
-  })
+  const response = unwrapLayer2LedgerResponse(
+    await getLedgerApi().deposit.get_deposit_address.post({
+      layer2_address_pubkey: mainAddress.public_key_str_base58,
+      nonce,
+      signature,
+    }),
+  )
 
   if (response.error_code !== API_SUCCESS) {
     throw new Error(`get_deposit_address failed: ${response.error_message}`)
@@ -418,7 +424,6 @@ export async function confirmLayer1Deposit(
 ): Promise<string> {
   await loadBridgeConfig()
   const node = await getNodeContext()
-  const depositApi = getDeposit()
 
   const layer1TxId = `test-l1-tx-${crypto.randomUUID()}`
   const confirmNonce = crypto.randomUUID()
@@ -433,18 +438,20 @@ export async function confirmLayer1Deposit(
   const bridge = bridgeSigner(getBridgeSigningPrivateKey())
   const depositSignature = await bridge.signMessage(depositMessage)
 
-  const confirmResponse = await depositApi.depositConfirmedDepositDepositConfirmedPost({
-    transactions: [
-      {
-        layer1_transaction_id: layer1TxId,
-        layer1_transaction_vout: 0,
-        layer1_address: layer1DepositAddress,
-        amount: amountSats,
-        nonce: confirmNonce,
-        signature: depositSignature,
-      },
-    ],
-  })
+  const confirmResponse = unwrapLayer2LedgerResponse(
+    await getLedgerApi().deposit.deposit_confirmed.post({
+      transactions: [
+        {
+          layer1_transaction_id: layer1TxId,
+          layer1_transaction_vout: 0,
+          layer1_address: layer1DepositAddress,
+          amount: amountSats,
+          nonce: confirmNonce,
+          signature: depositSignature,
+        },
+      ],
+    }),
+  )
 
   if (confirmResponse.error_code !== API_SUCCESS) {
     throw new Error(`deposit_confirmed failed: ${confirmResponse.error_message}`)
@@ -468,7 +475,6 @@ export async function transferBetweenAddresses(
   feeSats: number,
 ): Promise<string> {
   const node = await getNodeContext()
-  const transferApi = getTransfer()
   const transactionId = crypto.randomUUID()
 
   const message = buildTransferMessage(
@@ -482,14 +488,16 @@ export async function transferBetweenAddresses(
   )
   const signature = await source.signMessage(message)
 
-  const response = await transferApi.createTransferTransferPushTransactionPost({
-    source_address_public_key: source.public_key_str_base58,
-    destination_address_public_key: destinationPublicKey,
-    amount: amountSats,
-    fee: feeSats,
-    transaction_id: transactionId,
-    signature,
-  })
+  const response = unwrapLayer2LedgerResponse(
+    await getLedgerApi().transfer.push_transaction.post({
+      source_address_public_key: source.public_key_str_base58,
+      destination_address_public_key: destinationPublicKey,
+      amount: amountSats,
+      fee: feeSats,
+      transaction_id: transactionId,
+      signature,
+    }),
+  )
 
   if (response.error_code !== API_SUCCESS) {
     throw new Error(`push_transaction failed: ${response.error_message}`)
@@ -504,7 +512,6 @@ export async function withdrawFromAddress(
   amountSats: number,
 ): Promise<string> {
   const node = await getNodeContext()
-  const withdrawalApi = getWithdrawal()
   const transactionId = crypto.randomUUID()
 
   const message = buildWithdrawalRequestMessage(
@@ -517,13 +524,15 @@ export async function withdrawFromAddress(
   )
   const signature = await source.signMessage(message)
 
-  const response = await withdrawalApi.requestWithdrawalWithdrawalRequestWithdrawalPost({
-    source_address_public_key: source.public_key_str_base58,
-    layer1_withdrawal_address: layer1WithdrawalAddress,
-    amount: amountSats,
-    layer2_transaction_id: transactionId,
-    signature,
-  })
+  const response = unwrapLayer2LedgerResponse(
+    await getLedgerApi().withdrawal.request_withdrawal.post({
+      source_address_public_key: source.public_key_str_base58,
+      layer1_withdrawal_address: layer1WithdrawalAddress,
+      amount: amountSats,
+      layer2_transaction_id: transactionId,
+      signature,
+    }),
+  )
 
   if (response.error_code !== API_SUCCESS) {
     throw new Error(`request_withdrawal failed: ${response.error_message}`)

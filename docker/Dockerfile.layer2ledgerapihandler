@@ -1,40 +1,18 @@
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm as builder
-
-ENV UV_COMPILE_BYTECODE=1
-ENV UV_LINK_MODE=copy
-
+FROM oven/bun:1.3.3 AS base
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-    && rm -rf /var/lib/apt/lists/*
+FROM base AS pruner
+COPY . .
+RUN bunx turbo@2.8.14 prune @openl2/layer2ledger --docker
 
-# Copy dependency files (copy README.md since hatchling.build requires it to buld)
-COPY layer2ledgerbatched/pyproject.toml layer2ledgerbatched/uv.lock layer2ledgerbatched/
-COPY packages/ packages/
+FROM base AS installer
+COPY --from=pruner /app/out/json/ .
+RUN bun install --no-save
+COPY --from=pruner /app/out/full/ .
 
-# Install dependencies WITHOUT the local project
-RUN cd layer2ledgerbatched && uv sync --frozen --no-install-project --no-dev
-
-# Copy layer2ledgerapihandler source code
-COPY layer2ledgerbatched layer2ledgerbatched/
-
-# Install the service itself
-ARG INSTALL_DEBUG=0
-RUN cd layer2ledgerbatched && uv sync --frozen --no-dev \
-    && if [ "$INSTALL_DEBUG" = "1" ]; then uv sync --frozen --group dev; fi
-
-# Runtime stage
-FROM python:3.12-slim
-
+FROM oven/bun:1.3.3-slim AS runner
 WORKDIR /app
-
-# Copy only what this service needs
-COPY --from=builder /app/layer2ledgerbatched/.venv /app/layer2ledgerbatched/.venv
-COPY --from=builder /app/layer2ledgerbatched /app/layer2ledgerbatched
-COPY --from=builder /app/packages/ /app/packages/
-
-ENV PATH="/app/layer2ledgerbatched/.venv/bin:$PATH"
-ENV PYTHONUNBUFFERED=1
-
-CMD ["uvicorn", "layer2ledgerbatched.layer2ledgerapihandler.main:app", "--host", "0.0.0.0", "--port", "8000"]
+COPY --from=installer /app .
+WORKDIR /app/backend/layer2ledger
+EXPOSE 8000
+CMD ["bun", "run", "src/layer2ledgerapihandler/index.ts"]

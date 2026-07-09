@@ -1,17 +1,22 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { getExplorer, getDeposit, getTransfer, getInfo, getWithdrawal } from '@openl2/api-layer2ledger';
+import {
+  createLayer2LedgerClient,
+  unwrapLayer2LedgerResponse,
+  type GetDepositAddressRequest,
+  type PushTransactionRequest,
+  type RequestWithdrawalRequest,
+} from '@openl2/api-layer2ledger';
+import { LAYER2_LEDGER_API_URL } from '../config';
 
-const explorerApi = getExplorer();
-const depositApi = getDeposit();
-const transferApi = getTransfer();
-const infoApi = getInfo();
-const withdrawalApi = getWithdrawal();
+const ledgerApi = createLayer2LedgerClient(LAYER2_LEDGER_API_URL);
 
 export const useAddressBalance = (publicKey: string) => {
     return useQuery({
         queryKey: ['AddressBalance', publicKey],
         queryFn: async () => {
-            const res = await explorerApi.getBalanceExplorerGetBalancePost({ public_keys: [publicKey] });
+            const res = unwrapLayer2LedgerResponse(
+              await ledgerApi.explorer.get_balance.post({ public_keys: [publicKey] }),
+            );
             return res.balance?.[0] || null;
         },
         enabled: !!publicKey,
@@ -22,8 +27,11 @@ export const useTransaction = (transactionId: string) => {
     return useQuery({
         queryKey: ['Transaction', transactionId],
         queryFn: async () => {
-            const res = await explorerApi.getTransactionExplorerGetTransactionPost({ layer2_transaction_id: transactionId });
-            return res;
+            return unwrapLayer2LedgerResponse(
+              await ledgerApi.explorer.get_transaction.post({
+                layer2_transaction_id: transactionId,
+              }),
+            );
         },
         enabled: !!transactionId,
     });
@@ -33,8 +41,9 @@ export const useTransactions = (publicKey: string) => {
     return useQuery({
         queryKey: ['Transactions', publicKey],
         queryFn: async () => {
-            const res = await explorerApi.getAllTransactionsExplorerGetAllTransactionsPost({ public_keys: [publicKey] });
-            return res;
+            return unwrapLayer2LedgerResponse(
+              await ledgerApi.explorer.get_all_transactions.post({ public_keys: [publicKey] }),
+            );
         },
         enabled: !!publicKey,
     });
@@ -44,35 +53,38 @@ export const useNodeInfo = () => {
     return useQuery({
         queryKey: ['NodeInfo'],
         queryFn: async () => {
-            const res = await infoApi.getNodeInfoInfoGetNodeInfoGet();
-            return res;
+            return unwrapLayer2LedgerResponse(await ledgerApi.info.get_node_info.get());
         }
     });
 };
 
-// Convert to mutation because getting deposit address requires signing a nonce
 export const useDepositAddressMutation = () => {
     return useMutation({
-        mutationFn: async (params: { layer2_address_pubkey: string, nonce: string, signature: string }) => {
-            const res = await depositApi.getDepositAddressDepositGetDepositAddressPost(params);
+        mutationFn: async (params: GetDepositAddressRequest) => {
+            const res = unwrapLayer2LedgerResponse(
+              await ledgerApi.deposit.get_deposit_address.post(params),
+            );
             return res.layer1_deposit_address;
         }
     });
 };
 
-// Expose mutations if needed
 export const useTransferMutation = () => {
     return useMutation({
-        mutationFn: async (params: Parameters<typeof transferApi.createTransferTransferPushTransactionPost>[0]) => {
-            return await transferApi.createTransferTransferPushTransactionPost(params);
+        mutationFn: async (params: PushTransactionRequest) => {
+            return unwrapLayer2LedgerResponse(
+              await ledgerApi.transfer.push_transaction.post(params),
+            );
         }
     });
 };
 
 export const useWithdrawMutation = () => {
     return useMutation({
-        mutationFn: async (params: Parameters<typeof withdrawalApi.requestWithdrawalWithdrawalRequestWithdrawalPost>[0]) => {
-            return await withdrawalApi.requestWithdrawalWithdrawalRequestWithdrawalPost(params);
+        mutationFn: async (params: RequestWithdrawalRequest) => {
+            return unwrapLayer2LedgerResponse(
+              await ledgerApi.withdrawal.request_withdrawal.post(params),
+            );
         }
     });
 };
