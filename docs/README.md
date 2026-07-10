@@ -4,7 +4,7 @@ The OpenL2 project is split into a backend and frontend. The backend itself is s
 
 ## Layer2 Ledger API client
 
-The Layer2 Ledger HTTP API is defined in `backend/layer2ledger`. Consumers (frontend wallet and `layer2bridge-ts`) import the typed Eden treaty client and shared request/response models from the shared package:
+The Layer2 Ledger HTTP API is defined in `backend/layer2ledger`. Consumers (frontend wallet and `layer2bridge`) import the typed Eden treaty client and shared request/response models from the shared package:
 
 `/shared/api-layer2ledger` (`@openl2/api-layer2ledger`)
 

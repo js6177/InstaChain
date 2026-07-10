@@ -145,11 +145,11 @@ def docker_env_file_path(service: str, environment: str = Environment.DEFAULT.va
 
 def get_layer2bridge_bitcoinconf_file_path() -> Path:
     """
-    Returns the full path to the bitcoin.conf template in the layer2bridge-ts project directory.
+    Returns the full path to the bitcoin.conf template in the layer2bridge project directory.
     """
 
     project_root = get_project_root()
-    bitcoinconf_file = project_root / "backend" / "layer2bridge-ts" / "bitcoin.conf"
+    bitcoinconf_file = project_root / "backend" / "layer2bridge" / "bitcoin.conf"
     return bitcoinconf_file
 
 def get_project_root() -> Path:

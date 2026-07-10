@@ -31,7 +31,7 @@ backend:
             mongoose
         testing:
             bun:test
-    layer2bidge-ts:
+    layer2bridge:
         services:
         source:
             elysiajs

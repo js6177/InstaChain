@@ -266,7 +266,7 @@ export class Layer2Bridge {
 if (import.meta.main) {
   const bridge = new Layer2Bridge();
   bridge.loadConfig();
-  log('layer2bridge-ts started');
+  log('layer2bridge started');
 
   // In Docker we only need a long-running process so other services can depend on it.
   // The real bridge loop requires a Bitcoin RPC client implementation, which will be

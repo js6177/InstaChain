@@ -127,7 +127,7 @@ services:
   layer2bridge:
     build:
       context: .
-      dockerfile: docker/Dockerfile.layer2bridge-ts
+      dockerfile: docker/Dockerfile.layer2bridge
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-prod}
       OPENL2_CONFIG_PATH: /app/.config

@@ -9,7 +9,7 @@ import { Layer2Status, SATOSHI_PER_BITCOIN } from '../src/db/schema';
 let tempDir = '';
 
 beforeEach(() => {
-  tempDir = mkdtempSync(join(tmpdir(), 'layer2bridge-ts-'));
+  tempDir = mkdtempSync(join(tmpdir(), 'layer2bridge-'));
 });
 
 afterEach(() => {
@@ -62,7 +62,7 @@ function createBridgeWithMocks(): Layer2Bridge {
   return bridge;
 }
 
-describe('layer2bridge-ts', () => {
+describe('layer2bridge', () => {
   it('stores confirmed transactions from the node', async () => {
     const bridge = createBridgeWithMocks();
     await bridge.getConfirmedTransactionsFromNodeAndSaveToDb();

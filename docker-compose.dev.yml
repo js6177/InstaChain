@@ -67,7 +67,7 @@ services:
   layer2bridge:
     build:
       context: .
-      dockerfile: docker/Dockerfile.layer2bridge-ts
+      dockerfile: docker/Dockerfile.layer2bridge
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-dev}
       OPENL2_CONFIG_PATH: /app/.config
@@ -75,7 +75,7 @@ services:
     volumes:
       - ./.config:/app/.config:ro
       - layer2bridge_output:/app/.output
-      - ./backend/layer2bridge-ts/src:/app/backend/layer2bridge-ts/src:ro
+      - ./backend/layer2bridge/src:/app/backend/layer2bridge/src:ro
       - ./shared/config-loader:/app/shared/config-loader:ro
       - ./shared/openl2-messaging:/app/shared/openl2-messaging:ro
       - ./shared/api-layer2ledger:/app/shared/api-layer2ledger:ro

@@ -1,5 +1,5 @@
 {
-  "name": "@openl2/layer2bridge-ts",
+  "name": "@openl2/layer2bridge",
   "module": "./src/main.ts",
   "types": "./src/main.ts",
   "type": "module",
