@@ -1,18 +1,4 @@
-export interface SettingsLayer2Address {
-  mneumonic?: string | null;
-  private_key: string;
-  public_key: string;
-}
-
-export interface Layer2LedgerAPIHandlerSettings {
-  layer2ledger_node_id: string;
-  deposit_wallet_master_pubkey: string;
-  minimum_layer1_transaction_amount: number;
-  layer2bridge_signing_address: SettingsLayer2Address;
-  deposit_transaction_pubkey: string;
-  layer2bridge_signing_key_uses_functional_test_keys: boolean;
-  onboarding_layer2_deposit_address: SettingsLayer2Address;
-}
+import type { Layer2LedgerAPIHandlerConfig } from '@openl2/config-loader';
 
 export interface MessagingContext {
   nodeId: string;
@@ -31,7 +17,7 @@ export interface Layer2LedgerAppDependencies {
     acquireMultiLock(userIds: string[]): Promise<string | null>;
     releaseMultiLock(userIds: string[], lockToken: string): Promise<boolean>;
   };
-  settings: Layer2LedgerAPIHandlerSettings;
+  settings: Layer2LedgerAPIHandlerConfig;
   messaging: MessagingContext;
   generateBtcTestnetAddress(masterPublicKey: string, addressIndex: number): string | null;
 }

@@ -16,8 +16,8 @@ import {
   type RequestWithdrawalRequest,
   type WithdrawalBroadcastedRequest,
   type WithdrawalConfirmedRequest,
-  type Layer2LedgerAPIHandlerSettings,
 } from '../api';
+import type { Layer2LedgerAPIHandlerConfig } from '@openl2/config-loader';
 import type { Layer2LedgerDatabase } from '../db/client';
 import {
   confirmedWithdrawals,
@@ -53,7 +53,7 @@ export interface RouteHandlerContext {
   db: Layer2LedgerDatabase;
   redis: Redis;
   lockManager: DistributedLock;
-  settings: Layer2LedgerAPIHandlerSettings;
+  settings: Layer2LedgerAPIHandlerConfig;
   messaging: MessagingContext;
 }
 

@@ -11,7 +11,7 @@ export {
   buildCommonResponse,
   getErrorMessage,
   type Layer2LedgerRouteHandlers,
-  type Layer2LedgerAPIHandlerSettings,
+  type Layer2LedgerAPIHandlerConfig,
   type Layer2LedgerAppDependencies,
 } from '@openl2/layer2ledger/http-server-models';
 
