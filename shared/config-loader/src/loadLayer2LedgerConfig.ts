@@ -1,4 +1,3 @@
-import { existsSync } from 'fs';
 import { join } from 'path';
 import { readConfig } from './io';
 import { getConfigFilePath } from './paths';
@@ -68,14 +67,5 @@ export function getTestHelperHost(): string {
 }
 
 export function getLayer2LedgerEnvFilePath(environment = resolveEnvironment()): string {
-  const candidates = [
-    join(process.cwd(), 'backend/layer2ledger', `.env.${environment}`),
-    join(process.cwd(), 'backend/layer2ledgerbatched', `.env.${environment}`),
-  ];
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) {
-      return candidate;
-    }
-  }
-  return candidates[1]!;
+  return join(process.cwd(), 'backend/layer2ledger', `.env.${environment}`);
 }

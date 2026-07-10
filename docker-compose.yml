@@ -5,7 +5,7 @@ services:
   layer2ledger-postgres:
     image: postgres:16-alpine
     env_file:
-      - ./backend/layer2ledgerbatched/.env.${ENVIRONMENT:-prod}
+      - ./backend/layer2ledger/.env.${ENVIRONMENT:-prod}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:

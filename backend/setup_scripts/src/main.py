@@ -30,12 +30,12 @@ def str2bool(v: str | bool) -> bool:
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
-def get_layer2ledgerbatched_docker_env_settings(environment: str) -> Layer2LedgerDockerEnvSettings:
+def get_layer2ledger_docker_env_settings(environment: str) -> Layer2LedgerDockerEnvSettings:
     """
     Loads and returns the Layer2LedgerDockerEnvSettings for the specified environment.
     """
     root_path = get_project_root()
-    config_file_path = root_path / 'backend/layer2ledgerbatched' / f'.env.{environment}'
+    config_file_path = root_path / 'backend/layer2ledger' / f'.env.{environment}'
     settings = Layer2LedgerDockerEnvSettings.load_from_path(str(config_file_path))
     return settings
 
@@ -56,7 +56,7 @@ def load_bitcoin_rpc_settings_for_import(environment: str, containered: bool) ->
     if not chain_section:
         raise ValueError(f"Missing [{chain}] section in {conf_path}")
 
-    docker_env = get_layer2ledgerbatched_docker_env_settings(environment)
+    docker_env = get_layer2ledger_docker_env_settings(environment)
     rpchost = docker_env.bitcoin_rpc_import_host if containered else "127.0.0.1"
 
     return Layer2BridgeBitcoinConfFileSettings(
@@ -141,23 +141,23 @@ def generate_keys(env: str, containered: bool = True) -> Tuple[Layer2BridgeSetti
     print(f"Project root is at: {project_root}")
     print(f"Output config path is at: {out_config_dir}")
 
-    layer2ledgerbatched_docker_env = get_layer2ledgerbatched_docker_env_settings(env)
+    layer2ledger_docker_env = get_layer2ledger_docker_env_settings(env)
 
-    db_host = layer2ledgerbatched_docker_env.postgres_host if containered else "localhost"
-    redis_host = layer2ledgerbatched_docker_env.redis_host if containered else "localhost"
+    db_host = layer2ledger_docker_env.postgres_host if containered else "localhost"
+    redis_host = layer2ledger_docker_env.redis_host if containered else "localhost"
 
-    # Generate the json config for layer2ledgerbatched-common and layer2ledgerbatched-layer2ledgerapihandler from the values in the docker env
-    layer2ledgerbatched_common_settings = Layer2LedgerCommonSettings(
+    # Generate the json config for layer2ledger-common and layer2ledger-apihandler from the values in the docker env
+    layer2ledger_common_settings = Layer2LedgerCommonSettings(
         database=PostgresqlDatabaseSettings(
-            db_user=layer2ledgerbatched_docker_env.postgres_user,
-            db_password=layer2ledgerbatched_docker_env.postgres_password,
+            db_user=layer2ledger_docker_env.postgres_user,
+            db_password=layer2ledger_docker_env.postgres_password,
             db_host=db_host,
-            db_port=str(layer2ledgerbatched_docker_env.postgres_port),
-            db_name=layer2ledgerbatched_docker_env.postgres_db,
+            db_port=str(layer2ledger_docker_env.postgres_port),
+            db_name=layer2ledger_docker_env.postgres_db,
         ),
         redis=RedisSettings(
             host=redis_host,
-            port=layer2ledgerbatched_docker_env.redis_port,
+            port=layer2ledger_docker_env.redis_port,
         ),
     )
 
@@ -171,7 +171,7 @@ def generate_keys(env: str, containered: bool = True) -> Tuple[Layer2BridgeSetti
     mnemonic = generate_mnemonic(12)
     btc_keys: MasterKeys = generate_master_keys_segwit(mnemonic, testnet=True) # Assuming dev uses testnet
 
-    layer2ledgerbatched_layer2ledgerapihandler_settings = Layer2LedgerAPIHandlerSettings(
+    layer2ledger_apihandler_settings = Layer2LedgerAPIHandlerSettings(
         layer2ledger_node_id = generate_alphanumeric_id(),
         deposit_wallet_master_pubkey = btc_keys.master_xpub,
         minimum_layer1_transaction_amount = 1000,
@@ -203,11 +203,11 @@ def generate_keys(env: str, containered: bool = True) -> Tuple[Layer2BridgeSetti
     print(f"Chain specified in bitcoin.conf: {selected_chain}")
     selected_chain_info  = layer2bridge_bitcoinconfig_obj.get(selected_chain, {})
 
-    rpc_host = layer2ledgerbatched_docker_env.bitcoin_rpc_host if containered else "localhost"
+    rpc_host = layer2ledger_docker_env.bitcoin_rpc_host if containered else "localhost"
     layer2_node_url = (
-        f"http://{layer2ledgerbatched_docker_env.layer2ledger_apihandler_host}:{layer2ledgerbatched_docker_env.layer2ledger_fastapi_port}"
+        f"http://{layer2ledger_docker_env.layer2ledger_apihandler_host}:{layer2ledger_docker_env.layer2ledger_fastapi_port}"
         if containered
-        else f"http://localhost:{layer2ledgerbatched_docker_env.layer2ledger_fastapi_port}"
+        else f"http://localhost:{layer2ledger_docker_env.layer2ledger_fastapi_port}"
     )
 
     layer2bridge_bitcoinconf_settings = Layer2BridgeBitcoinConfFileSettings(
@@ -227,25 +227,25 @@ def generate_keys(env: str, containered: bool = True) -> Tuple[Layer2BridgeSetti
     )
 
     common_backend_settings: CommonBackendSettings = CommonBackendSettings(
-         node_id = layer2ledgerbatched_layer2ledgerapihandler_settings.layer2ledger_node_id,
+         node_id = layer2ledger_apihandler_settings.layer2ledger_node_id,
          layer2bridge_signing_public_key = layer2bridge_signing_address.public_key_str_base58
     )
 
     with open(get_config_file_path('bitcoin.conf', env), 'wb') as f:
         layer2bridge_bitcoinconfig_obj.write(f)
 
-    with open(get_config_file_path(Services.LAYER2LEDGERBATCHED_COMMON, env), 'w') as f:
-        f.write(layer2ledgerbatched_common_settings.model_dump_json(indent=4))
+    with open(get_config_file_path(Services.LAYER2LEDGER_COMMON, env), 'w') as f:
+        f.write(layer2ledger_common_settings.model_dump_json(indent=4))
 
-    with open(get_config_file_path(Services.LAYER2LEDGERBATCHED_LAYER2LEDGERAPIHANDLER, env), 'w') as f:
-        f.write(layer2ledgerbatched_layer2ledgerapihandler_settings.model_dump_json(indent=4))
+    with open(get_config_file_path(Services.LAYER2LEDGER_APIHANDLER, env), 'w') as f:
+        f.write(layer2ledger_apihandler_settings.model_dump_json(indent=4))
 
-    layer2ledgerbatched_testhelper_settings = Layer2LedgerTestHelperSettings(
+    layer2ledger_testhelper_settings = Layer2LedgerTestHelperSettings(
         host="0.0.0.0",
-        port=layer2ledgerbatched_docker_env.testhelper_port,
+        port=layer2ledger_docker_env.testhelper_port,
     )
-    with open(get_config_file_path(Services.LAYER2LEDGERBATCHED_TESTHELPER, env), 'w') as f:
-        f.write(layer2ledgerbatched_testhelper_settings.model_dump_json(indent=4))
+    with open(get_config_file_path(Services.LAYER2LEDGER_TESTHELPER, env), 'w') as f:
+        f.write(layer2ledger_testhelper_settings.model_dump_json(indent=4))
 
     with open(get_config_file_path(Services.LAYER2LEDGERBRIDGE, env), 'w') as f:
         f.write(layer2bridge_settings.model_dump_json(indent=4))

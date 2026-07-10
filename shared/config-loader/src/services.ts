@@ -1,10 +1,9 @@
 export const Services = {
-  LAYER2LEDGERBATCHED_COMMON: 'layer2ledgerbatched-common',
-  LAYER2LEDGERBATCHED_LAYER2LEDGERAPIHANDLER: 'layer2ledgerbatched-layer2ledgerapihandler',
+  LAYER2LEDGER_COMMON: 'layer2ledger-common',
+  LAYER2LEDGER_APIHANDLER: 'layer2ledger-apihandler',
+  LAYER2LEDGER_TESTHELPER: 'layer2ledger-testhelper',
   LAYER2LEDGEROAUTHMANAGER: 'layer2ledgeroauthmanager',
   LAYER2LEDGERBRIDGE: 'layer2ledgerbridge',
-  LAYER2LEDGER_COMMON: 'layer2ledgerbatched-common',
-  LAYER2LEDGER_APIHANDLER: 'layer2ledgerbatched-layer2ledgerapihandler',
   BACKEND_COMMON: 'backend-common',
 } as const;
 

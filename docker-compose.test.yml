@@ -196,10 +196,9 @@ services:
     environment:
       ENVIRONMENT: test
       OPENL2_CONFIG_PATH: /app/.config
-      PYTHONPATH: /app/layer2ledgerbatched/src
     volumes:
       - ./.config:/app/.config:ro
-      - ./backend/layer2ledgerbatched/test-seed-config.json:/app/test-seed-config.json:ro
+      - ./backend/layer2ledger/test-seed-config.json:/app/test-seed-config.json:ro
       - ./frontend/wallet/apps/web/test/test.keys.json:/seed/test.keys.json:ro
     depends_on:
       layer2ledger-postgres:

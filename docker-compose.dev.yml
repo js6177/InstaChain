@@ -9,62 +9,40 @@ services:
       - ./.config/dev/bitcoin.conf:/config/bitcoin.conf:ro
 
   layer2ledgerapihandler:
-    build:
-      context: ./backend
-      dockerfile: ../docker/Dockerfile.layer2ledgerapihandler
-      args:
-        INSTALL_DEBUG: "1"
     ports:
       - "${LAYER2LEDGER_APIHANDLER_DEBUG_PORT:-5678}:5678"
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-dev}
       OPENL2_CONFIG_PATH: /app/.config
-      PYTHONPATH: /app/layer2ledgerbatched/src
     command:
-      - python
-      - -m
-      - debugpy
-      - --listen
-      - 0.0.0.0:5678
-      - --wait-for-client
-      - -m
-      - uvicorn
-      - layer2ledgerbatched.layer2ledgerapihandler.main:app
-      - --host
-      - 0.0.0.0
-      - --port
-      - "8000"
+      - bun
+      - --inspect=0.0.0.0:5678
+      - run
+      - src/layer2ledgerapihandler/index.ts
     volumes:
       - ./.config:/app/.config:ro
-      - ./backend/layer2ledgerbatched/src:/app/layer2ledgerbatched/src:ro
-      - ./backend/packages:/app/packages:ro
+      - ./backend/layer2ledger/src:/app/backend/layer2ledger/src:ro
+      - ./shared/config-loader:/app/shared/config-loader:ro
+      - ./shared/openl2-messaging:/app/shared/openl2-messaging:ro
+      - ./shared/pubkey-utils:/app/shared/pubkey-utils:ro
     restart: "no"
 
   layer2ledgerdbwriter:
-    build:
-      context: ./backend
-      dockerfile: ../docker/Dockerfile.layer2ledgerdbwriter
-      args:
-        INSTALL_DEBUG: "1"
     ports:
       - "${LAYER2LEDGER_DBWRITER_DEBUG_PORT:-5679}:5679"
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-dev}
       OPENL2_CONFIG_PATH: /app/.config
-      PYTHONPATH: /app/layer2ledgerbatched/src
     command:
-      - python
-      - -m
-      - debugpy
-      - --listen
-      - 0.0.0.0:5679
-      - --wait-for-client
-      - -m
-      - layer2ledgerbatched.layer2ledgerdbwriter.main
+      - bun
+      - --inspect=0.0.0.0:5679
+      - run
+      - src/layer2ledgerdbwriter/index.ts
     volumes:
       - ./.config:/app/.config:ro
-      - ./backend/layer2ledgerbatched/src:/app/layer2ledgerbatched/src:ro
-      - ./backend/packages:/app/packages:ro
+      - ./backend/layer2ledger/src:/app/backend/layer2ledger/src:ro
+      - ./shared/config-loader:/app/shared/config-loader:ro
+      - ./shared/openl2-messaging:/app/shared/openl2-messaging:ro
     restart: "no"
 
   layer2ledgeroauthmanager:
@@ -88,10 +66,8 @@ services:
 
   layer2bridge:
     build:
-      context: ./backend
-      dockerfile: ../docker/Dockerfile.layer2bridge
-      args:
-        INSTALL_DEBUG: "1"
+      context: .
+      dockerfile: docker/Dockerfile.layer2bridge-ts
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-dev}
       OPENL2_CONFIG_PATH: /app/.config
@@ -99,8 +75,11 @@ services:
     volumes:
       - ./.config:/app/.config:ro
       - layer2bridge_output:/app/.output
-      - ./backend/layer2bridge/src:/app/layer2bridge/src:ro
-      - ./backend/packages:/app/packages:ro
+      - ./backend/layer2bridge-ts/src:/app/backend/layer2bridge-ts/src:ro
+      - ./shared/config-loader:/app/shared/config-loader:ro
+      - ./shared/openl2-messaging:/app/shared/openl2-messaging:ro
+      - ./shared/api-layer2ledger:/app/shared/api-layer2ledger:ro
+      - ./shared/pubkey-utils:/app/shared/pubkey-utils:ro
     restart: "no"
 
   wallet-web:

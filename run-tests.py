@@ -61,8 +61,8 @@ SETUP_UV_IMAGE = os.environ.get(
     "SETUP_UV_IMAGE", "ghcr.io/astral-sh/uv:python3.12-bookworm"
 )
 
-CONFIG_MARKER = ROOT / ".config/test/layer2ledgerbatched-common-config.json"
-ENV_TEST = ROOT / "backend/layer2ledgerbatched/.env.test"
+CONFIG_MARKER = ROOT / ".config/test/layer2ledger-common-config.json"
+ENV_TEST = ROOT / "backend/layer2ledger/.env.test"
 
 
 def log(message: str) -> None:

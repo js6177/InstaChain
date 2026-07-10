@@ -13,9 +13,9 @@ from config_models.models import (
 )
 
 class Services(StrEnum):
-    LAYER2LEDGERBATCHED_COMMON = 'layer2ledgerbatched-common'
-    LAYER2LEDGERBATCHED_LAYER2LEDGERAPIHANDLER = 'layer2ledgerbatched-layer2ledgerapihandler'
-    LAYER2LEDGERBATCHED_TESTHELPER = 'layer2ledgerbatched-testhelper'
+    LAYER2LEDGER_COMMON = 'layer2ledger-common'
+    LAYER2LEDGER_APIHANDLER = 'layer2ledger-apihandler'
+    LAYER2LEDGER_TESTHELPER = 'layer2ledger-testhelper'
     LAYER2LEDGEROAUTHMANAGER = 'layer2ledgeroauthmanager'
     LAYER2LEDGERBRIDGE = 'layer2ledgerbridge'
     BACKEND_COMMON = 'backend-common' # settings shared between all backend components
@@ -145,11 +145,11 @@ def docker_env_file_path(service: str, environment: str = Environment.DEFAULT.va
 
 def get_layer2bridge_bitcoinconf_file_path() -> Path:
     """
-    Returns the full path to the bitcoin.conf file in the layer2bridge project directory
+    Returns the full path to the bitcoin.conf template in the layer2bridge-ts project directory.
     """
 
     project_root = get_project_root()
-    bitcoinconf_file = project_root / "backend" / "layer2bridge" / "bitcoin.conf"
+    bitcoinconf_file = project_root / "backend" / "layer2bridge-ts" / "bitcoin.conf"
     return bitcoinconf_file
 
 def get_project_root() -> Path:
@@ -163,33 +163,33 @@ def get_project_root() -> Path:
             return parent
     raise FileNotFoundError("Project root with .git folder not found.")
 
-def get_layer2ledgerbatched_common_config(environment: str | None = None) -> Layer2LedgerCommonSettings:
+def get_layer2ledger_common_config(environment: str | None = None) -> Layer2LedgerCommonSettings:
     """
     Returns the Layer2LedgerCommonSettings model for the given environment.
     """
     environment = resolve_environment(environment)
-    config_file = get_config_file_path(Services.LAYER2LEDGERBATCHED_COMMON, environment)
+    config_file = get_config_file_path(Services.LAYER2LEDGER_COMMON, environment)
     with open(config_file, "r") as f:
         config_data = json.load(f)
     return Layer2LedgerCommonSettings.model_validate(config_data)
 
-def get_layer2ledgerbatched_layer2ledgerapihandler_config(environment: str | None = None) -> Layer2LedgerAPIHandlerSettings:
+def get_layer2ledger_apihandler_config(environment: str | None = None) -> Layer2LedgerAPIHandlerSettings:
     """
     Returns the Layer2LedgerAPIHandlerSettings model for the given environment.
     """
     environment = resolve_environment(environment)
-    config_file = get_config_file_path(Services.LAYER2LEDGERBATCHED_LAYER2LEDGERAPIHANDLER, environment)
+    config_file = get_config_file_path(Services.LAYER2LEDGER_APIHANDLER, environment)
     with open(config_file, "r") as f:
         config_data = json.load(f)
     return Layer2LedgerAPIHandlerSettings.model_validate(config_data)
 
-def get_layer2ledgerbatched_testhelper_config(environment: str | None = None) -> Layer2LedgerTestHelperSettings:
+def get_layer2ledger_testhelper_config(environment: str | None = None) -> Layer2LedgerTestHelperSettings:
     """
     Returns the Layer2LedgerTestHelperSettings model for the given environment.
     Falls back to defaults when the config file has not been generated yet.
     """
     environment = resolve_environment(environment)
-    config_file = get_config_file_path(Services.LAYER2LEDGERBATCHED_TESTHELPER, environment)
+    config_file = get_config_file_path(Services.LAYER2LEDGER_TESTHELPER, environment)
     if not config_file.is_file():
         return Layer2LedgerTestHelperSettings()
     with open(config_file, "r") as f:

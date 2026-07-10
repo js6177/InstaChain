@@ -1,7 +1,0 @@
-{
-    "python.testing.pytestArgs": [
-        "layer2ledgerbatched"
-    ],
-    "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
-}
