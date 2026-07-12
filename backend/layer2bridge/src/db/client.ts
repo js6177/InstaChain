@@ -57,6 +57,19 @@ export async function getKeyValue(db: BridgeDatabase, key: string): Promise<stri
   return rows[0]?.value ?? '';
 }
 
+export async function getKeyValueNumber(
+  db: BridgeDatabase,
+  key: string,
+  defaultValue: number,
+): Promise<number> {
+  const raw = await getKeyValue(db, key);
+  if (raw.length === 0) {
+    return defaultValue;
+  }
+  const parsed = Number(raw);
+  return Number.isNaN(parsed) ? defaultValue : parsed;
+}
+
 export async function setKeyValue(db: BridgeDatabase, key: string, value: string): Promise<void> {
   await db
     .insert(keyValue)

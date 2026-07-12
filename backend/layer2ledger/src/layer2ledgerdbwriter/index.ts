@@ -1,6 +1,6 @@
 import { max, sql } from 'drizzle-orm';
 import Redis from 'ioredis';
-import { loadLayer2LedgerCommonConfig } from '@openl2/config-loader';
+import { loadLayer2LedgerCommonConfig, registerProcessShutdown } from '@openl2/config-loader';
 import { createDatabase, migrateDatabase } from '../db/client';
 import {
   layer2AddressBalance,
@@ -37,6 +37,11 @@ const lockManager = new DistributedLock(redis);
 await lockManager.setup();
 
 console.log('Starting layer2ledgerdbwriter...');
+
+registerProcessShutdown(async () => {
+  await redis.quit();
+  await postgresSql.end({ timeout: 2 });
+});
 
 let currentBatchHeight = await getCurrentBatchHeight();
 

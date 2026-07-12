@@ -6,6 +6,7 @@ import {
   loadBackendCommonConfig,
   loadLayer2LedgerAPIHandlerConfig,
   loadLayer2LedgerCommonConfig,
+  registerProcessShutdown,
 } from '@openl2/config-loader';
 import { createDatabase, migrateDatabase } from '../db/client';
 import { DistributedLock } from '../redis/distributed-lock';
@@ -54,6 +55,8 @@ const app = createLayer2LedgerApp(handlers).listen({
   hostname: host,
   port,
 });
+
+registerProcessShutdown(() => app.stop());
 
 console.log(`layer2ledgerapihandler listening on http://${host}:${port}`);
 

@@ -1,21 +1,17 @@
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm
+FROM oven/bun:1.3.3 AS base
+WORKDIR /app
 
-ENV UV_COMPILE_BYTECODE=1
-ENV UV_LINK_MODE=copy
-ENV PYTHONUNBUFFERED=1
+FROM base AS pruner
+COPY . .
+RUN bunx turbo@2.8.14 prune @openl2/bitcoin-core-rpc --docker
 
-WORKDIR /app/packages/bitcoin_core_rpc
+FROM base AS installer
+COPY --from=pruner /app/out/json/ .
+RUN bun install --no-save
+COPY --from=pruner /app/out/full/ .
 
-COPY backend/packages/bitcoin_core_rpc/pyproject.toml backend/packages/bitcoin_core_rpc/uv.lock backend/packages/bitcoin_core_rpc/README.md ./
-COPY backend/packages/config_models /app/packages/config_models/
-
-RUN uv sync --frozen --no-install-project --group dev
-
-COPY backend/packages/bitcoin_core_rpc ./
-COPY backend/packages/config_models /app/packages/config_models/
-
-RUN uv sync --frozen --group dev
-
-COPY docker/test_bitcoin_core_rpc_entrypoint.py /usr/local/bin/test_bitcoin_core_rpc_entrypoint.py
-
-CMD ["python", "/usr/local/bin/test_bitcoin_core_rpc_entrypoint.py"]
+FROM oven/bun:1.3.3-slim AS runner
+WORKDIR /app
+COPY --from=installer /app .
+COPY docker/test_bitcoin_core_rpc_entrypoint.ts /usr/local/bin/test_bitcoin_core_rpc_entrypoint.ts
+CMD ["bun", "/usr/local/bin/test_bitcoin_core_rpc_entrypoint.ts"]

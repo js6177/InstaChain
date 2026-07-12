@@ -18,6 +18,7 @@ import {
 } from '@openl2/api-layer2ledger';
 import {
   buildDepositMessage,
+  buildLayer1AuditReportMessage,
   buildWithdrawalBroadcastedMessage,
   buildWithdrawalConfirmedMessage,
 } from '@openl2/openl2-messaging';
@@ -30,14 +31,7 @@ export function successOrDuplicateErrorCode(error: number): boolean {
   );
 }
 
-export interface DepositConfirmationInput {
-  transactionId: string;
-  transactionVout: number;
-  address: string;
-  amount: number;
-}
-
-export interface WithdrawalConfirmationInput {
+export interface Layer1TransactionConfirmationInput {
   transactionId: string;
   transactionVout: number;
   address: string;
@@ -46,15 +40,29 @@ export interface WithdrawalConfirmationInput {
 
 export type WithdrawalBroadcastInput = Omit<Layer1BroadcastedWithdrawalTransaction, 'signature'>;
 
+export interface Layer1AddressBalanceInput {
+  layer1_address: string;
+  balance: number;
+}
+
+export interface PostLayer1AuditReportResponse {
+  error_code: number;
+}
+
+const AUDIT_ROUTER_PREFIX = '/audit';
+const POST_LAYER1_AUDIT_REPORT_ROUTE = '/post_layer1_audit_report';
+
 export class Layer2Interface {
   private readonly client: Layer2LedgerClient;
+  private readonly layer2NodeUrl: string;
 
   constructor(
     layer2NodeUrl: string,
     private readonly onboardingSigningPrivateKey: string,
     private readonly nodeId: string,
   ) {
-    this.client = createLayer2LedgerClient(layer2NodeUrl);
+    this.layer2NodeUrl = layer2NodeUrl.endsWith('/') ? layer2NodeUrl.slice(0, -1) : layer2NodeUrl;
+    this.client = createLayer2LedgerClient(this.layer2NodeUrl);
   }
 
   async getWithdrawalRequests(
@@ -92,7 +100,7 @@ export class Layer2Interface {
   }
 
   async sendConfirmDeposit(
-    transactions: DepositConfirmationInput[],
+    transactions: Layer1TransactionConfirmationInput[],
   ): Promise<DepositConfirmedResponse> {
     const depositTxs: DepositsConfirmed[] = [];
     for (const transaction of transactions) {
@@ -140,7 +148,7 @@ export class Layer2Interface {
   }
 
   async sendConfirmWithdrawal(
-    transactions: WithdrawalConfirmationInput[],
+    transactions: Layer1TransactionConfirmationInput[],
   ): Promise<WithdrawalConfirmedResponse> {
     const withdrawalTxs: Layer1WithdrawalConfirmedTransaction[] = [];
     for (const transaction of transactions) {
@@ -160,5 +168,28 @@ export class Layer2Interface {
       });
     }
     return this.confirmWithdrawalMulti(withdrawalTxs);
+  }
+
+  async postLayer1AuditReport(
+    blockHeight: number,
+    balance: number,
+    layer1AddressBalances: Layer1AddressBalanceInput[],
+  ): Promise<PostLayer1AuditReportResponse> {
+    const message = buildLayer1AuditReportMessage(this.nodeId, blockHeight, balance);
+    const signature = await signMessage(message, this.onboardingSigningPrivateKey);
+    const url = `${this.layer2NodeUrl}${AUDIT_ROUTER_PREFIX}${POST_LAYER1_AUDIT_REPORT_ROUTE}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        block_height: blockHeight,
+        layer1_address_balances: layer1AddressBalances,
+        signature,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`postLayer1AuditReport failed: HTTP ${response.status}`);
+    }
+    return (await response.json()) as PostLayer1AuditReportResponse;
   }
 }

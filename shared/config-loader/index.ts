@@ -48,3 +48,4 @@ export {
   buildOAuthManagerConfigFromEnv,
   resolveEnvironment,
 } from './src/env';
+export { registerProcessShutdown } from './src/shutdown';
