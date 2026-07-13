@@ -22,9 +22,11 @@ import {
   updatePendingWithdrawalBroadcast,
 } from './db/client';
 import {
+  ConfirmedTransactionCategory,
   Layer2Status,
   PendingWithdrawalStatus,
   SATOSHI_PER_BITCOIN,
+  type ConfirmedTransactionCategoryValue,
   type ConfirmedTransactionRow,
   type PendingWithdrawalRow,
 } from './db/schema';
@@ -144,7 +146,7 @@ export class Layer2Bridge {
           amount: Math.round(confirmedTransaction.amount * SATOSHI_PER_BITCOIN),
           fee: 0,
           address: confirmedTransaction.address ?? '',
-          category: confirmedTransaction.category,
+          category: confirmedTransaction.category as ConfirmedTransactionCategoryValue,
           confirmations: confirmedTransaction.confirmations,
           timestamp: confirmedTransaction.time,
         };
@@ -231,7 +233,7 @@ export class Layer2Bridge {
             this.bridgeDb,
             trx.layer1_transaction_id,
             trx.layer1_transaction_vout,
-            'receive',
+            ConfirmedTransactionCategory.RECEIVE,
             Layer2Status.CONFIRMED,
           );
           log(
@@ -264,7 +266,7 @@ export class Layer2Bridge {
             this.bridgeDb,
             trx.layer1_transaction_id,
             trx.layer1_transaction_vout,
-            'send',
+            ConfirmedTransactionCategory.SEND,
             Layer2Status.CONFIRMED,
           );
           log(

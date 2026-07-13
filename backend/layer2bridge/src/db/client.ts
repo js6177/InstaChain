@@ -3,12 +3,13 @@ import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { and, eq } from 'drizzle-orm';
 import {
   bridgeSchema,
+  ConfirmedTransactionCategory,
   confirmedTransactions,
   keyValue,
   Layer2Status,
   pendingWithdrawals,
   PendingWithdrawalStatus,
-  type ConfirmedTransactionCategory,
+  type ConfirmedTransactionCategoryValue,
   type ConfirmedTransactionInsert,
   type ConfirmedTransactionRow,
   type Layer2StatusValue,
@@ -102,7 +103,7 @@ export async function getPendingConfirmedDepositTransactions(
     .where(
       and(
         eq(confirmedTransactions.layer2Status, Layer2Status.PENDING),
-        eq(confirmedTransactions.category, 'receive'),
+        eq(confirmedTransactions.category, ConfirmedTransactionCategory.RECEIVE),
       ),
     );
 }
@@ -116,7 +117,7 @@ export async function getPendingConfirmedWithdrawalTransactions(
     .where(
       and(
         eq(confirmedTransactions.layer2Status, Layer2Status.PENDING),
-        eq(confirmedTransactions.category, 'send'),
+        eq(confirmedTransactions.category, ConfirmedTransactionCategory.SEND),
       ),
     );
 }
@@ -125,7 +126,7 @@ export async function updateConfirmedTransaction(
   db: BridgeDatabase,
   transactionId: string,
   transactionVout: number,
-  category: ConfirmedTransactionCategory,
+  category: ConfirmedTransactionCategoryValue,
   layer2Status: Layer2StatusValue,
 ): Promise<void> {
   await db

@@ -9,7 +9,12 @@ import {
   getPendingWithdrawals,
   setKeyValue,
 } from '../src/db/client';
-import { Layer2Status, PendingWithdrawalStatus, SATOSHI_PER_BITCOIN } from '../src/db/schema';
+import {
+  ConfirmedTransactionCategory,
+  Layer2Status,
+  PendingWithdrawalStatus,
+  SATOSHI_PER_BITCOIN,
+} from '../src/db/schema';
 
 let tempDir = '';
 
@@ -35,7 +40,7 @@ function createBridgeWithMocks(): { bridge: Layer2Bridge; sendWithdrawalBroadcas
         {
           txid: 'tx1',
           vout: 0,
-          category: 'receive',
+          category: ConfirmedTransactionCategory.RECEIVE,
           amount: 0.01,
           confirmations: 6,
           time: 1000,
@@ -59,7 +64,7 @@ function createBridgeWithMocks(): { bridge: Layer2Bridge; sendWithdrawalBroadcas
       details: [
         {
           address: 'dest1',
-          category: 'send',
+          category: ConfirmedTransactionCategory.SEND,
           amount: -0.0005,
           vout: 1,
         },
