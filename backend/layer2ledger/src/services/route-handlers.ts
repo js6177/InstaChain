@@ -50,6 +50,7 @@ import {
 } from '../messaging/verify';
 import { NODE_ASSET_ID_HEX } from '@openl2/openl2-messaging';
 import { generateBtcTestnetAddress } from '../utils/generate-btc-address';
+import { buildLayer1TransactionId, buildLayer2WithdrawalId } from '../utils/keybuilders';
 
 export interface RouteHandlerContext {
   db: Layer2LedgerDatabase;
@@ -267,7 +268,10 @@ export function createRouteHandlers(context: RouteHandlerContext): Layer2LedgerR
             transaction_type: TransactionType.TRX_DEPOSIT,
             layer2_transaction_id: deposit.nonce,
             signature: deposit.signature,
-            layer1_transaction_id: `${deposit.layer1_transaction_id}:${deposit.layer1_transaction_vout}`,
+            layer1_transaction_id: buildLayer1TransactionId(
+              deposit.layer1_transaction_id,
+              deposit.layer1_transaction_vout,
+            ),
           }),
           lock_token: null,
           addresses_locked: [],
@@ -338,7 +342,7 @@ export function createRouteHandlers(context: RouteHandlerContext): Layer2LedgerR
           return buildCommonResponse(ErrorCodes.INSUFFICIENT_FUNDS);
         }
 
-        const layer2WithdrawalId = `w_${body.layer2_transaction_id}`;
+        const layer2WithdrawalId = buildLayer2WithdrawalId(body.layer2_transaction_id);
         const withdrawalRequest: RedisWithdrawalRequest = {
           layer1_address: body.layer1_withdrawal_address,
           layer1_transaction_id: null,

@@ -30,6 +30,7 @@ import {
   type ConfirmedTransactionRow,
   type PendingWithdrawalRow,
 } from './db/schema';
+import { buildConfirmedTransactionKey } from './utils/keybuilders';
 import { ErrorCodes } from '@openl2/api-layer2ledger';
 import type { BitcoinRpcClient } from '@openl2/bitcoin-core-rpc';
 import { Layer2Interface, successOrDuplicateErrorCode, type WithdrawalBroadcastInput } from './layer2-interface';
@@ -101,7 +102,7 @@ export class Layer2Bridge {
     const pendingConfirmed = await getAllPendingConfirmedTransactions(this.bridgeDb);
     for (const trx of pendingConfirmed) {
       this.confirmedTransactionsDict.set(
-        `${trx.transactionId}:${trx.transactionVout}:${trx.category}`,
+        buildConfirmedTransactionKey(trx.transactionId, trx.transactionVout, trx.category),
         trx,
       );
     }
@@ -135,7 +136,11 @@ export class Layer2Bridge {
         if (confirmedTransaction.confirmations < this.bitcoinRPC.getTargetConfirmations()) {
           continue;
         }
-        const key = `${confirmedTransaction.txid}:${confirmedTransaction.vout}:${confirmedTransaction.category}`;
+        const key = buildConfirmedTransactionKey(
+          confirmedTransaction.txid,
+          confirmedTransaction.vout,
+          confirmedTransaction.category,
+        );
         if (this.confirmedTransactionsDict.has(key)) {
           continue;
         }
