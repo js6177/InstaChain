@@ -29,6 +29,7 @@ import {
   withdrawalRequests,
   WithdrawalStatus,
 } from '../db/schema';
+import { mapTransactionRow } from '../mappers/transaction-mapper';
 import type { DistributedLock } from '../redis/distributed-lock';
 import { PENDING_TRANSACTIONS_LIST_KEY, PENDING_WITHDRAWALS_LIST_KEY } from '../redis/distributed-lock';
 import {
@@ -613,22 +614,5 @@ export function createRouteHandlers(context: RouteHandlerContext): Layer2LedgerR
         },
       };
     },
-  };
-}
-
-function mapTransactionRow(row: typeof transactions.$inferSelect) {
-  return {
-    timestamp: row.timestamp?.toISOString(),
-    amount: row.amount,
-    fee: row.fee,
-    source_address_pubkey: row.sourceAddressPubkey,
-    destination_address_pubkey: row.destinationAddressPubkey,
-    transaction_type: row.transactionType,
-    layer2_transaction_id: row.layer2TransactionId,
-    signature: row.signature,
-    signature_date: row.signatureDate,
-    layer1_transaction_id: row.layer1TransactionId,
-    layer2_withdrawal_id: row.layer2WithdrawalId,
-    batch_height: row.batchHeight,
   };
 }
