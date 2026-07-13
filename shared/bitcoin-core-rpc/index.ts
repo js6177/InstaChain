@@ -15,6 +15,7 @@ export type {
   ListSinceBlockResult,
   ListSinceBlockTransaction,
   LoadWalletResult,
+  SendManyAmounts,
   WithdrawalTransactionOutput,
 } from './src/models';
 export { isWalletAlreadyExists, isWalletAlreadyLoaded } from './src/models';

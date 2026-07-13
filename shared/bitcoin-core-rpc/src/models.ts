@@ -70,6 +70,9 @@ export interface BroadcastWithdrawalInput {
   amountSatoshis: number;
 }
 
+/** Address → BTC amount map for Bitcoin Core `sendmany`. */
+export type SendManyAmounts = Record<string, number>;
+
 export interface WithdrawalTransactionOutput {
   address: string;
   vout: number;

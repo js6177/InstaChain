@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Layer2Bridge, type BitcoinRpcClient } from '../src/main';
+import type { WithdrawalTransactionOutput } from '@openl2/bitcoin-core-rpc';
 import {
   createBridgeDatabase,
   getKeyValue,
@@ -71,7 +72,7 @@ function createBridgeWithMocks(): { bridge: Layer2Bridge; sendWithdrawalBroadcas
       ],
     })),
     getWithdrawalOutputsFromTransaction: (transaction) => {
-      const outputs: Array<{ address: string; vout: number; amountSatoshis: number }> = [];
+      const outputs: WithdrawalTransactionOutput[] = [];
       for (const detail of transaction.details) {
         if (!detail.address) {
           continue;

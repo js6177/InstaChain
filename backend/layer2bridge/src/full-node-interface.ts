@@ -7,6 +7,7 @@ import {
   type GetBlockHeaderResult,
   type GetTransactionResult,
   type ListSinceBlockResult,
+  type SendManyAmounts,
   type WithdrawalTransactionOutput,
 } from '@openl2/bitcoin-core-rpc';
 import type { Layer2BridgeBitcoinConfFileSettings } from '@openl2/config-loader';
@@ -72,7 +73,7 @@ export class BitcoinFullNodeRpc implements BitcoinRpcClient {
   }
 
   async broadcastTransaction(pendingWithdrawals: BroadcastWithdrawalInput[]): Promise<string> {
-    const amounts: Record<string, number> = {};
+    const amounts: SendManyAmounts = {};
     const subtractFeeFrom: string[] = [];
     for (const pendingWithdrawal of pendingWithdrawals) {
       subtractFeeFrom.push(pendingWithdrawal.destinationAddress);
@@ -108,7 +109,7 @@ export class BitcoinFullNodeRpc implements BitcoinRpcClient {
     return outputs;
   }
 
-  async sendMany(outputs: Record<string, number>): Promise<string> {
+  async sendMany(outputs: SendManyAmounts): Promise<string> {
     return this.client.sendMany(outputs, { minconf: 1 });
   }
 

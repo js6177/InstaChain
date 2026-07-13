@@ -7,6 +7,7 @@ import type {
   ListAddressGroupingsResult,
   ListSinceBlockResult,
   LoadWalletResult,
+  SendManyAmounts,
 } from './models';
 
 export class BitcoinRPCClient {
@@ -79,7 +80,7 @@ export class BitcoinRPCClient {
   }
 
   async sendMany(
-    amounts: Record<string, number>,
+    amounts: SendManyAmounts,
     options?: { minconf?: number; subtractFeeFrom?: string[] },
   ): Promise<string> {
     const minconf = options?.minconf ?? 1;
