@@ -1,5 +1,6 @@
 import { and, eq, inArray, max, or, sql } from 'drizzle-orm';
 import type Redis from 'ioredis';
+import { isPubkeyValidChars } from '@openl2/pubkey-utils';
 import {
   buildCommonResponse,
   ErrorCodes,
@@ -66,10 +67,10 @@ export function createRouteHandlers(context: RouteHandlerContext): Layer2LedgerR
     },
 
     async pushTransaction(body: PushTransactionRequest) {
-      if (!body.source_address_public_key?.match(/^[a-zA-Z0-9]+$/)) {
+      if (!isPubkeyValidChars(body.source_address_public_key)) {
         return buildCommonResponse(ErrorCodes.INVALID_SOURCE_ADDRESS);
       }
-      if (!body.destination_address_public_key?.match(/^[a-zA-Z0-9]+$/)) {
+      if (!isPubkeyValidChars(body.destination_address_public_key)) {
         return buildCommonResponse(ErrorCodes.INVALID_DESTINATION_ADDRESS);
       }
       if (body.amount <= 0) {
@@ -142,7 +143,7 @@ export function createRouteHandlers(context: RouteHandlerContext): Layer2LedgerR
     },
 
     async getDepositAddress(body: GetDepositAddressRequest) {
-      if (!body.layer2_address_pubkey?.match(/^[a-zA-Z0-9]+$/)) {
+      if (!isPubkeyValidChars(body.layer2_address_pubkey)) {
         return {
           ...buildCommonResponse(ErrorCodes.INVALID_SOURCE_ADDRESS),
           layer1_deposit_address: null,
@@ -286,7 +287,7 @@ export function createRouteHandlers(context: RouteHandlerContext): Layer2LedgerR
     },
 
     async requestWithdrawal(body: RequestWithdrawalRequest) {
-      if (!body.source_address_public_key?.match(/^[a-zA-Z0-9]+$/)) {
+      if (!isPubkeyValidChars(body.source_address_public_key)) {
         return buildCommonResponse(ErrorCodes.INVALID_SOURCE_ADDRESS);
       }
       if (!body.layer1_withdrawal_address) {
