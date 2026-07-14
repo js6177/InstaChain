@@ -1,8 +1,9 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
+import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { schema } from './schema';
 
-export type Layer2LedgerDatabase = ReturnType<typeof createDatabase>;
+export type Layer2LedgerDbClient = PostgresJsDatabase<typeof schema>;
+export type Layer2LedgerDatabase = { db: Layer2LedgerDbClient; sql: postgres.Sql };
 
 export interface DatabaseSettings {
   dbUser: string;
@@ -16,7 +17,7 @@ export function buildDatabaseUrl(settings: DatabaseSettings): string {
   return `postgres://${settings.dbUser}:${settings.dbPassword}@${settings.dbHost}:${settings.dbPort}/${settings.dbName}`;
 }
 
-export function createDatabase(settings: DatabaseSettings) {
+export function createDatabase(settings: DatabaseSettings): Layer2LedgerDatabase {
   const sql = postgres(buildDatabaseUrl(settings), { max: 100 });
   const db = drizzle(sql, { schema });
   return { db, sql };

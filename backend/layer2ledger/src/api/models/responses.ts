@@ -162,9 +162,11 @@ export type WithdrawalBroadcastedResponse = typeof WithdrawalBroadcastedResponse
 export type Layer1WithdrawalConfirmedTransactionStatus =
   typeof Layer1WithdrawalConfirmedTransactionStatus.static;
 export type WithdrawalConfirmedResponse = typeof WithdrawalConfirmedResponse.static;
+export type GetBalanceResponseBalance = typeof GetBalanceResponseBalance.static;
 export type GetBalanceResponse = typeof GetBalanceResponse.static;
 export type GetTransactionsResponseTransaction =
   typeof GetTransactionsResponseTransaction.static;
+export type TransactionGroup = typeof TransactionGroup.static;
 export type GetTransactionsResponse = typeof GetTransactionsResponse.static;
 export type GetTransactionResponse = typeof GetTransactionResponse.static;
 export type GetFeeResponse = typeof GetFeeResponse.static;

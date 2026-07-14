@@ -1,25 +1,42 @@
-import { and, eq, inArray, max, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, or } from 'drizzle-orm';
 import type Redis from 'ioredis';
 import { isPubkeyValidChars } from '@openl2/pubkey-utils';
 import {
   buildCommonResponse,
   ErrorCodes,
   getErrorMessage,
+  type CommonResponse,
   type DepositConfirmedRequest,
+  type DepositConfirmedResponse,
   type GetBalanceRequest,
+  type GetBalanceResponse,
+  type GetBalanceResponseBalance,
   type GetDepositAddressRequest,
+  type GetDepositAddressResponse,
   type GetFeeRequest,
+  type GetFeeResponse,
+  type GetNodeInfoResponse,
   type GetTransactionRequest,
+  type GetTransactionResponse,
   type GetTransactionsRequest,
+  type GetTransactionsResponse,
   type GetWithdrawalRequestsRequest,
+  type GetWithdrawalRequestsResponse,
+  type Layer1BroadcastedWithdrawalTransactionStatus,
+  type Layer1TransactionIdStatus,
+  type Layer1WithdrawalConfirmedTransactionStatus,
   type Layer2LedgerRouteHandlers,
   type PushTransactionRequest,
   type RequestWithdrawalRequest,
+  type TransactionGroup,
   type WithdrawalBroadcastedRequest,
+  type WithdrawalBroadcastedResponse,
   type WithdrawalConfirmedRequest,
+  type WithdrawalConfirmedResponse,
+  type WithdrawalRequest,
 } from '../api';
 import type { Layer2LedgerAPIHandlerConfig } from '@openl2/config-loader';
-import type { Layer2LedgerDatabase } from '../db/client';
+import type { Layer2LedgerDbClient } from '../db/client';
 import {
   confirmedWithdrawals,
   depositAddresses,
@@ -53,7 +70,7 @@ import { generateBtcTestnetAddress } from '../utils/generate-btc-address';
 import { buildLayer1TransactionId, buildLayer2WithdrawalId } from '../utils/keybuilders';
 
 export interface RouteHandlerContext {
-  db: Layer2LedgerDatabase;
+  db: Layer2LedgerDbClient;
   redis: Redis;
   lockManager: DistributedLock;
   settings: Layer2LedgerAPIHandlerConfig;
@@ -64,11 +81,11 @@ export function createRouteHandlers(context: RouteHandlerContext): Layer2LedgerR
   const { db, redis, lockManager, settings, messaging } = context;
 
   return {
-    health() {
+    health(): CommonResponse {
       return buildCommonResponse(ErrorCodes.SUCCESS);
     },
 
-    async pushTransaction(body: PushTransactionRequest) {
+    async pushTransaction(body: PushTransactionRequest): Promise<CommonResponse> {
       if (!isPubkeyValidChars(body.source_address_public_key)) {
         return buildCommonResponse(ErrorCodes.INVALID_SOURCE_ADDRESS);
       }
@@ -144,7 +161,7 @@ export function createRouteHandlers(context: RouteHandlerContext): Layer2LedgerR
       return buildCommonResponse(ErrorCodes.SUCCESS, 'Confirmed, pending insertion into db');
     },
 
-    async getDepositAddress(body: GetDepositAddressRequest) {
+    async getDepositAddress(body: GetDepositAddressRequest): Promise<GetDepositAddressResponse> {
       if (!isPubkeyValidChars(body.layer2_address_pubkey)) {
         return {
           ...buildCommonResponse(ErrorCodes.INVALID_SOURCE_ADDRESS),
@@ -206,8 +223,8 @@ export function createRouteHandlers(context: RouteHandlerContext): Layer2LedgerR
       };
     },
 
-    async depositConfirmed(body: DepositConfirmedRequest) {
-      const results = [];
+    async depositConfirmed(body: DepositConfirmedRequest): Promise<DepositConfirmedResponse> {
+      const results: Layer1TransactionIdStatus[] = [];
       for (const deposit of body.transactions) {
         const validSignature = await verifyDeposit(
           messaging,
@@ -291,7 +308,7 @@ export function createRouteHandlers(context: RouteHandlerContext): Layer2LedgerR
       };
     },
 
-    async requestWithdrawal(body: RequestWithdrawalRequest) {
+    async requestWithdrawal(body: RequestWithdrawalRequest): Promise<CommonResponse> {
       if (!isPubkeyValidChars(body.source_address_public_key)) {
         return buildCommonResponse(ErrorCodes.INVALID_SOURCE_ADDRESS);
       }
@@ -380,7 +397,9 @@ export function createRouteHandlers(context: RouteHandlerContext): Layer2LedgerR
       return buildCommonResponse(ErrorCodes.SUCCESS, 'Withdrawal request created');
     },
 
-    async getWithdrawalRequests(_body: GetWithdrawalRequestsRequest) {
+    async getWithdrawalRequests(
+      _body: GetWithdrawalRequestsRequest,
+    ): Promise<GetWithdrawalRequestsResponse> {
       const pending = await db
         .select()
         .from(withdrawalRequests)
@@ -400,22 +419,26 @@ export function createRouteHandlers(context: RouteHandlerContext): Layer2LedgerR
 
       return {
         ...buildCommonResponse(ErrorCodes.SUCCESS),
-        withdrawal_requests: pending.map((row) => ({
-          layer1_address: row.layer1Address,
-          layer1_transaction_id: row.layer1TransactionId,
-          status: row.status,
-          amount: row.amount,
-          layer2_withdrawal_id: row.layer2WithdrawalId,
-          server_signature: row.serverSignature,
-          layer2_transaction_id: row.layer2TransactionId,
-          withdrawal_requested_timestamp: row.withdrawalRequestedTimestamp,
-          withdrawal_requested_timestamp_str: row.withdrawalRequestedTimestampStr?.toISOString() ?? null,
-        })),
+        withdrawal_requests: pending.map(
+          (row): WithdrawalRequest => ({
+            layer1_address: row.layer1Address,
+            layer1_transaction_id: row.layer1TransactionId,
+            status: row.status,
+            amount: row.amount,
+            layer2_withdrawal_id: row.layer2WithdrawalId,
+            server_signature: row.serverSignature,
+            layer2_transaction_id: row.layer2TransactionId,
+            withdrawal_requested_timestamp: row.withdrawalRequestedTimestamp,
+            withdrawal_requested_timestamp_str: row.withdrawalRequestedTimestampStr?.toISOString() ?? null,
+          }),
+        ),
       };
     },
 
-    async withdrawalBroadcasted(body: WithdrawalBroadcastedRequest) {
-      const responseTransactions = [];
+    async withdrawalBroadcasted(
+      body: WithdrawalBroadcastedRequest,
+    ): Promise<WithdrawalBroadcastedResponse> {
+      const responseTransactions: Layer1BroadcastedWithdrawalTransactionStatus[] = [];
       for (const tx of body.transactions) {
         const validSignature = await verifyWithdrawalBroadcasted(
           messaging,
@@ -463,8 +486,10 @@ export function createRouteHandlers(context: RouteHandlerContext): Layer2LedgerR
       };
     },
 
-    async withdrawalConfirmed(body: WithdrawalConfirmedRequest) {
-      const responseTransactions = [];
+    async withdrawalConfirmed(
+      body: WithdrawalConfirmedRequest,
+    ): Promise<WithdrawalConfirmedResponse> {
+      const responseTransactions: Layer1WithdrawalConfirmedTransactionStatus[] = [];
       for (const tx of body.transactions) {
         const validSignature = await verifyWithdrawalConfirmed(
           messaging,
@@ -524,8 +549,8 @@ export function createRouteHandlers(context: RouteHandlerContext): Layer2LedgerR
       };
     },
 
-    async getBalance(body: GetBalanceRequest) {
-      const balances = [];
+    async getBalance(body: GetBalanceRequest): Promise<GetBalanceResponse> {
+      const balances: GetBalanceResponseBalance[] = [];
       for (const publicKey of body.public_keys) {
         const rows = await db
           .select()
@@ -545,7 +570,7 @@ export function createRouteHandlers(context: RouteHandlerContext): Layer2LedgerR
       };
     },
 
-    async getTransaction(body: GetTransactionRequest) {
+    async getTransaction(body: GetTransactionRequest): Promise<GetTransactionResponse> {
       const rows = await db
         .select()
         .from(transactions)
@@ -566,8 +591,8 @@ export function createRouteHandlers(context: RouteHandlerContext): Layer2LedgerR
       };
     },
 
-    async getAllTransactions(body: GetTransactionsRequest) {
-      const transactionGroups = [];
+    async getAllTransactions(body: GetTransactionsRequest): Promise<GetTransactionsResponse> {
+      const transactionGroups: TransactionGroup[] = [];
       for (const publicKey of body.public_keys) {
         const rows = await db
           .select()
@@ -589,14 +614,14 @@ export function createRouteHandlers(context: RouteHandlerContext): Layer2LedgerR
       };
     },
 
-    async getFee(_body: GetFeeRequest) {
+    async getFee(_body: GetFeeRequest): Promise<GetFeeResponse> {
       return {
         ...buildCommonResponse(ErrorCodes.SUCCESS),
         fee: settings.minimum_layer1_transaction_amount,
       };
     },
 
-    async getNodeInfo() {
+    async getNodeInfo(): Promise<GetNodeInfoResponse> {
       return {
         ...buildCommonResponse(ErrorCodes.SUCCESS),
         node_info: {
