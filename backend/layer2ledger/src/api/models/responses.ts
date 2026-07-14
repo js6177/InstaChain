@@ -170,4 +170,5 @@ export type TransactionGroup = typeof TransactionGroup.static;
 export type GetTransactionsResponse = typeof GetTransactionsResponse.static;
 export type GetTransactionResponse = typeof GetTransactionResponse.static;
 export type GetFeeResponse = typeof GetFeeResponse.static;
+export type NodeInfo = typeof NodeInfo.static;
 export type GetNodeInfoResponse = typeof GetNodeInfoResponse.static;

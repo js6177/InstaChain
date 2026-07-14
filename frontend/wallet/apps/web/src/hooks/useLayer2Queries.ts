@@ -3,7 +3,7 @@ import {
   createLayer2LedgerClient,
   unwrapLayer2LedgerResponse,
   type CommonResponse,
-  type GetBalanceResponse,
+  type GetBalanceResponseBalance,
   type GetDepositAddressRequest,
   type GetNodeInfoResponse,
   type GetTransactionResponse,
@@ -15,9 +15,7 @@ import { LAYER2_LEDGER_API_URL } from '../config';
 
 const ledgerApi = createLayer2LedgerClient(LAYER2_LEDGER_API_URL);
 
-type AddressBalance = NonNullable<GetBalanceResponse['balance']>[number];
-
-export const useAddressBalance = (publicKey: string): UseQueryResult<AddressBalance | null, Error> => {
+export const useAddressBalance = (publicKey: string): UseQueryResult<GetBalanceResponseBalance | null, Error> => {
     return useQuery({
         queryKey: ['AddressBalance', publicKey],
         queryFn: async () => {

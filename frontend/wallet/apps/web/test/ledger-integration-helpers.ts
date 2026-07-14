@@ -2,10 +2,10 @@ import {
   createLayer2LedgerClient,
   ErrorCodes,
   unwrapLayer2LedgerResponse,
-  type GetNodeInfoResponse,
   type GetTransactionsResponse,
   type GetTransactionsResponseTransaction,
   type Layer2LedgerClient,
+  type NodeInfo,
 } from '@openl2/api-layer2ledger'
 import { Layer2Address, Layer2Wallet } from '@openl2/wallet-shared'
 import {
@@ -300,7 +300,7 @@ export async function seedWalletAddress(
   await testhelperPost(TESTHELPER_SEED_BALANCE_ROUTE, request)
 }
 
-export async function getNodeContext(): Promise<NonNullable<GetNodeInfoResponse['node_info']>> {
+export async function getNodeContext(): Promise<NodeInfo> {
   const response = unwrapLayer2LedgerResponse(await getLedgerApi().info.get_node_info.get())
   if (response.error_code !== API_SUCCESS || !response.node_info) {
     throw new Error(`get_node_info failed: ${response.error_message}`)
