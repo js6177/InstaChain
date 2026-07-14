@@ -3,7 +3,7 @@ import { sha256 } from '@noble/hashes/sha2';
 import bs58 from 'bs58';
 import { hmac } from '@noble/hashes/hmac';
 
-secp.etc.hmacSha256Sync = (key, ...msgs) => hmac(sha256, key, secp.etc.concatBytes(...msgs));
+secp.etc.hmacSha256Sync = (key, ...msgs): Uint8Array => hmac(sha256, key, secp.etc.concatBytes(...msgs));
 
 function stringToUint8Array(str: string): Uint8Array {
     return new TextEncoder().encode(str);
@@ -56,7 +56,7 @@ class Layer2Address {
     }
 
     // Generates a new address
-    generateNewAddress(label: string = '') {
+    generateNewAddress(label: string = ''): void {
         const [privKeyBytes, pubKeyWithTypePrefixBytes] = this.generateKeypair();
         
         // The first byte is the type of the public key, which is 0x04 for uncompressed, so we slice it off
@@ -74,7 +74,7 @@ class Layer2Address {
     }
 
     // From seed generates a private key from seed string
-    fromSeed(seed: string, label: string = '', mnemonicIndex: number = -1) {
+    fromSeed(seed: string, label: string = '', mnemonicIndex: number = -1): void {
         const privKeyBytes = stringToUint8Array(seed);
         // 2. Hash the bytes using SHA-256 to get a deterministic 32-byte digest
         // This digest is your raw private key material (32 bytes / 256 bits).
@@ -83,7 +83,7 @@ class Layer2Address {
         this.fromPrivateKeyBytes(privateKeyRaw, label, mnemonicIndex);
     }
 
-    fromPrivateKeyBytes(privateKeyBytes: Uint8Array, label: string = '', mnemonicIndex: number = -1) {
+    fromPrivateKeyBytes(privateKeyBytes: Uint8Array, label: string = '', mnemonicIndex: number = -1): void {
         const pubKeyWithTypePrefixBytes = secp.getPublicKey(privateKeyBytes, false); // false for uncompressed
                 
         // The first byte is the type of the public key, which is 0x04 for uncompressed, so we slice it off
@@ -105,13 +105,13 @@ class Layer2Address {
         }
     }
 
-    fromPrivateKeyBase58(privateKey: string, label: string = '', mnemonicIndex: number = -1) {
+    fromPrivateKeyBase58(privateKey: string, label: string = '', mnemonicIndex: number = -1): void {
         const privKeyBytes = bs58.decode(privateKey);
         this.fromPrivateKeyBytes(privKeyBytes, label, mnemonicIndex);
     }
 
     //Generate an address from a public key. This is for verifying signed messages from an address that isnt ours
-    fromPublicKey(publicKey: string, label: string = '') {
+    fromPublicKey(publicKey: string, label: string = ''): void {
         const pubKeyWithTypePrefixBytes = secp.getPublicKey(publicKey, false); // false for uncompressed
         
         // The first byte is the type of the public key, which is 0x04 for uncompressed, so we slice it off

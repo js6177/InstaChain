@@ -8,7 +8,7 @@ function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 }
 
-export function createLayer2LedgerClient(baseUrl: string) {
+export function createLayer2LedgerClient(baseUrl: string): Layer2LedgerClient {
   return treaty<Layer2LedgerApp>(normalizeBaseUrl(baseUrl));
 }
 

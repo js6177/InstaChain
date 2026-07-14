@@ -2,14 +2,14 @@ import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import { useThemeStore } from "@openl2/wallet-shared";
 import { Toggle } from "@/components/ui/toggle";
 import { Moon, Sun } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, type React } from "react";
 import { WalletPage } from "./pages/WalletPage";
 import { ExplorerPage } from "./pages/ExplorerPage";
 import { AboutPage } from "./pages/AboutPage";
 import { OAuthCallbackPage } from "./pages/OAuthCallbackPage";
 import { Toaster } from "@/components/ui/sonner";
 
-function App() {
+function App(): React.JSX.Element {
   const { theme, toggleTheme } = useThemeStore();
   const location = useLocation();
 
@@ -22,7 +22,7 @@ function App() {
     }
   }, [theme]);
 
-  const navLinkClass = (path: string) => {
+  const navLinkClass = (path: string): string => {
     const isActive = location.pathname.startsWith(path);
     return `text-sm font-medium transition-colors hover:text-primary ${isActive ? 'text-primary' : 'text-muted-foreground'}`;
   };

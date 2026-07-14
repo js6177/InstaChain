@@ -1,8 +1,13 @@
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, type UseQueryResult, type UseMutationResult } from '@tanstack/react-query';
 import {
   createLayer2LedgerClient,
   unwrapLayer2LedgerResponse,
+  type CommonResponse,
+  type GetBalanceResponse,
   type GetDepositAddressRequest,
+  type GetNodeInfoResponse,
+  type GetTransactionResponse,
+  type GetTransactionsResponse,
   type PushTransactionRequest,
   type RequestWithdrawalRequest,
 } from '@openl2/api-layer2ledger';
@@ -10,7 +15,9 @@ import { LAYER2_LEDGER_API_URL } from '../config';
 
 const ledgerApi = createLayer2LedgerClient(LAYER2_LEDGER_API_URL);
 
-export const useAddressBalance = (publicKey: string) => {
+type AddressBalance = NonNullable<GetBalanceResponse['balance']>[number];
+
+export const useAddressBalance = (publicKey: string): UseQueryResult<AddressBalance | null, Error> => {
     return useQuery({
         queryKey: ['AddressBalance', publicKey],
         queryFn: async () => {
@@ -23,7 +30,7 @@ export const useAddressBalance = (publicKey: string) => {
     });
 };
 
-export const useTransaction = (transactionId: string) => {
+export const useTransaction = (transactionId: string): UseQueryResult<GetTransactionResponse, Error> => {
     return useQuery({
         queryKey: ['Transaction', transactionId],
         queryFn: async () => {
@@ -37,7 +44,7 @@ export const useTransaction = (transactionId: string) => {
     });
 };
 
-export const useTransactions = (publicKey: string) => {
+export const useTransactions = (publicKey: string): UseQueryResult<GetTransactionsResponse, Error> => {
     return useQuery({
         queryKey: ['Transactions', publicKey],
         queryFn: async () => {
@@ -49,7 +56,7 @@ export const useTransactions = (publicKey: string) => {
     });
 };
 
-export const useNodeInfo = () => {
+export const useNodeInfo = (): UseQueryResult<GetNodeInfoResponse, Error> => {
     return useQuery({
         queryKey: ['NodeInfo'],
         queryFn: async () => {
@@ -58,7 +65,7 @@ export const useNodeInfo = () => {
     });
 };
 
-export const useDepositAddressMutation = () => {
+export const useDepositAddressMutation = (): UseMutationResult<string | null | undefined, Error, GetDepositAddressRequest> => {
     return useMutation({
         mutationFn: async (params: GetDepositAddressRequest) => {
             const res = unwrapLayer2LedgerResponse(
@@ -69,7 +76,7 @@ export const useDepositAddressMutation = () => {
     });
 };
 
-export const useTransferMutation = () => {
+export const useTransferMutation = (): UseMutationResult<CommonResponse, Error, PushTransactionRequest> => {
     return useMutation({
         mutationFn: async (params: PushTransactionRequest) => {
             return unwrapLayer2LedgerResponse(
@@ -79,7 +86,7 @@ export const useTransferMutation = () => {
     });
 };
 
-export const useWithdrawMutation = () => {
+export const useWithdrawMutation = (): UseMutationResult<CommonResponse, Error, RequestWithdrawalRequest> => {
     return useMutation({
         mutationFn: async (params: RequestWithdrawalRequest) => {
             return unwrapLayer2LedgerResponse(

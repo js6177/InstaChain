@@ -2,8 +2,10 @@ import {
   createLayer2LedgerClient,
   ErrorCodes,
   unwrapLayer2LedgerResponse,
+  type GetNodeInfoResponse,
   type GetTransactionsResponse,
   type GetTransactionsResponseTransaction,
+  type Layer2LedgerClient,
 } from '@openl2/api-layer2ledger'
 import { Layer2Address, Layer2Wallet } from '@openl2/wallet-shared'
 import {
@@ -27,7 +29,7 @@ const testDir = dirname(fileURLToPath(import.meta.url))
 
 const API_SUCCESS = ErrorCodes.SUCCESS
 
-function getLedgerApi() {
+function getLedgerApi(): Layer2LedgerClient {
   const apiBase = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
   return createLayer2LedgerClient(apiBase)
 }
@@ -298,7 +300,7 @@ export async function seedWalletAddress(
   await testhelperPost(TESTHELPER_SEED_BALANCE_ROUTE, request)
 }
 
-export async function getNodeContext() {
+export async function getNodeContext(): Promise<NonNullable<GetNodeInfoResponse['node_info']>> {
   const response = unwrapLayer2LedgerResponse(await getLedgerApi().info.get_node_info.get())
   if (response.error_code !== API_SUCCESS || !response.node_info) {
     throw new Error(`get_node_info failed: ${response.error_message}`)
@@ -545,7 +547,7 @@ export function expectDepositTransaction(
   transactions: GetTransactionsResponseTransaction[],
   amountSats: number,
   destinationPublicKey: string,
-) {
+): GetTransactionsResponseTransaction {
   const depositTx = transactions.find(
     (tx) =>
       tx.transaction_type === TransactionType.TRX_DEPOSIT &&
@@ -565,7 +567,7 @@ export function expectTransferTransaction(
   amountSats: number,
   sourcePublicKey: string,
   destinationPublicKey: string,
-) {
+): GetTransactionsResponseTransaction {
   const transferTx = transactions.find(
     (tx) =>
       tx.transaction_type === TransactionType.TRX_TRANSFER &&
@@ -585,7 +587,7 @@ export function expectWithdrawalTransaction(
   transactions: GetTransactionsResponseTransaction[],
   amountSats: number,
   sourcePublicKey: string,
-) {
+): GetTransactionsResponseTransaction {
   const withdrawalTx = transactions.find(
     (tx) =>
       tx.transaction_type === TransactionType.TRX_WITHDRAWAL_INITIATED &&

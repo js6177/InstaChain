@@ -19,7 +19,7 @@ import {
 
 export type BridgeDatabase = ReturnType<typeof createBridgeDatabase>;
 
-export function createBridgeDatabase(path: string) {
+export function createBridgeDatabase(path: string): BridgeDatabase {
   const sqlite = new Database(path, { create: true });
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS ConfirmedTransactions (

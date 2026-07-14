@@ -37,7 +37,7 @@ interface OAuthCodeResponse {
 }
 
 // Implement PKCE SHA256 logic using Web Crypto API to avoid lodash/crypto-js
-async function sha256(plain: string) {
+async function sha256(plain: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(plain);
   const hash = await crypto.subtle.digest('SHA-256', data);
@@ -48,7 +48,7 @@ async function sha256(plain: string) {
     .replace(/=+$/, '');
 }
 
-function generateRandomString(length: number) {
+function generateRandomString(length: number): string {
   const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let text = '';
   for (let i = 0; i < length; i++) {
@@ -62,10 +62,10 @@ function useOAuthCodeExchange(
   codeVerifier: string | null,
   onSuccess: (data: OAuthResponse) => void,
   onError: (error: string) => void,
-) {
+): { handleOAuthExchange: (code: string) => Promise<void>; isExchanging: boolean } {
   const { mutateAsync, isPending } = useOAuthExchangeMutation();
 
-  const handleOAuthExchange = async (code: string) => {
+  const handleOAuthExchange = async (code: string): Promise<void> => {
     try {
       const data = await mutateAsync({
         code,
@@ -81,7 +81,7 @@ function useOAuthCodeExchange(
   return { handleOAuthExchange, isExchanging: isPending };
 }
 
-export function TwitterLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
+export function TwitterLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps): React.JSX.Element {
   const [PKCE_code, setPKCE_code] = useState<string>("");
   const [PKCE_code_sha256, setPKCE_code_sha256] = useState<string>("");
   const { handleOAuthExchange, isExchanging } = useOAuthCodeExchange(OAuthService.Twitter, PKCE_code, onSuccess, onError);
@@ -103,12 +103,12 @@ export function TwitterLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) 
       buttonText={isExchanging ? "Logging in..." : "Login with X"}
       className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full"
       isCrossOrigin={false}
-      onSuccess={(response: OAuthCodeResponse) => {
+      onSuccess={(response: OAuthCodeResponse): void => {
         if (response.code !== null) {
           handleOAuthExchange(response.code);
         }
       }}
-      onFailure={() => {
+      onFailure={(): void => {
         onError("Twitter login failed");
       }}
       extraParams={{ code_challenge: PKCE_code_sha256, code_challenge_method: 'S256' }}
@@ -116,7 +116,7 @@ export function TwitterLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) 
   );
 }
 
-export function GithubLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
+export function GithubLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps): React.JSX.Element {
   const { handleOAuthExchange, isExchanging } = useOAuthCodeExchange(OAuthService.Github, null, onSuccess, onError);
 
   return (
@@ -129,19 +129,19 @@ export function GithubLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
       buttonText={isExchanging ? "Logging in..." : "Login with Github"}
       className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full"
       isCrossOrigin={false}
-      onSuccess={(response: OAuthCodeResponse) => {
+      onSuccess={(response: OAuthCodeResponse): void => {
         if (response.code !== null) {
           handleOAuthExchange(response.code);
         }
       }}
-      onFailure={() => {
+      onFailure={(): void => {
         onError("Github login failed");
       }}
     />
   );
 }
 
-export function GoogleLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
+export function GoogleLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps): React.JSX.Element {
   const { handleOAuthExchange, isExchanging } = useOAuthCodeExchange(OAuthService.Google, null, onSuccess, onError);
 
   return (
@@ -154,19 +154,19 @@ export function GoogleLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
       buttonText={isExchanging ? "Logging in..." : "Login with Google"}
       className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full"
       isCrossOrigin={false}
-      onSuccess={(response: OAuthCodeResponse) => {
+      onSuccess={(response: OAuthCodeResponse): void => {
         if (response.code !== null) {
           handleOAuthExchange(response.code);
         }
       }}
-      onFailure={() => {
+      onFailure={(): void => {
         onError("Google login failed");
       }}
     />
   );
 }
 
-export function FacebookLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
+export function FacebookLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps): React.JSX.Element {
   const { handleOAuthExchange, isExchanging } = useOAuthCodeExchange(OAuthService.Facebook, null, onSuccess, onError);
 
   return (
@@ -179,19 +179,19 @@ export function FacebookLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps)
       buttonText={isExchanging ? "Logging in..." : "Login with Facebook"}
       className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full"
       isCrossOrigin={false}
-      onSuccess={(response: OAuthCodeResponse) => {
+      onSuccess={(response: OAuthCodeResponse): void => {
         if (response.code !== null) {
           handleOAuthExchange(response.code);
         }
       }}
-      onFailure={() => {
+      onFailure={(): void => {
         onError("Facebook login failed");
       }}
     />
   );
 }
 
-export function DiscordLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) {
+export function DiscordLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps): React.JSX.Element {
   const { handleOAuthExchange, isExchanging } = useOAuthCodeExchange(OAuthService.Discord, null, onSuccess, onError);
 
   return (
@@ -204,12 +204,12 @@ export function DiscordLoginWithOAuth2Login({ onSuccess, onError }: OAuthProps) 
       buttonText={isExchanging ? "Logging in..." : "Login with Discord"}
       className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full"
       isCrossOrigin={false}
-      onSuccess={(response: OAuthCodeResponse) => {
+      onSuccess={(response: OAuthCodeResponse): void => {
         if (response.code !== null) {
           handleOAuthExchange(response.code);
         }
       }}
-      onFailure={() => {
+      onFailure={(): void => {
         onError("Discord login failed");
       }}
     />

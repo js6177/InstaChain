@@ -1,3 +1,4 @@
+import type * as React from "react";
 import { useState, useRef, useLayoutEffect } from "react";
 import { Copy, Check, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,13 +30,13 @@ export function CopyableDisplay({
     textClassName = "font-mono text-xl whitespace-nowrap overflow-hidden text-ellipsis",
     fitTextInView = false,
     fitTextInViewMethod = FitTextMethod.MakeFieldMultiline
-}: CopyableDisplayProps) {
+}: CopyableDisplayProps): React.JSX.Element {
     const [isVisible, setIsVisible] = useState(!secret);
     const [copied, setCopied] = useState(false);
     
     const displayString = Array.isArray(value) ? value.join(" ") : (value || "");
 
-    const handleCopy = () => {
+    const handleCopy = (): void => {
         if (!displayString) return;
         navigator.clipboard.writeText(displayString);
         setCopied(true);
@@ -43,7 +44,7 @@ export function CopyableDisplay({
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const toggleVisibility = () => {
+    const toggleVisibility = (): void => {
         setIsVisible(!isVisible);
     };
 
@@ -56,7 +57,7 @@ export function CopyableDisplay({
             return;
         }
         
-        const updateSize = () => {
+        const updateSize = (): void => {
             if (!containerRef.current) return;
             const containerWidth = containerRef.current.clientWidth;
             // Assuming average monospace character ratio of ~0.6 width/height.
@@ -75,7 +76,7 @@ export function CopyableDisplay({
         }
         
         updateSize();
-        return () => ro.disconnect();
+        return (): void => ro.disconnect();
     }, [displayString, fitTextInView, fitTextInViewMethod]);
 
     let appliedTextClassName = textClassName;

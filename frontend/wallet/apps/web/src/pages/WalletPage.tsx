@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, type React } from "react";
 import { MNEUMONIC_WORD_COUNT, useWalletStore, useDenominationStore, formatAmount, parseAmountToSats, Denomination, LABELS, TEST_IDS } from "@openl2/wallet-shared";
 import { buildGetDepositAddressMessage, buildTransferMessage, buildWithdrawalRequestMessage } from "@openl2/openl2-messaging";
+import type { OAuthResponse } from "@openl2/api-layer2oauthmanager";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -15,7 +16,7 @@ import { AmountInput } from "../components/AmountInput";
 import { TwitterLoginWithOAuth2Login, GithubLoginWithOAuth2Login, GoogleLoginWithOAuth2Login, FacebookLoginWithOAuth2Login, DiscordLoginWithOAuth2Login } from "../components/OAuth2LoginButton";
 import { OAuthUserCard } from "../components/OAuthUserCard";
 
-export function WalletPage() {
+export function WalletPage(): React.JSX.Element {
     const { isLoaded, wallet, mainAddress, generateWallet, loadWalletFromMnemonic, logout, validateMnemonic, setOAuthUser } = useWalletStore();
     const { denomination, toggleDenomination } = useDenominationStore();
     const [mnemonicInput, setMnemonicInput] = useState("");
@@ -45,7 +46,7 @@ export function WalletPage() {
     const [isMnemonicHidden, setIsMnemonicHidden] = useState(false);
     const [isHideMnemonicDialogOpen, setIsHideMnemonicDialogOpen] = useState(false);
 
-    const handleLoadFromLocalStorage = () => {
+    const handleLoadFromLocalStorage = (): void => {
         const stored = localStorage.getItem("debug_mnemonic");
         if (stored) {
             setMnemonicInput(stored);
@@ -55,7 +56,7 @@ export function WalletPage() {
         }
     };
 
-    const handleGenerate = () => {
+    const handleGenerate = (): void => {
         generateWallet();
         // Since generateWallet is synchronous in the store, we can access the updated state
         // but it's safer to get it from the store directly or let the effect handle it.
@@ -71,7 +72,7 @@ export function WalletPage() {
         toast.success("New Wallet Generated!");
     };
 
-    const handleRestore = () => {
+    const handleRestore = (): void => {
         const words = mnemonicInput.trim().split(" ");
         if (words.length !== MNEUMONIC_WORD_COUNT) {
             toast.error(`Mnemonic phrase must be exactly ${MNEUMONIC_WORD_COUNT} words`);
@@ -96,7 +97,7 @@ export function WalletPage() {
         }
     };
 
-    const handleGetDepositAddress = async () => {
+    const handleGetDepositAddress = async (): Promise<void> => {
         if (!mainAddress) return;
         try {
             const nonce = crypto.randomUUID();
@@ -115,7 +116,7 @@ export function WalletPage() {
         }
     };
 
-    const handleTransfer = async () => {
+    const handleTransfer = async (): Promise<void> => {
         if (!mainAddress) return;
         try {
             const amt = parseAmountToSats(transferAmount, denomination);
@@ -147,7 +148,7 @@ export function WalletPage() {
         }
     };
 
-    const handleWithdraw = async () => {
+    const handleWithdraw = async (): Promise<void> => {
         if (!mainAddress) return;
         try {
             const amt = parseAmountToSats(withdrawAmount, denomination);
@@ -189,7 +190,7 @@ export function WalletPage() {
     };
 
     // Logout
-    const handleLogout = () => {
+    const handleLogout = (): void => {
         logout();
         toast.info("Wallet closed.");
     };
@@ -221,7 +222,7 @@ export function WalletPage() {
                                             id="saveSeed"
                                             className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                                             checked={saveSeedToLocalStorage}
-                                            onChange={(e) => setSaveSeedToLocalStorage(e.target.checked)}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setSaveSeedToLocalStorage(e.target.checked)}
                                         />
                                         <Label htmlFor="saveSeed" className="cursor-pointer">
                                             Store seed in localStorage (debug)
@@ -252,7 +253,7 @@ export function WalletPage() {
                                         data-testid={TEST_IDS.MNEMONIC_INPUT}
                                         placeholder="word1 word2 ... word12"
                                         value={mnemonicInput}
-                                        onChange={(e) => setMnemonicInput(e.target.value)}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setMnemonicInput(e.target.value)}
                                     />
                                 </div>
                                 <div className="flex items-center space-x-2 py-2">
@@ -261,7 +262,7 @@ export function WalletPage() {
                                         id="saveSeedRestore"
                                         className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                                         checked={saveSeedToLocalStorage}
-                                        onChange={(e) => setSaveSeedToLocalStorage(e.target.checked)}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setSaveSeedToLocalStorage(e.target.checked)}
                                     />
                                     <Label htmlFor="saveSeedRestore" className="cursor-pointer">
                                         Store seed in localStorage (debug)
@@ -285,7 +286,7 @@ export function WalletPage() {
 
                     <div className="flex flex-col gap-3 w-full">
                         <TwitterLoginWithOAuth2Login 
-                            onSuccess={(data) => {
+                            onSuccess={(data: OAuthResponse): void => {
                                 if (data?.user_keys?.l2_address_mneumonic) {
                                     if (data.user) setOAuthUser(data.user);
                                     loadWalletFromMnemonic(data.user_keys.l2_address_mneumonic.split(' '));
@@ -294,10 +295,10 @@ export function WalletPage() {
                                     toast.error("Invalid keys received from server.");
                                 }
                             }}
-                            onError={(err) => toast.error(err)}
+                            onError={(err: string): void => toast.error(err)}
                         />
                         <GithubLoginWithOAuth2Login 
-                            onSuccess={(data) => {
+                            onSuccess={(data: OAuthResponse): void => {
                                 if (data?.user_keys?.l2_address_mneumonic) {
                                     if (data.user) setOAuthUser(data.user);
                                     loadWalletFromMnemonic(data.user_keys.l2_address_mneumonic.split(' '));
@@ -306,10 +307,10 @@ export function WalletPage() {
                                     toast.error("Invalid keys received from server.");
                                 }
                             }}
-                            onError={(err) => toast.error(err)}
+                            onError={(err: string): void => toast.error(err)}
                         />
                         <GoogleLoginWithOAuth2Login 
-                            onSuccess={(data) => {
+                            onSuccess={(data: OAuthResponse): void => {
                                 if (data?.user_keys?.l2_address_mneumonic) {
                                     if (data.user) setOAuthUser(data.user);
                                     loadWalletFromMnemonic(data.user_keys.l2_address_mneumonic.split(' '));
@@ -318,10 +319,10 @@ export function WalletPage() {
                                     toast.error("Invalid keys received from server.");
                                 }
                             }}
-                            onError={(err) => toast.error(err)}
+                            onError={(err: string): void => toast.error(err)}
                         />
                         <FacebookLoginWithOAuth2Login 
-                            onSuccess={(data) => {
+                            onSuccess={(data: OAuthResponse): void => {
                                 if (data?.user_keys?.l2_address_mneumonic) {
                                     if (data.user) setOAuthUser(data.user);
                                     loadWalletFromMnemonic(data.user_keys.l2_address_mneumonic.split(' '));
@@ -330,10 +331,10 @@ export function WalletPage() {
                                     toast.error("Invalid keys received from server.");
                                 }
                             }}
-                            onError={(err) => toast.error(err)}
+                            onError={(err: string): void => toast.error(err)}
                         />
                         <DiscordLoginWithOAuth2Login 
-                            onSuccess={(data) => {
+                            onSuccess={(data: OAuthResponse): void => {
                                 if (data?.user_keys?.l2_address_mneumonic) {
                                     if (data.user) setOAuthUser(data.user);
                                     loadWalletFromMnemonic(data.user_keys.l2_address_mneumonic.split(' '));
@@ -342,7 +343,7 @@ export function WalletPage() {
                                     toast.error("Invalid keys received from server.");
                                 }
                             }}
-                            onError={(err) => toast.error(err)}
+                            onError={(err: string): void => toast.error(err)}
                         />
                     </div>
                 </div>
@@ -422,7 +423,7 @@ export function WalletPage() {
                                         <AmountInput value={withdrawAmount} onChange={setWithdrawAmount} maxSatsValue={balance?.balance} />
                                         <div>
                                             <Label>Destination Layer1 Address</Label>
-                                            <Input placeholder="btc..." value={withdrawTo} onChange={(e) => setWithdrawTo(e.target.value)} />
+                                            <Input placeholder="btc..." value={withdrawTo} onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setWithdrawTo(e.target.value)} />
                                         </div>
                                     </div>
                                     <DialogFooter>
@@ -447,7 +448,7 @@ export function WalletPage() {
                                     <div className="py-4 space-y-4">
                                         <div>
                                             <Label>Destination Layer2 Address</Label>
-                                            <Input placeholder="Enter destination pubkey" value={transferTo} onChange={(e) => setTransferTo(e.target.value)} />
+                                            <Input placeholder="Enter destination pubkey" value={transferTo} onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setTransferTo(e.target.value)} />
                                         </div>
                                         <AmountInput value={transferAmount} onChange={setTransferAmount} maxSatsValue={balance?.balance} />
                                     </div>
@@ -485,8 +486,8 @@ export function WalletPage() {
                                     </DialogDescription>
                                 </DialogHeader>
                                 <DialogFooter>
-                                    <Button variant="outline" onClick={() => setIsHideMnemonicDialogOpen(false)}>{LABELS.BUTTON_CANCEL}</Button>
-                                    <Button variant="destructive" onClick={() => { setIsMnemonicHidden(true); setIsHideMnemonicDialogOpen(false); }}>{LABELS.BUTTON_HIDE_PERMANENTLY}</Button>
+                                    <Button variant="outline" onClick={(): void => setIsHideMnemonicDialogOpen(false)}>{LABELS.BUTTON_CANCEL}</Button>
+                                    <Button variant="destructive" onClick={(): void => { setIsMnemonicHidden(true); setIsHideMnemonicDialogOpen(false); }}>{LABELS.BUTTON_HIDE_PERMANENTLY}</Button>
                                 </DialogFooter>
                             </DialogContent>
                         </Dialog>
@@ -497,7 +498,7 @@ export function WalletPage() {
             <div className="space-y-4">
                 <div className="flex justify-between items-center px-1">
                     <h3 className="text-xl font-bold tracking-tight">{LABELS.HEADING_RECENT_TRANSACTIONS}</h3>
-                    <Button variant="link" size="sm" onClick={() => { refetchTransactions(); refetchBalance(); }} disabled={isTransactionsLoading || isBalanceLoading}>
+                    <Button variant="link" size="sm" onClick={(): void => { refetchTransactions(); refetchBalance(); }} disabled={isTransactionsLoading || isBalanceLoading}>
                         {isTransactionsLoading || isBalanceLoading ? LABELS.BUTTON_REFRESHING : LABELS.BUTTON_REFRESH}
                     </Button>
                 </div>

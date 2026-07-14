@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, type React } from "react";
 
-export function OAuthCallbackPage() {
+export function OAuthCallbackPage(): React.JSX.Element {
     useEffect(() => {
         // If we ever switch to isCrossOrigin={true}, we would need to post the message to the opener.
         // For isCrossOrigin={false}, react-simple-oauth2-login polls this window's location automatically.

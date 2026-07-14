@@ -31,7 +31,7 @@ function requireBoolean(value: unknown, name: string): boolean {
   return value;
 }
 
-async function main() {
+async function main(): Promise<void> {
   const configPath = process.env.SEED_CONFIG_PATH ?? '/app/test-seed-config.json';
   const rawConfig = JSON.parse(await readFile(configPath, 'utf-8')) as unknown;
   if (!rawConfig || typeof rawConfig !== 'object') {

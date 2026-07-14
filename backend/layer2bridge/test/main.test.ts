@@ -3,7 +3,10 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { Layer2Bridge, type BitcoinRpcClient } from '../src/main';
-import type { WithdrawalTransactionOutput } from '@openl2/bitcoin-core-rpc';
+import type {
+  GetTransactionResult,
+  WithdrawalTransactionOutput,
+} from '@openl2/bitcoin-core-rpc';
 import {
   createBridgeDatabase,
   getKeyValue,
@@ -54,8 +57,8 @@ function createBridgeWithMocks(): { bridge: Layer2Bridge; sendWithdrawalBroadcas
       confirmations: 1,
       height: 100,
     })),
-    getTargetConfirmations: () => 3,
-    getMinimumTransactionAmount: () => 1000,
+    getTargetConfirmations: (): number => 3,
+    getMinimumTransactionAmount: (): number => 1000,
     broadcastTransaction: mock(async () => 'broadcast-tx'),
     getTransaction: mock(async () => ({
       txid: 'broadcast-tx',
@@ -71,7 +74,7 @@ function createBridgeWithMocks(): { bridge: Layer2Bridge; sendWithdrawalBroadcas
         },
       ],
     })),
-    getWithdrawalOutputsFromTransaction: (transaction) => {
+    getWithdrawalOutputsFromTransaction: (transaction: GetTransactionResult): WithdrawalTransactionOutput[] => {
       const outputs: WithdrawalTransactionOutput[] = [];
       for (const detail of transaction.details) {
         if (!detail.address) {
@@ -132,7 +135,7 @@ describe('layer2bridge', () => {
   it('filters withdrawals below the minimum amount', async () => {
     const { bridge } = createBridgeWithMocks();
     await bridge.getPendingWithdrawalsFromLayer2LedgerAndSaveToDb();
-    bridge.bitcoinRPC!.getMinimumTransactionAmount = () => 100_000;
+    bridge.bitcoinRPC!.getMinimumTransactionAmount = (): number => 100_000;
     await bridge.getPendingWithdrawalsFromDb();
     expect(bridge.withdrawalTransactionOutputs.size).toBe(0);
   });

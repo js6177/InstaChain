@@ -1,3 +1,4 @@
+import type * as React from "react";
 import { useWalletStore, ROUTES } from "@openl2/wallet-shared";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,7 +26,7 @@ function isOAuthService(value: string): value is OAuthService {
     return Object.values(OAuthService).includes(value as OAuthService);
 }
 
-function OAuthServiceBadge({ service }: { service: OAuthService }) {
+function OAuthServiceBadge({ service }: { service: OAuthService }): React.JSX.Element {
     const Icon = OAUTH_SERVICE_ICONS[service];
 
     return (
@@ -38,7 +39,7 @@ function OAuthServiceBadge({ service }: { service: OAuthService }) {
     );
 }
 
-export function OAuthUserCard({ user }: { user?: any }) {
+export function OAuthUserCard({ user }: { user?: any }): React.JSX.Element | null {
     const { oauthUser } = useWalletStore();
     const displayUser = user || oauthUser;
 

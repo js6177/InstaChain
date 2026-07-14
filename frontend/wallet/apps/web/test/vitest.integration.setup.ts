@@ -2,22 +2,22 @@
 if (typeof globalThis.localStorage === 'undefined') {
   const store = new Map<string, string>()
   globalThis.localStorage = {
-    get length() {
+    get length(): number {
       return store.size
     },
-    clear() {
+    clear(): void {
       store.clear()
     },
-    getItem(key: string) {
+    getItem(key: string): string | null {
       return store.get(key) ?? null
     },
-    key(index: number) {
+    key(index: number): string | null {
       return [...store.keys()][index] ?? null
     },
-    removeItem(key: string) {
+    removeItem(key: string): void {
       store.delete(key)
     },
-    setItem(key: string, value: string) {
+    setItem(key: string, value: string): void {
       store.set(key, value)
     },
   }

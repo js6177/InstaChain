@@ -1,3 +1,4 @@
+import type * as React from "react";
 import {
     AccordionContent,
     AccordionItem,
@@ -15,12 +16,12 @@ interface TransactionItemProps {
     currentAddress?: string;
 }
 
-export function TransactionItem({ transaction, currentAddress }: TransactionItemProps) {
+export function TransactionItem({ transaction, currentAddress }: TransactionItemProps): React.JSX.Element {
     const { denomination } = useDenominationStore();
     const isOutgoing = currentAddress ? transaction.source_address_pubkey === currentAddress : false;
     const isIncoming = currentAddress ? transaction.destination_address_pubkey === currentAddress : false;
 
-    const getTypeString = (type: number) => {
+    const getTypeString = (type: number): string => {
         switch (type) {
             case TransactionType.TRX_TRANSFER: return LABELS.TX_TYPE_TRANSFER;
             case TransactionType.TRX_DEPOSIT: return LABELS.TX_TYPE_DEPOSIT;
@@ -32,7 +33,7 @@ export function TransactionItem({ transaction, currentAddress }: TransactionItem
         }
     };
 
-    const getIcon = () => {
+    const getIcon = (): React.JSX.Element => {
         if (isOutgoing) return <ArrowUpIcon className="w-4 h-4 text-red-500" />;
         if (isIncoming) return <ArrowDownIcon className="w-4 h-4 text-green-500" />;
         return <ArrowRightLeftIcon className="w-4 h-4 text-blue-500" />;
@@ -54,7 +55,7 @@ export function TransactionItem({ transaction, currentAddress }: TransactionItem
                             <p className="font-semibold text-sm w-32 truncate" title={transaction.layer2_transaction_id} data-testid={TEST_IDS.TRANSACTION_TITLE}>
                                 <Link 
                                     to={ROUTES.buildExplorerTransaction(transaction.layer2_transaction_id)} 
-                                    onClick={(e) => e.stopPropagation()} 
+                                    onClick={(e): void => e.stopPropagation()} 
                                     className="hover:underline"
                                 >
                                     {transaction.layer2_transaction_id}

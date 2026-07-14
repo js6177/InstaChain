@@ -8,7 +8,7 @@ export function registerProcessShutdown(cleanup?: () => void | Promise<void>): v
   shutdownInstalled = true;
 
   let shuttingDown = false;
-  const handle = (signal: NodeJS.Signals) => {
+  const handle = (signal: NodeJS.Signals): void => {
     if (shuttingDown) {
       return;
     }

@@ -13,7 +13,7 @@ import {
 
 export type AuditDatabase = ReturnType<typeof createAuditDatabase>;
 
-export function createAuditDatabase(path: string) {
+export function createAuditDatabase(path: string): AuditDatabase {
   const sqlite = new Database(path, { create: true });
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS audit_state (

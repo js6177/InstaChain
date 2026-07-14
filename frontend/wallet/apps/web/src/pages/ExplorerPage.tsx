@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type React } from "react";
 import { useSearchParams, useNavigate, Routes, Route, useParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,12 +12,12 @@ import { TransactionItem } from "../components/TransactionItem";
 import { useDenominationStore, formatAmount, ROUTES, useWalletStore, LABELS, TEST_IDS } from "@openl2/wallet-shared";
 import { OAuthUserCard } from "../components/OAuthUserCard";
 
-function SearchBar() {
+function SearchBar(): React.JSX.Element {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const [query, setQuery] = useState(searchParams.get("q") || "");
 
-    const handleSearch = (e: React.FormEvent) => {
+    const handleSearch = (e: React.FormEvent): void => {
         e.preventDefault();
         if (!query.trim()) return;
         navigate(ROUTES.buildExplorerSearch(query.trim()));
@@ -28,7 +28,7 @@ function SearchBar() {
             <Input
                 placeholder="Search by Address Pubkey or Transaction ID..."
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setQuery(e.target.value)}
                 className="flex-1"
             />
             <Button type="submit">
@@ -39,7 +39,7 @@ function SearchBar() {
     );
 }
 
-function AddressView() {
+function AddressView(): React.JSX.Element | null {
     const { denomination } = useDenominationStore();
     const { addressId } = useParams();
     const { data: balance, isLoading: isBalanceLoading } = useAddressBalance(addressId || "");
@@ -92,7 +92,7 @@ function AddressView() {
     );
 }
 
-function TransactionViewWrapper() {
+function TransactionViewWrapper(): React.JSX.Element | null {
     const { txId } = useParams();
     const { data: txResponse, isLoading } = useTransaction(txId || "");
     const { mainAddress } = useWalletStore();
@@ -116,7 +116,7 @@ function TransactionViewWrapper() {
     );
 }
 
-function SearchRouter() {
+function SearchRouter(): React.JSX.Element {
     const [searchParams] = useSearchParams();
     const query = searchParams.get("q");
     const navigate = useNavigate();
@@ -135,7 +135,7 @@ function SearchRouter() {
     return <div className="text-center text-muted-foreground">{LABELS.TEXT_SEARCHING}</div>;
 }
 
-function OAuthUserExplorerView() {
+function OAuthUserExplorerView(): React.JSX.Element {
     const { service_name, service_specific_id } = useParams();
     const { denomination } = useDenominationStore();
     const findUserByIdRequest: FindOauth2UserByIdRequest | undefined = service_name && service_specific_id
@@ -202,7 +202,7 @@ function OAuthUserExplorerView() {
     );
 }
 
-export function ExplorerPage() {
+export function ExplorerPage(): React.JSX.Element {
     return (
         <div className="max-w-4xl mx-auto w-full pt-4 pb-12">
             <div className="mb-8 text-center">

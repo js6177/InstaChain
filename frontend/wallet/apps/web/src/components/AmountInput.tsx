@@ -1,3 +1,4 @@
+import type * as React from "react";
 import { useEffect, useRef } from "react";
 import { useDenominationStore, Denomination, LABELS } from "@openl2/wallet-shared";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,7 @@ interface AmountInputProps {
     maxSatsValue?: number;
 }
 
-export function AmountInput({ value, onChange, maxSatsValue }: AmountInputProps) {
+export function AmountInput({ value, onChange, maxSatsValue }: AmountInputProps): React.JSX.Element {
     const { denomination, toggleDenomination } = useDenominationStore();
     const prevDenomination = useRef(denomination);
 
@@ -32,7 +33,7 @@ export function AmountInput({ value, onChange, maxSatsValue }: AmountInputProps)
         }
     }, [denomination, value, onChange]);
 
-    const handleSetMax = () => {
+    const handleSetMax = (): void => {
         if (maxSatsValue === undefined) return;
         if (denomination === Denomination.Sats) {
             onChange(maxSatsValue.toString());
@@ -61,7 +62,7 @@ export function AmountInput({ value, onChange, maxSatsValue }: AmountInputProps)
                     step={denomination === Denomination.Btc ? '0.00000001' : '1'} 
                     placeholder={LABELS.PLACEHOLDER_ENTER_AMOUNT} 
                     value={value} 
-                    onChange={(e) => onChange(e.target.value)} 
+                    onChange={(e): void => onChange(e.target.value)} 
                 />
                 {maxSatsValue !== undefined && (
                     <Button 
