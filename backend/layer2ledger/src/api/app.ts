@@ -47,7 +47,7 @@ import {
 import { CommonResponse } from './models/common';
 import type { Layer2LedgerRouteHandlers } from './handlers';
 
-export function createLayer2LedgerApp(handlers: Layer2LedgerRouteHandlers): Layer2LedgerApp {
+export function createLayer2LedgerApp(handlers: Layer2LedgerRouteHandlers) {
   return new Elysia({ name: 'layer2ledger-api' })
     .use(cors())
     .get('/', () => handlers.health())

@@ -1,21 +1,13 @@
-import { useQuery, useMutation, type UseQueryResult, type UseMutationResult } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import {
   createLayer2LedgerClient,
   unwrapLayer2LedgerResponse,
-  type CommonResponse,
-  type GetBalanceResponseBalance,
-  type GetDepositAddressRequest,
-  type GetNodeInfoResponse,
-  type GetTransactionResponse,
-  type GetTransactionsResponse,
-  type PushTransactionRequest,
-  type RequestWithdrawalRequest,
 } from '@openl2/api-layer2ledger';
 import { LAYER2_LEDGER_API_URL } from '../config';
 
 const ledgerApi = createLayer2LedgerClient(LAYER2_LEDGER_API_URL);
 
-export const useAddressBalance = (publicKey: string): UseQueryResult<GetBalanceResponseBalance | null, Error> => {
+export const useAddressBalance = (publicKey: string) => {
     return useQuery({
         queryKey: ['AddressBalance', publicKey],
         queryFn: async () => {
@@ -28,7 +20,7 @@ export const useAddressBalance = (publicKey: string): UseQueryResult<GetBalanceR
     });
 };
 
-export const useTransaction = (transactionId: string): UseQueryResult<GetTransactionResponse, Error> => {
+export const useTransaction = (transactionId: string) => {
     return useQuery({
         queryKey: ['Transaction', transactionId],
         queryFn: async () => {
@@ -42,7 +34,7 @@ export const useTransaction = (transactionId: string): UseQueryResult<GetTransac
     });
 };
 
-export const useTransactions = (publicKey: string): UseQueryResult<GetTransactionsResponse, Error> => {
+export const useTransactions = (publicKey: string) => {
     return useQuery({
         queryKey: ['Transactions', publicKey],
         queryFn: async () => {
@@ -54,7 +46,7 @@ export const useTransactions = (publicKey: string): UseQueryResult<GetTransactio
     });
 };
 
-export const useNodeInfo = (): UseQueryResult<GetNodeInfoResponse, Error> => {
+export const useNodeInfo = () => {
     return useQuery({
         queryKey: ['NodeInfo'],
         queryFn: async () => {
@@ -63,9 +55,9 @@ export const useNodeInfo = (): UseQueryResult<GetNodeInfoResponse, Error> => {
     });
 };
 
-export const useDepositAddressMutation = (): UseMutationResult<string | null | undefined, Error, GetDepositAddressRequest> => {
+export const useDepositAddressMutation = () => {
     return useMutation({
-        mutationFn: async (params: GetDepositAddressRequest) => {
+        mutationFn: async (params: Parameters<typeof ledgerApi.deposit.get_deposit_address.post>[0]) => {
             const res = unwrapLayer2LedgerResponse(
               await ledgerApi.deposit.get_deposit_address.post(params),
             );
@@ -74,9 +66,9 @@ export const useDepositAddressMutation = (): UseMutationResult<string | null | u
     });
 };
 
-export const useTransferMutation = (): UseMutationResult<CommonResponse, Error, PushTransactionRequest> => {
+export const useTransferMutation = () => {
     return useMutation({
-        mutationFn: async (params: PushTransactionRequest) => {
+        mutationFn: async (params: Parameters<typeof ledgerApi.transfer.push_transaction.post>[0]) => {
             return unwrapLayer2LedgerResponse(
               await ledgerApi.transfer.push_transaction.post(params),
             );
@@ -84,9 +76,9 @@ export const useTransferMutation = (): UseMutationResult<CommonResponse, Error, 
     });
 };
 
-export const useWithdrawMutation = (): UseMutationResult<CommonResponse, Error, RequestWithdrawalRequest> => {
+export const useWithdrawMutation = () => {
     return useMutation({
-        mutationFn: async (params: RequestWithdrawalRequest) => {
+        mutationFn: async (params: Parameters<typeof ledgerApi.withdrawal.request_withdrawal.post>[0]) => {
             return unwrapLayer2LedgerResponse(
               await ledgerApi.withdrawal.request_withdrawal.post(params),
             );
