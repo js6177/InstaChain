@@ -12,10 +12,6 @@ import type { OAuthUserAuxillaryInfo } from 'models/http_server_models/Common/OA
 import {createLayer2AddressPubkey} from '@openl2/pubkey-utils'
 import {standardizeProfileUrl} from 'utils/OAuthHelperUtils';
 
-export interface UserInfo {
-    [key: string]: any;
-}
-
 
 //Create a DatabaseInterface class that connect to a db with the params given through MongoDbConfig, and would save and read OAuthUser objects
 export class DatabaseInterface {

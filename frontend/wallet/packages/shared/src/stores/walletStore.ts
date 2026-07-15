@@ -36,8 +36,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
                 isLoaded: true,
                 error: null,
             });
-        } catch (e: any) {
-            set({ error: e.message || "Failed to generate wallet" });
+        } catch (e: unknown) {
+            set({ error: e instanceof Error ? e.message : "Failed to generate wallet" });
         }
     },
 
@@ -54,8 +54,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
                 isLoaded: true,
                 error: null,
             });
-        } catch (e: any) {
-            set({ error: e.message || "Failed to load wallet" });
+        } catch (e: unknown) {
+            set({ error: e instanceof Error ? e.message : "Failed to load wallet" });
         }
     },
 

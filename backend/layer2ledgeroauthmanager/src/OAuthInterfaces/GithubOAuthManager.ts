@@ -43,8 +43,8 @@ export class GithubOAuthManager {
             }
 
             return response.data.access_token;
-        } catch (error: any) {
-            console.error("Error getting Github Access Token:", error?.response?.data || error.message || error);
+        } catch (error: unknown) {
+            console.error("Error getting Github Access Token:", axios.isAxiosError(error) ? (error.response?.data || error.message) : error);
             throw error;
         }
       }
@@ -65,8 +65,8 @@ export class GithubOAuthManager {
           //Save the user to the database
           await mongoDb.saveOAuthUser(user, true);
           return [user, userKeys];
-        } catch (error: any) {
-            console.error("Error getting Github User Info:", error?.response?.data || error.message || error);
+        } catch (error: unknown) {
+            console.error("Error getting Github User Info:", axios.isAxiosError(error) ? (error.response?.data || error.message) : error);
             throw error;
         }
       }

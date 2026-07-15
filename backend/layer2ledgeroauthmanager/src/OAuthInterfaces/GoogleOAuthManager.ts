@@ -40,8 +40,8 @@ export class GoogleOAuthManager {
             });
             console.log(`[GoogleOAuthManager] Token exchange response data:`, JSON.stringify(response.data, null, 2));
             return response.data.access_token;
-        } catch (error: any) {
-            console.error(`[GoogleOAuthManager] Error exchanging code for token:`, error?.response?.data || error?.message || error);
+        } catch (error: unknown) {
+            console.error(`[GoogleOAuthManager] Error exchanging code for token:`, axios.isAxiosError(error) ? (error.response?.data || error.message) : error);
             throw error;
         }
     }
@@ -65,8 +65,8 @@ export class GoogleOAuthManager {
             //Save the user to the database
             await mongoDb.saveOAuthUser(user, true);
             return [user, userKeys];
-        } catch (error: any) {
-            console.error(`[GoogleOAuthManager] Error fetching user info:`, error?.response?.data || error?.message || error);
+        } catch (error: unknown) {
+            console.error(`[GoogleOAuthManager] Error fetching user info:`, axios.isAxiosError(error) ? (error.response?.data || error.message) : error);
             throw error;
         }
     }

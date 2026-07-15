@@ -1,4 +1,5 @@
-import { useState, useEffect, type React } from "react";
+import { useState, useEffect } from "react";
+import type * as React from "react";
 import { useSearchParams, useNavigate, Routes, Route, useParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -49,7 +50,7 @@ function AddressView(): React.JSX.Element | null {
 
     const isLoading = isBalanceLoading || isTxLoading;
     const transactionsList = txData?.transaction_groups?.flatMap(group => group.transactions) || [];
-    const sortedTransactions = transactionsList.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const sortedTransactions = transactionsList.sort((a, b) => new Date(b.timestamp ?? 0).getTime() - new Date(a.timestamp ?? 0).getTime());
 
     return (
         <div className="space-y-6 animate-in fade-in">
@@ -157,8 +158,8 @@ function OAuthUserExplorerView(): React.JSX.Element {
     if (!userData) return <p className="text-muted-foreground text-center mt-10">User not found</p>;
 
     const isLoading = isBalanceLoading || isTxLoading;
-    const transactionsList = txData?.transaction_groups?.flatMap((group: any) => group.transactions) || [];
-    const sortedTransactions = transactionsList.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const transactionsList = txData?.transaction_groups?.flatMap(group => group.transactions) || [];
+    const sortedTransactions = transactionsList.sort((a, b) => new Date(b.timestamp ?? 0).getTime() - new Date(a.timestamp ?? 0).getTime());
 
     return (
         <div className="space-y-6 animate-in fade-in">
@@ -188,7 +189,7 @@ function OAuthUserExplorerView(): React.JSX.Element {
                 {!isLoading && pubkey && sortedTransactions.length === 0 && <p className="text-muted-foreground">{LABELS.TEXT_NO_TRANSACTIONS}</p>}
                 {!isLoading && pubkey && sortedTransactions.length > 0 && (
                     <Accordion type="single" collapsible className="w-full">
-                        {sortedTransactions.map((tx: any) => (
+                        {sortedTransactions.map((tx) => (
                             <TransactionItem
                                 key={tx.layer2_transaction_id}
                                 transaction={tx}

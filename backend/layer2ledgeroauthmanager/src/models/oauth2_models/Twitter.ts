@@ -13,7 +13,7 @@ export interface TwitterUserInfo{
     username: string;
     created_at: string;
     description: string;
-    entities: any;
+    entities: Record<string, unknown>;
     location: string;
     most_recent_tweet_id: string;
     profile_banner_url: string;
@@ -25,5 +25,5 @@ export interface TwitterUserInfo{
     url: string;
     verified: boolean;
     verified_type: string;
-    withheld: any;
+    withheld: unknown;
 }

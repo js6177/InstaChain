@@ -1,10 +1,11 @@
+import type { OAuthUserType } from "@openl2/api-layer2oauthmanager";
+import { OAuthService } from "@openl2/api-layer2oauthmanager";
 import type * as React from "react";
 import { useWalletStore, ROUTES } from "@openl2/wallet-shared";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ExternalLink } from "lucide-react";
-import { OAuthService } from "@openl2/api-layer2oauthmanager";
 import {
     SiDiscord,
     SiFacebook,
@@ -39,7 +40,7 @@ function OAuthServiceBadge({ service }: { service: OAuthService }): React.JSX.El
     );
 }
 
-export function OAuthUserCard({ user }: { user?: any }): React.JSX.Element | null {
+export function OAuthUserCard({ user }: { user?: OAuthUserType }): React.JSX.Element | null {
     const { oauthUser } = useWalletStore();
     const displayUser = user || oauthUser;
 
