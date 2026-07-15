@@ -1,27 +1,8 @@
 import { prop, getModelForClass } from '@typegoose/typegoose';
 import { v4 as uuidv4 } from 'uuid';
-import { t } from 'elysia';
-
 
 // This class defines the structure of the OAuthUser object that will be saved in the database
 // An OAuthUser object is created when a user logs in with OAuth2 protocol to a social media service (i.e. Twitter, Github, etc.)
-
-export const OAuthUserSchema = t.Object({
-    service_name: t.String(), // The name of the service a user is logged/signed in with (i.e. twitter, github, etc.)
-    service_specific_id: t.String(), // Their ID in the service (i.e. Twitter ID, Github ID, etc..)
-    _id: t.String(), // The primary key of the object, which is a combination of the service_name and service_specific_id
-    layer2_authorization_token: t.String(), // The token that is saved in the client's browser
-    layer2_authorization_token_expiration_timestamp: t.Number(), // The expiration timestamp of the token in epoch time
-    username: t.String(),
-    name: t.Nullable(t.String()),
-    profile_pic_url: t.Nullable(t.String()),
-    profile_url: t.String(),
-    profile_description: t.Nullable(t.String()), // Can be the bio/description of the user in the social media service
-    first_login_date: t.Date(), // Date when the user first signed up with OAuth2 to Layer2
-    last_login_date: t.Optional(t.Date())
-});
-
-export type OAuthUserType = typeof OAuthUserSchema.static;
 
 export class OAuthUser {
     @prop()

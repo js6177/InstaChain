@@ -1,3 +1,6 @@
+export { createLayer2OAuthApp, type Layer2OAuthApp } from './api/app';
+export * from './api/api-paths';
+export * from './api/handlers';
 export { OAuthService } from './models/http_server_models/OAuthRequest';
 export type { OAuthRequest } from './models/http_server_models/OAuthRequest';
 export type { OAuthResponse } from './models/http_server_models/OAuthResponse';
@@ -12,5 +15,5 @@ export { ErrorCodes, getErrorMessage } from './models/http_server_models/ErrorCo
 export type { ErrorCode } from './models/http_server_models/ErrorCodes';
 export { buildErrorResponse } from './models/http_server_models/Common/ErrorResponse';
 export type { ErrorResponse } from './models/http_server_models/Common/ErrorResponse';
-export type { OAuthUserType } from './models/db_models/OAuthUser';
-export type { UserKeysType } from './models/db_models/UserKeys';
+export type { OAuthUserType } from './models/http_server_models/schemas/oauth-user';
+export type { UserKeysType } from './models/http_server_models/schemas/user-keys';

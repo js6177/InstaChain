@@ -1,5 +1,5 @@
 import { t } from 'elysia';
-import { OAuthUserSchema } from "../../db_models/OAuthUser";
+import { OAuthUserSchema } from "../schemas/oauth-user";
 
 export const OAuthUserAuxillaryInfo = t.Object({
     user: OAuthUserSchema,

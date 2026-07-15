@@ -174,11 +174,13 @@
     "shared/api-layer2oauthmanager": {
       "name": "@openl2/api-layer2oauthmanager",
       "dependencies": {
+        "@elysiajs/eden": "^1.4.9",
         "@openl2/layer2oauthmanager": "workspace:*",
-        "elysia": "latest",
+        "elysia": "^1.4.29",
       },
       "devDependencies": {
         "@types/bun": "latest",
+        "typescript": "^5.5.4",
       },
       "peerDependencies": {
         "typescript": "^5",

@@ -1,5 +1,5 @@
 import { t } from 'elysia';
-import { OAuthUserSchema } from "../db_models/OAuthUser";
+import { OAuthUserSchema } from "./schemas/oauth-user";
 import { ErrorResponse } from "./Common/ErrorResponse";
 
 export const SearchUserResponse = t.Object({

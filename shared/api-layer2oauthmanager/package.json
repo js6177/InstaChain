@@ -3,12 +3,17 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "exports": {
+    ".": "./index.ts"
+  },
   "dependencies": {
+    "@elysiajs/eden": "^1.4.9",
     "@openl2/layer2oauthmanager": "workspace:*",
-    "elysia": "latest"
+    "elysia": "^1.4.29"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "typescript": "^5.5.4"
   },
   "peerDependencies": {
     "typescript": "^5"
