@@ -1,9 +1,5 @@
 import type { Layer2LedgerAPIHandlerConfig } from '@openl2/config-loader';
-
-export interface MessagingContext {
-  nodeId: string;
-  layer2BridgeSigningPublicKey: string;
-}
+import type { MessagingContext } from '@openl2/openl2-messaging';
 
 export interface Layer2LedgerAppDependencies {
   db: unknown;

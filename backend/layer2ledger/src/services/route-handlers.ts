@@ -56,16 +56,16 @@ import {
   type PendingWithdrawal,
   type RedisWithdrawalRequest,
 } from '../redis/models';
-import type { MessagingContext } from '../messaging/verify';
 import {
+  NODE_ASSET_ID_HEX,
+  type MessagingContext,
   verifyDeposit,
   verifyGetDepositAddress,
   verifyTransferMessage,
   verifyWithdrawalBroadcasted,
   verifyWithdrawalConfirmed,
   verifyWithdrawalRequestMessage,
-} from '../messaging/verify';
-import { NODE_ASSET_ID_HEX } from '@openl2/openl2-messaging';
+} from '@openl2/openl2-messaging';
 import { generateBtcTestnetAddress } from '../utils/generate-btc-address';
 import { buildLayer1TransactionId, buildLayer2WithdrawalId } from '../utils/keybuilders';
 

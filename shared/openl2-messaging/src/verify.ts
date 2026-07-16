@@ -1,4 +1,5 @@
 import { verifyMessage } from '@openl2/pubkey-utils';
+import { NODE_ASSET_ID_HEX } from './constants';
 import {
   buildDepositMessage,
   buildGetDepositAddressMessage,
@@ -6,8 +7,7 @@ import {
   buildWithdrawalBroadcastedMessage,
   buildWithdrawalConfirmedMessage,
   buildWithdrawalRequestMessage,
-  NODE_ASSET_ID_HEX,
-} from '@openl2/openl2-messaging';
+} from './messages';
 
 export interface MessagingContext {
   nodeId: string;
