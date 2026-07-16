@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type Redis from 'ioredis';
 import {
   PENDING_TRANSACTIONS_LIST_KEY,
@@ -7,30 +9,14 @@ import {
 } from './models';
 import { parsePendingTransactions, parsePendingWithdrawals } from './pending';
 
-const ACQUIRE_SCRIPT_LUA = `
-  for i, key in ipairs(KEYS) do
-    if redis.call('EXISTS', key) == 1 then
-      return 0
-    end
-  end
-  for i, key in ipairs(KEYS) do
-    redis.call('SET', key, ARGV[1])
-  end
-  return 1
-`;
-
-const RELEASE_SCRIPT_LUA = `
-  local keys_to_delete = {}
-  for i, key in ipairs(KEYS) do
-    if redis.call('GET', key) == ARGV[1] then
-      table.insert(keys_to_delete, key)
-    end
-  end
-  if #keys_to_delete ~= #KEYS then
-    return 0
-  end
-  return redis.call('DEL', unpack(keys_to_delete))
-`;
+const ACQUIRE_SCRIPT_LUA = readFileSync(
+  join(import.meta.dir, 'acquire-multi-lock.lua'),
+  'utf8',
+);
+const RELEASE_SCRIPT_LUA = readFileSync(
+  join(import.meta.dir, 'release-multi-lock.lua'),
+  'utf8',
+);
 
 export class DistributedLock {
   private acquireSha: string | null = null;
