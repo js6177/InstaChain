@@ -7,42 +7,42 @@ import { LAYER2_LEDGER_API_URL } from '../config';
 
 const ledgerApi = createLayer2LedgerClient(LAYER2_LEDGER_API_URL);
 
-export const useAddressBalance = (publicKey: string) => {
+export const useAddressBalance = (layer2AddressPublicKey: string) => {
     return useQuery({
-        queryKey: ['AddressBalance', publicKey],
+        queryKey: ['AddressBalance', layer2AddressPublicKey],
         queryFn: async () => {
             const res = unwrapLayer2LedgerResponse(
-              await ledgerApi.explorer.get_balance.post({ public_keys: [publicKey] }),
+              await ledgerApi.explorer.get_balance.post({ public_keys: [layer2AddressPublicKey] }),
             );
             return res.balance?.[0] || null;
         },
-        enabled: !!publicKey,
+        enabled: !!layer2AddressPublicKey,
     });
 };
 
-export const useTransaction = (transactionId: string) => {
+export const useTransaction = (layer2TransactionId: string) => {
     return useQuery({
-        queryKey: ['Transaction', transactionId],
+        queryKey: ['Transaction', layer2TransactionId],
         queryFn: async () => {
             return unwrapLayer2LedgerResponse(
               await ledgerApi.explorer.get_transaction.post({
-                layer2_transaction_id: transactionId,
+                layer2_transaction_id: layer2TransactionId,
               }),
             );
         },
-        enabled: !!transactionId,
+        enabled: !!layer2TransactionId,
     });
 };
 
-export const useTransactions = (publicKey: string) => {
+export const useTransactions = (layer2AddressPublicKey: string) => {
     return useQuery({
-        queryKey: ['Transactions', publicKey],
+        queryKey: ['Transactions', layer2AddressPublicKey],
         queryFn: async () => {
             return unwrapLayer2LedgerResponse(
-              await ledgerApi.explorer.get_all_transactions.post({ public_keys: [publicKey] }),
+              await ledgerApi.explorer.get_all_transactions.post({ public_keys: [layer2AddressPublicKey] }),
             );
         },
-        enabled: !!publicKey,
+        enabled: !!layer2AddressPublicKey,
     });
 };
 
