@@ -78,3 +78,41 @@ export function getDockerEnvFilePath(
 ): string {
   return join(getConfigDirectory(), environment, `${service}.env`);
 }
+
+export function getBitcoinCoreConfDirectory(): string {
+  const platform = process.platform;
+  if (platform === 'win32') {
+    const appData = process.env.APPDATA;
+    if (!appData) {
+      throw new Error('APPDATA environment variable is not set');
+    }
+    return join(appData, 'Bitcoin');
+  }
+  if (platform === 'darwin') {
+    return join(homedir(), 'Library', 'Application Support', 'Bitcoin');
+  }
+  return join(homedir(), '.bitcoin');
+}
+
+export function getLayer2BridgeBitcoinConfFilePath(startDir = process.cwd()): string {
+  return join(getProjectRoot(startDir), 'backend', 'layer2bridge', 'bitcoin.conf');
+}
+
+export function getLayer2LedgerDockerEnvFilePath(
+  environment: EnvironmentName = Environment.DEFAULT,
+  startDir = process.cwd(),
+): string {
+  return join(getProjectRoot(startDir), 'backend', 'layer2ledger', `.env.${environment}`);
+}
+
+export function getLayer2OAuthManagerDockerEnvFilePath(
+  environment: EnvironmentName = Environment.DEFAULT,
+  startDir = process.cwd(),
+): string {
+  return join(
+    getProjectRoot(startDir),
+    'backend',
+    'layer2ledgeroauthmanager',
+    `.env.${environment}`,
+  );
+}

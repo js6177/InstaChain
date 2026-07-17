@@ -1,6 +1,6 @@
 # Production-like stack (ENVIRONMENT defaults to prod in docker-compose.yml).
 # Generate config first (includes bitcoin.conf + layer2ledgerbridge-config.json):
-#   cd backend/setup_scripts && uv run python -m main -env prod -containered true -generate-keys -generate-oauth-config
+#   bun run setup -- -env=prod -containered=true -generate-keys -generate-oauth-config
 # Bitcoin chain data is stored in the named volume openl2-bitcoin-core-data.
 # bitcoind receives a graceful RPC stop on container shutdown (stop_grace_period: 30s).
 # Safe: docker compose up -d --force-recreate bitcoin-core
@@ -9,7 +9,7 @@ prod:
 	docker compose up --build
 # Dev overlay: debug ports, source bind mounts (ENVIRONMENT defaults to dev in docker-compose.dev.yml).
 # Generate config first:
-#   cd backend/setup_scripts && uv run python -m main -env dev -containered true -generate-keys -generate-oauth-config
+#   bun run setup -- -env=dev -containered=true -generate-keys -generate-oauth-config
 dev:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
@@ -33,7 +33,7 @@ backend-dev:
 # frontend run locally against the test backend (e.g. to exercise the ledger integration
 # tests). Does not start the one-shot test-runner containers.
 # Generate test config first:
-#   cd backend/setup_scripts && uv run python -m main -env test -containered true -generate-keys -generate-oauth-config
+#   bun run setup -- -env=test -containered=true -generate-keys -generate-oauth-config
 backend-test:
 	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test up --build \
 		layer2ledger-postgres \
@@ -47,7 +47,7 @@ backend-test:
 		layer2ledger-testhelper
 
 test:
-	python3 run-tests.py
+	bun run run-tests.ts
 
 # Tear down the test stack, including profile-gated services (e.g. layer2ledger-testhelper).
 test-down:

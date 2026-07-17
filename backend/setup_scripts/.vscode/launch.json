@@ -36,76 +36,74 @@
     ],
     "configurations": [
         {
-            "name": "Setup Scripts: main.py (with args)",
-            "type": "debugpy",
+            "name": "Setup Scripts: main.ts (with args)",
+            "type": "node",
             "request": "launch",
-            "program": "${workspaceFolder}/src/main.py",
-            "console": "integratedTerminal",
+            "runtimeExecutable": "bun",
+            "runtimeArgs": [
+                "run",
+                "${workspaceFolder}/src/main.ts"
+            ],
             "cwd": "${workspaceFolder}",
-            "python": "${command:python.interpreterPath}",
+            "console": "integratedTerminal",
             "args": [
                 "${input:setupScriptCommand}",
                 "-env",
                 "${input:setupScriptEnv}",
                 "-containered",
                 "${input:setupScriptContainered}"
-            ],
-            "justMyCode": true
+            ]
         },
         {
             "name": "Setup Scripts: Generate OAuth Config",
-            "type": "debugpy",
+            "type": "node",
             "request": "launch",
-            "program": "${workspaceFolder}/src/main.py",
-            "console": "integratedTerminal",
+            "runtimeExecutable": "bun",
+            "runtimeArgs": [
+                "run",
+                "${workspaceFolder}/src/main.ts"
+            ],
             "cwd": "${workspaceFolder}",
-            "python": "${command:python.interpreterPath}",
+            "console": "integratedTerminal",
             "args": [
                 "-generate-oauth-config",
                 "-env",
                 "dev"
-            ],
-            "justMyCode": true
+            ]
         },
         {
             "name": "Setup Scripts: Generate Keys",
-            "type": "debugpy",
+            "type": "node",
             "request": "launch",
-            "program": "${workspaceFolder}/src/main.py",
-            "console": "integratedTerminal",
+            "runtimeExecutable": "bun",
+            "runtimeArgs": [
+                "run",
+                "${workspaceFolder}/src/main.ts"
+            ],
             "cwd": "${workspaceFolder}",
-            "python": "${command:python.interpreterPath}",
+            "console": "integratedTerminal",
             "args": [
                 "-generate-keys",
                 "-env",
                 "dev"
-            ],
-            "justMyCode": true
+            ]
         },
         {
             "name": "Setup Scripts: Import Keys to Bitcoin Core",
-            "type": "debugpy",
+            "type": "node",
             "request": "launch",
-            "program": "${workspaceFolder}/src/main.py",
-            "console": "integratedTerminal",
+            "runtimeExecutable": "bun",
+            "runtimeArgs": [
+                "run",
+                "${workspaceFolder}/src/main.ts"
+            ],
             "cwd": "${workspaceFolder}",
-            "python": "${command:python.interpreterPath}",
+            "console": "integratedTerminal",
             "args": [
                 "-import-keys-to-bitcoin-core",
                 "-env",
                 "dev"
-            ],
-            "justMyCode": true
-        },
-        {
-            "name": "Python Debugger: Current File",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}",
-            "python": "${command:python.interpreterPath}",
-            "justMyCode": true
+            ]
         }
     ]
 }

@@ -8,6 +8,11 @@
       "types": "./src/index.ts",
       "import": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./btc": {
+      "types": "./src/btc-keys.ts",
+      "import": "./src/btc-keys.ts",
+      "default": "./src/btc-keys.ts"
     }
   },
   "devDependencies": {
@@ -19,6 +24,10 @@
   "dependencies": {
     "@noble/hashes": "^1.8.0",
     "@noble/secp256k1": "^2.3.0",
-    "bs58": "^6.0.0"
+    "bip32": "^4.0.0",
+    "bip39": "^3.1.0",
+    "bitcoinjs-lib": "^6.1.7",
+    "bs58": "^6.0.0",
+    "tiny-secp256k1": "^2.2.4"
   }
 }

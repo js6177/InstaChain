@@ -1,22 +1,22 @@
 Install:
-uv
 bun
 docker
 
-For setup scripts:
+For native bitcoin key deps on Windows, you may still need:
 Microsoft Visual C++ 14.0 or greater (https://visualstudio.microsoft.com/visual-cpp-build-tools/)
 
 
 
-cd '/backend/setup_scripts'
-uv run src/main.py -env=test -containered=true -generate-keys -generate-oauth-config
+cd backend/setup_scripts
+bun run src/main.ts -env=test -containered=true -generate-keys -generate-oauth-config
 
 cd ../..
 make backend-test
-uv run src/main.py -env=test -containered=true -import-keys-to-bitcoin-core
+bun run setup -- -env=test -containered=true -import-keys-to-bitcoin-core
 
 To run all tests in docker containers:
 make test
+# or: bun run test:docker
 
 To debug/run the frontend tests in vscode with the backend in docker containers:
 make backend-test

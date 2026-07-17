@@ -98,6 +98,27 @@ export type AddressGrouping = AddressGroupingItem[];
 /** Result of the listaddressgroupings RPC. */
 export type ListAddressGroupingsResult = AddressGrouping[];
 
+export interface CreateWalletResult {
+  name: string;
+  warning?: string | null;
+}
+
+export interface DescriptorImportRequest {
+  desc: string;
+  active?: boolean;
+  timestamp?: number | string;
+  range?: number | number[];
+  internal?: boolean;
+  next_index?: number;
+  label?: string;
+}
+
+export interface ImportDescriptorResult {
+  success: boolean;
+  warnings?: string[] | null;
+  error?: BitcoinRpcError | Record<string, unknown> | null;
+}
+
 export function isWalletAlreadyLoaded(error: BitcoinRpcError | null | undefined): boolean {
   return error?.code === -35;
 }

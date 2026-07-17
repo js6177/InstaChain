@@ -52,12 +52,18 @@ export interface Layer2LedgerDockerEnvSettings {
   databaseUrl: string;
   redisUrl: string;
   layer2ledgerFastapiPort: number;
+  testhelperPort: number;
   layer2ledgerApihandlerDebugPort?: number;
   layer2ledgerDbwriterDebugPort?: number;
   bitcoinRpcHost: string;
   bitcoinRpcImportHost: string;
   bitcoinRpcPort: number;
   layer2ledgerApihandlerHost: string;
+}
+
+export interface Layer2LedgerTestHelperConfig {
+  host: string;
+  port: number;
 }
 
 export interface PostgresqlDatabaseSettings {

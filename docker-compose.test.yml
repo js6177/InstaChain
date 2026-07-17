@@ -1,8 +1,8 @@
-# Test overlay — used with docker-compose.yml via python3 run-tests.py (make test)
+# Test overlay — used with docker-compose.yml via bun run run-tests.ts (make test)
 # Sets ENVIRONMENT=test for backend services.
 #
 # bitcoin-core must use .config/test/bitcoin.conf (RPC credentials must match layer2bridge).
-# run-tests.py sets ENVIRONMENT=test in the shell; backend-test relies on the volume override below.
+# run-tests.ts sets ENVIRONMENT=test in the shell; backend-test relies on the volume override below.
 #
 # Services with profiles: [test] are not stopped by plain `docker compose down`.
 # Use: docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test down
@@ -231,7 +231,7 @@ services:
         condition: service_healthy
       layer2ledgerdbwriter:
         condition: service_healthy
-      # testhelper is started by run-tests.py (ensure_testhelper) before integration
+      # testhelper is started by run-tests.ts (ensureTesthelper) before integration
       # tests. Do not list it here — compose run would recreate it, re-run migrations,
       # and wipe seed data before vitest runs.
       layer2ledgeroauthmanager:

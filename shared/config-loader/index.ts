@@ -5,6 +5,7 @@ export type {
   ConfigInterface,
   Layer2LedgerOAuthManagerDockerEnvSettings,
   Layer2LedgerDockerEnvSettings,
+  Layer2LedgerTestHelperConfig,
   PostgresqlDatabaseSettings,
   RedisSettings,
   Layer2LedgerCommonConfig,
@@ -28,6 +29,10 @@ export {
   getConfigFilePath,
   getDockerEnvFilePath,
   getProjectRoot,
+  getBitcoinCoreConfDirectory,
+  getLayer2BridgeBitcoinConfFilePath,
+  getLayer2LedgerDockerEnvFilePath,
+  getLayer2OAuthManagerDockerEnvFilePath,
 } from './src/paths';
 export { readConfig, writeConfig } from './src/io';
 export { loadOAuthManagerConfig } from './src/loadConfig';
@@ -45,6 +50,7 @@ export {
 export {
   parseDockerEnvFile,
   loadOAuthManagerDockerEnvSettings,
+  loadLayer2LedgerDockerEnvSettings,
   buildOAuthManagerConfigFromEnv,
   resolveEnvironment,
 } from './src/env';

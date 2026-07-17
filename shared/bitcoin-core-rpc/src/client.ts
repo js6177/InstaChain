@@ -1,9 +1,12 @@
 import type { Layer2BridgeBitcoinConfFileSettings } from '@openl2/config-loader';
 import type {
   BitcoinRpcResponse,
+  CreateWalletResult,
+  DescriptorImportRequest,
   GetBlockChainInfoResult,
   GetBlockHeaderResult,
   GetTransactionResult,
+  ImportDescriptorResult,
   ListAddressGroupingsResult,
   ListSinceBlockResult,
   LoadWalletResult,
@@ -16,10 +19,18 @@ export class BitcoinRPCClient {
 
   constructor(
     private readonly config: Layer2BridgeBitcoinConfFileSettings,
-    private readonly walletName?: string,
+    private walletName?: string,
   ) {
     this.baseUrl = `http://${config.rpchost}:${config.rpcport}`;
     this.authHeader = `Basic ${btoa(`${config.rpcuser}:${config.rpcpassword}`)}`;
+  }
+
+  withWallet(walletName: string): BitcoinRPCClient {
+    return new BitcoinRPCClient(this.config, walletName);
+  }
+
+  setWalletName(walletName: string): void {
+    this.walletName = walletName;
   }
 
   private get url(): string {
@@ -77,6 +88,45 @@ export class BitcoinRPCClient {
 
   async loadWallet(filename: string): Promise<BitcoinRpcResponse<LoadWalletResult>> {
     return this.callRaw<LoadWalletResult>('loadwallet', [filename]);
+  }
+
+  async createWallet(
+    walletName: string,
+    options?: {
+      disablePrivateKeys?: boolean;
+      blank?: boolean;
+      passphrase?: string;
+      avoidReuse?: boolean;
+      descriptors?: boolean;
+      loadOnStartup?: boolean;
+    },
+  ): Promise<BitcoinRpcResponse<CreateWalletResult>> {
+    const params: unknown[] = [
+      walletName,
+      options?.disablePrivateKeys ?? false,
+      options?.blank ?? false,
+      options?.passphrase ?? '',
+      options?.avoidReuse ?? false,
+      options?.descriptors ?? true,
+    ];
+    if (options?.loadOnStartup !== undefined) {
+      params.push(options.loadOnStartup);
+    }
+    return this.callRaw<CreateWalletResult>('createwallet', params);
+  }
+
+  async importDescriptors(
+    requests: DescriptorImportRequest[],
+  ): Promise<ImportDescriptorResult[]> {
+    return (await this.call<ImportDescriptorResult[]>('importdescriptors', [requests]));
+  }
+
+  async getNewAddress(label = '', addressType?: string): Promise<string> {
+    const params: unknown[] = [label];
+    if (addressType !== undefined) {
+      params.push(addressType);
+    }
+    return String(await this.call('getnewaddress', params));
   }
 
   async sendMany(

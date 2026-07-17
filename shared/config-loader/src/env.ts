@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import type {
   ConfigInterface,
+  Layer2LedgerDockerEnvSettings,
   Layer2LedgerOAuthManagerDockerEnvSettings,
 } from './models';
 import { Environment, type EnvironmentName } from './services';
@@ -89,6 +90,32 @@ export function loadOAuthManagerDockerEnvSettings(
     mongodbDbName: requireEnvValue(values, 'MONGODB_DB_NAME'),
     layer2oauthPort: requireEnvNumber(values, 'LAYER2OAUTH_PORT'),
     layer2oauthDebugPort: optionalEnvNumber(values, 'LAYER2OAUTH_DEBUG_PORT'),
+  };
+}
+
+export function loadLayer2LedgerDockerEnvSettings(
+  envPath: string,
+): Layer2LedgerDockerEnvSettings {
+  const values = parseDockerEnvFile(envPath);
+
+  return {
+    postgresUser: requireEnvValue(values, 'POSTGRES_USER'),
+    postgresPassword: requireEnvValue(values, 'POSTGRES_PASSWORD'),
+    postgresDb: requireEnvValue(values, 'POSTGRES_DB'),
+    postgresHost: requireEnvValue(values, 'POSTGRES_HOST'),
+    postgresPort: requireEnvNumber(values, 'POSTGRES_PORT'),
+    redisHost: requireEnvValue(values, 'REDIS_HOST'),
+    redisPort: requireEnvNumber(values, 'REDIS_PORT'),
+    databaseUrl: requireEnvValue(values, 'DATABASE_URL'),
+    redisUrl: requireEnvValue(values, 'REDIS_URL'),
+    layer2ledgerFastapiPort: requireEnvNumber(values, 'LAYER2LEDGER_FASTAPI_PORT'),
+    testhelperPort: optionalEnvNumber(values, 'TESTHELPER_PORT') ?? 8001,
+    layer2ledgerApihandlerDebugPort: optionalEnvNumber(values, 'LAYER2LEDGER_APIHANDLER_DEBUG_PORT'),
+    layer2ledgerDbwriterDebugPort: optionalEnvNumber(values, 'LAYER2LEDGER_DBWRITER_DEBUG_PORT'),
+    bitcoinRpcHost: requireEnvValue(values, 'BITCOIN_RPC_HOST'),
+    bitcoinRpcImportHost: requireEnvValue(values, 'BITCOIN_RPC_IMPORT_HOST'),
+    bitcoinRpcPort: requireEnvNumber(values, 'BITCOIN_RPC_PORT'),
+    layer2ledgerApihandlerHost: requireEnvValue(values, 'LAYER2LEDGER_APIHANDLER_HOST'),
   };
 }
 

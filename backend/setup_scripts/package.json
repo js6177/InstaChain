@@ -1,0 +1,24 @@
+{
+  "name": "@openl2/setup-scripts",
+  "module": "./src/main.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "setup": "bun run src/main.ts",
+    "generate-keys": "bun run src/main.ts -generate-keys",
+    "generate-oauth-config": "bun run src/main.ts -generate-oauth-config",
+    "import-keys": "bun run src/main.ts -import-keys-to-bitcoin-core"
+  },
+  "dependencies": {
+    "@openl2/bitcoin-core-rpc": "workspace:*",
+    "@openl2/config-loader": "workspace:*",
+    "@openl2/pubkey-utils": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.5.4"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
