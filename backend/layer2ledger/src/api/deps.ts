@@ -15,5 +15,4 @@ export interface Layer2LedgerAppDependencies {
   };
   settings: Layer2LedgerAPIHandlerConfig;
   messaging: MessagingContext;
-  generateBtcTestnetAddress(masterPublicKey: string, addressIndex: number): string | null;
 }

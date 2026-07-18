@@ -1,8 +1,3 @@
-/** Intermediate config filenames written during key generation. */
-export const Intermediate = {
-  BITCOIN_CORE_MASTER_KEYS: 'temp-bitcoincore-master-keys',
-} as const;
-
 export function str2bool(value: string | boolean): boolean {
   if (typeof value === 'boolean') {
     return value;

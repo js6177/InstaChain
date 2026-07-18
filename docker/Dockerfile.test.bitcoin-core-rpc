@@ -3,7 +3,7 @@ WORKDIR /app
 
 FROM base AS pruner
 COPY . .
-RUN bunx turbo@2.8.14 prune @openl2/bitcoin-core-rpc --docker
+RUN bunx turbo@2.8.14 prune @openl2/bitcoin-core-rpc @openl2/pubkey-utils --docker
 
 FROM base AS installer
 COPY --from=pruner /app/out/json/ .

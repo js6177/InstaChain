@@ -66,7 +66,7 @@ import {
   verifyWithdrawalConfirmed,
   verifyWithdrawalRequestMessage,
 } from '@openl2/openl2-messaging';
-import { generateBtcTestnetAddress } from '../utils/generate-btc-address';
+import { deriveAddressFromXpubSegwit } from '@openl2/pubkey-utils/btc';
 import { buildLayer1TransactionId, buildLayer2WithdrawalId } from '../utils/keybuilders';
 
 export interface RouteHandlerContext {
@@ -201,11 +201,15 @@ export function createRouteHandlers(context: RouteHandlerContext): Layer2LedgerR
         };
       }
 
-      const layer1Address = generateBtcTestnetAddress(
-        settings.deposit_wallet_master_pubkey,
-        depositAddressId,
-      );
-      if (!layer1Address) {
+      let layer1Address: string;
+      try {
+        layer1Address = deriveAddressFromXpubSegwit(
+          settings.deposit_wallet_master_pubkey,
+          0,
+          depositAddressId,
+          true,
+        );
+      } catch {
         return {
           ...buildCommonResponse(ErrorCodes.UNKNOWN, 'Failed to generate layer1 address'),
           layer1_deposit_address: null,

@@ -17,6 +17,7 @@ export type {
 } from './src/models';
 export {
   Services,
+  Intermediate,
   Environment,
   type ServiceName,
   type EnvironmentName,

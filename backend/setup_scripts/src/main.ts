@@ -23,6 +23,7 @@ import {
   getLayer2LedgerDockerEnvFilePath,
   getLayer2OAuthManagerDockerEnvFilePath,
   getProjectRoot,
+  Intermediate,
   loadLayer2LedgerDockerEnvSettings,
   loadOAuthManagerDockerEnvSettings,
   readConfig,
@@ -44,7 +45,6 @@ import { readBitcoinConf, writeBitcoinConf } from './bitcoin-conf';
 import {
   generateAlphanumericId,
   generateSecurePassword,
-  Intermediate,
   str2bool,
 } from './utils';
 

@@ -10,6 +10,7 @@
     "@openl2/config-loader": "workspace:*"
   },
   "devDependencies": {
+    "@openl2/pubkey-utils": "workspace:*",
     "@types/bun": "latest",
     "typescript": "^5.5.4"
   },

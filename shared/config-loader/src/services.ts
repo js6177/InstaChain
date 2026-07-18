@@ -9,6 +9,11 @@ export const Services = {
 
 export type ServiceName = (typeof Services)[keyof typeof Services];
 
+/** Intermediate config filenames written during key generation. */
+export const Intermediate = {
+  BITCOIN_CORE_MASTER_KEYS: 'temp-bitcoincore-master-keys',
+} as const;
+
 export const Environment = {
   DEV: 'dev',
   PROD: 'prod',
