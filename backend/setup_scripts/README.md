@@ -20,6 +20,15 @@ bun run setup:first-time -- -env=dev
 bun run setup:first-time -- -env=prod -overwrite-wallet
 ```
 
+To permanently remove all OpenL2 docker containers and volumes:
+
+```bash
+bun run uninstall
+# or non-interactive:
+bun run uninstall -- -noprompt
+# or: make uninstall
+```
+
 You can also fine-tune individual setup steps from the repo root:
 
 ```bash

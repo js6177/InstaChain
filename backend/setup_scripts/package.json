@@ -9,7 +9,8 @@
     "generate-oauth-config": "bun run src/main.ts -generate-oauth-config",
     "import-keys": "bun run src/main.ts -import-keys-to-bitcoin-core",
     "setup:first-time": "bun run run-setup.ts",
-    "test:docker": "bun run run-tests.ts"
+    "test:docker": "bun run run-tests.ts",
+    "uninstall": "bun run run-uninstall.ts"
   },
   "dependencies": {
     "@openl2/bitcoin-core-rpc": "workspace:*",

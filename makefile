@@ -57,3 +57,9 @@ test-down:
 
 test-down-v:
 	docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test down -v
+
+# Permanently remove all OpenL2 docker containers and attached volumes.
+# Interactive confirmation: press 'c' to continue.
+# Non-interactive: bun run uninstall -- -noprompt
+uninstall:
+	bun run uninstall
