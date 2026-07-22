@@ -90,6 +90,14 @@ export class BitcoinRPCClient {
     return this.callRaw<LoadWalletResult>('loadwallet', [filename]);
   }
 
+  async unloadWallet(walletName: string): Promise<BitcoinRpcResponse<null>> {
+    return this.callRaw<null>('unloadwallet', [walletName]);
+  }
+
+  async listWallets(): Promise<string[]> {
+    return (await this.call<string[]>('listwallets')) ?? [];
+  }
+
   async createWallet(
     walletName: string,
     options?: {

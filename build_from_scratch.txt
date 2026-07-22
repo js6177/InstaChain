@@ -7,12 +7,16 @@ Microsoft Visual C++ 14.0 or greater (https://visualstudio.microsoft.com/visual-
 
 
 
-cd backend/setup_scripts
-bun run src/main.ts -env=test -containered=true -generate-keys -generate-oauth-config
+# First-time setup (generate keys, start bitcoin-core, wait for sync, import wallet keys):
+bun run setup:first-time -- -env=test
+# If the wallet already exists and you want to recreate it (keeps synced chain data):
+# bun run setup:first-time -- -env=test -overwrite-wallet
 
-cd ../..
-make backend-test
+# Or fine-tune individual steps:
+bun run setup -- -env=test -containered=true -generate-keys -generate-oauth-config
 bun run setup -- -env=test -containered=true -import-keys-to-bitcoin-core
+
+make backend-test
 
 To run all tests in docker containers:
 make test

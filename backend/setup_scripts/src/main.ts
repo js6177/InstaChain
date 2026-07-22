@@ -16,6 +16,8 @@ import type {
   Layer2LedgerTestHelperConfig,
 } from '@openl2/config-loader';
 import {
+  BitcoinChain,
+  DockerService,
   getBitcoinCoreConfDirectory,
   getConfigFilePath,
   getEnvSpecificConfigDirectory,
@@ -24,10 +26,13 @@ import {
   getLayer2OAuthManagerDockerEnvFilePath,
   getProjectRoot,
   Intermediate,
+  isTestBitcoinNetwork,
   loadLayer2LedgerDockerEnvSettings,
   loadOAuthManagerDockerEnvSettings,
+  readBitcoinConf,
   readConfig,
   Services,
+  writeBitcoinConf,
   writeConfig,
   type EnvironmentName,
 } from '@openl2/config-loader';
@@ -41,7 +46,6 @@ import {
   generateMnemonic,
   type MasterKeys,
 } from '@openl2/pubkey-utils/btc';
-import { readBitcoinConf, writeBitcoinConf } from './bitcoin-conf';
 import {
   generateAlphanumericId,
   generateSecurePassword,
@@ -118,7 +122,7 @@ function loadBitcoinRpcSettingsForImport(
   }
 
   const conf = readBitcoinConf(confPath);
-  const chain = (conf.globals.chain ?? 'testnet4').trim();
+  const chain = (conf.globals.chain ?? BitcoinChain.TESTNET4).trim();
   const chainSection = conf.sections[chain];
   if (!chainSection) {
     throw new Error(`Missing [${chain}] section in ${confPath}`);
@@ -158,8 +162,8 @@ async function waitForBitcoinRpc(
 
   throw new Error(
     `Could not connect to Bitcoin Core RPC at ${rpcSettings.rpchost}:${rpcSettings.rpcport} after ${timeoutSec}s. `
-      + 'Ensure the bitcoin-core container is running and RPC is published '
-      + `(docker compose up -d --force-recreate bitcoin-core). Last error: ${lastError}`,
+      + `Ensure the ${DockerService.BITCOIN_CORE} container is running and RPC is published `
+      + `(docker compose up -d --force-recreate ${DockerService.BITCOIN_CORE}). Last error: ${lastError}`,
   );
 }
 
@@ -226,7 +230,7 @@ function generateKeys(
   const bitcoinConf = readBitcoinConf(templatePath);
   const newBtcRpcPassword = generateSecurePassword(16);
 
-  const selectedChain = (bitcoinConf.globals.chain ?? 'testnet4').trim();
+  const selectedChain = (bitcoinConf.globals.chain ?? BitcoinChain.TESTNET4).trim();
   bitcoinConf.globals.chain = selectedChain;
   bitcoinConf.sections[selectedChain] ??= {};
   bitcoinConf.sections[selectedChain].rpcpassword = newBtcRpcPassword;
@@ -380,7 +384,7 @@ async function importKeysToBitcoinCore(
 
   rpcClient = rpcClient.withWallet(resolvedBridgeSettings.wallet_name);
 
-  const testnet = resolvedBridgeSettings.rpc_settings.chain !== 'main';
+  const testnet = isTestBitcoinNetwork(resolvedBridgeSettings.rpc_settings.chain);
   const descriptorsData = generateBitcoinCoreDescriptorSegwit(
     resolvedBtcKeys.master_xprv,
     testnet,

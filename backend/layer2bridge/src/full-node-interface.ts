@@ -10,7 +10,10 @@ import {
   type SendManyAmounts,
   type WithdrawalTransactionOutput,
 } from '@openl2/bitcoin-core-rpc';
-import type { Layer2BridgeBitcoinConfFileSettings } from '@openl2/config-loader';
+import {
+  isTestBitcoinNetwork,
+  type Layer2BridgeBitcoinConfFileSettings,
+} from '@openl2/config-loader';
 import { SATOSHI_PER_BITCOIN } from '@openl2/openl2-messaging';
 import type { PendingWithdrawalRow } from './db/schema';
 
@@ -22,10 +25,6 @@ function log(message: string): void {
   console.log(`${new Date().toISOString()} ${message}`);
 }
 
-function isTestnetChain(chain: string): boolean {
-  return chain !== 'main';
-}
-
 export class BitcoinFullNodeRpc implements BitcoinRpcClient {
   private readonly client: BitcoinRPCClient;
   private readonly testnet: boolean;
@@ -35,7 +34,7 @@ export class BitcoinFullNodeRpc implements BitcoinRpcClient {
     private readonly walletName: string,
   ) {
     this.client = new BitcoinRPCClient(rpcConfig, walletName);
-    this.testnet = isTestnetChain(rpcConfig.chain);
+    this.testnet = isTestBitcoinNetwork(rpcConfig.chain);
     log(`bitcoin RPC wallet=${walletName} host=${rpcConfig.rpchost}:${rpcConfig.rpcport}`);
   }
 

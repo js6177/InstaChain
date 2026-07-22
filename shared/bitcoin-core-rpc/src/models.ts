@@ -62,6 +62,8 @@ export interface GetBlockChainInfoResult {
   blocks: number;
   headers: number;
   bestblockhash: string;
+  verificationprogress?: number;
+  initialblockdownload?: boolean;
 }
 
 export interface BroadcastWithdrawalInput {

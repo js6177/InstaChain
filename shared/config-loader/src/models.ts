@@ -1,3 +1,5 @@
+import type { BitcoinChainName } from './bitcoin-chain';
+
 export interface OAuth2ServiceParams {
   clientId: string;
   clientSecret: string;
@@ -108,7 +110,7 @@ export interface CommonBackendConfig {
 }
 
 export interface Layer2BridgeBitcoinConfFileSettings {
-  chain: string;
+  chain: BitcoinChainName | string;
   rpcuser: string;
   rpcpassword: string;
   rpchost: string;

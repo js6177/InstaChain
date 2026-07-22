@@ -8,6 +8,7 @@ import {
 import {
   getConfigFilePath,
   Intermediate,
+  isTestBitcoinNetwork,
   loadLayer2BridgeConfig,
   readConfig,
   resolveEnvironment,
@@ -36,7 +37,7 @@ const runIntegration = process.env.RUN_BITCOIN_RPC_INTEGRATION === '1';
 describe.skipIf(!runIntegration)('deposit address derivation vs bitcoin-core', () => {
   const rpcConfig = loadLayer2BridgeConfig(resolveEnvironment()).rpc_settings;
   const masterKeys = loadMasterKeys();
-  const testnet = rpcConfig.chain !== 'main';
+  const testnet = isTestBitcoinNetwork(rpcConfig.chain);
 
   it('derived deposit addresses match successive getnewaddress results', async () => {
     const walletName = `deposit-addr-verify-${Date.now()}`;

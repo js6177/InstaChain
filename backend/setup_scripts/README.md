@@ -8,16 +8,29 @@ The backend can be run two ways:
 
 In order to setup in either mode, you first need to run the setup scripts in order to generate all the necesary keys.
 
-From the repo root you can also use:
+## Recommended first-time Docker setup
+
+From the repo root, this orchestrates key generation, starting `bitcoin-core`, waiting for chain sync, and importing the wallet:
 
 ```bash
-bun run setup -- -env=prod -containered=true -generate-keys -generate-oauth-config
+bun run setup:first-time -- -env=prod
+# or from this directory:
+bun run setup:first-time -- -env=dev
+# recreate wallet only (keeps synced blockchain data volume):
+bun run setup:first-time -- -env=prod -overwrite-wallet
+```
+
+You can also fine-tune individual setup steps from the repo root:
+
+```bash
+bun run setup -- -env=test -containered=true -generate-keys -generate-oauth-config
+bun run setup -- -env=test -containered=true -import-keys-to-bitcoin-core
 ```
 
 Or from this directory:
 
 ```bash
-bun run setup -- -env=prod -containered=true -generate-keys -generate-oauth-config
+bun run src/main.ts -env=prod -containered=true -generate-keys -generate-oauth-config
 ```
 
 # Running on a local dev machine

@@ -23,6 +23,19 @@ export {
   type EnvironmentName,
 } from './src/services';
 export {
+  BitcoinChain,
+  isMainBitcoinChain,
+  isTestBitcoinNetwork,
+  bitcoinWalletDataSubdir,
+  type BitcoinChainName,
+} from './src/bitcoin-chain';
+export {
+  parseBitcoinConf,
+  readBitcoinConf,
+  writeBitcoinConf,
+  type BitcoinConfDocument,
+} from './src/bitcoin-conf';
+export {
   getOutputDirectory,
   getEnvSpecificOutputDirectory,
   getConfigDirectory,
@@ -55,4 +68,22 @@ export {
   buildOAuthManagerConfigFromEnv,
   resolveEnvironment,
 } from './src/env';
+export {
+  DockerComposeFile,
+  DockerComposeProfile,
+  DockerService,
+  DOCKER_INFRA_SERVICES,
+  DOCKER_APP_SERVICES,
+  DOCKER_TEST_SERVICES,
+  DOCKER_UNIT_TEST_SERVICES,
+  DOCKER_INTEGRATION_TEST_SERVICES,
+  DOCKER_TEST_PROFILE_BACKGROUND_SERVICES,
+  DOCKER_TEST_COMPOSE_FILES,
+  BITCOIN_CORE_DATA_VOLUME,
+  composeFilesForEnvironment,
+  type DockerComposeFileName,
+  type DockerComposeProfileName,
+  type DockerServiceName,
+} from './src/docker';
+export { requireBun } from './src/require-bun';
 export { registerProcessShutdown } from './src/shutdown';

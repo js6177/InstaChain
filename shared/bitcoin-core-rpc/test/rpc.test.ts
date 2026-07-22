@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BitcoinRPCClient } from '../index';
-import type { Layer2BridgeBitcoinConfFileSettings } from '@openl2/config-loader';
+import { BitcoinChain, type Layer2BridgeBitcoinConfFileSettings } from '@openl2/config-loader';
 
 function loadRpcConfig(): Layer2BridgeBitcoinConfFileSettings {
   const configPath = join(import.meta.dir, 'config', 'config.json');
@@ -29,7 +29,7 @@ describe.skipIf(!runIntegration)('bitcoin-core-rpc integration', () => {
 
   it('getBlockchainInfo returns testnet4 chain in test config', async () => {
     const info = await client.getBlockchainInfo();
-    expect(info.chain).toBe('testnet4');
+    expect(info.chain).toBe(BitcoinChain.TESTNET4);
     expect(info.blocks).toBeGreaterThanOrEqual(0);
   });
 

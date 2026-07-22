@@ -13,7 +13,8 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "setup": "bun run --filter @openl2/setup-scripts setup",
-    "test:docker": "bun run run-tests.ts"
+    "setup:first-time": "bun run --filter @openl2/setup-scripts setup:first-time",
+    "test:docker": "bun run --filter @openl2/setup-scripts test:docker"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.2",
