@@ -1,8 +1,15 @@
 import { treaty } from '@elysiajs/eden';
-import { ErrorCodes, type Layer2LedgerApp } from '@openl2/layer2ledger/http-server-models';
+import {
+  createLayer2TestHelperClient,
+  ErrorCodes,
+  unwrapLayer2TestHelperResponse,
+  type Layer2LedgerApp,
+  type Layer2TestHelperApp,
+  type Layer2TestHelperClient,
+} from '@openl2/layer2ledger/http-server-models';
 
-export { ErrorCodes };
-export type { Layer2LedgerApp };
+export { createLayer2TestHelperClient, ErrorCodes, unwrapLayer2TestHelperResponse };
+export type { Layer2LedgerApp, Layer2TestHelperApp, Layer2TestHelperClient };
 
 function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;

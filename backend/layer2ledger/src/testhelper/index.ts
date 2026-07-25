@@ -1,9 +1,10 @@
-import { eq, sql } from 'drizzle-orm';
-import { Elysia, t } from 'elysia';
 import { Layer2Address } from '@openl2/pubkey-utils';
 import { getTestHelperPort, loadLayer2LedgerCommonConfig } from '@openl2/config-loader';
 import { createDatabase, migrateDatabase } from '../db/client';
 import { layer2AddressBalance, TransactionType, transactions } from '../db/schema';
+import { createTestHelperApp } from './app';
+import type { TestHelperRouteHandlers } from './handlers';
+import type { SeedBalanceRequest, SeedMnemonicRequest, SeedResponse } from './models';
 
 const commonConfig = loadLayer2LedgerCommonConfig();
 const { db, sql: postgresSql } = createDatabase({
@@ -18,18 +19,6 @@ const { db, sql: postgresSql } = createDatabase({
 // only seeds data and must not drop tables — compose run would recreate this container
 // (e.g. as a wallet-web dependency) and wipe seed data or race migrations.
 await migrateDatabase(postgresSql);
-
-const SeedBalanceRequest = t.Object({
-  address: t.String(),
-  balance: t.Number(),
-  include_deposit_transaction: t.Boolean(),
-});
-
-const SeedMnemonicRequest = t.Object({
-  mnemonic: t.String(),
-  balance: t.Number(),
-  include_deposit_transaction: t.Boolean(),
-});
 
 async function upsertBalance(address: string, balance: number): Promise<void> {
   await db
@@ -64,49 +53,47 @@ async function maybeInsertDepositTransaction(
   });
 }
 
-const app = new Elysia({ prefix: '/testhelper' })
-  .get('/health', () => ({ status: 'ok' }))
-  .post(
-    '/seed/balance',
-    async ({ body }) => {
-      await upsertBalance(body.address, body.balance);
-      await maybeInsertDepositTransaction(
-        body.address,
-        body.balance,
-        body.include_deposit_transaction,
-      );
-      return {
-        address: body.address,
-        balance: body.balance,
-        include_deposit_transaction: body.include_deposit_transaction,
-      };
-    },
-    { body: SeedBalanceRequest },
-  )
-  .post(
-    '/seed/mnemonic',
-    async ({ body }) => {
-      const address = new Layer2Address('', '', '', new Uint8Array(), new Uint8Array());
-      address.fromSeed(body.mnemonic);
-      await upsertBalance(address.public_key_str_base58, body.balance);
-      await maybeInsertDepositTransaction(
-        address.public_key_str_base58,
-        body.balance,
-        body.include_deposit_transaction,
-      );
-      return {
-        address: address.public_key_str_base58,
-        balance: body.balance,
-        include_deposit_transaction: body.include_deposit_transaction,
-      };
-    },
-    { body: SeedMnemonicRequest },
-  )
-  .listen({
-    // Bind all interfaces so Docker healthchecks and other containers can reach us.
-    hostname: '0.0.0.0',
-    port: getTestHelperPort(),
-  });
+async function seedBalance(body: SeedBalanceRequest): Promise<SeedResponse> {
+  await upsertBalance(body.address, body.balance);
+  await maybeInsertDepositTransaction(
+    body.address,
+    body.balance,
+    body.include_deposit_transaction,
+  );
+  return {
+    address: body.address,
+    balance: body.balance,
+    include_deposit_transaction: body.include_deposit_transaction,
+  };
+}
+
+async function seedMnemonic(body: SeedMnemonicRequest): Promise<SeedResponse> {
+  const address = new Layer2Address('', '', '', new Uint8Array(), new Uint8Array());
+  address.fromSeed(body.mnemonic);
+  await upsertBalance(address.public_key_str_base58, body.balance);
+  await maybeInsertDepositTransaction(
+    address.public_key_str_base58,
+    body.balance,
+    body.include_deposit_transaction,
+  );
+  return {
+    address: address.public_key_str_base58,
+    balance: body.balance,
+    include_deposit_transaction: body.include_deposit_transaction,
+  };
+}
+
+const handlers: TestHelperRouteHandlers = {
+  health: () => ({ status: 'ok' }),
+  seedBalance,
+  seedMnemonic,
+};
+
+const app = createTestHelperApp(handlers).listen({
+  // Bind all interfaces so Docker healthchecks and other containers can reach us.
+  hostname: '0.0.0.0',
+  port: getTestHelperPort(),
+});
 
 console.log(`testhelper listening on http://0.0.0.0:${getTestHelperPort()}`);
 

@@ -1,13 +1,13 @@
 import { readFile } from 'node:fs/promises';
+import {
+  createLayer2TestHelperClient,
+  unwrapLayer2TestHelperResponse,
+} from '../src/testhelper/client';
 
 interface SeedConfig {
   balance_sats: number;
   mnemonic_file: string;
   include_deposit_transaction: boolean;
-}
-
-interface TestKeysFile {
-  mnemonic: string;
 }
 
 function requireNumber(value: unknown, name: string): number {
@@ -58,23 +58,16 @@ async function main(): Promise<void> {
   );
 
   const baseUrl = process.env.TESTHELPER_BASE_URL ?? 'http://layer2ledger-testhelper:8001';
-  const response = await fetch(`${baseUrl}/testhelper/seed/mnemonic`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  const client = createLayer2TestHelperClient(baseUrl);
+  const result = unwrapLayer2TestHelperResponse(
+    await client.testhelper.seed.mnemonic.post({
       mnemonic,
       balance: seedConfig.balance_sats,
       include_deposit_transaction: seedConfig.include_deposit_transaction,
     }),
-  });
+  );
 
-  const bodyText = await response.text();
-  if (!response.ok) {
-    throw new Error(`Seed request failed: ${response.status}\n${bodyText}`);
-  }
-
-  console.log(bodyText);
+  console.log(JSON.stringify(result));
 }
 
 await main();
-

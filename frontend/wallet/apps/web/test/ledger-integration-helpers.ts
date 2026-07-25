@@ -1,10 +1,13 @@
 import {
   createLayer2LedgerClient,
+  createLayer2TestHelperClient,
   ErrorCodes,
   unwrapLayer2LedgerResponse,
+  unwrapLayer2TestHelperResponse,
   type GetTransactionsResponse,
   type GetTransactionsResponseTransaction,
   type Layer2LedgerClient,
+  type Layer2TestHelperClient,
   type NodeInfo,
 } from '@openl2/api-layer2ledger'
 import { Layer2Address, Layer2Wallet } from '@openl2/wallet-shared'
@@ -16,11 +19,6 @@ import {
   TransactionType,
 } from '@openl2/openl2-messaging'
 
-import {
-  TESTHELPER_ROUTER_PREFIX,
-  TESTHELPER_SEED_BALANCE_ROUTE,
-  TESTHELPER_SEED_MNEMONIC_ROUTE,
-} from './testhelper-api-paths'
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -38,46 +36,6 @@ interface BridgeConfigFile {
   onboarding_signing_private_key: string
 }
 
-interface TestHelperErrorDetail {
-  error: string
-  message: string
-  traceback: string
-}
-
-interface TestHelperErrorResponse {
-  detail: TestHelperErrorDetail | string
-}
-
-interface TestHelperSeedBalanceRequest {
-  address: string
-  balance: number
-  include_deposit_transaction: boolean
-}
-
-interface TestHelperSeedMnemonicRequest {
-  mnemonic: string
-  balance: number
-  include_deposit_transaction: boolean
-}
-
-interface TestHelperSeedResponse {
-  address: string
-  balance: number
-  include_deposit_transaction: boolean
-}
-
-function isTestHelperErrorDetail(detail: unknown): detail is TestHelperErrorDetail {
-  if (!detail || typeof detail !== 'object') {
-    return false
-  }
-
-  return (
-    typeof Reflect.get(detail, 'error') === 'string' &&
-    typeof Reflect.get(detail, 'message') === 'string' &&
-    typeof Reflect.get(detail, 'traceback') === 'string'
-  )
-}
-
 function parseBridgeConfigFile(value: unknown): BridgeConfigFile | null {
   if (!value || typeof value !== 'object') {
     return null
@@ -89,58 +47,6 @@ function parseBridgeConfigFile(value: unknown): BridgeConfigFile | null {
   }
 
   return { onboarding_signing_private_key: onboardingSigningPrivateKey }
-}
-
-function parseTestHelperErrorResponse(raw: string): TestHelperErrorResponse | null {
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    return null
-  }
-
-  if (!parsed || typeof parsed !== 'object') {
-    return null
-  }
-
-  const detail = Reflect.get(parsed, 'detail')
-  if (typeof detail === 'string') {
-    return { detail }
-  }
-
-  if (isTestHelperErrorDetail(detail)) {
-    return { detail }
-  }
-
-  return null
-}
-
-function parseTestHelperSeedResponse(value: unknown): TestHelperSeedResponse | null {
-  if (!value || typeof value !== 'object') {
-    return null
-  }
-
-  const address = Reflect.get(value, 'address')
-  const balance = Reflect.get(value, 'balance')
-  const includeDepositTransaction = Reflect.get(value, 'include_deposit_transaction')
-
-  if (
-    typeof address !== 'string' ||
-    typeof balance !== 'number' ||
-    typeof includeDepositTransaction !== 'boolean'
-  ) {
-    return null
-  }
-
-  return {
-    address,
-    balance,
-    include_deposit_transaction: includeDepositTransaction,
-  }
-}
-
-function formatTestHelperErrorDetail(detail: TestHelperErrorDetail): string {
-  return `${detail.error}: ${detail.message}\n${detail.traceback}`
 }
 
 let bridgeConfig: BridgeConfigFile | null = null
@@ -159,6 +65,10 @@ export function getTestHelperBaseUrl(): string {
     import.meta.env.VITE_TESTHELPER_BASE_URL ??
     'http://layer2ledger-testhelper:8001'
   )
+}
+
+function getTestHelperApi(): Layer2TestHelperClient {
+  return createLayer2TestHelperClient(getTestHelperBaseUrl())
 }
 
 function getRepoBridgeConfigPaths(): string[] {
@@ -236,54 +146,18 @@ function bridgeSigner(privateKeyBase58: string): Layer2Address {
   return address
 }
 
-async function formatTesthelperError(response: Response): Promise<string> {
-  const raw = await response.text()
-  const parsed = parseTestHelperErrorResponse(raw)
-
-  if (parsed?.detail && isTestHelperErrorDetail(parsed.detail)) {
-    return formatTestHelperErrorDetail(parsed.detail)
-  }
-
-  if (parsed?.detail && typeof parsed.detail === 'string') {
-    return parsed.detail
-  }
-
-  return raw || response.statusText
-}
-
-async function testhelperPost(
-  path: string,
-  body: TestHelperSeedBalanceRequest | TestHelperSeedMnemonicRequest,
-): Promise<TestHelperSeedResponse> {
-  const response = await fetch(`${getTestHelperBaseUrl()}${TESTHELPER_ROUTER_PREFIX}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  if (!response.ok) {
-    const detail = await formatTesthelperError(response)
-    throw new Error(`testhelper ${path} failed: ${response.status}\n${detail}`)
-  }
-
-  const payload: unknown = await response.json()
-  const result = parseTestHelperSeedResponse(payload)
-  if (!result) {
-    throw new Error(`testhelper ${path} returned an invalid seed response`)
-  }
-  return result
-}
-
 export async function seedWalletMnemonic(
   mnemonic: string,
   balanceSats: number,
   includeDepositTransaction = false,
 ): Promise<string> {
-  const request: TestHelperSeedMnemonicRequest = {
-    mnemonic,
-    balance: balanceSats,
-    include_deposit_transaction: includeDepositTransaction,
-  }
-  const result = await testhelperPost(TESTHELPER_SEED_MNEMONIC_ROUTE, request)
+  const result = unwrapLayer2TestHelperResponse(
+    await getTestHelperApi().testhelper.seed.mnemonic.post({
+      mnemonic,
+      balance: balanceSats,
+      include_deposit_transaction: includeDepositTransaction,
+    }),
+  )
   return result.address
 }
 
@@ -292,12 +166,13 @@ export async function seedWalletAddress(
   balanceSats: number,
   includeDepositTransaction = false,
 ): Promise<void> {
-  const request: TestHelperSeedBalanceRequest = {
-    address,
-    balance: balanceSats,
-    include_deposit_transaction: includeDepositTransaction,
-  }
-  await testhelperPost(TESTHELPER_SEED_BALANCE_ROUTE, request)
+  unwrapLayer2TestHelperResponse(
+    await getTestHelperApi().testhelper.seed.balance.post({
+      address,
+      balance: balanceSats,
+      include_deposit_transaction: includeDepositTransaction,
+    }),
+  )
 }
 
 export async function getNodeContext(): Promise<NodeInfo> {

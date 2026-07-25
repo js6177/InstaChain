@@ -1,9 +1,13 @@
 export {
   createLayer2LedgerClient,
+  createLayer2TestHelperClient,
   unwrapLayer2LedgerResponse,
+  unwrapLayer2TestHelperResponse,
   ErrorCodes,
   type Layer2LedgerApp,
   type Layer2LedgerClient,
+  type Layer2TestHelperApp,
+  type Layer2TestHelperClient,
 } from './eden';
 
 export {
