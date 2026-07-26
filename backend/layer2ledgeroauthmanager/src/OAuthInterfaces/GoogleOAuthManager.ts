@@ -101,8 +101,7 @@ export class GoogleOAuthManager {
 		user.service_name = "google";
 		user.service_specific_id = googleUserInfo.id;
 		user.layer2_authorization_token = GenerateUUID();
-		user.layer2_authorization_token_expiration_timestamp =
-			new Date().getTime() + MillisecondsInMonth; // Set expiration to 1 month from now
+		user.layer2_authorization_token_expiration_timestamp =Date.now()+ MillisecondsInMonth; // Set expiration to 1 month from now
 		user.username = googleUserInfo.email; // Fallback to email as username
 		user.name = googleUserInfo.name;
 		user.profile_description = "";

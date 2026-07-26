@@ -98,8 +98,7 @@ export class FacebookOAuthManager {
 		user.service_name = "facebook";
 		user.service_specific_id = facebookUserInfo.id;
 		user.layer2_authorization_token = GenerateUUID();
-		user.layer2_authorization_token_expiration_timestamp =
-			new Date().getTime() + MillisecondsInMonth; // Set expiration to 1 month from now
+		user.layer2_authorization_token_expiration_timestamp =Date.now()+ MillisecondsInMonth; // Set expiration to 1 month from now
 		user.username = facebookUserInfo.email || facebookUserInfo.id; // Fallback to id as username if email is missing
 		user.name = facebookUserInfo.name;
 		user.profile_description = "";

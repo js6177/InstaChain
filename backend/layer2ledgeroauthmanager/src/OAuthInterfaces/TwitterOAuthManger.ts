@@ -91,8 +91,7 @@ export class TwitterOAuthManager {
 		user.service_name = "twitter";
 		user.service_specific_id = twitterUserInfo.id;
 		user.layer2_authorization_token = GenerateUUID();
-		user.layer2_authorization_token_expiration_timestamp =
-			new Date().getTime() + MillisecondsInMonth; // Set expiration to 1 month from now
+		user.layer2_authorization_token_expiration_timestamp =Date.now()+ MillisecondsInMonth; // Set expiration to 1 month from now
 		user.username = twitterUserInfo.username;
 		user.name = twitterUserInfo.name;
 		user.profile_description = twitterUserInfo.description;

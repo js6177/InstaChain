@@ -102,8 +102,7 @@ export class GithubOAuthManager {
 		user.service_name = "github";
 		user.service_specific_id = githubUserInfo.id.toString();
 		user.layer2_authorization_token = GenerateUUID();
-		user.layer2_authorization_token_expiration_timestamp =
-			new Date().getTime() + MillisecondsInMonth; // Set expiration to 1 month from now
+		user.layer2_authorization_token_expiration_timestamp =Date.now()+ MillisecondsInMonth; // Set expiration to 1 month from now
 		user.username = githubUserInfo.login;
 		user.name = githubUserInfo.name;
 		user.profile_description = githubUserInfo.bio;

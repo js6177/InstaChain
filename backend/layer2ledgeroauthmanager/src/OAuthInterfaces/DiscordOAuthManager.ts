@@ -99,8 +99,7 @@ export class DiscordOAuthManager {
 		user.service_name = "discord";
 		user.service_specific_id = discordUserInfo.id;
 		user.layer2_authorization_token = GenerateUUID();
-		user.layer2_authorization_token_expiration_timestamp =
-			new Date().getTime() + MillisecondsInMonth; // Set expiration to 1 month from now
+		user.layer2_authorization_token_expiration_timestamp =Date.now()+ MillisecondsInMonth; // Set expiration to 1 month from now
 		user.username = discordUserInfo.username;
 		user.name = discordUserInfo.global_name || discordUserInfo.username;
 		user.profile_description = "";
