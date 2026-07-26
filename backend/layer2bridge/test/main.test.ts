@@ -19,6 +19,8 @@ import {
 	Layer2Status,
 	PendingWithdrawalStatus,
 	SATOSHI_PER_BITCOIN,
+	confirmedTransactions,
+	pendingWithdrawals,
 } from "../src/db/schema";
 
 let tempDir = "";
@@ -142,7 +144,7 @@ describe("layer2bridge", () => {
 		).toBe("blockhash1");
 		const pending = await bridge.bridgeDb
 			.select()
-			.from((await import("../src/db/schema")).confirmedTransactions);
+			.from(confirmedTransactions);
 		expect(pending[0]?.amount).toBe(0.01 * SATOSHI_PER_BITCOIN);
 	});
 
@@ -175,7 +177,7 @@ describe("layer2bridge", () => {
 		await bridge.sendPendingConfirmedDepositsToLayer2Ledger();
 		const rows = await bridge.bridgeDb
 			.select()
-			.from((await import("../src/db/schema")).confirmedTransactions);
+			.from(confirmedTransactions);
 		expect(rows[0]?.layer2Status).toBe(Layer2Status.CONFIRMED);
 	});
 
@@ -231,7 +233,7 @@ describe("layer2bridge", () => {
 		expect(pending).toHaveLength(0);
 		const broadcasted = await bridge.bridgeDb
 			.select()
-			.from((await import("../src/db/schema")).pendingWithdrawals);
+			.from(pendingWithdrawals);
 		expect(broadcasted[0]?.status).toBe(PendingWithdrawalStatus.BROADCASTED);
 		expect(broadcasted[0]?.transactionId).toBe("broadcast-tx");
 	});
