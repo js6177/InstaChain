@@ -25,7 +25,7 @@ export class TwitterOAuthManager {
 		authorizationCode: string,
 		codeVerifier: string,
 	): Promise<string> {
-		console.log("getTwitterAccessToken: " + authorizationCode);
+		console.log(`getTwitterAccessToken: ${authorizationCode}`);
 		const credentials = btoa(
 			`${this.config.clientId}:${this.config.clientSecret}`,
 		);
@@ -49,7 +49,7 @@ export class TwitterOAuthManager {
 				},
 			);
 
-			console.log("getTwitterAccessToken: " + JSON.stringify(response.data));
+			console.log(`getTwitterAccessToken: ${JSON.stringify(response.data)}`);
 			return response.data.access_token;
 		} catch (error) {
 			console.error("Error in getTwitterAccessToken:", error);
@@ -61,14 +61,14 @@ export class TwitterOAuthManager {
 		accessToken: string,
 		mongoDb: DatabaseInterface,
 	): Promise<[OAuthUser, UserKeys]> {
-		console.log("getTwitterUserInfo: " + accessToken);
+		console.log(`getTwitterUserInfo: ${accessToken}`);
 		try {
 			const response = await axios.get<TwitterUserInfoData>(TWITTER_USER_URL, {
 				headers: {
 					Authorization: `Bearer ${accessToken}`,
 				},
 			});
-			console.log("getTwitterUserInfo: " + JSON.stringify(response.data));
+			console.log(`getTwitterUserInfo: ${JSON.stringify(response.data)}`);
 			//Create OAuthUser object from TwitterUserInfo
 			const twitterUserInfoData: TwitterUserInfoData =
 				response.data as TwitterUserInfoData;

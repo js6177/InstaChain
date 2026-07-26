@@ -45,7 +45,7 @@ export class OAuthUser {
 		if (randomUuid) {
 			this._id = uuidv4();
 		} else {
-			this._id = this.service_name + "-" + this.service_specific_id;
+			this._id = `${this.service_name}-${this.service_specific_id}`;
 		}
 	}
 
