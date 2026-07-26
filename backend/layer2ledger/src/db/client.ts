@@ -1,53 +1,58 @@
-import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import { schema } from './schema';
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import { schema } from "./schema";
 
 export type Layer2LedgerDbClient = PostgresJsDatabase<typeof schema>;
-export type Layer2LedgerDatabase = { db: Layer2LedgerDbClient; sql: postgres.Sql };
+export type Layer2LedgerDatabase = {
+	db: Layer2LedgerDbClient;
+	sql: postgres.Sql;
+};
 
 export interface DatabaseSettings {
-  dbUser: string;
-  dbPassword: string;
-  dbHost: string;
-  dbPort: string;
-  dbName: string;
+	dbUser: string;
+	dbPassword: string;
+	dbHost: string;
+	dbPort: string;
+	dbName: string;
 }
 
 export function buildDatabaseUrl(settings: DatabaseSettings): string {
-  return `postgres://${settings.dbUser}:${settings.dbPassword}@${settings.dbHost}:${settings.dbPort}/${settings.dbName}`;
+	return `postgres://${settings.dbUser}:${settings.dbPassword}@${settings.dbHost}:${settings.dbPort}/${settings.dbName}`;
 }
 
-export function createDatabase(settings: DatabaseSettings): Layer2LedgerDatabase {
-  const sql = postgres(buildDatabaseUrl(settings), { max: 100 });
-  const db = drizzle(sql, { schema });
-  return { db, sql };
+export function createDatabase(
+	settings: DatabaseSettings,
+): Layer2LedgerDatabase {
+	const sql = postgres(buildDatabaseUrl(settings), { max: 100 });
+	const db = drizzle(sql, { schema });
+	return { db, sql };
 }
 
 export async function migrateDatabase(
-  sql: postgres.Sql,
-  options?: { dropExisting?: boolean },
+	sql: postgres.Sql,
+	options?: { dropExisting?: boolean },
 ): Promise<void> {
-  if (options?.dropExisting) {
-    // Drop legacy SQLAlchemy schema (Python) which used enum types.
-    // This repo’s tests reuse the same Postgres volume across rewrites, so we must
-    // reset tables/types to match the new Bun/TS schema.
-    await sql`DROP TABLE IF EXISTS transactions CASCADE`;
-    await sql`DROP TABLE IF EXISTS layer2_address_balance CASCADE`;
-    await sql`DROP TABLE IF EXISTS deposit_addresses CASCADE`;
-    await sql`DROP TABLE IF EXISTS withdrawal_requests CASCADE`;
-    await sql`DROP TABLE IF EXISTS confirmed_withdrawals CASCADE`;
-    await sql`DROP TABLE IF EXISTS layer1_audit_reports CASCADE`;
-    await sql`DROP TABLE IF EXISTS layer1_addresses CASCADE`;
-    await sql`DROP TABLE IF EXISTS transaction_durations CASCADE`;
-    await sql`DROP TABLE IF EXISTS key_value_store CASCADE`;
-    await sql`DROP TABLE IF EXISTS master_public_key_indices CASCADE`;
+	if (options?.dropExisting) {
+		// Drop legacy SQLAlchemy schema (Python) which used enum types.
+		// This repo’s tests reuse the same Postgres volume across rewrites, so we must
+		// reset tables/types to match the new Bun/TS schema.
+		await sql`DROP TABLE IF EXISTS transactions CASCADE`;
+		await sql`DROP TABLE IF EXISTS layer2_address_balance CASCADE`;
+		await sql`DROP TABLE IF EXISTS deposit_addresses CASCADE`;
+		await sql`DROP TABLE IF EXISTS withdrawal_requests CASCADE`;
+		await sql`DROP TABLE IF EXISTS confirmed_withdrawals CASCADE`;
+		await sql`DROP TABLE IF EXISTS layer1_audit_reports CASCADE`;
+		await sql`DROP TABLE IF EXISTS layer1_addresses CASCADE`;
+		await sql`DROP TABLE IF EXISTS transaction_durations CASCADE`;
+		await sql`DROP TABLE IF EXISTS key_value_store CASCADE`;
+		await sql`DROP TABLE IF EXISTS master_public_key_indices CASCADE`;
 
-    // Legacy enum types created by SQLAlchemy.
-    await sql`DROP TYPE IF EXISTS transactiontype CASCADE`;
-    await sql`DROP TYPE IF EXISTS withdrawalstatus CASCADE`;
-  }
+		// Legacy enum types created by SQLAlchemy.
+		await sql`DROP TYPE IF EXISTS transactiontype CASCADE`;
+		await sql`DROP TYPE IF EXISTS withdrawalstatus CASCADE`;
+	}
 
-  await sql`
+	await sql`
     CREATE TABLE IF NOT EXISTS transactions (
       timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       amount INTEGER NOT NULL,
@@ -63,7 +68,7 @@ export async function migrateDatabase(
       batch_height INTEGER NOT NULL DEFAULT 0
     )
   `;
-  await sql`
+	await sql`
     CREATE TABLE IF NOT EXISTS layer2_address_balance (
       id SERIAL PRIMARY KEY,
       address VARCHAR NOT NULL UNIQUE,
@@ -71,7 +76,7 @@ export async function migrateDatabase(
       timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
-  await sql`
+	await sql`
     CREATE TABLE IF NOT EXISTS deposit_addresses (
       id SERIAL PRIMARY KEY,
       layer2_address VARCHAR NOT NULL,
@@ -82,7 +87,7 @@ export async function migrateDatabase(
       mpk_index INTEGER NOT NULL
     )
   `;
-  await sql`
+	await sql`
     CREATE TABLE IF NOT EXISTS withdrawal_requests (
       id SERIAL PRIMARY KEY,
       layer1_address VARCHAR NOT NULL,
@@ -97,7 +102,7 @@ export async function migrateDatabase(
       batch_height INTEGER NOT NULL DEFAULT 0
     )
   `;
-  await sql`
+	await sql`
     CREATE TABLE IF NOT EXISTS confirmed_withdrawals (
       id SERIAL PRIMARY KEY,
       layer1_transaction_id VARCHAR NOT NULL,
@@ -111,7 +116,7 @@ export async function migrateDatabase(
       confirmation_timestamp_str TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
-  await sql`
+	await sql`
     CREATE TABLE IF NOT EXISTS layer1_audit_reports (
       id SERIAL PRIMARY KEY,
       "blockHeight" INTEGER NOT NULL UNIQUE,
@@ -121,7 +126,7 @@ export async function migrateDatabase(
       signature TEXT NOT NULL
     )
   `;
-  await sql`
+	await sql`
     CREATE TABLE IF NOT EXISTS layer1_addresses (
       id SERIAL PRIMARY KEY,
       "layer1Address" VARCHAR NOT NULL UNIQUE,
@@ -129,7 +134,7 @@ export async function migrateDatabase(
       label TEXT NOT NULL
     )
   `;
-  await sql`
+	await sql`
     CREATE TABLE IF NOT EXISTS transaction_durations (
       id SERIAL PRIMARY KEY,
       timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -139,13 +144,13 @@ export async function migrateDatabase(
       item_count INTEGER NOT NULL
     )
   `;
-  await sql`
+	await sql`
     CREATE TABLE IF NOT EXISTS key_value_store (
       key VARCHAR PRIMARY KEY,
       value VARCHAR NOT NULL
     )
   `;
-  await sql`
+	await sql`
     CREATE TABLE IF NOT EXISTS master_public_key_indices (
       id SERIAL PRIMARY KEY,
       mpk_index BIGINT NOT NULL

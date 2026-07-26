@@ -1,1 +1,1 @@
-export * from './pubkey-utils';
+export * from "./pubkey-utils";

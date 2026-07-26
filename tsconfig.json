@@ -1,14 +1,14 @@
 {
-  "compilerOptions": {
-    "module": "ESNext",
-    "target": "ESNext",
-    "moduleResolution": "bundler",
-    "strict": true,
-    "composite": true,
-    "declaration": true,
-    "declarationMap": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "isolatedModules": true
-  }
+	"compilerOptions": {
+		"module": "ESNext",
+		"target": "ESNext",
+		"moduleResolution": "bundler",
+		"strict": true,
+		"composite": true,
+		"declaration": true,
+		"declarationMap": true,
+		"skipLibCheck": true,
+		"esModuleInterop": true,
+		"isolatedModules": true
+	}
 }

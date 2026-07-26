@@ -1,7 +1,7 @@
 {
-        "chain": "testnet4",
-        "rpcuser": "bitcointestnet4",
-        "rpcpassword": "pass",
-        "rpchost": "localhost",
-        "rpcport": 8334
+	"chain": "testnet4",
+	"rpcuser": "bitcointestnet4",
+	"rpcpassword": "pass",
+	"rpchost": "localhost",
+	"rpcport": 8334
 }

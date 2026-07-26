@@ -1,30 +1,30 @@
 {
-  "name": "openl2-repo",
-  "private": true,
-  "packageManager": "bun@1.3.3",
-  "workspaces": [
-    "backend/*",
-    "frontend/**/*",
-    "shared/*"
-  ],
-  "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "lint": "turbo run lint",
-    "test": "turbo run test",
-    "setup": "bun run --filter @openl2/setup-scripts setup",
-    "setup:first-time": "bun run --filter @openl2/setup-scripts setup:first-time",
-    "test:docker": "bun run --filter @openl2/setup-scripts test:docker",
-    "uninstall": "bun run ./backend/setup_scripts/run-uninstall.ts"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.5.2",
-    "@types/bun": "latest",
-    "@vitest/coverage-istanbul": "4.1.9",
-    "tsx": "^4.22.0",
-    "turbo": "^2.8.14"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  }
+	"name": "openl2-repo",
+	"private": true,
+	"packageManager": "bun@1.3.3",
+	"workspaces": [
+		"backend/*",
+		"frontend/**/*",
+		"shared/*"
+	],
+	"scripts": {
+		"dev": "turbo run dev",
+		"build": "turbo run build",
+		"lint": "turbo run lint",
+		"test": "turbo run test",
+		"setup": "bun run --filter @openl2/setup-scripts setup",
+		"setup:first-time": "bun run --filter @openl2/setup-scripts setup:first-time",
+		"test:docker": "bun run --filter @openl2/setup-scripts test:docker",
+		"uninstall": "bun run ./backend/setup_scripts/run-uninstall.ts"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.5.2",
+		"@types/bun": "latest",
+		"@vitest/coverage-istanbul": "4.1.9",
+		"tsx": "^4.22.0",
+		"turbo": "^2.8.14"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	}
 }

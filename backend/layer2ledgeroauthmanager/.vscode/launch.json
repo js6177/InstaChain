@@ -1,25 +1,25 @@
 {
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "type": "bun",
-      "request": "launch",
-      "name": "Debug Bun",
-      "program": "${workspaceFolder}/src/index.ts",
-      "cwd": "${workspaceFolder}",
-      "env": {},
-      "args": []
-    },
-    {
-      "type": "bun",
-      "request": "attach",
-      "name": "Attach: layer2ledgeroauthmanager (Docker)",
-      "url": "ws://127.0.0.1:6499/debug",
-      "localRoot": "${workspaceFolder}",
-      "remoteRoot": "/app/backend/layer2ledgeroauthmanager",
-      "sourceMapPathOverrides": {
-        "/app/shared/*": "${workspaceFolder}/../../shared/*"
-      }
-    }
-  ]
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"type": "bun",
+			"request": "launch",
+			"name": "Debug Bun",
+			"program": "${workspaceFolder}/src/index.ts",
+			"cwd": "${workspaceFolder}",
+			"env": {},
+			"args": []
+		},
+		{
+			"type": "bun",
+			"request": "attach",
+			"name": "Attach: layer2ledgeroauthmanager (Docker)",
+			"url": "ws://127.0.0.1:6499/debug",
+			"localRoot": "${workspaceFolder}",
+			"remoteRoot": "/app/backend/layer2ledgeroauthmanager",
+			"sourceMapPathOverrides": {
+				"/app/shared/*": "${workspaceFolder}/../../shared/*"
+			}
+		}
+	]
 }

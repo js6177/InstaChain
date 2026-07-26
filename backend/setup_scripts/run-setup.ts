@@ -9,386 +9,419 @@
  * Wallet overwrite deletes only the wallet directory — never the synced chain.
  */
 
-import { existsSync } from 'fs';
-import { join } from 'path';
-import { BitcoinRPCClient } from '@openl2/bitcoin-core-rpc';
+import { existsSync } from "fs";
+import { join } from "path";
+import { BitcoinRPCClient } from "@openl2/bitcoin-core-rpc";
 import {
-  BITCOIN_CORE_DATA_VOLUME,
-  BitcoinChain,
-  bitcoinWalletDataSubdir,
-  composeFilesForEnvironment,
-  DockerService,
-  Environment,
-  getConfigFilePath,
-  getLayer2LedgerDockerEnvFilePath,
-  getProjectRoot,
-  loadLayer2BridgeConfig,
-  loadLayer2LedgerDockerEnvSettings,
-  readBitcoinConf,
-  requireBun,
-  resolveEnvironment,
-  type DockerServiceName,
-  type EnvironmentName,
-  type Layer2BridgeBitcoinConfFileSettings,
-  type Layer2BridgeConfig,
-} from '@openl2/config-loader';
+	BITCOIN_CORE_DATA_VOLUME,
+	BitcoinChain,
+	bitcoinWalletDataSubdir,
+	composeFilesForEnvironment,
+	DockerService,
+	Environment,
+	getConfigFilePath,
+	getLayer2LedgerDockerEnvFilePath,
+	getProjectRoot,
+	loadLayer2BridgeConfig,
+	loadLayer2LedgerDockerEnvSettings,
+	readBitcoinConf,
+	requireBun,
+	resolveEnvironment,
+	type DockerServiceName,
+	type EnvironmentName,
+	type Layer2BridgeBitcoinConfFileSettings,
+	type Layer2BridgeConfig,
+} from "@openl2/config-loader";
 
 const ROOT = getProjectRoot(import.meta.dir);
 
 const ENVIRONMENT_VALUES = new Set<string>([
-  Environment.DEV,
-  Environment.PROD,
-  Environment.TEST,
+	Environment.DEV,
+	Environment.PROD,
+	Environment.TEST,
 ]);
 
 function log(message: string): void {
-  console.log(`==> ${message}`);
+	console.log(`==> ${message}`);
 }
 
 function flag(argv: string[], name: string): boolean {
-  return argv.includes(`-${name}`) || argv.includes(`--${name}`);
+	return argv.includes(`-${name}`) || argv.includes(`--${name}`);
 }
 
 function getArgValue(argv: string[], name: string, fallback: string): string {
-  const eqPrefix = `-${name}=`;
-  const longEqPrefix = `--${name}=`;
-  for (const arg of argv) {
-    if (arg.startsWith(eqPrefix)) {
-      return arg.slice(eqPrefix.length);
-    }
-    if (arg.startsWith(longEqPrefix)) {
-      return arg.slice(longEqPrefix.length);
-    }
-  }
-  const shortIndex = argv.indexOf(`-${name}`);
-  if (shortIndex !== -1 && argv[shortIndex + 1] && !argv[shortIndex + 1]!.startsWith('-')) {
-    return argv[shortIndex + 1]!;
-  }
-  const longIndex = argv.indexOf(`--${name}`);
-  if (longIndex !== -1 && argv[longIndex + 1] && !argv[longIndex + 1]!.startsWith('-')) {
-    return argv[longIndex + 1]!;
-  }
-  return fallback;
+	const eqPrefix = `-${name}=`;
+	const longEqPrefix = `--${name}=`;
+	for (const arg of argv) {
+		if (arg.startsWith(eqPrefix)) {
+			return arg.slice(eqPrefix.length);
+		}
+		if (arg.startsWith(longEqPrefix)) {
+			return arg.slice(longEqPrefix.length);
+		}
+	}
+	const shortIndex = argv.indexOf(`-${name}`);
+	if (
+		shortIndex !== -1 &&
+		argv[shortIndex + 1] &&
+		!argv[shortIndex + 1]!.startsWith("-")
+	) {
+		return argv[shortIndex + 1]!;
+	}
+	const longIndex = argv.indexOf(`--${name}`);
+	if (
+		longIndex !== -1 &&
+		argv[longIndex + 1] &&
+		!argv[longIndex + 1]!.startsWith("-")
+	) {
+		return argv[longIndex + 1]!;
+	}
+	return fallback;
 }
 
 function parseEnvironment(raw: string): EnvironmentName {
-  if (!ENVIRONMENT_VALUES.has(raw)) {
-    throw new Error(
-      `Invalid -env value "${raw}". Expected one of: ${[...ENVIRONMENT_VALUES].join(', ')}`,
-    );
-  }
-  return raw as EnvironmentName;
+	if (!ENVIRONMENT_VALUES.has(raw)) {
+		throw new Error(
+			`Invalid -env value "${raw}". Expected one of: ${[...ENVIRONMENT_VALUES].join(", ")}`,
+		);
+	}
+	return raw as EnvironmentName;
 }
 
 function loadBitcoinRpcSettingsForImport(
-  environment: EnvironmentName,
+	environment: EnvironmentName,
 ): Layer2BridgeBitcoinConfFileSettings {
-  const confPath = getConfigFilePath('bitcoin.conf', environment);
-  if (!existsSync(confPath)) {
-    throw new Error(`bitcoin.conf not found at ${confPath}. Key generation may have failed.`);
-  }
+	const confPath = getConfigFilePath("bitcoin.conf", environment);
+	if (!existsSync(confPath)) {
+		throw new Error(
+			`bitcoin.conf not found at ${confPath}. Key generation may have failed.`,
+		);
+	}
 
-  const conf = readBitcoinConf(confPath);
-  const chain = (conf.globals.chain ?? BitcoinChain.TESTNET4).trim();
-  const chainSection = conf.sections[chain];
-  if (!chainSection) {
-    throw new Error(`Missing [${chain}] section in ${confPath}`);
-  }
+	const conf = readBitcoinConf(confPath);
+	const chain = (conf.globals.chain ?? BitcoinChain.TESTNET4).trim();
+	const chainSection = conf.sections[chain];
+	if (!chainSection) {
+		throw new Error(`Missing [${chain}] section in ${confPath}`);
+	}
 
-  const dockerEnv = loadLayer2LedgerDockerEnvSettings(
-    getLayer2LedgerDockerEnvFilePath(environment),
-  );
+	const dockerEnv = loadLayer2LedgerDockerEnvSettings(
+		getLayer2LedgerDockerEnvFilePath(environment),
+	);
 
-  return {
-    chain,
-    rpcuser: String(chainSection.rpcuser),
-    rpcpassword: String(chainSection.rpcpassword),
-    // Host machine talks to the published RPC port on localhost.
-    rpchost: dockerEnv.bitcoinRpcImportHost,
-    rpcport: Number(chainSection.rpcport ?? dockerEnv.bitcoinRpcPort),
-  };
+	return {
+		chain,
+		rpcuser: String(chainSection.rpcuser),
+		rpcpassword: String(chainSection.rpcpassword),
+		// Host machine talks to the published RPC port on localhost.
+		rpchost: dockerEnv.bitcoinRpcImportHost,
+		rpcport: Number(chainSection.rpcport ?? dockerEnv.bitcoinRpcPort),
+	};
 }
 
 class FirstTimeSetupRunner {
-  private readonly env: Record<string, string>;
-  private readonly compose: string[];
-  private readonly bunPath: string;
+	private readonly env: Record<string, string>;
+	private readonly compose: string[];
+	private readonly bunPath: string;
 
-  constructor(
-    private readonly root: string,
-    private readonly environment: EnvironmentName,
-    private readonly overwriteWallet: boolean,
-  ) {
-    this.bunPath = requireBun();
-    this.env = {
-      ...process.env,
-      ENVIRONMENT: environment,
-      OPENL2_CONFIG_PATH: join(root, '.config'),
-    } as Record<string, string>;
-    this.compose = ['docker', 'compose', '--progress', 'quiet'];
-    for (const composeFile of composeFilesForEnvironment(environment)) {
-      this.compose.push('-f', composeFile);
-    }
-  }
+	constructor(
+		private readonly root: string,
+		private readonly environment: EnvironmentName,
+		private readonly overwriteWallet: boolean,
+	) {
+		this.bunPath = requireBun();
+		this.env = {
+			...process.env,
+			ENVIRONMENT: environment,
+			OPENL2_CONFIG_PATH: join(root, ".config"),
+		} as Record<string, string>;
+		this.compose = ["docker", "compose", "--progress", "quiet"];
+		for (const composeFile of composeFilesForEnvironment(environment)) {
+			this.compose.push("-f", composeFile);
+		}
+	}
 
-  private async runCompose(
-    args: string[],
-    options?: { check?: boolean; captureOutput?: boolean },
-  ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-    const check = options?.check ?? true;
-    const captureOutput = options?.captureOutput ?? false;
-    const command = [...this.compose, ...args];
+	private async runCompose(
+		args: string[],
+		options?: { check?: boolean; captureOutput?: boolean },
+	): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+		const check = options?.check ?? true;
+		const captureOutput = options?.captureOutput ?? false;
+		const command = [...this.compose, ...args];
 
-    const proc = Bun.spawn(command, {
-      cwd: this.root,
-      env: this.env,
-      stdout: captureOutput ? 'pipe' : 'inherit',
-      stderr: captureOutput ? 'pipe' : 'inherit',
-    });
+		const proc = Bun.spawn(command, {
+			cwd: this.root,
+			env: this.env,
+			stdout: captureOutput ? "pipe" : "inherit",
+			stderr: captureOutput ? "pipe" : "inherit",
+		});
 
-    const stdout = captureOutput ? await new Response(proc.stdout).text() : '';
-    const stderr = captureOutput ? await new Response(proc.stderr).text() : '';
-    const exitCode = await proc.exited;
+		const stdout = captureOutput ? await new Response(proc.stdout).text() : "";
+		const stderr = captureOutput ? await new Response(proc.stderr).text() : "";
+		const exitCode = await proc.exited;
 
-    if (check && exitCode !== 0) {
-      throw new Error(`Command failed (${exitCode}): ${command.join(' ')}`);
-    }
+		if (check && exitCode !== 0) {
+			throw new Error(`Command failed (${exitCode}): ${command.join(" ")}`);
+		}
 
-    return { exitCode, stdout, stderr };
-  }
+		return { exitCode, stdout, stderr };
+	}
 
-  private async runSetupScripts(...scriptArgs: string[]): Promise<void> {
-    const setupDir = join(this.root, 'backend/setup_scripts');
-    const proc = Bun.spawn([this.bunPath, 'run', 'src/main.ts', ...scriptArgs], {
-      cwd: setupDir,
-      env: this.env,
-      stdout: 'inherit',
-      stderr: 'inherit',
-    });
-    const exitCode = await proc.exited;
-    if (exitCode !== 0) {
-      throw new Error(`Setup scripts failed with exit code ${exitCode}`);
-    }
-  }
+	private async runSetupScripts(...scriptArgs: string[]): Promise<void> {
+		const setupDir = join(this.root, "backend/setup_scripts");
+		const proc = Bun.spawn(
+			[this.bunPath, "run", "src/main.ts", ...scriptArgs],
+			{
+				cwd: setupDir,
+				env: this.env,
+				stdout: "inherit",
+				stderr: "inherit",
+			},
+		);
+		const exitCode = await proc.exited;
+		if (exitCode !== 0) {
+			throw new Error(`Setup scripts failed with exit code ${exitCode}`);
+		}
+	}
 
-  private async containerId(service: DockerServiceName): Promise<string> {
-    const result = await this.runCompose(['ps', '-q', service], {
-      check: false,
-      captureOutput: true,
-    });
-    return result.stdout.trim();
-  }
+	private async containerId(service: DockerServiceName): Promise<string> {
+		const result = await this.runCompose(["ps", "-q", service], {
+			check: false,
+			captureOutput: true,
+		});
+		return result.stdout.trim();
+	}
 
-  private async containerHealth(containerId: string): Promise<string> {
-    if (!containerId) {
-      return 'missing';
-    }
+	private async containerHealth(containerId: string): Promise<string> {
+		if (!containerId) {
+			return "missing";
+		}
 
-    const proc = Bun.spawn(['docker', 'inspect', containerId], {
-      stdout: 'pipe',
-      stderr: 'pipe',
-    });
-    const stdout = await new Response(proc.stdout).text();
-    const exitCode = await proc.exited;
-    if (exitCode !== 0) {
-      return 'unknown';
-    }
+		const proc = Bun.spawn(["docker", "inspect", containerId], {
+			stdout: "pipe",
+			stderr: "pipe",
+		});
+		const stdout = await new Response(proc.stdout).text();
+		const exitCode = await proc.exited;
+		if (exitCode !== 0) {
+			return "unknown";
+		}
 
-    const inspected = JSON.parse(stdout) as Array<{
-      State?: { Status?: string; Health?: { Status?: string } };
-    }>;
-    const state = inspected[0]?.State;
-    if (!state) {
-      return 'unknown';
-    }
-    if (state.Health?.Status) {
-      return state.Health.Status;
-    }
-    return state.Status ?? 'unknown';
-  }
+		const inspected = JSON.parse(stdout) as Array<{
+			State?: { Status?: string; Health?: { Status?: string } };
+		}>;
+		const state = inspected[0]?.State;
+		if (!state) {
+			return "unknown";
+		}
+		if (state.Health?.Status) {
+			return state.Health.Status;
+		}
+		return state.Status ?? "unknown";
+	}
 
-  private async waitForHealthy(service: DockerServiceName, timeoutSec = 600): Promise<void> {
-    let waited = 0;
-    while (waited < timeoutSec) {
-      const health = await this.containerHealth(await this.containerId(service));
-      if (health === 'healthy') {
-        log(`${service} is healthy`);
-        return;
-      }
-      await Bun.sleep(2000);
-      waited += 2;
-    }
-    throw new Error(`Timed out waiting for ${service} to become healthy`);
-  }
+	private async waitForHealthy(
+		service: DockerServiceName,
+		timeoutSec = 600,
+	): Promise<void> {
+		let waited = 0;
+		while (waited < timeoutSec) {
+			const health = await this.containerHealth(
+				await this.containerId(service),
+			);
+			if (health === "healthy") {
+				log(`${service} is healthy`);
+				return;
+			}
+			await Bun.sleep(2000);
+			waited += 2;
+		}
+		throw new Error(`Timed out waiting for ${service} to become healthy`);
+	}
 
-  private async generateKeysAndConfigs(): Promise<void> {
-    log(`Generating keys and configs for environment=${this.environment}...`);
-    await this.runSetupScripts(
-      '-env',
-      this.environment,
-      '-containered',
-      'true',
-      '-generate-keys',
-      '-generate-oauth-config',
-    );
-  }
+	private async generateKeysAndConfigs(): Promise<void> {
+		log(`Generating keys and configs for environment=${this.environment}...`);
+		await this.runSetupScripts(
+			"-env",
+			this.environment,
+			"-containered",
+			"true",
+			"-generate-keys",
+			"-generate-oauth-config",
+		);
+	}
 
-  private async startBitcoinCore(): Promise<void> {
-    // Recreate the container so it picks up the freshly generated bitcoin.conf.
-    // Named volume BITCOIN_CORE_DATA_VOLUME is preserved (no `down -v`).
-    log(
-      `Starting ${DockerService.BITCOIN_CORE} container `
-        + `(preserving chain data volume ${BITCOIN_CORE_DATA_VOLUME})...`,
-    );
-    await this.runCompose(
-      ['up', '-d', '--build', '--force-recreate', DockerService.BITCOIN_CORE],
-      { check: true },
-    );
-    await this.waitForHealthy(DockerService.BITCOIN_CORE, 600);
-  }
+	private async startBitcoinCore(): Promise<void> {
+		// Recreate the container so it picks up the freshly generated bitcoin.conf.
+		// Named volume BITCOIN_CORE_DATA_VOLUME is preserved (no `down -v`).
+		log(
+			`Starting ${DockerService.BITCOIN_CORE} container ` +
+				`(preserving chain data volume ${BITCOIN_CORE_DATA_VOLUME})...`,
+		);
+		await this.runCompose(
+			["up", "-d", "--build", "--force-recreate", DockerService.BITCOIN_CORE],
+			{ check: true },
+		);
+		await this.waitForHealthy(DockerService.BITCOIN_CORE, 600);
+	}
 
-  private async waitForBitcoinRpc(
-    rpcSettings: Layer2BridgeBitcoinConfFileSettings,
-    timeoutSec = 180,
-  ): Promise<BitcoinRPCClient> {
-    const deadline = Date.now() + timeoutSec * 1000;
-    let lastError: unknown;
+	private async waitForBitcoinRpc(
+		rpcSettings: Layer2BridgeBitcoinConfFileSettings,
+		timeoutSec = 180,
+	): Promise<BitcoinRPCClient> {
+		const deadline = Date.now() + timeoutSec * 1000;
+		let lastError: unknown;
 
-    while (Date.now() < deadline) {
-      try {
-        const client = new BitcoinRPCClient(rpcSettings);
-        await client.getBlockchainInfo();
-        return client;
-      } catch (error) {
-        lastError = error;
-        await Bun.sleep(2000);
-      }
-    }
+		while (Date.now() < deadline) {
+			try {
+				const client = new BitcoinRPCClient(rpcSettings);
+				await client.getBlockchainInfo();
+				return client;
+			} catch (error) {
+				lastError = error;
+				await Bun.sleep(2000);
+			}
+		}
 
-    throw new Error(
-      `Could not connect to Bitcoin Core RPC at ${rpcSettings.rpchost}:${rpcSettings.rpcport}. `
-        + `Last error: ${lastError}`,
-    );
-  }
+		throw new Error(
+			`Could not connect to Bitcoin Core RPC at ${rpcSettings.rpchost}:${rpcSettings.rpcport}. ` +
+				`Last error: ${lastError}`,
+		);
+	}
 
-  private async waitForBlockchainSync(
-    client: BitcoinRPCClient,
-    timeoutSec = 86_400,
-  ): Promise<void> {
-    log('Waiting for Bitcoin Core blockchain sync to finish...');
-    const deadline = Date.now() + timeoutSec * 1000;
+	private async waitForBlockchainSync(
+		client: BitcoinRPCClient,
+		timeoutSec = 86_400,
+	): Promise<void> {
+		log("Waiting for Bitcoin Core blockchain sync to finish...");
+		const deadline = Date.now() + timeoutSec * 1000;
 
-    while (Date.now() < deadline) {
-      const info = await client.getBlockchainInfo();
-      const progress = info.verificationprogress ?? 0;
-      const ibd = info.initialblockdownload ?? true;
-      log(
-        `sync status: blocks=${info.blocks}/${info.headers} `
-          + `progress=${(progress * 100).toFixed(2)}% `
-          + `initialblockdownload=${ibd}`,
-      );
+		while (Date.now() < deadline) {
+			const info = await client.getBlockchainInfo();
+			const progress = info.verificationprogress ?? 0;
+			const ibd = info.initialblockdownload ?? true;
+			log(
+				`sync status: blocks=${info.blocks}/${info.headers} ` +
+					`progress=${(progress * 100).toFixed(2)}% ` +
+					`initialblockdownload=${ibd}`,
+			);
 
-      if (!ibd && info.blocks > 0 && info.blocks >= info.headers) {
-        log('Blockchain sync complete');
-        return;
-      }
+			if (!ibd && info.blocks > 0 && info.blocks >= info.headers) {
+				log("Blockchain sync complete");
+				return;
+			}
 
-      await Bun.sleep(15_000);
-    }
+			await Bun.sleep(15_000);
+		}
 
-    throw new Error(`Timed out waiting for blockchain sync after ${timeoutSec}s`);
-  }
+		throw new Error(
+			`Timed out waiting for blockchain sync after ${timeoutSec}s`,
+		);
+	}
 
-  private async walletExistsOnDisk(
-    walletName: string,
-    chain: string,
-  ): Promise<boolean> {
-    const walletPath = join('/home/bitcoin/.bitcoin', bitcoinWalletDataSubdir(chain), walletName);
-    const result = await this.runCompose(
-      ['exec', '-T', DockerService.BITCOIN_CORE, 'test', '-d', walletPath],
-      { check: false, captureOutput: true },
-    );
-    return result.exitCode === 0;
-  }
+	private async walletExistsOnDisk(
+		walletName: string,
+		chain: string,
+	): Promise<boolean> {
+		const walletPath = join(
+			"/home/bitcoin/.bitcoin",
+			bitcoinWalletDataSubdir(chain),
+			walletName,
+		);
+		const result = await this.runCompose(
+			["exec", "-T", DockerService.BITCOIN_CORE, "test", "-d", walletPath],
+			{ check: false, captureOutput: true },
+		);
+		return result.exitCode === 0;
+	}
 
-  private async deleteWalletDirectory(walletName: string, chain: string): Promise<void> {
-    const walletPath = join('/home/bitcoin/.bitcoin', bitcoinWalletDataSubdir(chain), walletName);
-    log(`Deleting wallet directory only (keeping chain data): ${walletPath}`);
-    await this.runCompose(
-      ['exec', '-T', DockerService.BITCOIN_CORE, 'rm', '-rf', walletPath],
-      { check: true },
-    );
-  }
+	private async deleteWalletDirectory(
+		walletName: string,
+		chain: string,
+	): Promise<void> {
+		const walletPath = join(
+			"/home/bitcoin/.bitcoin",
+			bitcoinWalletDataSubdir(chain),
+			walletName,
+		);
+		log(`Deleting wallet directory only (keeping chain data): ${walletPath}`);
+		await this.runCompose(
+			["exec", "-T", DockerService.BITCOIN_CORE, "rm", "-rf", walletPath],
+			{ check: true },
+		);
+	}
 
-  private async prepareWallet(
-    client: BitcoinRPCClient,
-    bridgeSettings: Layer2BridgeConfig,
-  ): Promise<void> {
-    const walletName = bridgeSettings.wallet_name;
-    const chain = bridgeSettings.rpc_settings.chain;
-    const exists = await this.walletExistsOnDisk(walletName, chain);
+	private async prepareWallet(
+		client: BitcoinRPCClient,
+		bridgeSettings: Layer2BridgeConfig,
+	): Promise<void> {
+		const walletName = bridgeSettings.wallet_name;
+		const chain = bridgeSettings.rpc_settings.chain;
+		const exists = await this.walletExistsOnDisk(walletName, chain);
 
-    if (exists && !this.overwriteWallet) {
-      throw new Error(
-        `Bitcoin Core wallet "${walletName}" already exists. `
-          + 'Re-run with -overwrite-wallet to delete and recreate it '
-          + '(synced blockchain data will be kept).',
-      );
-    }
+		if (exists && !this.overwriteWallet) {
+			throw new Error(
+				`Bitcoin Core wallet "${walletName}" already exists. ` +
+					"Re-run with -overwrite-wallet to delete and recreate it " +
+					"(synced blockchain data will be kept).",
+			);
+		}
 
-    if (exists && this.overwriteWallet) {
-      log(`Overwriting existing wallet "${walletName}" (chain data preserved)...`);
-      const loaded = await client.listWallets();
-      if (loaded.includes(walletName)) {
-        const unloadResp = await client.unloadWallet(walletName);
-        if (unloadResp.error) {
-          throw new Error(
-            `Failed to unload wallet ${walletName}: `
-              + `${unloadResp.error.code} - ${unloadResp.error.message}`,
-          );
-        }
-      }
-      await this.deleteWalletDirectory(walletName, chain);
-    }
-  }
+		if (exists && this.overwriteWallet) {
+			log(
+				`Overwriting existing wallet "${walletName}" (chain data preserved)...`,
+			);
+			const loaded = await client.listWallets();
+			if (loaded.includes(walletName)) {
+				const unloadResp = await client.unloadWallet(walletName);
+				if (unloadResp.error) {
+					throw new Error(
+						`Failed to unload wallet ${walletName}: ` +
+							`${unloadResp.error.code} - ${unloadResp.error.message}`,
+					);
+				}
+			}
+			await this.deleteWalletDirectory(walletName, chain);
+		}
+	}
 
-  private async importKeys(): Promise<void> {
-    log('Importing BTC keys into Bitcoin Core wallet...');
-    await this.runSetupScripts(
-      '-env',
-      this.environment,
-      '-containered',
-      'true',
-      '-import-keys-to-bitcoin-core',
-    );
-  }
+	private async importKeys(): Promise<void> {
+		log("Importing BTC keys into Bitcoin Core wallet...");
+		await this.runSetupScripts(
+			"-env",
+			this.environment,
+			"-containered",
+			"true",
+			"-import-keys-to-bitcoin-core",
+		);
+	}
 
-  async main(): Promise<void> {
-    await this.generateKeysAndConfigs();
-    await this.startBitcoinCore();
+	async main(): Promise<void> {
+		await this.generateKeysAndConfigs();
+		await this.startBitcoinCore();
 
-    const rpcSettings = loadBitcoinRpcSettingsForImport(this.environment);
-    const client = await this.waitForBitcoinRpc(rpcSettings);
-    await this.waitForBlockchainSync(client);
+		const rpcSettings = loadBitcoinRpcSettingsForImport(this.environment);
+		const client = await this.waitForBitcoinRpc(rpcSettings);
+		await this.waitForBlockchainSync(client);
 
-    const bridgeSettings = loadLayer2BridgeConfig(this.environment);
-    await this.prepareWallet(client, bridgeSettings);
-    await this.importKeys();
+		const bridgeSettings = loadLayer2BridgeConfig(this.environment);
+		await this.prepareWallet(client, bridgeSettings);
+		await this.importKeys();
 
-    log(
-      `Setup complete for environment=${this.environment}. `
-        + 'You can now start the rest of the stack (e.g. `make prod`, `make dev`, or `make backend-dev`).',
-    );
-  }
+		log(
+			`Setup complete for environment=${this.environment}. ` +
+				"You can now start the rest of the stack (e.g. `make prod`, `make dev`, or `make backend-dev`).",
+		);
+	}
 }
 
 function printHelp(): void {
-  console.log(`Usage: bun run run-setup.ts [options]
+	console.log(`Usage: bun run run-setup.ts [options]
 
 First-time setup: generate keys, start bitcoin-core, wait for sync, import wallet keys.
 
 Options:
-  -env <env>             Environment: ${[...ENVIRONMENT_VALUES].join(', ')} (default: ${Environment.DEFAULT})
+  -env <env>             Environment: ${[...ENVIRONMENT_VALUES].join(", ")} (default: ${Environment.DEFAULT})
   -overwrite-wallet      Delete and recreate the Bitcoin Core wallet if it already exists
                          (does not delete the synced blockchain / chain data volume)
   -h, --help             Show this help
@@ -396,24 +429,24 @@ Options:
 }
 
 async function main(): Promise<void> {
-  const argv = Bun.argv.slice(2);
-  if (flag(argv, 'h') || flag(argv, 'help')) {
-    printHelp();
-    return;
-  }
+	const argv = Bun.argv.slice(2);
+	if (flag(argv, "h") || flag(argv, "help")) {
+		printHelp();
+		return;
+	}
 
-  const environment = parseEnvironment(
-    getArgValue(argv, 'env', resolveEnvironment()),
-  );
-  const overwriteWallet = flag(argv, 'overwrite-wallet');
+	const environment = parseEnvironment(
+		getArgValue(argv, "env", resolveEnvironment()),
+	);
+	const overwriteWallet = flag(argv, "overwrite-wallet");
 
-  const runner = new FirstTimeSetupRunner(ROOT, environment, overwriteWallet);
-  await runner.main();
+	const runner = new FirstTimeSetupRunner(ROOT, environment, overwriteWallet);
+	await runner.main();
 }
 
 try {
-  await main();
+	await main();
 } catch (error) {
-  console.error(error instanceof Error ? error.message : error);
-  process.exit(1);
+	console.error(error instanceof Error ? error.message : error);
+	process.exit(1);
 }

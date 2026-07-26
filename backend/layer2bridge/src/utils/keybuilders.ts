@@ -1,9 +1,9 @@
-import type { ConfirmedTransactionCategoryValue } from '../db/schema';
+import type { ConfirmedTransactionCategoryValue } from "../db/schema";
 
 export function buildConfirmedTransactionKey(
-  transactionId: string,
-  transactionVout: number,
-  category: ConfirmedTransactionCategoryValue | string,
+	transactionId: string,
+	transactionVout: number,
+	category: ConfirmedTransactionCategoryValue | string,
 ): string {
-  return `${transactionId}:${transactionVout}:${category}`;
+	return `${transactionId}:${transactionVout}:${category}`;
 }

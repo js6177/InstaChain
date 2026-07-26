@@ -1,3 +1,3 @@
-import '@testing-library/jest-dom/vitest'
-import 'vitest/browser'
-import './index.css'
+import "@testing-library/jest-dom/vitest";
+import "vitest/browser";
+import "./index.css";

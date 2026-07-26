@@ -1,109 +1,78 @@
 {
-    "version": "0.2.0",
-    "inputs": [
-        {
-            "id": "setupScriptCommand",
-            "type": "pickString",
-            "description": "Setup script command",
-            "options": [
-                "-generate-oauth-config",
-                "-generate-keys",
-                "-import-keys-to-bitcoin-core"
-            ],
-            "default": "-generate-oauth-config"
-        },
-        {
-            "id": "setupScriptEnv",
-            "type": "pickString",
-            "description": "Environment",
-            "options": [
-                "dev",
-                "prod",
-                "test"
-            ],
-            "default": "dev"
-        },
-        {
-            "id": "setupScriptContainered",
-            "type": "pickString",
-            "description": "Containered setup",
-            "options": [
-                "true",
-                "false"
-            ],
-            "default": "true"
-        }
-    ],
-    "configurations": [
-        {
-            "name": "Setup Scripts: main.ts (with args)",
-            "type": "node",
-            "request": "launch",
-            "runtimeExecutable": "bun",
-            "runtimeArgs": [
-                "run",
-                "${workspaceFolder}/src/main.ts"
-            ],
-            "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal",
-            "args": [
-                "${input:setupScriptCommand}",
-                "-env",
-                "${input:setupScriptEnv}",
-                "-containered",
-                "${input:setupScriptContainered}"
-            ]
-        },
-        {
-            "name": "Setup Scripts: Generate OAuth Config",
-            "type": "node",
-            "request": "launch",
-            "runtimeExecutable": "bun",
-            "runtimeArgs": [
-                "run",
-                "${workspaceFolder}/src/main.ts"
-            ],
-            "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal",
-            "args": [
-                "-generate-oauth-config",
-                "-env",
-                "dev"
-            ]
-        },
-        {
-            "name": "Setup Scripts: Generate Keys",
-            "type": "node",
-            "request": "launch",
-            "runtimeExecutable": "bun",
-            "runtimeArgs": [
-                "run",
-                "${workspaceFolder}/src/main.ts"
-            ],
-            "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal",
-            "args": [
-                "-generate-keys",
-                "-env",
-                "dev"
-            ]
-        },
-        {
-            "name": "Setup Scripts: Import Keys to Bitcoin Core",
-            "type": "node",
-            "request": "launch",
-            "runtimeExecutable": "bun",
-            "runtimeArgs": [
-                "run",
-                "${workspaceFolder}/src/main.ts"
-            ],
-            "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal",
-            "args": [
-                "-import-keys-to-bitcoin-core",
-                "-env",
-                "dev"
-            ]
-        }
-    ]
+	"version": "0.2.0",
+	"inputs": [
+		{
+			"id": "setupScriptCommand",
+			"type": "pickString",
+			"description": "Setup script command",
+			"options": [
+				"-generate-oauth-config",
+				"-generate-keys",
+				"-import-keys-to-bitcoin-core"
+			],
+			"default": "-generate-oauth-config"
+		},
+		{
+			"id": "setupScriptEnv",
+			"type": "pickString",
+			"description": "Environment",
+			"options": ["dev", "prod", "test"],
+			"default": "dev"
+		},
+		{
+			"id": "setupScriptContainered",
+			"type": "pickString",
+			"description": "Containered setup",
+			"options": ["true", "false"],
+			"default": "true"
+		}
+	],
+	"configurations": [
+		{
+			"name": "Setup Scripts: main.ts (with args)",
+			"type": "node",
+			"request": "launch",
+			"runtimeExecutable": "bun",
+			"runtimeArgs": ["run", "${workspaceFolder}/src/main.ts"],
+			"cwd": "${workspaceFolder}",
+			"console": "integratedTerminal",
+			"args": [
+				"${input:setupScriptCommand}",
+				"-env",
+				"${input:setupScriptEnv}",
+				"-containered",
+				"${input:setupScriptContainered}"
+			]
+		},
+		{
+			"name": "Setup Scripts: Generate OAuth Config",
+			"type": "node",
+			"request": "launch",
+			"runtimeExecutable": "bun",
+			"runtimeArgs": ["run", "${workspaceFolder}/src/main.ts"],
+			"cwd": "${workspaceFolder}",
+			"console": "integratedTerminal",
+			"args": ["-generate-oauth-config", "-env", "dev"]
+		},
+		{
+			"name": "Setup Scripts: Generate Keys",
+			"type": "node",
+			"request": "launch",
+			"runtimeExecutable": "bun",
+			"runtimeArgs": ["run", "${workspaceFolder}/src/main.ts"],
+			"cwd": "${workspaceFolder}",
+			"console": "integratedTerminal",
+			"args": ["-generate-keys", "-env", "dev"]
+		},
+		{
+			"name": "Setup Scripts: Import Keys to Bitcoin Core",
+			"type": "node",
+			"request": "launch",
+			"runtimeExecutable": "bun",
+			"runtimeArgs": ["run", "${workspaceFolder}/src/main.ts"],
+			"cwd": "${workspaceFolder}",
+			"console": "integratedTerminal",
+			"args": ["-import-keys-to-bitcoin-core", "-env", "dev"]
+		}
+	]
 }

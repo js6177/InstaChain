@@ -1,45 +1,45 @@
 {
-  "server": {
-    "port": 4000,
-    "host": "localhost"
-  },
-  "mongoDb": {
-    "host": "localhost",
-    "port": 27017,
-    "dbName": "OAuthManager"
-  },
-  "github": {
-    "clientId": "xxx",
-    "clientSecret": "xxx",
-    "redirectUri": "http://localhost:5173/oauth2/github/callback"
-  },
-  "google": {
-    "clientId": "xxx",
-    "clientSecret": "xxx",
-    "redirectUri": "xxx"
-  },
-  "twitter": {
-    "clientId": "xxx",
-    "clientSecret": "xxx",
-    "redirectUri": "xxx",
-    "fields": [
-      "id",
-      "name",
-      "username",
-      "created_at",
-      "description",
-      "pinned_tweet_id",
-      "profile_image_url",
-      "verified",
-      "followers_count",
-      "following_count",
-      "tweet_count",
-      "listed_count",
-      "location",
-      "url",
-      "protected",
-      "translate_language",
-      "withheld"
-    ]
-  }
+	"server": {
+		"port": 4000,
+		"host": "localhost"
+	},
+	"mongoDb": {
+		"host": "localhost",
+		"port": 27017,
+		"dbName": "OAuthManager"
+	},
+	"github": {
+		"clientId": "xxx",
+		"clientSecret": "xxx",
+		"redirectUri": "http://localhost:5173/oauth2/github/callback"
+	},
+	"google": {
+		"clientId": "xxx",
+		"clientSecret": "xxx",
+		"redirectUri": "xxx"
+	},
+	"twitter": {
+		"clientId": "xxx",
+		"clientSecret": "xxx",
+		"redirectUri": "xxx",
+		"fields": [
+			"id",
+			"name",
+			"username",
+			"created_at",
+			"description",
+			"pinned_tweet_id",
+			"profile_image_url",
+			"verified",
+			"followers_count",
+			"following_count",
+			"tweet_count",
+			"listed_count",
+			"location",
+			"url",
+			"protected",
+			"translate_language",
+			"withheld"
+		]
+	}
 }
