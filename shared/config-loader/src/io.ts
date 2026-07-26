@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync, mkdirSync } from "fs";
-import { dirname } from "path";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 
 export function readConfig<T>(configPath: string): T {
 	const contents = readFileSync(configPath, "utf-8");

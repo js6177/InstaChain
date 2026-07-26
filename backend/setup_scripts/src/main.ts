@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, copyFileSync } from "fs";
-import { join } from "path";
-import { parseArgs } from "util";
+import { existsSync, mkdirSync, copyFileSync } from "node:fs";
+import { join } from "node:path";
+import { parseArgs } from "node:util";
 import {
 	BitcoinRPCClient,
 	isWalletAlreadyExists,

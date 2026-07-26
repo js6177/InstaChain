@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
-import { join, relative } from "path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { DockerService, type DockerServiceName } from "@openl2/config-loader";
 
 /** Container path where dated host output is mounted. */

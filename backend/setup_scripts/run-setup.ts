@@ -9,8 +9,8 @@
  * Wallet overwrite deletes only the wallet directory — never the synced chain.
  */
 
-import { existsSync } from "fs";
-import { join } from "path";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { BitcoinRPCClient } from "@openl2/bitcoin-core-rpc";
 import {
 	BITCOIN_CORE_DATA_VOLUME,

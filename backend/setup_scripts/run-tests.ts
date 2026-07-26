@@ -8,8 +8,8 @@
  * - Leaves a running healthy bitcoin-core container untouched
  */
 
-import { existsSync, readFileSync } from "fs";
-import { join } from "path";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
 	DockerComposeProfile,
 	DockerService,

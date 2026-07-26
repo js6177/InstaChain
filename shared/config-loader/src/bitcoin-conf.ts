@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "fs";
+import { readFileSync, writeFileSync } from "node:fs";
 
 /**
  * Minimal INI-style parser for bitcoin.conf (supports [sections] and key=value).
