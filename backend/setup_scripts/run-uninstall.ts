@@ -12,6 +12,7 @@ import {
 	getProjectRoot,
 	requireBun,
 } from "@openl2/config-loader";
+import { parseCliArgs } from "./src/cli-args";
 
 const ROOT = getProjectRoot(import.meta.dir);
 
@@ -24,10 +25,6 @@ const UNINSTALL_COMPOSE_FILES = [
 
 function log(message: string): void {
 	console.log(`==> ${message}`);
-}
-
-function flag(argv: string[], name: string): boolean {
-	return argv.includes(`-${name}`) || argv.includes(`--${name}`);
 }
 
 async function promptContinue(): Promise<boolean> {
@@ -58,14 +55,17 @@ Options:
 async function main(): Promise<void> {
 	requireBun();
 
-	const argv = Bun.argv.slice(2);
-	if (flag(argv, "h") || flag(argv, "help")) {
+	const { values } = parseCliArgs({
+		noprompt: { type: "boolean", default: false },
+		help: { type: "boolean", short: "h", default: false },
+	});
+
+	if (values.help) {
 		printHelp();
 		return;
 	}
 
-	const noPrompt = flag(argv, "noprompt");
-	if (!noPrompt) {
+	if (!values.noprompt) {
 		const confirmed = await promptContinue();
 		if (!confirmed) {
 			log("Uninstall cancelled (did not receive 'c').");

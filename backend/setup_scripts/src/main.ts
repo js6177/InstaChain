@@ -1,6 +1,5 @@
 import { existsSync, mkdirSync, copyFileSync } from "node:fs";
 import { join } from "node:path";
-import { parseArgs } from "node:util";
 import {
 	BitcoinRPCClient,
 	isWalletAlreadyExists,
@@ -28,6 +27,7 @@ import {
 	Intermediate,
 	isTestBitcoinNetwork,
 	loadLayer2LedgerDockerEnvSettings,
+	resolveEnvironment,
 	loadOAuthManagerDockerEnvSettings,
 	readBitcoinConf,
 	readConfig,
@@ -44,6 +44,7 @@ import {
 	generateMnemonic,
 	type MasterKeys,
 } from "@openl2/pubkey-utils/btc";
+import { parseCliArgs } from "./cli-args";
 import {
 	generateAlphanumericId,
 	generateSecurePassword,
@@ -515,79 +516,37 @@ async function promptEnter(message: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
-	const { values } = parseArgs({
-		args: Bun.argv.slice(2),
-		options: {
-			env: { type: "string", short: "e", default: "dev" },
-			"generate-keys": { type: "boolean", default: false },
-			"import-keys-to-bitcoin-core": { type: "boolean", default: false },
-			"generate-oauth-config": { type: "boolean", default: false },
-			containered: { type: "string", default: "true" },
-			"overwrite-bitcoinconf": { type: "boolean", default: false },
-		},
-		allowPositionals: true,
-		strict: false,
+	const { values } = parseCliArgs({
+		env: { type: "string", short: "e", default: resolveEnvironment() },
+		"generate-keys": { type: "boolean", default: false },
+		"import-keys-to-bitcoin-core": { type: "boolean", default: false },
+		"generate-oauth-config": { type: "boolean", default: false },
+		containered: { type: "string", default: "true" },
+		"overwrite-bitcoinconf": { type: "boolean", default: false },
+		help: { type: "boolean", short: "h", default: false },
 	});
 
-	// Support both `--env=prod` / `-env=prod` and argparse-style `-env prod` / `-generate-keys`.
-	const argv = Bun.argv.slice(2);
-	const flag = (name: string): boolean =>
-		argv.includes(`-${name}`) ||
-		argv.includes(`--${name}`) ||
-		Boolean(values[name as keyof typeof values]);
+	const env = (values.env ?? resolveEnvironment()) as EnvironmentName;
+	const generateKeysFlag = Boolean(values["generate-keys"]);
+	const importKeysFlag = Boolean(values["import-keys-to-bitcoin-core"]);
+	const generateOauthConfigFlag = Boolean(values["generate-oauth-config"]);
+	const containered = str2bool(String(values.containered ?? "true"));
+	const overwriteBitcoinconf = Boolean(values["overwrite-bitcoinconf"]);
 
-	const getArgValue = (name: string, fallback: string): string => {
-		const eqPrefix = `-${name}=`;
-		const longEqPrefix = `--${name}=`;
-		for (const arg of argv) {
-			if (arg.startsWith(eqPrefix)) {
-				return arg.slice(eqPrefix.length);
-			}
-			if (arg.startsWith(longEqPrefix)) {
-				return arg.slice(longEqPrefix.length);
-			}
-		}
-		const shortIndex = argv.indexOf(`-${name}`);
-		if (
-			shortIndex !== -1 &&
-			argv[shortIndex + 1] &&
-			!argv[shortIndex + 1]!.startsWith("-")
-		) {
-			return argv[shortIndex + 1]!;
-		}
-		const longIndex = argv.indexOf(`--${name}`);
-		if (
-			longIndex !== -1 &&
-			argv[longIndex + 1] &&
-			!argv[longIndex + 1]!.startsWith("-")
-		) {
-			return argv[longIndex + 1]!;
-		}
-		return fallback;
-	};
-
-	const env = getArgValue(
-		"env",
-		String(values.env ?? "dev"),
-	) as EnvironmentName;
-	const generateKeysFlag = flag("generate-keys");
-	const importKeysFlag = flag("import-keys-to-bitcoin-core");
-	const generateOauthConfigFlag = flag("generate-oauth-config");
-	const containered = str2bool(
-		getArgValue("containered", String(values.containered ?? "true")),
-	);
-	const overwriteBitcoinconf = flag("overwrite-bitcoinconf");
-
-	if (!generateKeysFlag && !importKeysFlag && !generateOauthConfigFlag) {
+	if (
+		values.help ||
+		(!generateKeysFlag && !importKeysFlag && !generateOauthConfigFlag)
+	) {
 		console.log(`Usage: bun run src/main.ts [options]
 
 Options:
-  -env <env>                         Environment to use (default: dev)
+  -env <env>                         Environment to use (default: ${resolveEnvironment()})
   -generate-keys                     Generate keys and save to config files
   -import-keys-to-bitcoin-core       Import generated keys to Bitcoin Core
   -generate-oauth-config             Generate layer2ledgeroauthmanager config.json from docker env file
   -containered <true|false>          Whether the setup is for a containered environment (default: true)
   -overwrite-bitcoinconf             Overwrite the system bitcoin.conf with the project one (only if -containered is false)
+  -h, --help                         Show this help
 `);
 		return;
 	}

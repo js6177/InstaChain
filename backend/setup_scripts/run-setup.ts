@@ -32,6 +32,7 @@ import {
 	type Layer2BridgeBitcoinConfFileSettings,
 	type Layer2BridgeConfig,
 } from "@openl2/config-loader";
+import { parseCliArgs } from "./src/cli-args";
 
 const ROOT = getProjectRoot(import.meta.dir);
 
@@ -43,40 +44,6 @@ const ENVIRONMENT_VALUES = new Set<string>([
 
 function log(message: string): void {
 	console.log(`==> ${message}`);
-}
-
-function flag(argv: string[], name: string): boolean {
-	return argv.includes(`-${name}`) || argv.includes(`--${name}`);
-}
-
-function getArgValue(argv: string[], name: string, fallback: string): string {
-	const eqPrefix = `-${name}=`;
-	const longEqPrefix = `--${name}=`;
-	for (const arg of argv) {
-		if (arg.startsWith(eqPrefix)) {
-			return arg.slice(eqPrefix.length);
-		}
-		if (arg.startsWith(longEqPrefix)) {
-			return arg.slice(longEqPrefix.length);
-		}
-	}
-	const shortIndex = argv.indexOf(`-${name}`);
-	if (
-		shortIndex !== -1 &&
-		argv[shortIndex + 1] &&
-		!argv[shortIndex + 1]!.startsWith("-")
-	) {
-		return argv[shortIndex + 1]!;
-	}
-	const longIndex = argv.indexOf(`--${name}`);
-	if (
-		longIndex !== -1 &&
-		argv[longIndex + 1] &&
-		!argv[longIndex + 1]!.startsWith("-")
-	) {
-		return argv[longIndex + 1]!;
-	}
-	return fallback;
 }
 
 function parseEnvironment(raw: string): EnvironmentName {
@@ -429,16 +396,19 @@ Options:
 }
 
 async function main(): Promise<void> {
-	const argv = Bun.argv.slice(2);
-	if (flag(argv, "h") || flag(argv, "help")) {
+	const { values } = parseCliArgs({
+		env: { type: "string", default: resolveEnvironment() },
+		"overwrite-wallet": { type: "boolean", default: false },
+		help: { type: "boolean", short: "h", default: false },
+	});
+
+	if (values.help) {
 		printHelp();
 		return;
 	}
 
-	const environment = parseEnvironment(
-		getArgValue(argv, "env", resolveEnvironment()),
-	);
-	const overwriteWallet = flag(argv, "overwrite-wallet");
+	const environment = parseEnvironment(values.env ?? resolveEnvironment());
+	const overwriteWallet = Boolean(values["overwrite-wallet"]);
 
 	const runner = new FirstTimeSetupRunner(ROOT, environment, overwriteWallet);
 	await runner.main();
