@@ -1,24 +1,3 @@
-export {
-	createLayer2LedgerClient,
-	createLayer2TestHelperClient,
-	unwrapLayer2LedgerResponse,
-	unwrapLayer2TestHelperResponse,
-	ErrorCodes,
-	type Layer2LedgerApp,
-	type Layer2LedgerClient,
-	type Layer2TestHelperApp,
-	type Layer2TestHelperClient,
-} from "./eden";
-
-export {
-	createLayer2LedgerApp,
-	buildCommonResponse,
-	getErrorMessage,
-	type Layer2LedgerRouteHandlers,
-	type Layer2LedgerAPIHandlerConfig,
-	type Layer2LedgerAppDependencies,
-} from "@openl2/layer2ledger/http-server-models";
-
 export type {
 	CommonResponse,
 	DepositConfirmedRequest,
@@ -32,7 +11,6 @@ export type {
 	GetFeeRequest,
 	GetFeeResponse,
 	GetNodeInfoResponse,
-	NodeInfo,
 	GetTransactionRequest,
 	GetTransactionResponse,
 	GetTransactionsRequest,
@@ -45,6 +23,7 @@ export type {
 	Layer1TransactionIdStatus,
 	Layer1WithdrawalConfirmedTransaction,
 	Layer1WithdrawalConfirmedTransactionStatus,
+	NodeInfo,
 	PushTransactionRequest,
 	RequestWithdrawalRequest,
 	WithdrawalBroadcastedRequest,
@@ -53,3 +32,23 @@ export type {
 	WithdrawalConfirmedResponse,
 	WithdrawalRequest,
 } from "@openl2/layer2ledger/http-server-models";
+
+export {
+	buildCommonResponse,
+	createLayer2LedgerApp,
+	getErrorMessage,
+	type Layer2LedgerAPIHandlerConfig,
+	type Layer2LedgerAppDependencies,
+	type Layer2LedgerRouteHandlers,
+} from "@openl2/layer2ledger/http-server-models";
+export {
+	createLayer2LedgerClient,
+	createLayer2TestHelperClient,
+	ErrorCodes,
+	type Layer2LedgerApp,
+	type Layer2LedgerClient,
+	type Layer2TestHelperApp,
+	type Layer2TestHelperClient,
+	unwrapLayer2LedgerResponse,
+	unwrapLayer2TestHelperResponse,
+} from "./eden";

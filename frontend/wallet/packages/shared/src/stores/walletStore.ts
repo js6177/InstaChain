@@ -1,6 +1,6 @@
-import { create } from "zustand";
 import type { OAuthUserType } from "@openl2/api-layer2oauthmanager";
-import { Layer2Wallet, type Layer2Address } from "../wallet/wallet";
+import { create } from "zustand";
+import { type Layer2Address, Layer2Wallet } from "../wallet/wallet";
 import { MNEUMONIC_WORD_COUNT, MNEUMONIC_WORDLIST } from "../wallet/wordlist";
 
 interface WalletState {

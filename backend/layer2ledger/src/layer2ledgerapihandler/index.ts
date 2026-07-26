@@ -1,5 +1,3 @@
-import Redis from "ioredis";
-import { createLayer2LedgerApp } from "../api/app";
 import {
 	getLayer2LedgerHost,
 	getLayer2LedgerPort,
@@ -8,6 +6,8 @@ import {
 	loadLayer2LedgerCommonConfig,
 	registerProcessShutdown,
 } from "@openl2/config-loader";
+import Redis from "ioredis";
+import { createLayer2LedgerApp } from "../api/app";
 import { createDatabase, migrateDatabase } from "../db/client";
 import { DistributedLock } from "../redis/distributed-lock";
 import { createRouteHandlers } from "../services/route-handlers";

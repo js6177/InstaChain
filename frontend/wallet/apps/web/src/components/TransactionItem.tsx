@@ -1,21 +1,21 @@
+import type { GetTransactionsResponseTransaction } from "@openl2/api-layer2ledger";
+import { TransactionType } from "@openl2/openl2-messaging";
+import {
+	formatAmount,
+	LABELS,
+	ROUTES,
+	TEST_IDS,
+	useDenominationStore,
+} from "@openl2/wallet-shared";
+import { ArrowDownIcon, ArrowRightLeftIcon, ArrowUpIcon } from "lucide-react";
 import type * as React from "react";
+import { Link } from "react-router-dom";
 import {
 	AccordionContent,
 	AccordionItem,
 	AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import type { GetTransactionsResponseTransaction } from "@openl2/api-layer2ledger";
-import { TransactionType } from "@openl2/openl2-messaging";
-import { ArrowDownIcon, ArrowUpIcon, ArrowRightLeftIcon } from "lucide-react";
-import { Link } from "react-router-dom";
-import {
-	useDenominationStore,
-	formatAmount,
-	ROUTES,
-	LABELS,
-	TEST_IDS,
-} from "@openl2/wallet-shared";
 
 interface TransactionItemProps {
 	transaction: GetTransactionsResponseTransaction;

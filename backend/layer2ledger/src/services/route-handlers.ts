@@ -1,13 +1,24 @@
+import type { Layer2LedgerAPIHandlerConfig } from "@openl2/config-loader";
+import {
+	type MessagingContext,
+	NODE_ASSET_ID_HEX,
+	verifyDeposit,
+	verifyGetDepositAddress,
+	verifyTransferMessage,
+	verifyWithdrawalBroadcasted,
+	verifyWithdrawalConfirmed,
+	verifyWithdrawalRequestMessage,
+} from "@openl2/openl2-messaging";
+import { isPubkeyValidChars } from "@openl2/pubkey-utils";
+import { deriveAddressFromXpubSegwit } from "@openl2/pubkey-utils/btc";
 import { and, eq, inArray, or } from "drizzle-orm";
 import type Redis from "ioredis";
-import { isPubkeyValidChars } from "@openl2/pubkey-utils";
 import {
 	buildCommonResponse,
-	ErrorCodes,
-	getErrorMessage,
 	type CommonResponse,
 	type DepositConfirmedRequest,
 	type DepositConfirmedResponse,
+	ErrorCodes,
 	type GetBalanceRequest,
 	type GetBalanceResponse,
 	type GetBalanceResponseBalance,
@@ -22,6 +33,7 @@ import {
 	type GetTransactionsResponse,
 	type GetWithdrawalRequestsRequest,
 	type GetWithdrawalRequestsResponse,
+	getErrorMessage,
 	type Layer1BroadcastedWithdrawalTransactionStatus,
 	type Layer1TransactionIdStatus,
 	type Layer1WithdrawalConfirmedTransactionStatus,
@@ -35,7 +47,6 @@ import {
 	type WithdrawalConfirmedResponse,
 	type WithdrawalRequest,
 } from "../api";
-import type { Layer2LedgerAPIHandlerConfig } from "@openl2/config-loader";
 import type { Layer2LedgerDbClient } from "../db/client";
 import {
 	confirmedWithdrawals,
@@ -43,8 +54,8 @@ import {
 	layer2AddressBalance,
 	TransactionType,
 	transactions,
-	withdrawalRequests,
 	WithdrawalStatus,
+	withdrawalRequests,
 } from "../db/schema";
 import { mapTransactionRow } from "../mappers/transaction-mapper";
 import type { DistributedLock } from "../redis/distributed-lock";
@@ -59,17 +70,6 @@ import {
 	type PendingWithdrawal,
 	type RedisWithdrawalRequest,
 } from "../redis/models";
-import {
-	NODE_ASSET_ID_HEX,
-	type MessagingContext,
-	verifyDeposit,
-	verifyGetDepositAddress,
-	verifyTransferMessage,
-	verifyWithdrawalBroadcasted,
-	verifyWithdrawalConfirmed,
-	verifyWithdrawalRequestMessage,
-} from "@openl2/openl2-messaging";
-import { deriveAddressFromXpubSegwit } from "@openl2/pubkey-utils/btc";
 import {
 	buildLayer1TransactionId,
 	buildLayer2WithdrawalId,

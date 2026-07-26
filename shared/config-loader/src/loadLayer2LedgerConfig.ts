@@ -1,13 +1,13 @@
 import { join } from "node:path";
-import { readConfig } from "./io";
-import { getConfigFilePath } from "./paths";
 import { resolveEnvironment } from "./env";
+import { readConfig } from "./io";
 import type {
 	CommonBackendConfig,
 	Layer2BridgeConfig,
 	Layer2LedgerAPIHandlerConfig,
 	Layer2LedgerCommonConfig,
 } from "./models";
+import { getConfigFilePath } from "./paths";
 import { Services } from "./services";
 
 export function loadLayer2LedgerCommonConfig(

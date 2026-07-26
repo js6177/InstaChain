@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { BitcoinRPCClient } from "../index";
 import {
 	BitcoinChain,
 	type Layer2BridgeBitcoinConfFileSettings,
 } from "@openl2/config-loader";
+import { BitcoinRPCClient } from "../index";
 
 function loadRpcConfig(): Layer2BridgeBitcoinConfFileSettings {
 	const configPath = join(import.meta.dir, "config", "config.json");

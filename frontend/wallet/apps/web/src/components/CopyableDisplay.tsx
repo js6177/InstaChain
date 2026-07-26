@@ -1,8 +1,8 @@
+import { Check, Copy, Eye, EyeOff } from "lucide-react";
 import type * as React from "react";
-import { useState, useRef, useLayoutEffect } from "react";
-import { Copy, Check, Eye, EyeOff } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export const FitTextMethod = {

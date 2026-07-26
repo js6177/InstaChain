@@ -1,6 +1,6 @@
 import { t } from "elysia";
-import { OAuthUserSchema } from "./schemas/oauth-user";
 import { ErrorResponse } from "./Common/ErrorResponse";
+import { OAuthUserSchema } from "./schemas/oauth-user";
 
 export const FindOauth2UserByIdResponse = t.Object({
 	error_response: ErrorResponse,

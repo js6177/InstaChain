@@ -1,14 +1,14 @@
-import {
-	loadOAuthManagerConfig,
-	type ConfigInterface,
-} from "@openl2/config-loader";
-import { DatabaseInterface } from "./DatabaseInterface";
-import { TwitterOAuthManager } from "OAuthInterfaces/TwitterOAuthManger";
+import { DiscordOAuthManager } from "OAuthInterfaces/DiscordOAuthManager";
+import { FacebookOAuthManager } from "OAuthInterfaces/FacebookOAuthManager";
 import { GithubOAuthManager } from "OAuthInterfaces/GithubOAuthManager";
 import { GoogleOAuthManager } from "OAuthInterfaces/GoogleOAuthManager";
-import { FacebookOAuthManager } from "OAuthInterfaces/FacebookOAuthManager";
-import { DiscordOAuthManager } from "OAuthInterfaces/DiscordOAuthManager";
+import { TwitterOAuthManager } from "OAuthInterfaces/TwitterOAuthManger";
+import {
+	type ConfigInterface,
+	loadOAuthManagerConfig,
+} from "@openl2/config-loader";
 import { createLayer2OAuthApp } from "./api/app";
+import { DatabaseInterface } from "./DatabaseInterface";
 import { createOAuthRouteHandlers } from "./services/route-handlers";
 
 const config: ConfigInterface = loadOAuthManagerConfig();

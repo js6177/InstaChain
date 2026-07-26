@@ -1,11 +1,11 @@
-import axios from "axios";
 import type { OAuth2ServiceParams } from "@openl2/config-loader";
-import { OAuthUserModel, type OAuthUser } from "models/db_models/OAuthUser";
+import axios from "axios";
+import { type OAuthUser, OAuthUserModel } from "models/db_models/OAuthUser";
 import type { DatabaseInterface } from "../DatabaseInterface";
-import { GenerateUUID, MillisecondsInMonth } from "../utils/utils";
-import type { GoogleUserInfo } from "../models/oauth2_models/Google";
 import type { UserKeys } from "../models/db_models/UserKeys";
+import type { GoogleUserInfo } from "../models/oauth2_models/Google";
 import { standardizeProfileUrl } from "../utils/OAuthHelperUtils";
+import { GenerateUUID, MillisecondsInMonth } from "../utils/utils";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_USER_URL = "https://www.googleapis.com/oauth2/v2/userinfo";
@@ -101,7 +101,8 @@ export class GoogleOAuthManager {
 		user.service_name = "google";
 		user.service_specific_id = googleUserInfo.id;
 		user.layer2_authorization_token = GenerateUUID();
-		user.layer2_authorization_token_expiration_timestamp =Date.now()+ MillisecondsInMonth; // Set expiration to 1 month from now
+		user.layer2_authorization_token_expiration_timestamp =
+			Date.now() + MillisecondsInMonth; // Set expiration to 1 month from now
 		user.username = googleUserInfo.email; // Fallback to email as username
 		user.name = googleUserInfo.name;
 		user.profile_description = "";

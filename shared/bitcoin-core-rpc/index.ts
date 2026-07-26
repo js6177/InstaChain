@@ -1,5 +1,5 @@
-export { BitcoinRPCClient } from "./src/client";
 export type { BitcoinRpcClient } from "./src/bridge-interface";
+export { BitcoinRPCClient } from "./src/client";
 export type {
 	AddressGrouping,
 	AddressGroupingEntry,

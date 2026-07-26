@@ -1,16 +1,18 @@
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
 	createLayer2LedgerClient,
 	createLayer2TestHelperClient,
 	ErrorCodes,
-	unwrapLayer2LedgerResponse,
-	unwrapLayer2TestHelperResponse,
 	type GetTransactionsResponse,
 	type GetTransactionsResponseTransaction,
 	type Layer2LedgerClient,
 	type Layer2TestHelperClient,
 	type NodeInfo,
+	unwrapLayer2LedgerResponse,
+	unwrapLayer2TestHelperResponse,
 } from "@openl2/api-layer2ledger";
-import { Layer2Address, Layer2Wallet } from "@openl2/wallet-shared";
 import {
 	buildDepositMessage,
 	buildGetDepositAddressMessage,
@@ -18,10 +20,7 @@ import {
 	buildWithdrawalRequestMessage,
 	TransactionType,
 } from "@openl2/openl2-messaging";
-
-import { readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { Layer2Address, Layer2Wallet } from "@openl2/wallet-shared";
 
 const testDir = dirname(fileURLToPath(import.meta.url));
 

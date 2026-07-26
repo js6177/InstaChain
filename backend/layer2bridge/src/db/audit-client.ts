@@ -1,14 +1,14 @@
 import { Database } from "bun:sqlite";
-import { drizzle } from "drizzle-orm/bun-sqlite";
-import { gt } from "drizzle-orm";
 import type { AddressGroupingEntry } from "@openl2/bitcoin-core-rpc";
 import { SATOSHI_PER_BITCOIN } from "@openl2/openl2-messaging";
+import { gt } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/bun-sqlite";
 import {
+	type AuditLayer1AddressInsert,
+	type AuditLayer1AddressRow,
 	auditSchema,
 	auditState,
 	layer1Address,
-	type AuditLayer1AddressInsert,
-	type AuditLayer1AddressRow,
 } from "./audit-schema";
 
 export type AuditDatabase = ReturnType<typeof createAuditDatabase>;

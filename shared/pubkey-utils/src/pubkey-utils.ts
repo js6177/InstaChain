@@ -1,7 +1,7 @@
-import * as secp from "@noble/secp256k1";
-import { sha256 } from "@noble/hashes/sha2";
-import bs58 from "bs58";
 import { hmac } from "@noble/hashes/hmac";
+import { sha256 } from "@noble/hashes/sha2";
+import * as secp from "@noble/secp256k1";
+import bs58 from "bs58";
 
 secp.etc.hmacSha256Sync = (key, ...msgs): Uint8Array =>
 	hmac(sha256, key, secp.etc.concatBytes(...msgs));
@@ -192,9 +192,9 @@ function isPubkeyValidChars(pubkey: string | null | undefined): boolean {
 }
 
 export {
-	Layer2Address,
 	createLayer2AddressPubkey,
 	isPubkeyValidChars,
+	Layer2Address,
 	signMessage,
 	verifyMessage,
 };

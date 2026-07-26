@@ -1,14 +1,14 @@
-import axios from "axios";
-import type { OAuth2ServiceParams } from "@openl2/config-loader";
-import { OAuthUserModel, type OAuthUser } from "models/db_models/OAuthUser";
 import type { DatabaseInterface } from "DatabaseInterface";
-import { GenerateUUID, MillisecondsInMonth } from "utils/utils";
-import type {
-	TwitterUserInfoData,
-	TwitterUserInfo,
-} from "models/oauth2_models/Twitter";
+import type { OAuth2ServiceParams } from "@openl2/config-loader";
+import axios from "axios";
+import { type OAuthUser, OAuthUserModel } from "models/db_models/OAuthUser";
 import type { UserKeys } from "models/db_models/UserKeys";
-import { standardizeProfileUrl, buildTwitterUrl } from "utils/OAuthHelperUtils";
+import type {
+	TwitterUserInfo,
+	TwitterUserInfoData,
+} from "models/oauth2_models/Twitter";
+import { buildTwitterUrl, standardizeProfileUrl } from "utils/OAuthHelperUtils";
+import { GenerateUUID, MillisecondsInMonth } from "utils/utils";
 
 const TWITTER_TOKEN_URL: string = "https://api.twitter.com/2/oauth2/token";
 const TWITTER_USER_URL: string =
@@ -91,7 +91,8 @@ export class TwitterOAuthManager {
 		user.service_name = "twitter";
 		user.service_specific_id = twitterUserInfo.id;
 		user.layer2_authorization_token = GenerateUUID();
-		user.layer2_authorization_token_expiration_timestamp =Date.now()+ MillisecondsInMonth; // Set expiration to 1 month from now
+		user.layer2_authorization_token_expiration_timestamp =
+			Date.now() + MillisecondsInMonth; // Set expiration to 1 month from now
 		user.username = twitterUserInfo.username;
 		user.name = twitterUserInfo.name;
 		user.profile_description = twitterUserInfo.description;

@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from "vitest";
 
 import {
-	createRandomWallet,
 	confirmLayer1Deposit,
+	createRandomWallet,
 	depositToAddress,
 	expectDepositTransaction,
 	expectTransferTransaction,

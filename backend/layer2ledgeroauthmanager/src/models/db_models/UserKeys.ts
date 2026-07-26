@@ -1,4 +1,4 @@
-import { prop, getModelForClass } from "@typegoose/typegoose";
+import { getModelForClass, prop } from "@typegoose/typegoose";
 
 // This class defines the public and private key of a L2 address belonging to an OAuthUser
 

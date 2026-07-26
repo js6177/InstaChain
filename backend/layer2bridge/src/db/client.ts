@@ -1,22 +1,22 @@
 import { Database } from "bun:sqlite";
-import { drizzle } from "drizzle-orm/bun-sqlite";
 import { and, eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/bun-sqlite";
+import type { BridgeKeyValueKeyName } from "./key-value-keys";
 import {
 	bridgeSchema,
 	ConfirmedTransactionCategory,
-	confirmedTransactions,
-	keyValue,
-	Layer2Status,
-	pendingWithdrawals,
-	PendingWithdrawalStatus,
 	type ConfirmedTransactionCategoryValue,
 	type ConfirmedTransactionInsert,
 	type ConfirmedTransactionRow,
+	confirmedTransactions,
+	keyValue,
+	Layer2Status,
 	type Layer2StatusValue,
 	type PendingWithdrawalInsert,
 	type PendingWithdrawalRow,
+	PendingWithdrawalStatus,
+	pendingWithdrawals,
 } from "./schema";
-import type { BridgeKeyValueKeyName } from "./key-value-keys";
 
 export type BridgeDatabase = ReturnType<typeof createBridgeDatabase>;
 export {

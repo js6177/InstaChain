@@ -1,14 +1,14 @@
 export const db_name: string = "my_db";
-import mongoose from "mongoose";
 
 import type { MongoDbConfig } from "@openl2/config-loader";
-import { OAuthUserModel, type OAuthUser } from "models/db_models/OAuthUser";
-import { type UserKeys, UserKeysModel } from "models/db_models/UserKeys";
-import { GenerateMneumonic } from "utils/mneumonic";
-import type { Layer2OAuthToken } from "models/http_server_models/AuthorizeWithLayer2AuthTokenRequest";
-import type { OAuthUserAuxillaryInfo } from "models/http_server_models/Common/OAuthUserAuxillaryInfo";
 //import {createLayer2AddressPubkey} from 'utils/WalletUtils';
 import { createLayer2AddressPubkey } from "@openl2/pubkey-utils";
+import { type OAuthUser, OAuthUserModel } from "models/db_models/OAuthUser";
+import { type UserKeys, UserKeysModel } from "models/db_models/UserKeys";
+import type { Layer2OAuthToken } from "models/http_server_models/AuthorizeWithLayer2AuthTokenRequest";
+import type { OAuthUserAuxillaryInfo } from "models/http_server_models/Common/OAuthUserAuxillaryInfo";
+import mongoose from "mongoose";
+import { GenerateMneumonic } from "utils/mneumonic";
 import { standardizeProfileUrl } from "utils/OAuthHelperUtils";
 
 //Create a DatabaseInterface class that connect to a db with the params given through MongoDbConfig, and would save and read OAuthUser objects

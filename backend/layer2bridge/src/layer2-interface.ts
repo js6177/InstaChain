@@ -1,16 +1,15 @@
-import { signMessage } from "@openl2/pubkey-utils";
 import {
 	createLayer2LedgerClient,
-	ErrorCodes,
-	unwrapLayer2LedgerResponse,
-	type Layer2LedgerClient,
 	type DepositConfirmedRequest,
 	type DepositConfirmedResponse,
 	type DepositsConfirmed,
+	ErrorCodes,
 	type GetWithdrawalRequestsRequest,
 	type GetWithdrawalRequestsResponse,
 	type Layer1BroadcastedWithdrawalTransaction,
 	type Layer1WithdrawalConfirmedTransaction,
+	type Layer2LedgerClient,
+	unwrapLayer2LedgerResponse,
 	type WithdrawalBroadcastedRequest,
 	type WithdrawalBroadcastedResponse,
 	type WithdrawalConfirmedRequest,
@@ -22,6 +21,7 @@ import {
 	buildWithdrawalBroadcastedMessage,
 	buildWithdrawalConfirmedMessage,
 } from "@openl2/openl2-messaging";
+import { signMessage } from "@openl2/pubkey-utils";
 
 export function successOrDuplicateErrorCode(error: number): boolean {
 	return (

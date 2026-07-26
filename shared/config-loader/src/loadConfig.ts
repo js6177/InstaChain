@@ -1,9 +1,9 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { readConfig } from "./io";
-import { getConfigFilePath, getProjectRoot } from "./paths";
 import { resolveEnvironment } from "./env";
+import { readConfig } from "./io";
 import type { ConfigInterface } from "./models";
+import { getConfigFilePath, getProjectRoot } from "./paths";
 import { Services } from "./services";
 
 export function loadOAuthManagerConfig(): ConfigInterface {

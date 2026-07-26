@@ -18,19 +18,19 @@ import {
 	bitcoinWalletDataSubdir,
 	composeFilesForEnvironment,
 	DockerService,
+	type DockerServiceName,
 	Environment,
+	type EnvironmentName,
 	getConfigFilePath,
 	getLayer2LedgerDockerEnvFilePath,
 	getProjectRoot,
+	type Layer2BridgeBitcoinConfFileSettings,
+	type Layer2BridgeConfig,
 	loadLayer2BridgeConfig,
 	loadLayer2LedgerDockerEnvSettings,
 	readBitcoinConf,
 	requireBun,
 	resolveEnvironment,
-	type DockerServiceName,
-	type EnvironmentName,
-	type Layer2BridgeBitcoinConfFileSettings,
-	type Layer2BridgeConfig,
 } from "@openl2/config-loader";
 import { parseCliArgs } from "./src/cli-args";
 

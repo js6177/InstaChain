@@ -1,19 +1,19 @@
-import type { OAuthUserType } from "@openl2/api-layer2oauthmanager";
-import { OAuthService } from "@openl2/api-layer2oauthmanager";
-import type * as React from "react";
-import { useWalletStore, ROUTES } from "@openl2/wallet-shared";
-import { Link } from "react-router-dom";
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ExternalLink } from "lucide-react";
 import {
+	type IconType,
 	SiDiscord,
 	SiFacebook,
 	SiGithub,
 	SiGoogle,
 	SiX,
-	type IconType,
 } from "@icons-pack/react-simple-icons";
+import type { OAuthUserType } from "@openl2/api-layer2oauthmanager";
+import { OAuthService } from "@openl2/api-layer2oauthmanager";
+import { ROUTES, useWalletStore } from "@openl2/wallet-shared";
+import { ExternalLink } from "lucide-react";
+import type * as React from "react";
+import { Link } from "react-router-dom";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
 
 const OAUTH_SERVICE_ICONS: Record<OAuthService, IconType> = {
 	[OAuthService.Twitter]: SiX,

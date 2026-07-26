@@ -1,11 +1,11 @@
 import {
-	BitcoinRPCClient,
-	isWalletAlreadyLoaded,
 	type AddressGroupingEntry,
+	BitcoinRPCClient,
 	type BitcoinRpcClient,
 	type BroadcastWithdrawalInput,
 	type GetBlockHeaderResult,
 	type GetTransactionResult,
+	isWalletAlreadyLoaded,
 	type ListSinceBlockResult,
 	type SendManyAmounts,
 	type WithdrawalTransactionOutput,

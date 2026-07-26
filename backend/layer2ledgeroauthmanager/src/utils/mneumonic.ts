@@ -2053,10 +2053,9 @@ const MNEUMONIC_WORDLIST = [
 export function GenerateMneumonic(): string {
 	let mneumonic = "";
 	for (let i = 0; i < MNEUMONIC_WORD_COUNT; i++) {
-		mneumonic +=
-			`${MNEUMONIC_WORDLIST[
-				Math.floor(Math.random() * MNEUMONIC_WORDLIST.length)
-			]} `;
+		mneumonic += `${
+			MNEUMONIC_WORDLIST[Math.floor(Math.random() * MNEUMONIC_WORDLIST.length)]
+		} `;
 	}
 	return mneumonic.trim();
 }

@@ -11,8 +11,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-	DockerComposeProfile,
-	DockerService,
 	DOCKER_APP_SERVICES,
 	DOCKER_INFRA_SERVICES,
 	DOCKER_INTEGRATION_TEST_SERVICES,
@@ -20,10 +18,12 @@ import {
 	DOCKER_TEST_PROFILE_BACKGROUND_SERVICES,
 	DOCKER_TEST_SERVICES,
 	DOCKER_UNIT_TEST_SERVICES,
+	DockerComposeProfile,
+	DockerService,
+	type DockerServiceName,
 	Environment,
 	getProjectRoot,
 	requireBun,
-	type DockerServiceName,
 } from "@openl2/config-loader";
 import {
 	containerResultPath,
@@ -33,8 +33,8 @@ import {
 	getServiceTestCommand,
 	parseJunitCounts,
 	printTestResultsSummary,
-	TEST_OUTPUT_MOUNT,
 	type ServiceTestCounts,
+	TEST_OUTPUT_MOUNT,
 } from "./test-results";
 
 const ROOT = getProjectRoot(import.meta.dir);

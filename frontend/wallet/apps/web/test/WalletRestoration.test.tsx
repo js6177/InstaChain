@@ -1,9 +1,9 @@
-import { expect, test } from "vitest";
-import { render } from "vitest-browser-react";
+import { Layer2Wallet, TEST_IDS, useWalletStore } from "@openl2/wallet-shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
+import { expect, test } from "vitest";
+import { render } from "vitest-browser-react";
 import App from "@/App";
-import { Layer2Wallet, useWalletStore, TEST_IDS } from "@openl2/wallet-shared";
 import { TestKeysModel } from "./test-keys.model";
 
 test("wallet is restored from mnemonic", async () => {

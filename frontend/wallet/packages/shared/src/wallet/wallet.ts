@@ -1,10 +1,10 @@
-import * as secp from "@noble/secp256k1";
-import { sha256 } from "@noble/hashes/sha2";
-import bs58 from "bs58";
 import { hmac } from "@noble/hashes/hmac";
-import { MNEUMONIC_WORD_COUNT, MNEUMONIC_WORDLIST } from "./wordlist";
+import { sha256 } from "@noble/hashes/sha2";
+import * as secp from "@noble/secp256k1";
 import type { GetTransactionsResponseTransaction } from "@openl2/api-layer2ledger";
 import type { TransactionType } from "@openl2/openl2-messaging";
+import bs58 from "bs58";
+import { MNEUMONIC_WORD_COUNT, MNEUMONIC_WORDLIST } from "./wordlist";
 
 secp.etc.hmacSha256Sync = (
 	key: Uint8Array,
@@ -274,4 +274,4 @@ class Layer2Transaction {
 	}
 }
 
-export { Layer2Wallet, Layer2Address, Layer2Transaction };
+export { Layer2Address, Layer2Transaction, Layer2Wallet };

@@ -1,4 +1,4 @@
-import { useEffect, type React } from "react";
+import { type React, useEffect } from "react";
 
 export function OAuthCallbackPage(): React.JSX.Element {
 	useEffect(() => {

@@ -1,9 +1,9 @@
-import { max, sql } from "drizzle-orm";
-import Redis from "ioredis";
 import {
 	loadLayer2LedgerCommonConfig,
 	registerProcessShutdown,
 } from "@openl2/config-loader";
+import { max, sql } from "drizzle-orm";
+import Redis from "ioredis";
 import { createDatabase, migrateDatabase } from "../db/client";
 import {
 	layer2AddressBalance,

@@ -1,8 +1,9 @@
 /// <reference types="vitest/browser" />
-import { expect, test } from "vitest";
-import { render } from "vitest-browser-react";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
+import { expect, test } from "vitest";
+import { render } from "vitest-browser-react";
 import App from "@/App";
 
 test("app loads", async () => {

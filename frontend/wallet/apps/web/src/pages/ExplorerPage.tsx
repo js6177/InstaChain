@@ -1,15 +1,27 @@
-import { useState, useEffect } from "react";
-import type * as React from "react";
+import type {
+	FindOauth2UserByIdRequest,
+	OAuthService,
+} from "@openl2/api-layer2oauthmanager";
 import {
-	useSearchParams,
-	useNavigate,
-	Routes,
-	Route,
-	useParams,
-} from "react-router-dom";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+	formatAmount,
+	LABELS,
+	ROUTES,
+	TEST_IDS,
+	useDenominationStore,
+	useWalletStore,
+} from "@openl2/wallet-shared";
 import { Search } from "lucide-react";
+import type * as React from "react";
+import { useEffect, useState } from "react";
+import {
+	Route,
+	Routes,
+	useNavigate,
+	useParams,
+	useSearchParams,
+} from "react-router-dom";
+import { Accordion } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -17,27 +29,15 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Accordion } from "@/components/ui/accordion";
+import { Input } from "@/components/ui/input";
+import { OAuthUserCard } from "../components/OAuthUserCard";
+import { TransactionItem } from "../components/TransactionItem";
+import { useFindOAuthUserById } from "../hooks/useLayer2LedgerOauthManagerQueries";
 import {
 	useAddressBalance,
-	useTransactions,
 	useTransaction,
+	useTransactions,
 } from "../hooks/useLayer2Queries";
-import { useFindOAuthUserById } from "../hooks/useLayer2LedgerOauthManagerQueries";
-import type {
-	FindOauth2UserByIdRequest,
-	OAuthService,
-} from "@openl2/api-layer2oauthmanager";
-import { TransactionItem } from "../components/TransactionItem";
-import {
-	useDenominationStore,
-	formatAmount,
-	ROUTES,
-	useWalletStore,
-	LABELS,
-	TEST_IDS,
-} from "@openl2/wallet-shared";
-import { OAuthUserCard } from "../components/OAuthUserCard";
 
 function SearchBar(): React.JSX.Element {
 	const [searchParams] = useSearchParams();

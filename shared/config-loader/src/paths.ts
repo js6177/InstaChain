@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
 import { homedir } from "node:os";
+import { dirname, join } from "node:path";
 import { Environment, type EnvironmentName } from "./services";
 
 function ensureDirectory(path: string): string {

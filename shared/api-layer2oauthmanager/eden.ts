@@ -5,8 +5,8 @@ import {
 	type Layer2OAuthApp,
 } from "@openl2/layer2oauthmanager/http-server-models";
 
-export { ErrorCodes };
 export type { Layer2OAuthApp };
+export { ErrorCodes };
 
 function normalizeBaseUrl(baseUrl: string): string {
 	return baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;

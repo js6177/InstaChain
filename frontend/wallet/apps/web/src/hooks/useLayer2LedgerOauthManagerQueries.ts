@@ -1,17 +1,17 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
 import {
-	createLayer2OAuthClient,
-	unwrapLayer2OAuthResponse,
 	type AuthorizeWithLayer2AuthTokenRequest,
+	createLayer2OAuthClient,
+	type FindOAuthUserResponse,
 	type FindOauth2UserByIdRequest,
 	type FindOauth2UserByIdResponse,
 	type FindOauthUserRequest,
-	type FindOAuthUserResponse,
 	type OAuthRequest,
 	type OAuthResponse,
 	type SearchUserRequest,
 	type SearchUserResponse,
+	unwrapLayer2OAuthResponse,
 } from "@openl2/api-layer2oauthmanager";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { LAYER2_OAUTH_API_URL } from "../config";
 
 const oauthApi = createLayer2OAuthClient(LAYER2_OAUTH_API_URL);

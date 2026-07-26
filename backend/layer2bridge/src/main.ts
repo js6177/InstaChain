@@ -1,12 +1,22 @@
 import { join } from "node:path";
+import { ErrorCodes } from "@openl2/api-layer2ledger";
+import type { BitcoinRpcClient } from "@openl2/bitcoin-core-rpc";
 import {
+	type EnvironmentName,
 	getEnvSpecificOutputDirectory,
 	loadBackendCommonConfig,
 	loadLayer2BridgeConfig,
 	registerProcessShutdown,
-	type EnvironmentName,
 	resolveEnvironment,
 } from "@openl2/config-loader";
+import {
+	type AuditDatabase,
+	addOrUpdateLayer1Addresses,
+	auditAddressFromRpcGrouping,
+	createAuditDatabase,
+	getLastAuditBlockHeight,
+	getLayer1Addresses,
+} from "./db/audit-client";
 import {
 	BridgeKeyValueKey,
 	createBridgeDatabase,
@@ -24,30 +34,20 @@ import {
 } from "./db/client";
 import {
 	ConfirmedTransactionCategory,
-	Layer2Status,
-	PendingWithdrawalStatus,
-	SATOSHI_PER_BITCOIN,
 	type ConfirmedTransactionCategoryValue,
 	type ConfirmedTransactionRow,
+	Layer2Status,
 	type PendingWithdrawalRow,
+	PendingWithdrawalStatus,
+	SATOSHI_PER_BITCOIN,
 } from "./db/schema";
-import { buildConfirmedTransactionKey } from "./utils/keybuilders";
-import { ErrorCodes } from "@openl2/api-layer2ledger";
-import type { BitcoinRpcClient } from "@openl2/bitcoin-core-rpc";
+import { BitcoinFullNodeRpc } from "./full-node-interface";
 import {
 	Layer2Interface,
 	successOrDuplicateErrorCode,
 	type WithdrawalBroadcastInput,
 } from "./layer2-interface";
-import { BitcoinFullNodeRpc } from "./full-node-interface";
-import {
-	addOrUpdateLayer1Addresses,
-	auditAddressFromRpcGrouping,
-	createAuditDatabase,
-	getLastAuditBlockHeight,
-	getLayer1Addresses,
-	type AuditDatabase,
-} from "./db/audit-client";
+import { buildConfirmedTransactionKey } from "./utils/keybuilders";
 
 export type {
 	BitcoinRpcClient,

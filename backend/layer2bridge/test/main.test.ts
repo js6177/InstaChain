@@ -1,8 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { Layer2Bridge, type BitcoinRpcClient } from "../src/main";
+import { join } from "node:path";
 import type {
 	GetTransactionResult,
 	WithdrawalTransactionOutput,
@@ -16,12 +15,13 @@ import {
 } from "../src/db/client";
 import {
 	ConfirmedTransactionCategory,
+	confirmedTransactions,
 	Layer2Status,
 	PendingWithdrawalStatus,
-	SATOSHI_PER_BITCOIN,
-	confirmedTransactions,
 	pendingWithdrawals,
+	SATOSHI_PER_BITCOIN,
 } from "../src/db/schema";
+import { type BitcoinRpcClient, Layer2Bridge } from "../src/main";
 
 let tempDir = "";
 
@@ -142,9 +142,7 @@ describe("layer2bridge", () => {
 				BridgeKeyValueKey.LAST_CONFIRMED_BLOCK_HASH,
 			),
 		).toBe("blockhash1");
-		const pending = await bridge.bridgeDb
-			.select()
-			.from(confirmedTransactions);
+		const pending = await bridge.bridgeDb.select().from(confirmedTransactions);
 		expect(pending[0]?.amount).toBe(0.01 * SATOSHI_PER_BITCOIN);
 	});
 
@@ -175,9 +173,7 @@ describe("layer2bridge", () => {
 		const { bridge } = createBridgeWithMocks();
 		await bridge.getConfirmedTransactionsFromNodeAndSaveToDb();
 		await bridge.sendPendingConfirmedDepositsToLayer2Ledger();
-		const rows = await bridge.bridgeDb
-			.select()
-			.from(confirmedTransactions);
+		const rows = await bridge.bridgeDb.select().from(confirmedTransactions);
 		expect(rows[0]?.layer2Status).toBe(Layer2Status.CONFIRMED);
 	});
 
@@ -231,9 +227,7 @@ describe("layer2bridge", () => {
 
 		const pending = await getPendingWithdrawals(bridge.bridgeDb);
 		expect(pending).toHaveLength(0);
-		const broadcasted = await bridge.bridgeDb
-			.select()
-			.from(pendingWithdrawals);
+		const broadcasted = await bridge.bridgeDb.select().from(pendingWithdrawals);
 		expect(broadcasted[0]?.status).toBe(PendingWithdrawalStatus.BROADCASTED);
 		expect(broadcasted[0]?.transactionId).toBe("broadcast-tx");
 	});

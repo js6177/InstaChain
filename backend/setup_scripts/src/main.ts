@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, copyFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import {
 	BitcoinRPCClient,
@@ -17,6 +17,7 @@ import type {
 import {
 	BitcoinChain,
 	DockerService,
+	type EnvironmentName,
 	getBitcoinCoreConfDirectory,
 	getConfigFilePath,
 	getEnvSpecificConfigDirectory,
@@ -27,14 +28,13 @@ import {
 	Intermediate,
 	isTestBitcoinNetwork,
 	loadLayer2LedgerDockerEnvSettings,
-	resolveEnvironment,
 	loadOAuthManagerDockerEnvSettings,
 	readBitcoinConf,
 	readConfig,
+	resolveEnvironment,
 	Services,
 	writeBitcoinConf,
 	writeConfig,
-	type EnvironmentName,
 } from "@openl2/config-loader";
 import { Layer2Address } from "@openl2/pubkey-utils";
 import {

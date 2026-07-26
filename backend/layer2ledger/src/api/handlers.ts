@@ -1,3 +1,4 @@
+import type { CommonResponse } from "./models/common";
 import type {
 	DepositConfirmedRequest,
 	GetBalanceRequest,
@@ -11,7 +12,6 @@ import type {
 	WithdrawalBroadcastedRequest,
 	WithdrawalConfirmedRequest,
 } from "./models/requests";
-import type { CommonResponse } from "./models/common";
 import type {
 	DepositConfirmedResponse,
 	GetBalanceResponse,

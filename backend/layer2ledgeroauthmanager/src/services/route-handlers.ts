@@ -1,29 +1,29 @@
 import type { ConfigInterface } from "@openl2/config-loader";
-import type { DatabaseInterface } from "../DatabaseInterface";
-import type { DiscordOAuthManager } from "../OAuthInterfaces/DiscordOAuthManager";
-import type { FacebookOAuthManager } from "../OAuthInterfaces/FacebookOAuthManager";
-import type { GithubOAuthManager } from "../OAuthInterfaces/GithubOAuthManager";
-import type { GoogleOAuthManager } from "../OAuthInterfaces/GoogleOAuthManager";
-import type { TwitterOAuthManager } from "../OAuthInterfaces/TwitterOAuthManger";
-import type { OAuthUser } from "../models/db_models/OAuthUser";
 import type { Layer2OAuthRouteHandlers, RouteSetStatus } from "../api/handlers";
+import type { DatabaseInterface } from "../DatabaseInterface";
+import type { OAuthUser } from "../models/db_models/OAuthUser";
 import type { AuthorizeWithLayer2AuthTokenRequest } from "../models/http_server_models/AuthorizeWithLayer2AuthTokenRequest";
+import { buildErrorResponse } from "../models/http_server_models/Common/ErrorResponse";
+import {
+	type ErrorCode,
+	ErrorCodes,
+} from "../models/http_server_models/ErrorCodes";
 import type { FindOauth2UserByIdRequest } from "../models/http_server_models/FindOauth2UserByIdRequest";
 import type { FindOauth2UserByIdResponse } from "../models/http_server_models/FindOauth2UserByIdResponse";
 import type { FindOauthUserRequest } from "../models/http_server_models/FindOauthUserRequest";
 import type { FindOAuthUserResponse } from "../models/http_server_models/FindOauthUserResponse";
 import {
-	OAuthService,
 	type OAuthRequest,
+	OAuthService,
 } from "../models/http_server_models/OAuthRequest";
 import type { OAuthResponse } from "../models/http_server_models/OAuthResponse";
 import type { SearchUserRequest } from "../models/http_server_models/SearchUserRequest";
 import type { SearchUserResponse } from "../models/http_server_models/SearchUserResponse";
-import {
-	ErrorCodes,
-	type ErrorCode,
-} from "../models/http_server_models/ErrorCodes";
-import { buildErrorResponse } from "../models/http_server_models/Common/ErrorResponse";
+import type { DiscordOAuthManager } from "../OAuthInterfaces/DiscordOAuthManager";
+import type { FacebookOAuthManager } from "../OAuthInterfaces/FacebookOAuthManager";
+import type { GithubOAuthManager } from "../OAuthInterfaces/GithubOAuthManager";
+import type { GoogleOAuthManager } from "../OAuthInterfaces/GoogleOAuthManager";
+import type { TwitterOAuthManager } from "../OAuthInterfaces/TwitterOAuthManger";
 
 export interface OAuthRouteHandlerDependencies {
 	mongoDb: DatabaseInterface;

@@ -1,5 +1,5 @@
-import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
+import { Elysia } from "elysia";
 import {
 	DEPOSIT_CONFIRMED_ROUTE,
 	DEPOSIT_ROUTER_PREFIX,
@@ -19,6 +19,8 @@ import {
 	WITHDRAWAL_CONFIRMED_ROUTE,
 	WITHDRAWAL_ROUTER_PREFIX,
 } from "./api-paths";
+import type { Layer2LedgerRouteHandlers } from "./handlers";
+import { CommonResponse } from "./models/common";
 import {
 	DepositConfirmedRequest,
 	GetBalanceRequest,
@@ -44,8 +46,6 @@ import {
 	WithdrawalBroadcastedResponse,
 	WithdrawalConfirmedResponse,
 } from "./models/responses";
-import { CommonResponse } from "./models/common";
-import type { Layer2LedgerRouteHandlers } from "./handlers";
 
 export function createLayer2LedgerApp(handlers: Layer2LedgerRouteHandlers) {
 	return new Elysia({ name: "layer2ledger-api" })

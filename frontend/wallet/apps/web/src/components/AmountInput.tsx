@@ -1,12 +1,12 @@
-import type * as React from "react";
-import { useEffect, useRef } from "react";
 import {
-	useDenominationStore,
 	Denomination,
 	LABELS,
+	useDenominationStore,
 } from "@openl2/wallet-shared";
-import { Input } from "@/components/ui/input";
+import type * as React from "react";
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 interface AmountInputProps {

@@ -1,14 +1,5 @@
-import { Elysia, t } from "elysia";
 import { cors } from "@elysiajs/cors";
-import {
-	HEALTH_ROUTE,
-	OAUTH_EXCHANGE,
-	OAUTH_L2_TOKEN_AUTHORIZE,
-	USER_FIND,
-	USER_FIND_BY_ID,
-	USER_SEARCH,
-} from "./api-paths";
-import type { Layer2OAuthRouteHandlers } from "./handlers";
+import { Elysia, t } from "elysia";
 import { AuthorizeWithLayer2AuthTokenRequest } from "../models/http_server_models/AuthorizeWithLayer2AuthTokenRequest";
 import { FindOauth2UserByIdRequest } from "../models/http_server_models/FindOauth2UserByIdRequest";
 import { FindOauth2UserByIdResponse } from "../models/http_server_models/FindOauth2UserByIdResponse";
@@ -18,6 +9,15 @@ import { OAuthRequest } from "../models/http_server_models/OAuthRequest";
 import { OAuthResponse } from "../models/http_server_models/OAuthResponse";
 import { SearchUserRequest } from "../models/http_server_models/SearchUserRequest";
 import { SearchUserResponse } from "../models/http_server_models/SearchUserResponse";
+import {
+	HEALTH_ROUTE,
+	OAUTH_EXCHANGE,
+	OAUTH_L2_TOKEN_AUTHORIZE,
+	USER_FIND,
+	USER_FIND_BY_ID,
+	USER_SEARCH,
+} from "./api-paths";
+import type { Layer2OAuthRouteHandlers } from "./handlers";
 
 const HealthResponse = t.Object({
 	status: t.String(),

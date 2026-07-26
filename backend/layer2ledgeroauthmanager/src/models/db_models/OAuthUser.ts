@@ -1,4 +1,4 @@
-import { prop, getModelForClass } from "@typegoose/typegoose";
+import { getModelForClass, prop } from "@typegoose/typegoose";
 import { v4 as uuidv4 } from "uuid";
 
 // This class defines the structure of the OAuthUser object that will be saved in the database

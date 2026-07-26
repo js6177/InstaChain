@@ -1,8 +1,8 @@
-import { Layer2Address } from "@openl2/pubkey-utils";
 import {
 	getTestHelperPort,
 	loadLayer2LedgerCommonConfig,
 } from "@openl2/config-loader";
+import { Layer2Address } from "@openl2/pubkey-utils";
 import { createDatabase, migrateDatabase } from "../db/client";
 import {
 	layer2AddressBalance,

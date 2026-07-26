@@ -1,11 +1,11 @@
-import axios from "axios";
-import type { OAuth2ServiceParams } from "@openl2/config-loader";
-import { OAuthUserModel, type OAuthUser } from "models/db_models/OAuthUser";
 import type { DatabaseInterface } from "DatabaseInterface";
-import { GenerateUUID, MillisecondsInMonth } from "utils/utils";
-import type { GithubUserInfo } from "models/oauth2_models/Github";
+import type { OAuth2ServiceParams } from "@openl2/config-loader";
+import axios from "axios";
+import { type OAuthUser, OAuthUserModel } from "models/db_models/OAuthUser";
 import type { UserKeys } from "models/db_models/UserKeys";
+import type { GithubUserInfo } from "models/oauth2_models/Github";
 import { standardizeProfileUrl } from "utils/OAuthHelperUtils";
+import { GenerateUUID, MillisecondsInMonth } from "utils/utils";
 
 const GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token";
 const GITHUB_USER_URL = "https://api.github.com/user";
@@ -102,7 +102,8 @@ export class GithubOAuthManager {
 		user.service_name = "github";
 		user.service_specific_id = githubUserInfo.id.toString();
 		user.layer2_authorization_token = GenerateUUID();
-		user.layer2_authorization_token_expiration_timestamp =Date.now()+ MillisecondsInMonth; // Set expiration to 1 month from now
+		user.layer2_authorization_token_expiration_timestamp =
+			Date.now() + MillisecondsInMonth; // Set expiration to 1 month from now
 		user.username = githubUserInfo.login;
 		user.name = githubUserInfo.name;
 		user.profile_description = githubUserInfo.bio;

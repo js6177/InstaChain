@@ -1,11 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { existsSync } from "node:fs";
 import {
-	BitcoinRPCClient,
-	isWalletAlreadyExists,
-	isWalletAlreadyLoaded,
-} from "../index";
-import {
 	getConfigFilePath,
 	Intermediate,
 	isTestBitcoinNetwork,
@@ -18,6 +13,11 @@ import {
 	generateBitcoinCoreDescriptorSegwit,
 	type MasterKeys,
 } from "@openl2/pubkey-utils/btc";
+import {
+	BitcoinRPCClient,
+	isWalletAlreadyExists,
+	isWalletAlreadyLoaded,
+} from "../index";
 
 function loadMasterKeys(): MasterKeys {
 	const keysPath = getConfigFilePath(

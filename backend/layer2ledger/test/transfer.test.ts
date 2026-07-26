@@ -1,20 +1,22 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import Redis from "ioredis";
-import { Layer2Address } from "@openl2/pubkey-utils";
 import {
 	loadBackendCommonConfig,
 	loadLayer2LedgerAPIHandlerConfig,
 	loadLayer2LedgerCommonConfig,
 } from "@openl2/config-loader";
-import { createDatabase, migrateDatabase } from "../src/db/client";
-import { layer2AddressBalance } from "../src/db/schema";
-import { DistributedLock } from "../src/redis/distributed-lock";
-import { createRouteHandlers } from "../src/services/route-handlers";
 import {
 	buildTransferMessage,
 	NODE_ASSET_ID_HEX,
 } from "@openl2/openl2-messaging";
-import { PENDING_TRANSACTIONS_LIST_KEY } from "../src/redis/distributed-lock";
+import { Layer2Address } from "@openl2/pubkey-utils";
+import Redis from "ioredis";
+import { createDatabase, migrateDatabase } from "../src/db/client";
+import { layer2AddressBalance } from "../src/db/schema";
+import {
+	DistributedLock,
+	PENDING_TRANSACTIONS_LIST_KEY,
+} from "../src/redis/distributed-lock";
+import { createRouteHandlers } from "../src/services/route-handlers";
 
 const commonConfig = loadLayer2LedgerCommonConfig(
 	process.env.ENVIRONMENT ?? "test",

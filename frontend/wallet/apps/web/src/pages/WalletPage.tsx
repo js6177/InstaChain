@@ -1,28 +1,30 @@
-import { useState, type React } from "react";
-import {
-	MNEUMONIC_WORD_COUNT,
-	useWalletStore,
-	useDenominationStore,
-	formatAmount,
-	parseAmountToSats,
-	Denomination,
-	LABELS,
-	TEST_IDS,
-} from "@openl2/wallet-shared";
+import type { OAuthResponse } from "@openl2/api-layer2oauthmanager";
 import {
 	buildGetDepositAddressMessage,
 	buildTransferMessage,
 	buildWithdrawalRequestMessage,
 } from "@openl2/openl2-messaging";
-import type { OAuthResponse } from "@openl2/api-layer2oauthmanager";
+import {
+	Denomination,
+	formatAmount,
+	LABELS,
+	MNEUMONIC_WORD_COUNT,
+	parseAmountToSats,
+	TEST_IDS,
+	useDenominationStore,
+	useWalletStore,
+} from "@openl2/wallet-shared";
+import { type React, useState } from "react";
+import { toast } from "sonner";
+import { Accordion } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
+	CardFooter,
 	CardHeader,
 	CardTitle,
-	CardFooter,
 } from "@/components/ui/card";
 import {
 	Dialog,
@@ -35,27 +37,25 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Accordion } from "@/components/ui/accordion";
-import { toast } from "sonner";
-import {
-	useAddressBalance,
-	useTransactions,
-	useDepositAddressMutation,
-	useTransferMutation,
-	useNodeInfo,
-	useWithdrawMutation,
-} from "../hooks/useLayer2Queries";
-import { TransactionItem } from "../components/TransactionItem";
-import { CopyableDisplay, FitTextMethod } from "../components/CopyableDisplay";
 import { AmountInput } from "../components/AmountInput";
+import { CopyableDisplay, FitTextMethod } from "../components/CopyableDisplay";
 import {
-	TwitterLoginWithOAuth2Login,
+	DiscordLoginWithOAuth2Login,
+	FacebookLoginWithOAuth2Login,
 	GithubLoginWithOAuth2Login,
 	GoogleLoginWithOAuth2Login,
-	FacebookLoginWithOAuth2Login,
-	DiscordLoginWithOAuth2Login,
+	TwitterLoginWithOAuth2Login,
 } from "../components/OAuth2LoginButton";
 import { OAuthUserCard } from "../components/OAuthUserCard";
+import { TransactionItem } from "../components/TransactionItem";
+import {
+	useAddressBalance,
+	useDepositAddressMutation,
+	useNodeInfo,
+	useTransactions,
+	useTransferMutation,
+	useWithdrawMutation,
+} from "../hooks/useLayer2Queries";
 
 export function WalletPage(): React.JSX.Element {
 	const {
