@@ -19,20 +19,32 @@ const RELEASE_SCRIPT_LUA = readFileSync(
 );
 
 export class DistributedLock {
-	private acquireSha: string | null = null;
-	private releaseSha: string | null = null;
+	private acquireSha!: string;
+	private releaseSha!: string;
 
 	constructor(private readonly redis: Redis) {}
 
 	async setup(): Promise<void> {
-		this.acquireSha = (await this.redis.script(
-			"LOAD",
-			ACQUIRE_SCRIPT_LUA,
-		)) as string;
-		this.releaseSha = (await this.redis.script(
-			"LOAD",
-			RELEASE_SCRIPT_LUA,
-		)) as string;
+		const acquireSha = await this.redis.script("LOAD", ACQUIRE_SCRIPT_LUA);
+		const releaseSha = await this.redis.script("LOAD", RELEASE_SCRIPT_LUA);
+
+		if (typeof acquireSha !== "string" || acquireSha.length === 0) {
+			throw new Error("Failed to load Redis acquire-multi-lock script");
+		}
+		if (typeof releaseSha !== "string" || releaseSha.length === 0) {
+			throw new Error("Failed to load Redis release-multi-lock script");
+		}
+
+		this.acquireSha = acquireSha;
+		this.releaseSha = releaseSha;
+	}
+
+	private ensureScriptsLoaded(): void {
+		if (!this.acquireSha || !this.releaseSha) {
+			throw new Error(
+				"DistributedLock.setup() must succeed before acquiring or releasing locks",
+			);
+		}
 	}
 
 	private getLockKeys(userIds: string[]): string[] {
@@ -44,14 +56,12 @@ export class DistributedLock {
 			return null;
 		}
 
-		if (!this.acquireSha) {
-			await this.setup();
-		}
+		this.ensureScriptsLoaded();
 
 		const lockToken = crypto.randomUUID();
 		const lockKeys = this.getLockKeys(userIds);
 		const acquired = (await this.redis.evalsha(
-			this.acquireSha!,
+			this.acquireSha,
 			lockKeys.length,
 			...lockKeys,
 			lockToken,
@@ -69,13 +79,11 @@ export class DistributedLock {
 			return true;
 		}
 
-		if (!this.releaseSha) {
-			await this.setup();
-		}
+		this.ensureScriptsLoaded();
 
 		const lockKeys = this.getLockKeys(userIds);
 		const released = (await this.redis.evalsha(
-			this.releaseSha!,
+			this.releaseSha,
 			lockKeys.length,
 			...lockKeys,
 			lockToken,

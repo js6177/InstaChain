@@ -164,7 +164,7 @@ describe("layer2bridge", () => {
 	it("filters withdrawals below the minimum amount", async () => {
 		const { bridge } = createBridgeWithMocks();
 		await bridge.getPendingWithdrawalsFromLayer2LedgerAndSaveToDb();
-		bridge.bitcoinRPC!.getMinimumTransactionAmount = (): number => 100_000;
+		bridge.bitcoinRPC.getMinimumTransactionAmount = (): number => 100_000;
 		await bridge.getPendingWithdrawalsFromDb();
 		expect(bridge.withdrawalTransactionOutputs.size).toBe(0);
 	});
@@ -194,7 +194,7 @@ describe("layer2bridge", () => {
 		bridge.blockheight = 100;
 
 		await bridge.broadcastPendingWithdrawals();
-		expect(bridge.bitcoinRPC!.broadcastTransaction).not.toHaveBeenCalled();
+		expect(bridge.bitcoinRPC.broadcastTransaction).not.toHaveBeenCalled();
 	});
 
 	it("broadcasts withdrawals and notifies layer2ledger with vout from gettransaction", async () => {
@@ -205,8 +205,8 @@ describe("layer2bridge", () => {
 
 		await bridge.broadcastPendingWithdrawals();
 
-		expect(bridge.bitcoinRPC!.broadcastTransaction).toHaveBeenCalled();
-		expect(bridge.bitcoinRPC!.getTransaction).toHaveBeenCalledWith(
+		expect(bridge.bitcoinRPC.broadcastTransaction).toHaveBeenCalled();
+		expect(bridge.bitcoinRPC.getTransaction).toHaveBeenCalledWith(
 			"broadcast-tx",
 		);
 		expect(sendWithdrawalBroadcasted).toHaveBeenCalledWith([

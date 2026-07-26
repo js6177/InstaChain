@@ -65,8 +65,8 @@ export class Layer2Bridge {
 	auditDbPath = "";
 	bridgeDb = createBridgeDatabase(":memory:");
 	auditDb: AuditDatabase | null = null;
-	layer2Interface: Layer2Interface | null = null;
-	bitcoinRPC: BitcoinRpcClient | null = null;
+	layer2Interface!: Layer2Interface;
+	bitcoinRPC!: BitcoinRpcClient;
 	lastblockhash = "";
 	blockheight = 0;
 	confirmedTransactionsDict = new Map<string, ConfirmedTransactionRow>();
@@ -85,10 +85,30 @@ export class Layer2Bridge {
 			settings.database_audit_name ?? DEFAULT_AUDIT_DB_NAME,
 		);
 		this.bridgeDb = createBridgeDatabase(this.bridgeDbPath);
+
+		if (!settings.layer2_node_url) {
+			throw new Error("layer2_node_url is required to start layer2bridge");
+		}
+		if (!settings.onboarding_signing_private_key) {
+			throw new Error(
+				"onboarding_signing_private_key is required to start layer2bridge",
+			);
+		}
+		if (!settings.rpc_settings) {
+			throw new Error("rpc_settings is required to start layer2bridge");
+		}
+		if (!settings.wallet_name) {
+			throw new Error("wallet_name is required to start layer2bridge");
+		}
+
 		this.layer2Interface = new Layer2Interface(
 			settings.layer2_node_url,
 			settings.onboarding_signing_private_key,
 			backendCommon.node_id,
+		);
+		this.bitcoinRPC = new BitcoinFullNodeRpc(
+			settings.rpc_settings,
+			settings.wallet_name,
 		);
 	}
 
@@ -97,12 +117,6 @@ export class Layer2Bridge {
 	}
 
 	async run(): Promise<void> {
-		if (!this.bitcoinRPC || !this.layer2Interface) {
-			throw new Error(
-				"bitcoinRPC and layer2Interface must be configured before run()",
-			);
-		}
-
 		this.auditDb = createAuditDatabase(this.auditDbPath);
 
 		await this.bitcoinRPC.loadWallet();
@@ -145,7 +159,6 @@ export class Layer2Bridge {
 	}
 
 	async getConfirmedTransactionsFromNodeAndSaveToDb(): Promise<void> {
-		if (!this.bitcoinRPC) return;
 		try {
 			const response = await this.bitcoinRPC.getConfirmedTransactions(
 				this.lastblockhash,
@@ -199,7 +212,6 @@ export class Layer2Bridge {
 	}
 
 	async getPendingWithdrawalsFromLayer2LedgerAndSaveToDb(): Promise<void> {
-		if (!this.layer2Interface) return;
 		let lastWithdrawalTimestamp = Number(
 			await getKeyValue(
 				this.bridgeDb,
@@ -249,7 +261,7 @@ export class Layer2Bridge {
 		this.withdrawalTransactionOutputs.clear();
 		const pending = await getPendingWithdrawals(this.bridgeDb);
 		log(`Fetched ${pending.length} pending withdrawals from db`);
-		const minimum = this.bitcoinRPC?.getMinimumTransactionAmount() ?? 1000;
+		const minimum = this.bitcoinRPC.getMinimumTransactionAmount();
 		for (const pendingWithdrawal of pending) {
 			if (pendingWithdrawal.amount >= minimum) {
 				this.withdrawalTransactionOutputs.set(
@@ -265,7 +277,6 @@ export class Layer2Bridge {
 	}
 
 	async sendPendingConfirmedDepositsToLayer2Ledger(): Promise<void> {
-		if (!this.layer2Interface) return;
 		const pending = await getPendingConfirmedDepositTransactions(this.bridgeDb);
 		if (pending.length === 0) return;
 		try {
@@ -300,7 +311,6 @@ export class Layer2Bridge {
 	}
 
 	async sendPendingConfirmedWithdrawalsToLayer2Ledger(): Promise<void> {
-		if (!this.layer2Interface) return;
 		const pending = await getPendingConfirmedWithdrawalTransactions(
 			this.bridgeDb,
 		);
@@ -337,7 +347,6 @@ export class Layer2Bridge {
 	}
 
 	async broadcastPendingWithdrawals(): Promise<void> {
-		if (!this.bitcoinRPC || !this.layer2Interface) return;
 		if (this.withdrawalTransactionOutputs.size === 0) {
 			log("No withdrawals to broadcast");
 			return;
@@ -419,7 +428,7 @@ export class Layer2Bridge {
 	}
 
 	async updateAuditDB(): Promise<void> {
-		if (!this.bitcoinRPC || !this.layer2Interface || !this.auditDb) return;
+		if (!this.auditDb) return;
 		if (this.blockheight <= (await getLastAuditBlockHeight(this.auditDb))) {
 			return;
 		}
@@ -461,12 +470,6 @@ export class Layer2Bridge {
 if (import.meta.main) {
 	const bridge = new Layer2Bridge();
 	bridge.loadConfig();
-	const settings = loadLayer2BridgeConfig();
-
-	bridge.bitcoinRPC = new BitcoinFullNodeRpc(
-		settings.rpc_settings,
-		settings.wallet_name,
-	);
 
 	registerProcessShutdown(() => bridge.close());
 

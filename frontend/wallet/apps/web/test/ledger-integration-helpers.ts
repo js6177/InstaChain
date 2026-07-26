@@ -193,7 +193,7 @@ export async function getNodeContext(): Promise<NodeInfo> {
 	const response = unwrapLayer2LedgerResponse(
 		await getLedgerApi().info.get_node_info.get(),
 	);
-	if (response.error_code !== API_SUCCESS || !response.node_info) {
+	if (response.error_code !== API_SUCCESS) {
 		throw new Error(`get_node_info failed: ${response.error_message}`);
 	}
 	return response.node_info;

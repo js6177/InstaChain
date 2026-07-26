@@ -151,7 +151,7 @@ export const NodeInfo = t.Object({
 export const GetNodeInfoResponse = t.Composite([
 	CommonResponse,
 	t.Object({
-		node_info: t.Optional(NodeInfo),
+		node_info: NodeInfo,
 	}),
 ]);
 
