@@ -26,3 +26,6 @@ To debug/run the frontend tests in vscode with the backend in docker containers:
 make backend-test
 cp frontend/wallet/apps/web/.env.test.local.example frontend/wallet/apps/web/.env.test.local
 cd frontend/wallet/apps/web && bun run test
+
+To run the linter from the root directory:
+bun run biome lint --reporter=concise .

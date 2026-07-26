@@ -23,7 +23,7 @@ export class DatabaseInterface {
 
     async connect(): Promise<boolean> {
         let connected: boolean = false;
-        await mongoose.connect('mongodb://' + this.config.host + ':' + this.config.port + '/' + this.config.dbName)
+        await mongoose.connect(`mongodb://${this.config.host}:${this.config.port}/${this.config.dbName}`)
         .then(() => {
             console.log('Connected to MongoDB');
             connected = true;
