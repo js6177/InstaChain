@@ -8,6 +8,7 @@ import {
   resolveEnvironment,
 } from '@openl2/config-loader';
 import {
+  BridgeKeyValueKey,
   createBridgeDatabase,
   getAllPendingConfirmedTransactions,
   getKeyValue,
@@ -97,7 +98,10 @@ export class Layer2Bridge {
 
     await this.bitcoinRPC.loadWallet();
 
-    this.lastblockhash = await getKeyValue(this.bridgeDb, 'lastConfirmedBlockHash');
+    this.lastblockhash = await getKeyValue(
+      this.bridgeDb,
+      BridgeKeyValueKey.LAST_CONFIRMED_BLOCK_HASH,
+    );
 
     const pendingConfirmed = await getAllPendingConfirmedTransactions(this.bridgeDb);
     for (const trx of pendingConfirmed) {
@@ -159,7 +163,11 @@ export class Layer2Bridge {
         await insertConfirmedTransaction(this.bridgeDb, dbObject);
       }
       log(`lastblockhash: ${this.lastblockhash}`);
-      await setKeyValue(this.bridgeDb, 'lastConfirmedBlockHash', this.lastblockhash);
+      await setKeyValue(
+        this.bridgeDb,
+        BridgeKeyValueKey.LAST_CONFIRMED_BLOCK_HASH,
+        this.lastblockhash,
+      );
     } catch (error) {
       log(`Error: Could not get confirmed transactions from node. ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -168,7 +176,7 @@ export class Layer2Bridge {
   async getPendingWithdrawalsFromLayer2LedgerAndSaveToDb(): Promise<void> {
     if (!this.layer2Interface) return;
     let lastWithdrawalTimestamp = Number(
-      await getKeyValue(this.bridgeDb, 'lastwithdrawalTimestamp'),
+      await getKeyValue(this.bridgeDb, BridgeKeyValueKey.LAST_WITHDRAWAL_TIMESTAMP),
     );
     try {
       const response = await this.layer2Interface.getWithdrawalRequests(lastWithdrawalTimestamp);
@@ -193,7 +201,11 @@ export class Layer2Bridge {
         }
         log(`New withdrawal received. address: ${wr.layer1_address} amount: ${wr.amount}`);
       }
-      await setKeyValue(this.bridgeDb, 'lastwithdrawalTimestamp', String(lastWithdrawalTimestamp));
+      await setKeyValue(
+        this.bridgeDb,
+        BridgeKeyValueKey.LAST_WITHDRAWAL_TIMESTAMP,
+        String(lastWithdrawalTimestamp),
+      );
     } catch (error) {
       log(`Error getting withdrawal requests: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -293,12 +305,12 @@ export class Layer2Bridge {
 
     const lastBroadcastBlockHeight = await getKeyValueNumber(
       this.bridgeDb,
-      'lastBroadcastBlockHeight',
+      BridgeKeyValueKey.LAST_BROADCAST_BLOCK_HEIGHT,
       0,
     );
     const broadcastTransactionBlockDelay = await getKeyValueNumber(
       this.bridgeDb,
-      'broadcastTransactionBlockDelay',
+      BridgeKeyValueKey.BROADCAST_TRANSACTION_BLOCK_DELAY,
       6,
     );
     const targetBroadcastBlockHeight = lastBroadcastBlockHeight + broadcastTransactionBlockDelay;
@@ -348,7 +360,11 @@ export class Layer2Bridge {
       }
 
       await this.layer2Interface.sendWithdrawalBroadcasted(broadcasted);
-      await setKeyValue(this.bridgeDb, 'lastBroadcastBlockHeight', String(this.blockheight));
+      await setKeyValue(
+        this.bridgeDb,
+        BridgeKeyValueKey.LAST_BROADCAST_BLOCK_HEIGHT,
+        String(this.blockheight),
+      );
     } catch (error) {
       log(`Error broadcasting/processing withdrawals: ${error instanceof Error ? error.message : String(error)}`);
     }

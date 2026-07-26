@@ -16,8 +16,10 @@ import {
   type PendingWithdrawalInsert,
   type PendingWithdrawalRow,
 } from './schema';
+import type { BridgeKeyValueKeyName } from './key-value-keys';
 
 export type BridgeDatabase = ReturnType<typeof createBridgeDatabase>;
+export { BridgeKeyValueKey, type BridgeKeyValueKeyName } from './key-value-keys';
 
 export function createBridgeDatabase(path: string): BridgeDatabase {
   const sqlite = new Database(path, { create: true });
@@ -53,14 +55,17 @@ export function createBridgeDatabase(path: string): BridgeDatabase {
   return drizzle(sqlite, { schema: bridgeSchema });
 }
 
-export async function getKeyValue(db: BridgeDatabase, key: string): Promise<string> {
+export async function getKeyValue(
+  db: BridgeDatabase,
+  key: BridgeKeyValueKeyName,
+): Promise<string> {
   const rows = await db.select().from(keyValue).where(eq(keyValue.key, key)).limit(1);
   return rows[0]?.value ?? '';
 }
 
 export async function getKeyValueNumber(
   db: BridgeDatabase,
-  key: string,
+  key: BridgeKeyValueKeyName,
   defaultValue: number,
 ): Promise<number> {
   const raw = await getKeyValue(db, key);
@@ -71,7 +76,11 @@ export async function getKeyValueNumber(
   return Number.isNaN(parsed) ? defaultValue : parsed;
 }
 
-export async function setKeyValue(db: BridgeDatabase, key: string, value: string): Promise<void> {
+export async function setKeyValue(
+  db: BridgeDatabase,
+  key: BridgeKeyValueKeyName,
+  value: string,
+): Promise<void> {
   await db
     .insert(keyValue)
     .values({ key, value })

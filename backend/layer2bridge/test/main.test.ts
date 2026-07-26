@@ -8,6 +8,7 @@ import type {
   WithdrawalTransactionOutput,
 } from '@openl2/bitcoin-core-rpc';
 import {
+  BridgeKeyValueKey,
   createBridgeDatabase,
   getKeyValue,
   getPendingWithdrawals,
@@ -117,7 +118,9 @@ describe('layer2bridge', () => {
     const { bridge } = createBridgeWithMocks();
     await bridge.getConfirmedTransactionsFromNodeAndSaveToDb();
     expect(bridge.lastblockhash).toBe('blockhash1');
-    expect(await getKeyValue(bridge.bridgeDb, 'lastConfirmedBlockHash')).toBe('blockhash1');
+    expect(
+      await getKeyValue(bridge.bridgeDb, BridgeKeyValueKey.LAST_CONFIRMED_BLOCK_HASH),
+    ).toBe('blockhash1');
     const pending = await bridge.bridgeDb.select().from(
       (await import('../src/db/schema')).confirmedTransactions,
     );
@@ -129,7 +132,9 @@ describe('layer2bridge', () => {
     await bridge.getPendingWithdrawalsFromLayer2LedgerAndSaveToDb();
     const pending = await getPendingWithdrawals(bridge.bridgeDb);
     expect(pending[0]?.layer2WithdrawalId).toBe('w1');
-    expect(Number(await getKeyValue(bridge.bridgeDb, 'lastwithdrawalTimestamp'))).toBe(2000);
+    expect(
+      Number(await getKeyValue(bridge.bridgeDb, BridgeKeyValueKey.LAST_WITHDRAWAL_TIMESTAMP)),
+    ).toBe(2000);
   });
 
   it('filters withdrawals below the minimum amount', async () => {
@@ -154,8 +159,12 @@ describe('layer2bridge', () => {
     const { bridge } = createBridgeWithMocks();
     await bridge.getPendingWithdrawalsFromLayer2LedgerAndSaveToDb();
     await bridge.getPendingWithdrawalsFromDb();
-    await setKeyValue(bridge.bridgeDb, 'lastBroadcastBlockHeight', '95');
-    await setKeyValue(bridge.bridgeDb, 'broadcastTransactionBlockDelay', '10');
+    await setKeyValue(bridge.bridgeDb, BridgeKeyValueKey.LAST_BROADCAST_BLOCK_HEIGHT, '95');
+    await setKeyValue(
+      bridge.bridgeDb,
+      BridgeKeyValueKey.BROADCAST_TRANSACTION_BLOCK_DELAY,
+      '10',
+    );
     bridge.blockheight = 100;
 
     await bridge.broadcastPendingWithdrawals();
@@ -181,7 +190,9 @@ describe('layer2bridge', () => {
         layer2_withdrawal_id: 'w1',
       },
     ]);
-    expect(await getKeyValue(bridge.bridgeDb, 'lastBroadcastBlockHeight')).toBe('100');
+    expect(
+      await getKeyValue(bridge.bridgeDb, BridgeKeyValueKey.LAST_BROADCAST_BLOCK_HEIGHT),
+    ).toBe('100');
 
     const pending = await getPendingWithdrawals(bridge.bridgeDb);
     expect(pending).toHaveLength(0);
