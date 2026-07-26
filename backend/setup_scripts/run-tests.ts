@@ -25,6 +25,17 @@ import {
   requireBun,
   type DockerServiceName,
 } from '@openl2/config-loader';
+import {
+  containerResultPath,
+  createTestOutputDir,
+  ensureServiceResultFile,
+  formatTestOutputRunId,
+  getServiceTestCommand,
+  parseJunitCounts,
+  printTestResultsSummary,
+  TEST_OUTPUT_MOUNT,
+  type ServiceTestCounts,
+} from './test-results';
 
 const ROOT = getProjectRoot(import.meta.dir);
 
@@ -292,25 +303,39 @@ class DockerComposeTestRunner {
     await this.waitForHealthy(DockerService.LAYER2LEDGER_TESTHELPER);
   }
 
-  private async runTestServices(services: readonly DockerServiceName[]): Promise<boolean> {
+  private async runTestServices(
+    services: readonly DockerServiceName[],
+    outputDir: string,
+    results: ServiceTestCounts[],
+  ): Promise<boolean> {
     let failed = false;
     for (const testService of services) {
       log(`Running ${testService}...`);
-      if (
-        await this.runQuiet([
-          '--profile',
-          DockerComposeProfile.TEST,
-          'run',
-          '--rm',
-          '--build',
-          testService,
-        ])
-      ) {
+      const { kind, command } = getServiceTestCommand(testService);
+      const composeArgs = [
+        '--profile',
+        DockerComposeProfile.TEST,
+        'run',
+        '--rm',
+        '--build',
+        '-v',
+        `${outputDir}:${TEST_OUTPUT_MOUNT}`,
+        '-e',
+        `TEST_RESULT_FILE=${containerResultPath(testService)}`,
+        testService,
+        ...command,
+      ];
+
+      const containerPassed = await this.runQuiet(composeArgs);
+      if (containerPassed) {
         log(`PASSED: ${testService}`);
       } else {
         log(`FAILED: ${testService}`);
         failed = true;
       }
+
+      ensureServiceResultFile(outputDir, testService, containerPassed, kind);
+      results.push(parseJunitCounts(testService, join(outputDir, testService), containerPassed));
     }
     return failed;
   }
@@ -343,10 +368,15 @@ class DockerComposeTestRunner {
     await this.startInfraServices();
     await this.stopAppServices();
 
+    const runId = formatTestOutputRunId();
+    const outputDir = createTestOutputDir(this.root, runId);
+    log(`Writing test reports to .test-output/${runId}/`);
+    const results: ServiceTestCounts[] = [];
+
     let exitCode = 0;
 
     log('Running layer2ledger unit tests (no live apihandler/dbwriter)...');
-    if (await this.runTestServices(DOCKER_UNIT_TEST_SERVICES)) {
+    if (await this.runTestServices(DOCKER_UNIT_TEST_SERVICES, outputDir, results)) {
       exitCode = 1;
     }
 
@@ -354,11 +384,13 @@ class DockerComposeTestRunner {
     await this.ensureTesthelper();
 
     log('Running integration test containers...');
-    if (await this.runTestServices(DOCKER_INTEGRATION_TEST_SERVICES)) {
+    if (await this.runTestServices(DOCKER_INTEGRATION_TEST_SERVICES, outputDir, results)) {
       exitCode = 1;
     }
 
     await this.cleanupTestContainers();
+
+    printTestResultsSummary(outputDir, results, this.root);
 
     if (exitCode === 0) {
       log('All test containers passed');

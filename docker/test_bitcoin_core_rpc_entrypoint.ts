@@ -22,5 +22,11 @@ console.log(
   `Using RPC config at ${configPath} -> ${rpcSettings.rpchost}:${rpcSettings.rpcport}`,
 );
 
-const result = await $`env RUN_BITCOIN_RPC_INTEGRATION=1 bun test`.cwd(testRoot).nothrow();
+const resultFile = process.env.TEST_RESULT_FILE;
+const result =
+  resultFile && resultFile.length > 0
+    ? await $`env RUN_BITCOIN_RPC_INTEGRATION=1 bun test --reporter=junit --reporter-outfile=${resultFile}`
+        .cwd(testRoot)
+        .nothrow()
+    : await $`env RUN_BITCOIN_RPC_INTEGRATION=1 bun test`.cwd(testRoot).nothrow();
 process.exit(result.exitCode);
