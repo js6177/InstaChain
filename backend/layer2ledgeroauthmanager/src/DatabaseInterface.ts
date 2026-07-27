@@ -10,6 +10,7 @@ import type { OAuthUserAuxillaryInfo } from "models/http_server_models/Common/OA
 import mongoose from "mongoose";
 import { GenerateMneumonic } from "utils/mneumonic";
 import { standardizeProfileUrl } from "utils/OAuthHelperUtils";
+import { log } from "./logger";
 
 //Create a DatabaseInterface class that connect to a db with the params given through MongoDbConfig, and would save and read OAuthUser objects
 export class DatabaseInterface {
@@ -26,11 +27,11 @@ export class DatabaseInterface {
 				`mongodb://${this.config.host}:${this.config.port}/${this.config.dbName}`,
 			)
 			.then(() => {
-				console.log("Connected to MongoDB");
+				log.info("Connected to MongoDB");
 				connected = true;
 			})
 			.catch((err) => {
-				console.error("Error connecting to MongoDB:", err);
+				log.exception("Error connecting to MongoDB", err);
 				connected = false;
 			});
 		return connected;
@@ -47,14 +48,14 @@ export class DatabaseInterface {
 				await OAuthUserModel.findOneAndUpdate({ _id: user._id }, user, {
 					upsert: true,
 					new: true,
-				}).then(() => console.log("OAuthUser updated successfully"));
+				}).then(() => log.info("OAuthUser updated successfully"));
 			} else {
 				await newUser
 					.save()
-					.then(() => console.log("OAuthUser saved successfully"));
+					.then(() => log.info("OAuthUser saved successfully"));
 			}
 		} catch (error) {
-			console.error("Error saving OAuthUser:", error);
+			log.exception("Error saving OAuthUser", error);
 		}
 	}
 
@@ -78,11 +79,11 @@ export class DatabaseInterface {
 				}
 				return userKeys;
 			} else {
-				console.log("No UserKeys found for the given userId");
+				log.info("No UserKeys found for the given userId");
 				return null;
 			}
 		} catch (error) {
-			console.log("Error fetching UserKeys:", error);
+			log.exception("Error fetching UserKeys", error);
 			return null;
 		}
 	}
@@ -118,12 +119,12 @@ export class DatabaseInterface {
 			if (!existingUserKeys) {
 				await userKeys
 					.save()
-					.then(() => console.log("UserKeys created successfully"));
+					.then(() => log.info("UserKeys created successfully"));
 			} else {
-				console.log("UserKeys with the given oauth_user_id already exists");
+				log.info("UserKeys with the given oauth_user_id already exists");
 			}
 		} catch (error) {
-			console.error("Error creating UserKeys:", error);
+			log.exception("Error creating UserKeys", error);
 		}
 
 		return userKeys;

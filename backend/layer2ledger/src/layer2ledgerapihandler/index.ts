@@ -9,6 +9,7 @@ import {
 import Redis from "ioredis";
 import { createLayer2LedgerApp } from "../api/app";
 import { createDatabase, migrateDatabase } from "../db/client";
+import { log } from "../logger";
 import { DistributedLock } from "../redis/distributed-lock";
 import { createRouteHandlers } from "../services/route-handlers";
 
@@ -61,6 +62,6 @@ const app = createLayer2LedgerApp(handlers).listen({
 
 registerProcessShutdown(() => app.stop());
 
-console.log(`layer2ledgerapihandler listening on http://${host}:${port}`);
+log.info(`layer2ledgerapihandler listening on http://${host}:${port}`);
 
 export type App = typeof app;

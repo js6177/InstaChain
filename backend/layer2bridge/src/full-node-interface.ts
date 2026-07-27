@@ -16,14 +16,11 @@ import {
 } from "@openl2/config-loader";
 import { SATOSHI_PER_BITCOIN } from "@openl2/openl2-messaging";
 import type { PendingWithdrawalRow } from "./db/schema";
+import { log } from "./logger";
 
 const TESTNET_TARGET_CONFIRMATIONS = 3;
 const MAINNET_TARGET_CONFIRMATIONS = 6;
 const DEFAULT_MINIMUM_TRANSACTION_AMOUNT = 1000;
-
-function log(message: string): void {
-	console.log(`${new Date().toISOString()} ${message}`);
-}
 
 export class BitcoinFullNodeRpc implements BitcoinRpcClient {
 	private readonly client: BitcoinRPCClient;
@@ -35,7 +32,7 @@ export class BitcoinFullNodeRpc implements BitcoinRpcClient {
 	) {
 		this.client = new BitcoinRPCClient(rpcConfig, walletName);
 		this.testnet = isTestBitcoinNetwork(rpcConfig.chain);
-		log(
+		log.info(
 			`bitcoin RPC wallet=${walletName} host=${rpcConfig.rpchost}:${rpcConfig.rpcport}`,
 		);
 	}
@@ -56,7 +53,7 @@ export class BitcoinFullNodeRpc implements BitcoinRpcClient {
 			return;
 		}
 		if (isWalletAlreadyLoaded(response.error)) {
-			log(`wallet ${this.walletName} already loaded`);
+			log.info(`wallet ${this.walletName} already loaded`);
 			return;
 		}
 		if (response.error) {
@@ -71,7 +68,7 @@ export class BitcoinFullNodeRpc implements BitcoinRpcClient {
 		const targetConfirmations = lastBlockHash
 			? this.getTargetConfirmations()
 			: 1;
-		log(
+		log.info(
 			`lastblockhash: ${lastBlockHash}, targetConfirmations: ${targetConfirmations}`,
 		);
 		return this.client.listSinceBlock(lastBlockHash, targetConfirmations);
@@ -92,12 +89,12 @@ export class BitcoinFullNodeRpc implements BitcoinRpcClient {
 			amounts[pendingWithdrawal.destinationAddress] =
 				existingAmount + pendingWithdrawal.amountSatoshis / SATOSHI_PER_BITCOIN;
 		}
-		log(`broadcastTransaction: ${JSON.stringify(amounts)}`);
+		log.info(`broadcastTransaction: ${JSON.stringify(amounts)}`);
 		const txid = await this.client.sendMany(amounts, {
 			minconf: 1,
 			subtractFeeFrom,
 		});
-		log(`/broadcastTransaction: ${txid}`);
+		log.info(`/broadcastTransaction: ${txid}`);
 		return txid;
 	}
 

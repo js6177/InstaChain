@@ -12,6 +12,7 @@
 		"@openl2/api-layer2ledger": "workspace:*",
 		"@openl2/bitcoin-core-rpc": "workspace:*",
 		"@openl2/config-loader": "workspace:*",
+		"@openl2/openl2-logger": "workspace:*",
 		"@openl2/openl2-messaging": "workspace:*",
 		"@openl2/pubkey-utils": "workspace:*",
 		"bs58": "^6.0.0",

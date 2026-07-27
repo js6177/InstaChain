@@ -47,6 +47,7 @@ import {
 	successOrDuplicateErrorCode,
 	type WithdrawalBroadcastInput,
 } from "./layer2-interface";
+import { log } from "./logger";
 import { buildConfirmedTransactionKey } from "./utils/keybuilders";
 
 export type {
@@ -55,10 +56,6 @@ export type {
 } from "@openl2/bitcoin-core-rpc";
 
 const DEFAULT_AUDIT_DB_NAME = "audit.sqlite";
-
-function log(message: string): void {
-	console.log(`${new Date().toISOString()} ${message}`);
-}
 
 export class Layer2Bridge {
 	bridgeDbPath = "";
@@ -150,9 +147,7 @@ export class Layer2Bridge {
 				await this.broadcastPendingWithdrawals();
 				await this.updateAuditDB();
 			} catch (error) {
-				log(
-					`Bridge loop error: ${error instanceof Error ? error.message : String(error)}`,
-				);
+				log.exception("Bridge loop error", error);
 			}
 			await Bun.sleep(60_000);
 		}
@@ -166,7 +161,7 @@ export class Layer2Bridge {
 			this.lastblockhash = response.lastblock;
 			const header = await this.bitcoinRPC.getBlockHeader(this.lastblockhash);
 			this.blockheight = header.height;
-			log(`Latest blockheight: ${this.blockheight}`);
+			log.info(`Latest blockheight: ${this.blockheight}`);
 
 			for (const confirmedTransaction of response.transactions) {
 				if (
@@ -198,15 +193,16 @@ export class Layer2Bridge {
 				this.confirmedTransactionsDict.set(key, dbObject);
 				await insertConfirmedTransaction(this.bridgeDb, dbObject);
 			}
-			log(`lastblockhash: ${this.lastblockhash}`);
+			log.info(`lastblockhash: ${this.lastblockhash}`);
 			await setKeyValue(
 				this.bridgeDb,
 				BridgeKeyValueKey.LAST_CONFIRMED_BLOCK_HASH,
 				this.lastblockhash,
 			);
 		} catch (error) {
-			log(
-				`Error: Could not get confirmed transactions from node. ${error instanceof Error ? error.message : String(error)}`,
+			log.exception(
+				"Could not get confirmed transactions from node",
+				error,
 			);
 		}
 	}
@@ -241,7 +237,7 @@ export class Layer2Bridge {
 				if (wr.withdrawal_requested_timestamp > lastWithdrawalTimestamp) {
 					lastWithdrawalTimestamp = wr.withdrawal_requested_timestamp;
 				}
-				log(
+				log.info(
 					`New withdrawal received. address: ${wr.layer1_address} amount: ${wr.amount}`,
 				);
 			}
@@ -251,16 +247,14 @@ export class Layer2Bridge {
 				String(lastWithdrawalTimestamp),
 			);
 		} catch (error) {
-			log(
-				`Error getting withdrawal requests: ${error instanceof Error ? error.message : String(error)}`,
-			);
+			log.exception("Error getting withdrawal requests", error);
 		}
 	}
 
 	async getPendingWithdrawalsFromDb(): Promise<void> {
 		this.withdrawalTransactionOutputs.clear();
 		const pending = await getPendingWithdrawals(this.bridgeDb);
-		log(`Fetched ${pending.length} pending withdrawals from db`);
+		log.info(`Fetched ${pending.length} pending withdrawals from db`);
 		const minimum = this.bitcoinRPC.getMinimumTransactionAmount();
 		for (const pendingWithdrawal of pending) {
 			if (pendingWithdrawal.amount >= minimum) {
@@ -269,7 +263,7 @@ export class Layer2Bridge {
 					pendingWithdrawal,
 				);
 			} else {
-				log(
+				log.info(
 					`Skipping withdrawal ${pendingWithdrawal.layer2WithdrawalId} with amount ${pendingWithdrawal.amount} (minimum ${minimum} satoshis)`,
 				);
 			}
@@ -298,15 +292,13 @@ export class Layer2Bridge {
 						ConfirmedTransactionCategory.RECEIVE,
 						Layer2Status.CONFIRMED,
 					);
-					log(
+					log.info(
 						`Deposit confirmation acknowledged by layer2ledger. transaction_id: ${trx.layer1_transaction_id} ${trx.layer1_transaction_vout}`,
 					);
 				}
 			}
 		} catch (error) {
-			log(
-				`Error sending confirmed deposits: ${error instanceof Error ? error.message : String(error)}`,
-			);
+			log.exception("Error sending confirmed deposits", error);
 		}
 	}
 
@@ -334,21 +326,19 @@ export class Layer2Bridge {
 						ConfirmedTransactionCategory.SEND,
 						Layer2Status.CONFIRMED,
 					);
-					log(
+					log.info(
 						`Withdrawal confirmed. transaction_id: ${trx.layer1_transaction_id} ${trx.layer1_transaction_vout}`,
 					);
 				}
 			}
 		} catch (error) {
-			log(
-				`Error sending confirmed withdrawals: ${error instanceof Error ? error.message : String(error)}`,
-			);
+			log.exception("Error sending confirmed withdrawals", error);
 		}
 	}
 
 	async broadcastPendingWithdrawals(): Promise<void> {
 		if (this.withdrawalTransactionOutputs.size === 0) {
-			log("No withdrawals to broadcast");
+			log.info("No withdrawals to broadcast");
 			return;
 		}
 
@@ -364,18 +354,20 @@ export class Layer2Bridge {
 		);
 		const targetBroadcastBlockHeight =
 			lastBroadcastBlockHeight + broadcastTransactionBlockDelay;
-		log(`lastBroadcastBlockHeight: ${lastBroadcastBlockHeight}`);
-		log(`broadcastTransactionBlockDelay: ${broadcastTransactionBlockDelay}`);
-		log(`targetBroadcastBlockheight: ${targetBroadcastBlockHeight}`);
+		log.info(`lastBroadcastBlockHeight: ${lastBroadcastBlockHeight}`);
+		log.info(
+			`broadcastTransactionBlockDelay: ${broadcastTransactionBlockDelay}`,
+		);
+		log.info(`targetBroadcastBlockheight: ${targetBroadcastBlockHeight}`);
 
 		if (this.blockheight < targetBroadcastBlockHeight) {
-			log(
+			log.info(
 				`Batching: waiting for blockheight ${targetBroadcastBlockHeight} to broadcast. Current: ${this.blockheight}`,
 			);
 			return;
 		}
 
-		log(
+		log.info(
 			`Broadcasting ${this.withdrawalTransactionOutputs.size} withdrawal outputs`,
 		);
 		try {
@@ -421,9 +413,7 @@ export class Layer2Bridge {
 				String(this.blockheight),
 			);
 		} catch (error) {
-			log(
-				`Error broadcasting/processing withdrawals: ${error instanceof Error ? error.message : String(error)}`,
-			);
+			log.exception("Error broadcasting/processing withdrawals", error);
 		}
 	}
 
@@ -458,11 +448,9 @@ export class Layer2Bridge {
 					balance: address.balance,
 				})),
 			);
-			log(`postLayer1AuditReport: ${response.error_code}`);
+			log.info(`postLayer1AuditReport: ${response.error_code}`);
 		} catch (error) {
-			log(
-				`Error updating audit DB: ${error instanceof Error ? error.message : String(error)}`,
-			);
+			log.exception("Error updating audit DB", error);
 		}
 	}
 }
@@ -473,6 +461,6 @@ if (import.meta.main) {
 
 	registerProcessShutdown(() => bridge.close());
 
-	log("layer2bridge started");
+	log.info("layer2bridge started");
 	await bridge.run();
 }

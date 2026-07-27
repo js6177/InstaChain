@@ -2,6 +2,7 @@ import type { OAuth2ServiceParams } from "@openl2/config-loader";
 import axios from "axios";
 import { type OAuthUser, OAuthUserModel } from "models/db_models/OAuthUser";
 import type { DatabaseInterface } from "../DatabaseInterface";
+import { log } from "../logger";
 import type { UserKeys } from "../models/db_models/UserKeys";
 import type { DiscordUserInfo } from "../models/oauth2_models/Discord";
 import { standardizeProfileUrl } from "../utils/OAuthHelperUtils";
@@ -19,9 +20,7 @@ export class DiscordOAuthManager {
 
 	async getDiscordAccessToken(code: string): Promise<string> {
 		try {
-			console.log(
-				`[DiscordOAuthManager] Exchanging code for access token. Code: ${code}`,
-			);
+			log.info("Exchanging code for access token", { service: "discord" });
 
 			const params = new URLSearchParams();
 			params.append("client_id", this.config.clientId);
@@ -40,18 +39,12 @@ export class DiscordOAuthManager {
 					},
 				},
 			);
-			console.log(
-				`[DiscordOAuthManager] Token exchange response data:`,
-				JSON.stringify(response.data, null, 2),
-			);
+			log.info("Token exchange succeeded", { service: "discord" });
 			return response.data.access_token;
 		} catch (error: unknown) {
-			console.error(
-				`[DiscordOAuthManager] Error exchanging code for token:`,
-				axios.isAxiosError(error)
-					? error.response?.data || error.message
-					: error,
-			);
+			log.exception("Error exchanging code for token", error, {
+				service: "discord",
+			});
 			throw error;
 		}
 	}
@@ -61,18 +54,16 @@ export class DiscordOAuthManager {
 		mongoDb: DatabaseInterface,
 	): Promise<[OAuthUser, UserKeys]> {
 		try {
-			console.log(
-				`[DiscordOAuthManager] Fetching user info with access token.`,
-			);
+			log.info("Fetching user info", { service: "discord" });
 			const response = await axios.get<DiscordUserInfo>(DISCORD_USER_URL, {
 				headers: {
 					Authorization: `Bearer ${accessToken}`,
 				},
 			});
-			console.log(
-				`[DiscordOAuthManager] User info response data:`,
-				JSON.stringify(response.data, null, 2),
-			);
+			log.info("Fetched user info", {
+				service: "discord",
+				service_specific_id: response.data.id,
+			});
 
 			const discordUserInfo: DiscordUserInfo = response.data as DiscordUserInfo;
 			const user: OAuthUser = this.buildOAuthUser(discordUserInfo);
@@ -84,12 +75,7 @@ export class DiscordOAuthManager {
 			await mongoDb.saveOAuthUser(user, true);
 			return [user, userKeys];
 		} catch (error: unknown) {
-			console.error(
-				`[DiscordOAuthManager] Error fetching user info:`,
-				axios.isAxiosError(error)
-					? error.response?.data || error.message
-					: error,
-			);
+			log.exception("Error fetching user info", error, { service: "discord" });
 			throw error;
 		}
 	}

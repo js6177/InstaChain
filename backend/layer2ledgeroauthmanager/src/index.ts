@@ -9,6 +9,7 @@ import {
 } from "@openl2/config-loader";
 import { createLayer2OAuthApp } from "./api/app";
 import { DatabaseInterface } from "./DatabaseInterface";
+import { log } from "./logger";
 import { createOAuthRouteHandlers } from "./services/route-handlers";
 
 const config: ConfigInterface = loadOAuthManagerConfig();
@@ -40,7 +41,7 @@ if (config.discord) {
 const mongoDb: DatabaseInterface = new DatabaseInterface(config.mongoDb);
 const connected: boolean = await mongoDb.connect();
 if (!connected) {
-	console.error("Error connecting to MongoDB. Exiting...");
+	log.error("Error connecting to MongoDB. Exiting...");
 	process.exit(1);
 }
 
@@ -59,7 +60,7 @@ const app = createLayer2OAuthApp(handlers).listen(
 		hostname: host,
 	},
 	() => {
-		console.log(`Server is running on http://${host}:${port}`);
+		log.info(`Server is running on http://${host}:${port}`);
 	},
 );
 

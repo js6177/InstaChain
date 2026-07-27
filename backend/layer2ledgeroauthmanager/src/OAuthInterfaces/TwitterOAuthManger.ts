@@ -9,6 +9,7 @@ import type {
 } from "models/oauth2_models/Twitter";
 import { buildTwitterUrl, standardizeProfileUrl } from "utils/OAuthHelperUtils";
 import { GenerateUUID, MillisecondsInMonth } from "utils/utils";
+import { log } from "../logger";
 
 const TWITTER_TOKEN_URL: string = "https://api.twitter.com/2/oauth2/token";
 const TWITTER_USER_URL: string =
@@ -25,7 +26,7 @@ export class TwitterOAuthManager {
 		authorizationCode: string,
 		codeVerifier: string,
 	): Promise<string> {
-		console.log(`getTwitterAccessToken: ${authorizationCode}`);
+		log.info("Exchanging code for access token", { service: "twitter" });
 		const credentials = btoa(
 			`${this.config.clientId}:${this.config.clientSecret}`,
 		);
@@ -49,10 +50,12 @@ export class TwitterOAuthManager {
 				},
 			);
 
-			console.log(`getTwitterAccessToken: ${JSON.stringify(response.data)}`);
+			log.info("Token exchange succeeded", { service: "twitter" });
 			return response.data.access_token;
 		} catch (error) {
-			console.error("Error in getTwitterAccessToken:", error);
+			log.exception("Error getting Twitter access token", error, {
+				service: "twitter",
+			});
 			throw error;
 		}
 	}
@@ -61,14 +64,17 @@ export class TwitterOAuthManager {
 		accessToken: string,
 		mongoDb: DatabaseInterface,
 	): Promise<[OAuthUser, UserKeys]> {
-		console.log(`getTwitterUserInfo: ${accessToken}`);
+		log.info("Fetching user info", { service: "twitter" });
 		try {
 			const response = await axios.get<TwitterUserInfoData>(TWITTER_USER_URL, {
 				headers: {
 					Authorization: `Bearer ${accessToken}`,
 				},
 			});
-			console.log(`getTwitterUserInfo: ${JSON.stringify(response.data)}`);
+			log.info("Fetched user info", {
+				service: "twitter",
+				service_specific_id: response.data.data.id,
+			});
 			//Create OAuthUser object from TwitterUserInfo
 			const twitterUserInfoData: TwitterUserInfoData =
 				response.data as TwitterUserInfoData;
@@ -81,7 +87,9 @@ export class TwitterOAuthManager {
 			await mongoDb.saveOAuthUser(user, true);
 			return [user, userKeys];
 		} catch (error) {
-			console.error("Error in getTwitterUserInfo:", error);
+			log.exception("Error getting Twitter user info", error, {
+				service: "twitter",
+			});
 			throw error;
 		}
 	}

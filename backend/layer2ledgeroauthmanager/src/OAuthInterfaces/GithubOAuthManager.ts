@@ -6,6 +6,7 @@ import type { UserKeys } from "models/db_models/UserKeys";
 import type { GithubUserInfo } from "models/oauth2_models/Github";
 import { standardizeProfileUrl } from "utils/OAuthHelperUtils";
 import { GenerateUUID, MillisecondsInMonth } from "utils/utils";
+import { log } from "../logger";
 
 const GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token";
 const GITHUB_USER_URL = "https://api.github.com/user";
@@ -38,14 +39,14 @@ export class GithubOAuthManager {
 				},
 			);
 
-			console.log("Github Access Token Response:", response.data);
+			log.info("Token exchange succeeded", { service: "github" });
 
 			if (response.data.error) {
-				console.error(
-					"Github OAuth Error:",
-					response.data.error,
-					response.data.error_description,
-				);
+				log.error("Github OAuth error", {
+					service: "github",
+					error: response.data.error,
+					error_description: response.data.error_description,
+				});
 				throw new Error(
 					`Github OAuth Error: ${response.data.error_description}`,
 				);
@@ -57,12 +58,9 @@ export class GithubOAuthManager {
 
 			return response.data.access_token;
 		} catch (error: unknown) {
-			console.error(
-				"Error getting Github Access Token:",
-				axios.isAxiosError(error)
-					? error.response?.data || error.message
-					: error,
-			);
+			log.exception("Error getting Github access token", error, {
+				service: "github",
+			});
 			throw error;
 		}
 	}
@@ -87,12 +85,9 @@ export class GithubOAuthManager {
 			await mongoDb.saveOAuthUser(user, true);
 			return [user, userKeys];
 		} catch (error: unknown) {
-			console.error(
-				"Error getting Github User Info:",
-				axios.isAxiosError(error)
-					? error.response?.data || error.message
-					: error,
-			);
+			log.exception("Error getting Github user info", error, {
+				service: "github",
+			});
 			throw error;
 		}
 	}

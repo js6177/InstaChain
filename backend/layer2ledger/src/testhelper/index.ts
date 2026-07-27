@@ -11,6 +11,7 @@ import {
 } from "../db/schema";
 import { createTestHelperApp } from "./app";
 import type { TestHelperRouteHandlers } from "./handlers";
+import { log } from "./logger";
 import type {
 	SeedBalanceRequest,
 	SeedMnemonicRequest,
@@ -112,6 +113,6 @@ const app = createTestHelperApp(handlers).listen({
 	port: getTestHelperPort(),
 });
 
-console.log(`testhelper listening on http://0.0.0.0:${getTestHelperPort()}`);
+log.info(`testhelper listening on http://0.0.0.0:${getTestHelperPort()}`);
 
 export type App = typeof app;

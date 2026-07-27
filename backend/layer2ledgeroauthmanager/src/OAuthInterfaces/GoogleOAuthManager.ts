@@ -2,6 +2,7 @@ import type { OAuth2ServiceParams } from "@openl2/config-loader";
 import axios from "axios";
 import { type OAuthUser, OAuthUserModel } from "models/db_models/OAuthUser";
 import type { DatabaseInterface } from "../DatabaseInterface";
+import { log } from "../logger";
 import type { UserKeys } from "../models/db_models/UserKeys";
 import type { GoogleUserInfo } from "../models/oauth2_models/Google";
 import { standardizeProfileUrl } from "../utils/OAuthHelperUtils";
@@ -19,16 +20,7 @@ export class GoogleOAuthManager {
 
 	async getGoogleAccessToken(code: string): Promise<string> {
 		try {
-			console.log(
-				`[GoogleOAuthManager] Exchanging code for access token. Code: ${code}`,
-			);
-			console.log(`[GoogleOAuthManager] Request payload:`, {
-				client_id: this.config.clientId,
-				client_secret: this.config.clientSecret ? "***" : "missing",
-				code,
-				redirect_uri: this.config.redirectUri,
-				grant_type: "authorization_code",
-			});
+			log.info("Exchanging code for access token", { service: "google" });
 			const response = await axios.post<{ access_token: string }>(
 				GOOGLE_TOKEN_URL,
 				{
@@ -44,18 +36,12 @@ export class GoogleOAuthManager {
 					},
 				},
 			);
-			console.log(
-				`[GoogleOAuthManager] Token exchange response data:`,
-				JSON.stringify(response.data, null, 2),
-			);
+			log.info("Token exchange succeeded", { service: "google" });
 			return response.data.access_token;
 		} catch (error: unknown) {
-			console.error(
-				`[GoogleOAuthManager] Error exchanging code for token:`,
-				axios.isAxiosError(error)
-					? error.response?.data || error.message
-					: error,
-			);
+			log.exception("Error exchanging code for token", error, {
+				service: "google",
+			});
 			throw error;
 		}
 	}
@@ -65,16 +51,16 @@ export class GoogleOAuthManager {
 		mongoDb: DatabaseInterface,
 	): Promise<[OAuthUser, UserKeys]> {
 		try {
-			console.log(`[GoogleOAuthManager] Fetching user info with access token.`);
+			log.info("Fetching user info", { service: "google" });
 			const response = await axios.get<GoogleUserInfo>(GOOGLE_USER_URL, {
 				headers: {
 					Authorization: `Bearer ${accessToken}`,
 				},
 			});
-			console.log(
-				`[GoogleOAuthManager] User info response data:`,
-				JSON.stringify(response.data, null, 2),
-			);
+			log.info("Fetched user info", {
+				service: "google",
+				service_specific_id: response.data.id,
+			});
 
 			const googleUserInfo: GoogleUserInfo = response.data as GoogleUserInfo;
 			const user: OAuthUser = this.buildOAuthUser(googleUserInfo);
@@ -86,12 +72,7 @@ export class GoogleOAuthManager {
 			await mongoDb.saveOAuthUser(user, true);
 			return [user, userKeys];
 		} catch (error: unknown) {
-			console.error(
-				`[GoogleOAuthManager] Error fetching user info:`,
-				axios.isAxiosError(error)
-					? error.response?.data || error.message
-					: error,
-			);
+			log.exception("Error fetching user info", error, { service: "google" });
 			throw error;
 		}
 	}

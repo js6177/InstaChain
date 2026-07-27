@@ -2,6 +2,7 @@ import {
 	loadLayer2LedgerCommonConfig,
 	registerProcessShutdown,
 } from "@openl2/config-loader";
+import { createOpenL2Logger } from "@openl2/openl2-logger";
 import { max, sql } from "drizzle-orm";
 import Redis from "ioredis";
 import { createDatabase, migrateDatabase } from "../db/client";
@@ -18,6 +19,10 @@ import {
 	PENDING_WITHDRAWALS_LIST_KEY,
 } from "../redis/distributed-lock";
 import { redisTransactionToInsert } from "../redis/models";
+
+const log = createOpenL2Logger({
+	serviceName: "layer2ledgerdbwriter",
+});
 
 const commonConfig = loadLayer2LedgerCommonConfig();
 const { db, sql: postgresSql } = createDatabase({
@@ -39,7 +44,7 @@ const redis = new Redis({
 const lockManager = new DistributedLock(redis);
 await lockManager.setup();
 
-console.log("Starting layer2ledgerdbwriter...");
+log.info("Starting layer2ledgerdbwriter...");
 
 registerProcessShutdown(async () => {
 	await redis.quit();
@@ -151,7 +156,7 @@ while (true) {
 			}
 		}
 	} catch (error) {
-		console.error("Error processing transactions:", error);
+		log.exception("Error processing transactions", error);
 		await Bun.sleep(5000);
 	}
 }

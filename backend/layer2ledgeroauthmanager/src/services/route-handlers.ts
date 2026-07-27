@@ -19,6 +19,7 @@ import {
 import type { OAuthResponse } from "../models/http_server_models/OAuthResponse";
 import type { SearchUserRequest } from "../models/http_server_models/SearchUserRequest";
 import type { SearchUserResponse } from "../models/http_server_models/SearchUserResponse";
+import { log } from "../logger";
 import type { DiscordOAuthManager } from "../OAuthInterfaces/DiscordOAuthManager";
 import type { FacebookOAuthManager } from "../OAuthInterfaces/FacebookOAuthManager";
 import type { GithubOAuthManager } from "../OAuthInterfaces/GithubOAuthManager";
@@ -245,7 +246,10 @@ export function createOAuthRouteHandlers(
 						error_response: buildErrorResponse(ErrorCodes.Success),
 						user,
 					};
-					console.log("Search User Response:", response);
+					log.info("Search user succeeded", {
+						user_id: user.user._id,
+						placeholder_user: user.placeholder_user,
+					});
 					return response;
 				}
 				set.status = 400;
@@ -278,13 +282,16 @@ export function createOAuthRouteHandlers(
 						user,
 						layer2_address_pubkey: pubkey,
 					};
-					console.log("Find User By ID Response:", response);
+					log.info("Find user by id succeeded", {
+						user_id: user._id,
+						service_name: body.service_name,
+					});
 					return response;
 				}
 				set.status = 404;
 				return buildFindOauth2UserByIdErrorResponse(ErrorCodes.UserNotFound);
 			} catch (error) {
-				console.error(error);
+				log.exception("Find user by id failed", error);
 				set.status = 500;
 				return buildFindOauth2UserByIdErrorResponse(
 					ErrorCodes.InternalServerError,

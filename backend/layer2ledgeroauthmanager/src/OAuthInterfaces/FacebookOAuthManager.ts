@@ -2,6 +2,7 @@ import type { OAuth2ServiceParams } from "@openl2/config-loader";
 import axios from "axios";
 import { type OAuthUser, OAuthUserModel } from "models/db_models/OAuthUser";
 import type { DatabaseInterface } from "../DatabaseInterface";
+import { log } from "../logger";
 import type { UserKeys } from "../models/db_models/UserKeys";
 import type { FacebookUserInfo } from "../models/oauth2_models/Facebook";
 import { standardizeProfileUrl } from "../utils/OAuthHelperUtils";
@@ -21,9 +22,7 @@ export class FacebookOAuthManager {
 
 	async getFacebookAccessToken(code: string): Promise<string> {
 		try {
-			console.log(
-				`[FacebookOAuthManager] Exchanging code for access token. Code: ${code}`,
-			);
+			log.info("Exchanging code for access token", { service: "facebook" });
 			const response = await axios.get<{ access_token: string }>(
 				FACEBOOK_TOKEN_URL,
 				{
@@ -38,18 +37,12 @@ export class FacebookOAuthManager {
 					},
 				},
 			);
-			console.log(
-				`[FacebookOAuthManager] Token exchange response data:`,
-				JSON.stringify(response.data, null, 2),
-			);
+			log.info("Token exchange succeeded", { service: "facebook" });
 			return response.data.access_token;
 		} catch (error: unknown) {
-			console.error(
-				`[FacebookOAuthManager] Error exchanging code for token:`,
-				axios.isAxiosError(error)
-					? error.response?.data || error.message
-					: error,
-			);
+			log.exception("Error exchanging code for token", error, {
+				service: "facebook",
+			});
 			throw error;
 		}
 	}
@@ -59,18 +52,16 @@ export class FacebookOAuthManager {
 		mongoDb: DatabaseInterface,
 	): Promise<[OAuthUser, UserKeys]> {
 		try {
-			console.log(
-				`[FacebookOAuthManager] Fetching user info with access token.`,
-			);
+			log.info("Fetching user info", { service: "facebook" });
 			const response = await axios.get<FacebookUserInfo>(FACEBOOK_USER_URL, {
 				headers: {
 					Authorization: `Bearer ${accessToken}`,
 				},
 			});
-			console.log(
-				`[FacebookOAuthManager] User info response data:`,
-				JSON.stringify(response.data, null, 2),
-			);
+			log.info("Fetched user info", {
+				service: "facebook",
+				service_specific_id: response.data.id,
+			});
 
 			const facebookUserInfo: FacebookUserInfo =
 				response.data as FacebookUserInfo;
@@ -83,12 +74,7 @@ export class FacebookOAuthManager {
 			await mongoDb.saveOAuthUser(user, true);
 			return [user, userKeys];
 		} catch (error: unknown) {
-			console.error(
-				`[FacebookOAuthManager] Error fetching user info:`,
-				axios.isAxiosError(error)
-					? error.response?.data || error.message
-					: error,
-			);
+			log.exception("Error fetching user info", error, { service: "facebook" });
 			throw error;
 		}
 	}
