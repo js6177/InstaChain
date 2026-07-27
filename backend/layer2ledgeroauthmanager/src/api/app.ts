@@ -1,4 +1,6 @@
 import { cors } from "@elysiajs/cors";
+import { REQUEST_ID_HEADER } from "@openl2/openl2-logger";
+import { openl2Logging } from "@openl2/openl2-logger/elysia";
 import { Elysia, t } from "elysia";
 import { AuthorizeWithLayer2AuthTokenRequest } from "../models/http_server_models/AuthorizeWithLayer2AuthTokenRequest";
 import { FindOauth2UserByIdRequest } from "../models/http_server_models/FindOauth2UserByIdRequest";
@@ -25,7 +27,12 @@ const HealthResponse = t.Object({
 
 export function createLayer2OAuthApp(handlers: Layer2OAuthRouteHandlers) {
 	return new Elysia({ name: "layer2oauth-api" })
-		.use(cors())
+		.use(openl2Logging({ serviceName: "layer2ledgeroauthmanager" }))
+		.use(
+			cors({
+				exposeHeaders: [REQUEST_ID_HEADER],
+			}),
+		)
 		.get(HEALTH_ROUTE, () => handlers.health(), {
 			response: HealthResponse,
 		})

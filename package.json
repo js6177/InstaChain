@@ -4,6 +4,7 @@
 	"packageManager": "bun@1.3.3",
 	"workspaces": [
 		"backend/*",
+		"backend/packages/*",
 		"frontend/**/*",
 		"shared/*"
 	],

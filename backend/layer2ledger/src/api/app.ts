@@ -1,4 +1,6 @@
 import { cors } from "@elysiajs/cors";
+import { REQUEST_ID_HEADER } from "@openl2/openl2-logger";
+import { openl2Logging } from "@openl2/openl2-logger/elysia";
 import { Elysia } from "elysia";
 import {
 	DEPOSIT_CONFIRMED_ROUTE,
@@ -49,7 +51,12 @@ import {
 
 export function createLayer2LedgerApp(handlers: Layer2LedgerRouteHandlers) {
 	return new Elysia({ name: "layer2ledger-api" })
-		.use(cors())
+		.use(openl2Logging({ serviceName: "layer2ledger" }))
+		.use(
+			cors({
+				exposeHeaders: [REQUEST_ID_HEADER],
+			}),
+		)
 		.get("/", () => handlers.health())
 		.group(TRANSFER_ROUTER_PREFIX, (app) =>
 			app.post(

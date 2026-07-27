@@ -1,4 +1,5 @@
 import { treaty } from "@elysiajs/eden";
+import { REQUEST_ID_HEADER } from "@openl2/openl2-logger/constants";
 import type { Layer2TestHelperApp } from "./app";
 
 function normalizeBaseUrl(baseUrl: string): string {
@@ -6,7 +7,11 @@ function normalizeBaseUrl(baseUrl: string): string {
 }
 
 export function createLayer2TestHelperClient(baseUrl: string) {
-	return treaty<Layer2TestHelperApp>(normalizeBaseUrl(baseUrl));
+	return treaty<Layer2TestHelperApp>(normalizeBaseUrl(baseUrl), {
+		headers: () => ({
+			[REQUEST_ID_HEADER]: crypto.randomUUID(),
+		}),
+	});
 }
 
 export type Layer2TestHelperClient = ReturnType<

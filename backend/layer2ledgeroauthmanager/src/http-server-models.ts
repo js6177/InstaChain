@@ -1,5 +1,6 @@
 export * from "./api/api-paths";
-export { createLayer2OAuthApp, type Layer2OAuthApp } from "./api/app";
+/** Type-only: keeps browser clients from loading the Elysia app module. */
+export type { Layer2OAuthApp } from "./api/app";
 export * from "./api/handlers";
 export type { AuthorizeWithLayer2AuthTokenRequest } from "./models/http_server_models/AuthorizeWithLayer2AuthTokenRequest";
 export type { ErrorResponse } from "./models/http_server_models/Common/ErrorResponse";

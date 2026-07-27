@@ -1,4 +1,5 @@
 import { treaty } from "@elysiajs/eden";
+import { REQUEST_ID_HEADER } from "@openl2/openl2-logger/constants";
 import {
 	ErrorCodes,
 	type ErrorResponse,
@@ -12,8 +13,16 @@ function normalizeBaseUrl(baseUrl: string): string {
 	return baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
 }
 
+function requestIdHeaders(): Record<string, string> {
+	return {
+		[REQUEST_ID_HEADER]: crypto.randomUUID(),
+	};
+}
+
 export function createLayer2OAuthClient(baseUrl: string) {
-	return treaty<Layer2OAuthApp>(normalizeBaseUrl(baseUrl));
+	return treaty<Layer2OAuthApp>(normalizeBaseUrl(baseUrl), {
+		headers: requestIdHeaders,
+	});
 }
 
 export type Layer2OAuthClient = ReturnType<typeof createLayer2OAuthClient>;

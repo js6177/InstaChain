@@ -1,3 +1,4 @@
+import { openl2Logging } from "@openl2/openl2-logger/elysia";
 import { Elysia } from "elysia";
 import {
 	TESTHELPER_HEALTH_ROUTE,
@@ -15,6 +16,7 @@ import {
 
 export function createTestHelperApp(handlers: TestHelperRouteHandlers) {
 	return new Elysia({ prefix: TESTHELPER_ROUTER_PREFIX })
+		.use(openl2Logging({ serviceName: "layer2ledger-testhelper" }))
 		.get(TESTHELPER_HEALTH_ROUTE, () => handlers.health(), {
 			response: HealthResponse,
 		})

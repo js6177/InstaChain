@@ -35,7 +35,6 @@ export type {
 
 export {
 	buildCommonResponse,
-	createLayer2LedgerApp,
 	getErrorMessage,
 	type Layer2LedgerAPIHandlerConfig,
 	type Layer2LedgerAppDependencies,

@@ -4,11 +4,13 @@
 	"type": "module",
 	"private": true,
 	"exports": {
-		".": "./index.ts"
+		".": "./index.ts",
+		"./server": "./server.ts"
 	},
 	"dependencies": {
 		"@elysiajs/eden": "^1.4.9",
 		"@openl2/layer2oauthmanager": "workspace:*",
+		"@openl2/openl2-logger": "workspace:*",
 		"elysia": "^1.4.29"
 	},
 	"devDependencies": {

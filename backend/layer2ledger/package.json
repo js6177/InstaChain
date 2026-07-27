@@ -7,6 +7,7 @@
 	"exports": {
 		".": "./src/layer2ledgerapihandler/index.ts",
 		"./http-server-models": "./src/http-server-models.ts",
+		"./http-server-app": "./src/http-server-app.ts",
 		"./dbwriter": "./src/layer2ledgerdbwriter/index.ts",
 		"./testhelper": "./src/testhelper/index.ts"
 	},
@@ -20,6 +21,7 @@
 		"@elysiajs/cors": "^1.4.2",
 		"@elysiajs/eden": "^1.4.9",
 		"@openl2/config-loader": "workspace:*",
+		"@openl2/openl2-logger": "workspace:*",
 		"@openl2/openl2-messaging": "workspace:*",
 		"@openl2/pubkey-utils": "workspace:*",
 		"@sinclair/typebox": "^0.34.49",

@@ -16,7 +16,6 @@ export type {
 
 export {
 	buildErrorResponse,
-	createLayer2OAuthApp,
 	getErrorMessage,
 	type HealthResponse,
 	type Layer2OAuthRouteHandlers,
