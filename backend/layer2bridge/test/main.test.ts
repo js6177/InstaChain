@@ -10,7 +10,10 @@ import {
 	BridgeKeyValueKey,
 	createBridgeDatabase,
 	getKeyValue,
+	getPendingConfirmedWithdrawalTransactions,
 	getPendingWithdrawals,
+	insertConfirmedTransaction,
+	insertPendingWithdrawal,
 	setKeyValue,
 } from "../src/db/client";
 import {
@@ -161,18 +164,77 @@ describe("layer2bridge", () => {
 		).toBe(2000);
 	});
 
+	it("loads pending withdrawals from db into the output map", async () => {
+		const { bridge } = createBridgeWithMocks();
+		await insertPendingWithdrawal(bridge.bridgeDb, {
+			layer2WithdrawalId: "w2",
+			status: PendingWithdrawalStatus.PENDING,
+			amount: 100_000,
+			destinationAddress: "dest2",
+			withdrawalRequestedTimestamp: 3000,
+		});
+
+		await bridge.getPendingWithdrawalsFromDb();
+
+		const loaded = bridge.withdrawalTransactionOutputs.get("w2");
+		expect(loaded).toBeDefined();
+		expect(loaded?.amount).toBe(100_000);
+		expect(loaded?.destinationAddress).toBe("dest2");
+		expect(loaded?.status).toBe(PendingWithdrawalStatus.PENDING);
+	});
+
 	it("filters withdrawals below the minimum amount", async () => {
 		const { bridge } = createBridgeWithMocks();
-		await bridge.getPendingWithdrawalsFromLayer2LedgerAndSaveToDb();
-		bridge.bitcoinRPC.getMinimumTransactionAmount = (): number => 100_000;
+		await insertPendingWithdrawal(bridge.bridgeDb, {
+			layer2WithdrawalId: "w3",
+			status: PendingWithdrawalStatus.PENDING,
+			amount: 500,
+			destinationAddress: "dest3",
+			withdrawalRequestedTimestamp: 4000,
+		});
+
 		await bridge.getPendingWithdrawalsFromDb();
-		expect(bridge.withdrawalTransactionOutputs.size).toBe(0);
+
+		expect(bridge.withdrawalTransactionOutputs.has("w3")).toBe(false);
 	});
 
 	it("acknowledges deposit confirmations from layer2ledger", async () => {
 		const { bridge } = createBridgeWithMocks();
 		await bridge.getConfirmedTransactionsFromNodeAndSaveToDb();
 		await bridge.sendPendingConfirmedDepositsToLayer2Ledger();
+		const rows = await bridge.bridgeDb.select().from(confirmedTransactions);
+		expect(rows[0]?.layer2Status).toBe(Layer2Status.CONFIRMED);
+	});
+
+	it("acknowledges withdrawal confirmations from layer2ledger", async () => {
+		const { bridge } = createBridgeWithMocks();
+		await insertConfirmedTransaction(bridge.bridgeDb, {
+			transactionId: "tx_wd1",
+			transactionVout: 1,
+			layer2Status: Layer2Status.PENDING,
+			amount: 50_000,
+			address: "addr_wd1",
+			category: ConfirmedTransactionCategory.SEND,
+			confirmations: 6,
+			timestamp: 1000,
+		});
+		bridge.layer2Interface.sendConfirmWithdrawal = mock(async () => ({
+			error_code: 0,
+			transactions: [
+				{
+					layer1_transaction_id: "tx_wd1",
+					layer1_transaction_vout: 1,
+					error_code: 0,
+				},
+			],
+		}));
+
+		await bridge.sendPendingConfirmedWithdrawalsToLayer2Ledger();
+
+		const pending = await getPendingConfirmedWithdrawalTransactions(
+			bridge.bridgeDb,
+		);
+		expect(pending).toHaveLength(0);
 		const rows = await bridge.bridgeDb.select().from(confirmedTransactions);
 		expect(rows[0]?.layer2Status).toBe(Layer2Status.CONFIRMED);
 	});
