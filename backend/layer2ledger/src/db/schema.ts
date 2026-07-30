@@ -190,3 +190,4 @@ export type TransactionInsert = typeof transactions.$inferInsert;
 export type Layer2AddressBalanceRow = typeof layer2AddressBalance.$inferSelect;
 export type DepositAddressRow = typeof depositAddresses.$inferSelect;
 export type WithdrawalRequestRow = typeof withdrawalRequests.$inferSelect;
+export type WithdrawalRequestInsert = typeof withdrawalRequests.$inferInsert;

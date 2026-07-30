@@ -2,6 +2,8 @@ import { max, sql } from "drizzle-orm";
 import type Redis from "ioredis";
 import type { Layer2LedgerDbClient } from "../db/client";
 import {
+	type TransactionInsert,
+	type WithdrawalRequestInsert,
 	layer2AddressBalance,
 	transactions,
 	withdrawalRequests,
@@ -13,7 +15,7 @@ import {
 	PENDING_TRANSACTIONS_LIST_KEY,
 	PENDING_WITHDRAWALS_LIST_KEY,
 } from "../redis/distributed-lock";
-import { redisTransactionToInsert } from "../redis/models";
+import { redisTransactionToInsert, redisWithdrawalRequestToInsert } from "../redis/models";
 
 export interface ProcessPendingBatchContext {
 	db: Layer2LedgerDbClient;
@@ -41,57 +43,56 @@ export async function processPendingBatch(
 	}
 
 	const nextBatchHeight = currentBatchHeight + 1;
+	const newTransactions: TransactionInsert[] = [];
+	const newWithdrawals: WithdrawalRequestInsert[] = [];
 	const balanceUpdates = new Map<string, number>();
 
+	for (const pendingTx of transactionsToProcess) {
+		pendingTx.transaction.batch_height = nextBatchHeight;
+		newTransactions.push(redisTransactionToInsert(pendingTx.transaction));
+
+		const source = pendingTx.transaction.source_address_pubkey;
+		const dest = pendingTx.transaction.destination_address_pubkey;
+		const amount = pendingTx.transaction.amount;
+		balanceUpdates.set(source, (balanceUpdates.get(source) ?? 0) - amount);
+		balanceUpdates.set(dest, (balanceUpdates.get(dest) ?? 0) + amount);
+	}
+
+	for (const pendingWithdrawal of withdrawalsToProcess) {
+		pendingWithdrawal.transaction.batch_height = nextBatchHeight;
+		pendingWithdrawal.withdrawal_request.batch_height = nextBatchHeight;
+
+		newTransactions.push(
+			redisTransactionToInsert(pendingWithdrawal.transaction),
+		);
+		newWithdrawals.push(
+			redisWithdrawalRequestToInsert(pendingWithdrawal.withdrawal_request),
+		);
+
+		const source = pendingWithdrawal.transaction.source_address_pubkey;
+		const amount = pendingWithdrawal.transaction.amount;
+		balanceUpdates.set(source, (balanceUpdates.get(source) ?? 0) - amount);
+	}
+
+	const addressBalances = Array.from(balanceUpdates.entries()).map(
+		([address, balance]) => ({ address, balance }),
+	);
+
 	await db.transaction(async (tx) => {
-		for (const pendingTx of transactionsToProcess) {
-			pendingTx.transaction.batch_height = nextBatchHeight;
-			await tx
-				.insert(transactions)
-				.values(redisTransactionToInsert(pendingTx.transaction));
-
-			const source = pendingTx.transaction.source_address_pubkey;
-			const dest = pendingTx.transaction.destination_address_pubkey;
-			const amount = pendingTx.transaction.amount;
-			balanceUpdates.set(source, (balanceUpdates.get(source) ?? 0) - amount);
-			balanceUpdates.set(dest, (balanceUpdates.get(dest) ?? 0) + amount);
+		if (newTransactions.length > 0) {
+			await tx.insert(transactions).values(newTransactions);
 		}
-
-		for (const pendingWithdrawal of withdrawalsToProcess) {
-			pendingWithdrawal.transaction.batch_height = nextBatchHeight;
-			pendingWithdrawal.withdrawal_request.batch_height = nextBatchHeight;
-
-			await tx
-				.insert(transactions)
-				.values(redisTransactionToInsert(pendingWithdrawal.transaction));
-			await tx.insert(withdrawalRequests).values({
-				layer1Address: pendingWithdrawal.withdrawal_request.layer1_address,
-				layer1TransactionId:
-					pendingWithdrawal.withdrawal_request.layer1_transaction_id,
-				status: pendingWithdrawal.withdrawal_request.status,
-				amount: pendingWithdrawal.withdrawal_request.amount,
-				layer2WithdrawalId:
-					pendingWithdrawal.withdrawal_request.layer2_withdrawal_id,
-				serverSignature: pendingWithdrawal.withdrawal_request.server_signature,
-				layer2TransactionId:
-					pendingWithdrawal.withdrawal_request.layer2_transaction_id,
-				withdrawalRequestedTimestamp:
-					pendingWithdrawal.withdrawal_request.withdrawal_requested_timestamp,
-			});
-
-			const source = pendingWithdrawal.transaction.source_address_pubkey;
-			const amount = pendingWithdrawal.transaction.amount;
-			balanceUpdates.set(source, (balanceUpdates.get(source) ?? 0) - amount);
+		if (newWithdrawals.length > 0) {
+			await tx.insert(withdrawalRequests).values(newWithdrawals);
 		}
-
-		for (const [address, balanceChange] of balanceUpdates.entries()) {
+		if (addressBalances.length > 0) {
 			await tx
 				.insert(layer2AddressBalance)
-				.values({ address, balance: balanceChange })
+				.values(addressBalances)
 				.onConflictDoUpdate({
 					target: layer2AddressBalance.address,
 					set: {
-						balance: sql`${layer2AddressBalance.balance} + ${balanceChange}`,
+						balance: sql`${layer2AddressBalance.balance} + excluded.balance`,
 					},
 				});
 		}

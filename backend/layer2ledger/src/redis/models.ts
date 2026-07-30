@@ -1,4 +1,8 @@
-import type { TransactionInsert, TransactionRow } from "../db/schema";
+import type {
+	TransactionInsert,
+	TransactionRow,
+	WithdrawalRequestInsert,
+} from "../db/schema";
 import { TransactionType } from "../db/schema";
 
 export const PENDING_TRANSACTIONS_LIST_KEY = "PendingTransactions";
@@ -77,6 +81,22 @@ export function redisTransactionToInsert(
 		layer1TransactionId: tx.layer1_transaction_id,
 		layer2WithdrawalId: tx.layer2_withdrawal_id,
 		batchHeight: tx.batch_height,
+	};
+}
+
+export function redisWithdrawalRequestToInsert(
+	request: RedisWithdrawalRequest,
+): WithdrawalRequestInsert {
+	return {
+		layer1Address: request.layer1_address,
+		layer1TransactionId: request.layer1_transaction_id,
+		status: request.status,
+		amount: request.amount,
+		layer2WithdrawalId: request.layer2_withdrawal_id,
+		serverSignature: request.server_signature,
+		layer2TransactionId: request.layer2_transaction_id,
+		withdrawalRequestedTimestamp: request.withdrawal_requested_timestamp,
+		batchHeight: request.batch_height,
 	};
 }
 
