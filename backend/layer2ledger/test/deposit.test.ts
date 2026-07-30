@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 import { ErrorCodes } from "../src/api/models/common";
 import { depositAddresses, TransactionType } from "../src/db/schema";
 import { getPendingTransactions } from "../src/redis/distributed-lock";
+import { buildLayer1TransactionId } from "../src/utils/keybuilders";
 import {
 	backendCommon,
 	bridgeSigningAddress,
@@ -86,7 +87,10 @@ describe("deposit route handlers", () => {
 		expect(layer1DepositAddress).toBeTruthy();
 
 		const layer1TxId = `l1_tx_id_${crypto.randomUUID()}`;
-		const expectedLayer1TransactionId = `${layer1TxId}:${layer1TransactionVout}`;
+		const expectedLayer1TransactionId = buildLayer1TransactionId(
+			layer1TxId,
+			layer1TransactionVout,
+		);
 		const nonceConfirm = crypto.randomUUID();
 		const confirmMessage = buildDepositMessage(
 			backendCommon.node_id,
