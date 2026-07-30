@@ -309,11 +309,12 @@ describe("withdrawal route handlers", () => {
 			(_, i) => 100 * (i + 1),
 		);
 		const totalAmount = withdrawalAmounts.reduce((a, b) => a + b, 0);
+		const initialBalance = 1000;
 
 		for (const source of sources) {
 			await db.insert(layer2AddressBalance).values({
 				address: source.public_key_str_base58,
-				balance: 1000,
+				balance: initialBalance,
 			});
 		}
 

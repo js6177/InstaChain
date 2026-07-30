@@ -32,14 +32,15 @@ describe("transfer route handler", () => {
 	it("queues a signed transfer in redis", async () => {
 		const source = newLayer2Address();
 		const dest = newLayer2Address();
-		await db.insert(layer2AddressBalance).values({
-			address: source.public_key_str_base58,
-			balance: 1000,
-		});
-
-		const transactionId = crypto.randomUUID();
+		const initialBalance = 1000;
 		const amount = 100;
 		const fee = 10;
+		const transactionId = crypto.randomUUID();
+		await db.insert(layer2AddressBalance).values({
+			address: source.public_key_str_base58,
+			balance: initialBalance,
+		});
+
 		const message = buildTransferMessage(
 			backendCommon.node_id,
 			NODE_ASSET_ID_HEX,
@@ -77,19 +78,20 @@ describe("transfer route handler", () => {
 	});
 
 	it("queues multiple signed transfers in redis", async () => {
-		const n = 10;
+		const transferCount = 10;
+		const initialBalance = 1000;
+		const amount = 100;
+		const fee = 10;
 		const handlers = createHandlers();
 
-		for (let i = 0; i < n; i++) {
+		for (let i = 0; i < transferCount; i++) {
 			const source = newLayer2Address();
 			const dest = newLayer2Address();
 			await db.insert(layer2AddressBalance).values({
 				address: source.public_key_str_base58,
-				balance: 1000,
+				balance: initialBalance,
 			});
 			const transactionId = crypto.randomUUID();
-			const amount = 100;
-			const fee = 10;
 			const message = buildTransferMessage(
 				backendCommon.node_id,
 				NODE_ASSET_ID_HEX,
@@ -112,21 +114,22 @@ describe("transfer route handler", () => {
 		}
 
 		const pending = await getPendingTransactions(redis, 0, -1);
-		expect(pending).toHaveLength(n);
+		expect(pending).toHaveLength(transferCount);
 		await clearPendingQueues();
 	});
 
 	it("rejects transfers with insufficient funds", async () => {
 		const source = newLayer2Address();
 		const dest = newLayer2Address();
-		await db.insert(layer2AddressBalance).values({
-			address: source.public_key_str_base58,
-			balance: 50,
-		});
-
-		const transactionId = crypto.randomUUID();
+		const initialBalance = 50;
 		const amount = 100;
 		const fee = 10;
+		const transactionId = crypto.randomUUID();
+		await db.insert(layer2AddressBalance).values({
+			address: source.public_key_str_base58,
+			balance: initialBalance,
+		});
+
 		const message = buildTransferMessage(
 			backendCommon.node_id,
 			NODE_ASSET_ID_HEX,
@@ -152,18 +155,17 @@ describe("transfer route handler", () => {
 	it("rejects transfers when the source address is locked", async () => {
 		const source = newLayer2Address();
 		const dest = newLayer2Address();
-		const lockToken = await lockManager.acquireMultiLock([
-			source.public_key_str_base58,
-		]);
-		expect(lockToken).toBeTruthy();
-
-		const transactionId = crypto.randomUUID();
+		const sourceAddress = source.public_key_str_base58;
 		const amount = 100;
 		const fee = 10;
+		const transactionId = crypto.randomUUID();
+		const lockToken = await lockManager.acquireMultiLock([sourceAddress]);
+		expect(lockToken).toBeTruthy();
+
 		const message = buildTransferMessage(
 			backendCommon.node_id,
 			NODE_ASSET_ID_HEX,
-			source.public_key_str_base58,
+			sourceAddress,
 			dest.public_key_str_base58,
 			amount,
 			fee,
@@ -175,23 +177,23 @@ describe("transfer route handler", () => {
 			destination_address_public_key: dest.public_key_str_base58,
 			fee,
 			signature,
-			source_address_public_key: source.public_key_str_base58,
+			source_address_public_key: sourceAddress,
 			transaction_id: transactionId,
 		});
 
 		expect(response.error_code).toBe(ErrorCodes.ADDRESS_LOCKED);
-		await lockManager.releaseMultiLock(
-			[source.public_key_str_base58],
-			lockToken!,
-		);
+		await lockManager.releaseMultiLock([sourceAddress], lockToken!);
 	});
 
 	it("rejects transfers with an invalid destination address", async () => {
 		const source = newLayer2Address();
+		const invalidDestinationAddress = "invalid-address";
+		const amount = 100;
+		const fee = 10;
 		const response = await createHandlers().pushTransaction({
-			amount: 100,
-			destination_address_public_key: "invalid-address",
-			fee: 10,
+			amount,
+			destination_address_public_key: invalidDestinationAddress,
+			fee,
 			signature: "dummy_sig",
 			source_address_public_key: source.public_key_str_base58,
 			transaction_id: crypto.randomUUID(),
@@ -206,13 +208,14 @@ describe("transfer route handler", () => {
 		const initialBalance = 1000;
 		const transferAmount = 100;
 		const fee = 10;
+		const expectedSourceBalance = initialBalance - transferAmount;
+		const transactionId = crypto.randomUUID();
 
 		await db.insert(layer2AddressBalance).values({
 			address: source.public_key_str_base58,
 			balance: initialBalance,
 		});
 
-		const transactionId = crypto.randomUUID();
 		const message = buildTransferMessage(
 			backendCommon.node_id,
 			NODE_ASSET_ID_HEX,
@@ -248,7 +251,7 @@ describe("transfer route handler", () => {
 			.from(layer2AddressBalance)
 			.where(eq(layer2AddressBalance.address, source.public_key_str_base58))
 			.limit(1);
-		expect(sourceBalance[0]?.balance).toBe(initialBalance - transferAmount);
+		expect(sourceBalance[0]?.balance).toBe(expectedSourceBalance);
 
 		const destBalance = await db
 			.select()

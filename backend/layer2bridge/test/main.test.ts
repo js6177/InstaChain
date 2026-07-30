@@ -24,6 +24,7 @@ import {
 	pendingWithdrawals,
 	SATOSHI_PER_BITCOIN,
 } from "../src/db/schema";
+import { DEFAULT_MINIMUM_TRANSACTION_AMOUNT } from "../src/full-node-interface";
 import { type BitcoinRpcClient, Layer2Bridge } from "../src/main";
 
 let tempDir = "";
@@ -67,7 +68,8 @@ function createBridgeWithMocks(): {
 			height: 100,
 		})),
 		getTargetConfirmations: (): number => 3,
-		getMinimumTransactionAmount: (): number => 1000,
+		getMinimumTransactionAmount: (): number =>
+			DEFAULT_MINIMUM_TRANSACTION_AMOUNT,
 		broadcastTransaction: mock(async () => "broadcast-tx"),
 		getTransaction: mock(async () => ({
 			txid: "broadcast-tx",
@@ -136,15 +138,16 @@ function createBridgeWithMocks(): {
 
 describe("layer2bridge", () => {
 	it("stores confirmed transactions from the node", async () => {
+		const confirmedBlockHash = "blockhash1";
 		const { bridge } = createBridgeWithMocks();
 		await bridge.getConfirmedTransactionsFromNodeAndSaveToDb();
-		expect(bridge.lastblockhash).toBe("blockhash1");
+		expect(bridge.lastblockhash).toBe(confirmedBlockHash);
 		expect(
 			await getKeyValue(
 				bridge.bridgeDb,
 				BridgeKeyValueKey.LAST_CONFIRMED_BLOCK_HASH,
 			),
-		).toBe("blockhash1");
+		).toBe(confirmedBlockHash);
 		const pending = await bridge.bridgeDb.select().from(confirmedTransactions);
 		expect(pending[0]?.amount).toBe(0.01 * SATOSHI_PER_BITCOIN);
 	});
@@ -165,37 +168,43 @@ describe("layer2bridge", () => {
 	});
 
 	it("loads pending withdrawals from db into the output map", async () => {
+		const dbWithdrawalId = "w2";
+		const dbWithdrawalAmount = 100_000;
+		const dbWithdrawalAddress = "dest2";
 		const { bridge } = createBridgeWithMocks();
 		await insertPendingWithdrawal(bridge.bridgeDb, {
-			layer2WithdrawalId: "w2",
+			layer2WithdrawalId: dbWithdrawalId,
 			status: PendingWithdrawalStatus.PENDING,
-			amount: 100_000,
-			destinationAddress: "dest2",
+			amount: dbWithdrawalAmount,
+			destinationAddress: dbWithdrawalAddress,
 			withdrawalRequestedTimestamp: 3000,
 		});
 
 		await bridge.getPendingWithdrawalsFromDb();
 
-		const loaded = bridge.withdrawalTransactionOutputs.get("w2");
+		const loaded = bridge.withdrawalTransactionOutputs.get(dbWithdrawalId);
 		expect(loaded).toBeDefined();
-		expect(loaded?.amount).toBe(100_000);
-		expect(loaded?.destinationAddress).toBe("dest2");
+		expect(loaded?.amount).toBe(dbWithdrawalAmount);
+		expect(loaded?.destinationAddress).toBe(dbWithdrawalAddress);
 		expect(loaded?.status).toBe(PendingWithdrawalStatus.PENDING);
 	});
 
 	it("filters withdrawals below the minimum amount", async () => {
+		const belowMinimumWithdrawalId = "w3";
 		const { bridge } = createBridgeWithMocks();
 		await insertPendingWithdrawal(bridge.bridgeDb, {
-			layer2WithdrawalId: "w3",
+			layer2WithdrawalId: belowMinimumWithdrawalId,
 			status: PendingWithdrawalStatus.PENDING,
-			amount: 500,
+			amount: bridge.bitcoinRPC.getMinimumTransactionAmount() - 1,
 			destinationAddress: "dest3",
 			withdrawalRequestedTimestamp: 4000,
 		});
 
 		await bridge.getPendingWithdrawalsFromDb();
 
-		expect(bridge.withdrawalTransactionOutputs.has("w3")).toBe(false);
+		expect(
+			bridge.withdrawalTransactionOutputs.has(belowMinimumWithdrawalId),
+		).toBe(false);
 	});
 
 	it("acknowledges deposit confirmations from layer2ledger", async () => {
@@ -207,10 +216,12 @@ describe("layer2bridge", () => {
 	});
 
 	it("acknowledges withdrawal confirmations from layer2ledger", async () => {
+		const withdrawalConfirmTxId = "tx_wd1";
+		const withdrawalConfirmTxVout = 1;
 		const { bridge } = createBridgeWithMocks();
 		await insertConfirmedTransaction(bridge.bridgeDb, {
-			transactionId: "tx_wd1",
-			transactionVout: 1,
+			transactionId: withdrawalConfirmTxId,
+			transactionVout: withdrawalConfirmTxVout,
 			layer2Status: Layer2Status.PENDING,
 			amount: 50_000,
 			address: "addr_wd1",
@@ -222,8 +233,8 @@ describe("layer2bridge", () => {
 			error_code: 0,
 			transactions: [
 				{
-					layer1_transaction_id: "tx_wd1",
-					layer1_transaction_vout: 1,
+					layer1_transaction_id: withdrawalConfirmTxId,
+					layer1_transaction_vout: withdrawalConfirmTxVout,
 					error_code: 0,
 				},
 			],
@@ -260,20 +271,22 @@ describe("layer2bridge", () => {
 	});
 
 	it("broadcasts withdrawals and notifies layer2ledger with vout from gettransaction", async () => {
+		const broadcastTxId = "broadcast-tx";
+		const blockHeight = 100;
 		const { bridge, sendWithdrawalBroadcasted } = createBridgeWithMocks();
 		await bridge.getPendingWithdrawalsFromLayer2LedgerAndSaveToDb();
 		await bridge.getPendingWithdrawalsFromDb();
-		bridge.blockheight = 100;
+		bridge.blockheight = blockHeight;
 
 		await bridge.broadcastPendingWithdrawals();
 
 		expect(bridge.bitcoinRPC.broadcastTransaction).toHaveBeenCalled();
 		expect(bridge.bitcoinRPC.getTransaction).toHaveBeenCalledWith(
-			"broadcast-tx",
+			broadcastTxId,
 		);
 		expect(sendWithdrawalBroadcasted).toHaveBeenCalledWith([
 			{
-				layer1_transaction_id: "broadcast-tx",
+				layer1_transaction_id: broadcastTxId,
 				layer1_transaction_vout: 1,
 				layer1_address: "dest1",
 				amount: 50_000,
@@ -285,12 +298,12 @@ describe("layer2bridge", () => {
 				bridge.bridgeDb,
 				BridgeKeyValueKey.LAST_BROADCAST_BLOCK_HEIGHT,
 			),
-		).toBe("100");
+		).toBe(String(blockHeight));
 
 		const pending = await getPendingWithdrawals(bridge.bridgeDb);
 		expect(pending).toHaveLength(0);
 		const broadcasted = await bridge.bridgeDb.select().from(pendingWithdrawals);
 		expect(broadcasted[0]?.status).toBe(PendingWithdrawalStatus.BROADCASTED);
-		expect(broadcasted[0]?.transactionId).toBe("broadcast-tx");
+		expect(broadcasted[0]?.transactionId).toBe(broadcastTxId);
 	});
 });

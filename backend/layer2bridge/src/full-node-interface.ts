@@ -20,7 +20,7 @@ import { log } from "./logger";
 
 const TESTNET_TARGET_CONFIRMATIONS = 3;
 const MAINNET_TARGET_CONFIRMATIONS = 6;
-const DEFAULT_MINIMUM_TRANSACTION_AMOUNT = 1000;
+export const DEFAULT_MINIMUM_TRANSACTION_AMOUNT = 1000;
 
 export class BitcoinFullNodeRpc implements BitcoinRpcClient {
 	private readonly client: BitcoinRPCClient;

@@ -25,9 +25,11 @@ describe("explorer route handlers", () => {
 	it("returns balances for known addresses", async () => {
 		const publicKey1 = `pk1-${crypto.randomUUID()}`;
 		const publicKey2 = `pk2-${crypto.randomUUID()}`;
+		const balance1 = 100;
+		const balance2 = 200;
 		await db.insert(layer2AddressBalance).values([
-			{ address: publicKey1, balance: 100 },
-			{ address: publicKey2, balance: 200 },
+			{ address: publicKey1, balance: balance1 },
+			{ address: publicKey2, balance: balance2 },
 		]);
 
 		const response = await createHandlers().getBalance({
@@ -38,12 +40,12 @@ describe("explorer route handlers", () => {
 		expect(response.balance).toHaveLength(2);
 		expect(response.balance[0]).toEqual({
 			public_key: publicKey1,
-			balance: 100,
+			balance: balance1,
 			address_found: true,
 		});
 		expect(response.balance[1]).toEqual({
 			public_key: publicKey2,
-			balance: 200,
+			balance: balance2,
 			address_found: true,
 		});
 	});
@@ -51,9 +53,10 @@ describe("explorer route handlers", () => {
 	it("returns zero balance for unknown addresses", async () => {
 		const publicKey1 = `pk1-${crypto.randomUUID()}`;
 		const unknownKey = `new-${crypto.randomUUID()}`;
+		const balance1 = 100;
 		await db.insert(layer2AddressBalance).values({
 			address: publicKey1,
-			balance: 100,
+			balance: balance1,
 		});
 
 		const response = await createHandlers().getBalance({
@@ -62,7 +65,7 @@ describe("explorer route handlers", () => {
 
 		expect(response.error_code).toBe(ErrorCodes.SUCCESS);
 		expect(response.balance[0]?.address_found).toBe(true);
-		expect(response.balance[0]?.balance).toBe(100);
+		expect(response.balance[0]?.balance).toBe(balance1);
 		expect(response.balance[1]).toEqual({
 			public_key: unknownKey,
 			balance: 0,
@@ -74,15 +77,20 @@ describe("explorer route handlers", () => {
 		const layer2TransactionId = `tx-${crypto.randomUUID()}`;
 		const sender = `sender-${crypto.randomUUID()}`;
 		const recipient = `recipient-${crypto.randomUUID()}`;
+		const amount = 50;
+		const fee = 0;
+		const signature = "test_signature";
+		const signatureDate = 0;
+		const transactionType = TransactionType.TRX_TRANSFER;
 		await db.insert(transactions).values({
 			layer2TransactionId,
 			sourceAddressPubkey: sender,
 			destinationAddressPubkey: recipient,
-			amount: 50,
-			fee: 0,
-			signature: "test_signature",
-			signatureDate: 0,
-			transactionType: TransactionType.TRX_TRANSFER,
+			amount,
+			fee,
+			signature,
+			signatureDate,
+			transactionType,
 			layer1TransactionId: "",
 			layer2WithdrawalId: "",
 		});
@@ -97,16 +105,15 @@ describe("explorer route handlers", () => {
 		);
 		expect(response.transaction?.source_address_pubkey).toBe(sender);
 		expect(response.transaction?.destination_address_pubkey).toBe(recipient);
-		expect(response.transaction?.amount).toBe(50);
-		expect(response.transaction?.signature).toBe("test_signature");
-		expect(response.transaction?.transaction_type).toBe(
-			TransactionType.TRX_TRANSFER,
-		);
+		expect(response.transaction?.amount).toBe(amount);
+		expect(response.transaction?.signature).toBe(signature);
+		expect(response.transaction?.transaction_type).toBe(transactionType);
 	});
 
 	it("returns not found for an unknown transaction id", async () => {
+		const missingTransactionId = `missing-${crypto.randomUUID()}`;
 		const response = await createHandlers().getTransaction({
-			layer2_transaction_id: `missing-${crypto.randomUUID()}`,
+			layer2_transaction_id: missingTransactionId,
 		});
 
 		expect(response.error_code).toBe(ErrorCodes.TRANSACTION_ID_NOT_FOUND);
@@ -120,58 +127,72 @@ describe("explorer route handlers", () => {
 		const tx1 = `tx1-${crypto.randomUUID()}`;
 		const tx2 = `tx2-${crypto.randomUUID()}`;
 		const tx3 = `tx3-${crypto.randomUUID()}`;
+		const amount1 = 10;
+		const amount2 = 20;
+		const amount3 = 30;
+		const fee = 0;
+		const signature1 = "sig1";
+		const signature2 = "sig2";
+		const signature3 = "sig3";
+		const signatureDate = 0;
+		const transactionType = TransactionType.TRX_TRANSFER;
 
 		await db.insert(transactions).values([
 			{
 				layer2TransactionId: tx1,
 				sourceAddressPubkey: publicKey1,
 				destinationAddressPubkey: publicKey2,
-				amount: 10,
-				fee: 0,
-				signature: "sig1",
-				signatureDate: 0,
-				transactionType: TransactionType.TRX_TRANSFER,
+				amount: amount1,
+				fee,
+				signature: signature1,
+				signatureDate,
+				transactionType,
 			},
 			{
 				layer2TransactionId: tx2,
 				sourceAddressPubkey: publicKey2,
 				destinationAddressPubkey: publicKey3,
-				amount: 20,
-				fee: 0,
-				signature: "sig2",
-				signatureDate: 0,
-				transactionType: TransactionType.TRX_TRANSFER,
+				amount: amount2,
+				fee,
+				signature: signature2,
+				signatureDate,
+				transactionType,
 			},
 			{
 				layer2TransactionId: tx3,
 				sourceAddressPubkey: publicKey1,
 				destinationAddressPubkey: publicKey3,
-				amount: 30,
-				fee: 0,
-				signature: "sig3",
-				signatureDate: 0,
-				transactionType: TransactionType.TRX_TRANSFER,
+				amount: amount3,
+				fee,
+				signature: signature3,
+				signatureDate,
+				transactionType,
 			},
 		]);
 
+		const requestedPublicKeys = [publicKey1, publicKey2];
+		const expectedTxIds = new Set([tx1, tx2, tx3]);
 		const response = await createHandlers().getAllTransactions({
-			public_keys: [publicKey1, publicKey2],
+			public_keys: requestedPublicKeys,
 		});
 
 		expect(response.error_code).toBe(ErrorCodes.SUCCESS);
-		expect(response.transaction_groups).toHaveLength(2);
+		expect(response.transaction_groups).toHaveLength(
+			requestedPublicKeys.length,
+		);
 		const txIds = new Set<string>();
 		for (const group of response.transaction_groups) {
 			for (const tx of group.transactions) {
 				txIds.add(tx.layer2_transaction_id);
 			}
 		}
-		expect(txIds).toEqual(new Set([tx1, tx2, tx3]));
+		expect(txIds).toEqual(expectedTxIds);
 	});
 
 	it("returns empty transaction groups for unknown public keys", async () => {
+		const missingPublicKey = `missing-${crypto.randomUUID()}`;
 		const response = await createHandlers().getAllTransactions({
-			public_keys: [`missing-${crypto.randomUUID()}`],
+			public_keys: [missingPublicKey],
 		});
 
 		expect(response.error_code).toBe(ErrorCodes.SUCCESS);
@@ -180,10 +201,9 @@ describe("explorer route handlers", () => {
 	});
 
 	it("returns the configured minimum layer1 fee", async () => {
+		const expectedFee = apiHandlerConfig.minimum_layer1_transaction_amount;
 		const response = await createHandlers().getFee({});
 		expect(response.error_code).toBe(ErrorCodes.SUCCESS);
-		expect(response.fee).toBe(
-			apiHandlerConfig.minimum_layer1_transaction_amount,
-		);
+		expect(response.fee).toBe(expectedFee);
 	});
 });
