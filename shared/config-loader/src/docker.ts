@@ -34,6 +34,7 @@ export const DockerService = {
 	BITCOIN_CORE: "bitcoin-core",
 	WALLET_WEB: "wallet-web",
 	TEST_LAYER2LEDGER: "test-layer2ledger",
+	TEST_LAYER2LEDGER_STRESS: "test-layer2ledger-stress",
 	TEST_LAYER2BRIDGE: "test-layer2bridge",
 	TEST_BITCOIN_CORE_RPC: "test-bitcoin-core-rpc",
 	TEST_LAYER2LEDGER_OAUTH_MANAGER: "test-layer2ledgeroauthmanager",
@@ -62,6 +63,7 @@ export const DOCKER_APP_SERVICES = [
 /** One-shot test runner containers under the test compose profile. */
 export const DOCKER_TEST_SERVICES = [
 	DockerService.TEST_LAYER2LEDGER,
+	DockerService.TEST_LAYER2LEDGER_STRESS,
 	DockerService.TEST_LAYER2BRIDGE,
 	DockerService.TEST_BITCOIN_CORE_RPC,
 	DockerService.TEST_LAYER2LEDGER_OAUTH_MANAGER,
@@ -76,6 +78,7 @@ export const DOCKER_UNIT_TEST_SERVICES = [
 
 /** Integration-test containers that need live app services. */
 export const DOCKER_INTEGRATION_TEST_SERVICES = [
+	DockerService.TEST_LAYER2LEDGER_STRESS,
 	DockerService.TEST_LAYER2BRIDGE,
 	DockerService.TEST_BITCOIN_CORE_RPC,
 	DockerService.TEST_LAYER2LEDGER_OAUTH_MANAGER,

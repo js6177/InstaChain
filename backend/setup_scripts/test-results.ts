@@ -1,9 +1,21 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { DockerService, type DockerServiceName } from "@openl2/config-loader";
+import { log } from "./src/logger";
 
 /** Container path where dated host output is mounted. */
 export const TEST_OUTPUT_MOUNT = "/test-output";
+
+/** Written by layer2ledger stress.test.ts; summarized at end of run-tests. */
+export const STRESS_THROUGHPUT_FILENAME =
+	"test-layer2ledger-stress.throughput.json";
+
+export interface StressThroughputResult {
+	transactionCount: number;
+	processedToPostgres: number;
+	elapsedMs: number;
+	txsPerSecond: number;
+}
 
 export interface ServiceTestCounts {
 	service: DockerServiceName;
@@ -74,6 +86,17 @@ export function getServiceTestCommand(
 				command: [
 					"bun",
 					"test",
+					"--reporter=junit",
+					`--reporter-outfile=${outfile}`,
+				],
+			};
+		case DockerService.TEST_LAYER2LEDGER_STRESS:
+			return {
+				kind: TestRunnerKind.BUN,
+				command: [
+					"bun",
+					"test",
+					"test/stress.test.ts",
 					"--reporter=junit",
 					`--reporter-outfile=${outfile}`,
 				],
@@ -265,8 +288,8 @@ export function printTestResultsSummary(
 ): void {
 	const relativeHint = repoRoot ? relative(repoRoot, outputDir) : outputDir;
 
-	console.log(`==> Test reports (JUnit XML): ${relativeHint}`);
-	console.log("==> Per-service summary:");
+	log.info(`Test reports (JUnit XML): ${relativeHint}`);
+	log.info("Per-service summary:");
 
 	let totalTests = 0;
 	let totalPassed = 0;
@@ -282,13 +305,65 @@ export function printTestResultsSummary(
 		const status =
 			result.containerPassed && result.failed === 0 ? "PASSED" : "FAILED";
 		const skippedPart = result.skipped > 0 ? `, ${result.skipped} skipped` : "";
-		console.log(
-			`    ${result.service}: ${status} — ${result.passed} passed, ${result.failed} failed, ${result.tests} ran${skippedPart}`,
+		log.info(
+			`${result.service}: ${status} — ${result.passed} passed, ${result.failed} failed, ${result.tests} ran${skippedPart}`,
 		);
 	}
 
-	console.log(
-		`==> Totals: ${totalPassed} passed, ${totalFailed} failed, ${totalTests} ran` +
+	log.info(
+		`Totals: ${totalPassed} passed, ${totalFailed} failed, ${totalTests} ran` +
 			(totalSkipped > 0 ? `, ${totalSkipped} skipped` : ""),
 	);
+
+	printStressThroughputSummary(outputDir);
+}
+
+export function readStressThroughputResult(
+	outputDir: string,
+): StressThroughputResult | null {
+	const filePath = join(outputDir, STRESS_THROUGHPUT_FILENAME);
+	if (!existsSync(filePath)) {
+		return null;
+	}
+
+	try {
+		const parsed = JSON.parse(readFileSync(filePath, "utf8")) as unknown;
+		if (!parsed || typeof parsed !== "object") {
+			return null;
+		}
+		const record = parsed as Record<string, unknown>;
+		const transactionCount = record.transactionCount;
+		const processedToPostgres = record.processedToPostgres;
+		const elapsedMs = record.elapsedMs;
+		const txsPerSecond = record.txsPerSecond;
+		if (
+			typeof transactionCount !== "number" ||
+			typeof processedToPostgres !== "number" ||
+			typeof elapsedMs !== "number" ||
+			typeof txsPerSecond !== "number"
+		) {
+			return null;
+		}
+		return {
+			transactionCount,
+			processedToPostgres,
+			elapsedMs,
+			txsPerSecond,
+		};
+	} catch {
+		return null;
+	}
+}
+
+export function printStressThroughputSummary(outputDir: string): void {
+	const result = readStressThroughputResult(outputDir);
+	if (!result) {
+		return;
+	}
+
+	log.info("pushTransaction stress throughput", {
+		processed: `${result.processedToPostgres}/${result.transactionCount}`,
+		elapsed_ms: result.elapsedMs,
+		txs_per_second: result.txsPerSecond,
+	});
 }

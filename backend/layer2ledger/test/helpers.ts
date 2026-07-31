@@ -18,6 +18,9 @@ import {
 	PENDING_WITHDRAWALS_LIST_KEY,
 } from "../src/redis/distributed-lock";
 import { createRouteHandlers } from "../src/services/route-handlers";
+import { newLayer2Address } from "./common";
+
+export { newLayer2Address };
 
 const environment = process.env.ENVIRONMENT ?? "test";
 
@@ -54,18 +57,6 @@ export function createHandlers(): Layer2LedgerRouteHandlers {
 				backendCommon.layer2bridge_signing_public_key,
 		},
 	});
-}
-
-export function newLayer2Address(): Layer2Address {
-	const address = new Layer2Address(
-		"",
-		"",
-		"",
-		new Uint8Array(),
-		new Uint8Array(),
-	);
-	address.generateNewAddress();
-	return address;
 }
 
 export function bridgeSigningAddress(): Layer2Address {

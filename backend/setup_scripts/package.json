@@ -15,6 +15,7 @@
 	"dependencies": {
 		"@openl2/bitcoin-core-rpc": "workspace:*",
 		"@openl2/config-loader": "workspace:*",
+		"@openl2/openl2-logger": "workspace:*",
 		"@openl2/pubkey-utils": "workspace:*"
 	},
 	"devDependencies": {

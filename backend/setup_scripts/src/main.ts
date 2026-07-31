@@ -45,6 +45,7 @@ import {
 	type MasterKeys,
 } from "@openl2/pubkey-utils/btc";
 import { parseCliArgs } from "./cli-args";
+import { log } from "./logger";
 import {
 	generateAlphanumericId,
 	generateSecurePassword,
@@ -61,7 +62,7 @@ function generateLayer2LedgerOAuthManagerConfig(
 	environment: EnvironmentName,
 	containered = true,
 ): void {
-	console.log(
+	log.info(
 		`\nGenerating OAuth manager config for environment: ${environment}`,
 	);
 
@@ -113,7 +114,7 @@ function generateLayer2LedgerOAuthManagerConfig(
 	};
 
 	writeConfig(configPath, configData);
-	console.log(`Generated OAuth manager config at: ${configPath}`);
+	log.info(`Generated OAuth manager config at: ${configPath}`);
 }
 
 function loadBitcoinRpcSettingsForImport(
@@ -177,13 +178,13 @@ function generateKeys(
 	env: EnvironmentName,
 	containered = true,
 ): { bridgeSettings: Layer2BridgeConfig; btcKeys: MasterKeys } {
-	console.log(`\nLoading configurations for environment: ${env}`);
+	log.info(`\nLoading configurations for environment: ${env}`);
 
 	const projectRoot = getProjectRoot();
 	const outConfigDir = getEnvSpecificConfigDirectory(env);
 	ensureDir(outConfigDir);
-	console.log(`Project root is at: ${projectRoot}`);
-	console.log(`Output config path is at: ${outConfigDir}`);
+	log.info(`Project root is at: ${projectRoot}`);
+	log.info(`Output config path is at: ${outConfigDir}`);
 
 	const layer2ledgerDockerEnv = loadLayer2LedgerDockerEnvSettings(
 		getLayer2LedgerDockerEnvFilePath(env),
@@ -258,7 +259,7 @@ function generateKeys(
 		bitcoinConf.sections[selectedChain].rpcbind = "0.0.0.0";
 		bitcoinConf.sections[selectedChain].rpcallowip = "0.0.0.0/0";
 	}
-	console.log(`Chain specified in bitcoin.conf: ${selectedChain}`);
+	log.info(`Chain specified in bitcoin.conf: ${selectedChain}`);
 
 	const selectedChainInfo = bitcoinConf.sections[selectedChain] ?? {};
 	const rpcHost = containered
@@ -323,7 +324,7 @@ function generateKeys(
 		env,
 	);
 	writeConfig(tempKeysPath, btcKeys);
-	console.log(`Master keys saved to: ${tempKeysPath}`);
+	log.info(`Master keys saved to: ${tempKeysPath}`);
 
 	return { bridgeSettings: layer2bridgeSettings, btcKeys };
 }
@@ -342,9 +343,9 @@ async function importKeysToBitcoinCore(
 			Services.LAYER2LEDGERBRIDGE,
 			env,
 		);
-		console.log(`Loading bridge settings from: ${bridgeSettingsPath}`);
+		log.info(`Loading bridge settings from: ${bridgeSettingsPath}`);
 		if (!existsSync(bridgeSettingsPath)) {
-			console.log(
+			log.info(
 				`Error: Bridge settings file not found at ${bridgeSettingsPath}. Run with -generate-keys first.`,
 			);
 			return;
@@ -357,9 +358,9 @@ async function importKeysToBitcoinCore(
 			Intermediate.BITCOIN_CORE_MASTER_KEYS,
 			env,
 		);
-		console.log(`Loading master keys from: ${tempKeysPath}`);
+		log.info(`Loading master keys from: ${tempKeysPath}`);
 		if (!existsSync(tempKeysPath)) {
-			console.log(
+			log.info(
 				`Error: Master keys file not found at ${tempKeysPath}. Run with -generate-keys first.`,
 			);
 			return;
@@ -371,23 +372,23 @@ async function importKeysToBitcoinCore(
 	try {
 		rpcSettings = loadBitcoinRpcSettingsForImport(env, containered);
 	} catch (error) {
-		console.log(
+		log.info(
 			`Error: ${error instanceof Error ? error.message : String(error)}`,
 		);
 		return;
 	}
 
-	console.log(
+	log.info(
 		`\nImporting keys to Bitcoin Core wallet: ${resolvedBridgeSettings.wallet_name}`,
 	);
-	console.log(
+	log.info(
 		`Connecting to Bitcoin Core RPC at ${rpcSettings.rpchost}:${rpcSettings.rpcport}`,
 	);
 
 	try {
 		await waitForBitcoinRpc(rpcSettings);
 	} catch (error) {
-		console.log(error instanceof Error ? error.message : String(error));
+		log.info(error instanceof Error ? error.message : String(error));
 		return;
 	}
 
@@ -398,11 +399,11 @@ async function importKeysToBitcoinCore(
 	);
 	if (loadResp.error) {
 		if (isWalletAlreadyLoaded(loadResp.error)) {
-			console.log(
+			log.info(
 				`Wallet '${resolvedBridgeSettings.wallet_name}' is already loaded.`,
 			);
 		} else {
-			console.log(
+			log.info(
 				`Could not load wallet, attempting to create it. Error: ${loadResp.error.code} - ${loadResp.error.message}`,
 			);
 			const createResp = await rpcClient.createWallet(
@@ -410,32 +411,32 @@ async function importKeysToBitcoinCore(
 			);
 			if (createResp.error) {
 				if (isWalletAlreadyExists(createResp.error)) {
-					console.log(
+					log.info(
 						`Wallet '${resolvedBridgeSettings.wallet_name}' already exists. Attempting to load it again...`,
 					);
 					const loadResp2 = await rpcClient.loadWallet(
 						resolvedBridgeSettings.wallet_name,
 					);
 					if (loadResp2.error && !isWalletAlreadyLoaded(loadResp2.error)) {
-						console.log(
+						log.info(
 							`Failed to load existing wallet: ${loadResp2.error.code} - ${loadResp2.error.message}`,
 						);
 						return;
 					}
 				} else {
-					console.log(
+					log.info(
 						`Failed to create wallet: ${createResp.error.code} - ${createResp.error.message}`,
 					);
 					return;
 				}
 			} else {
-				console.log(
+				log.info(
 					`Wallet '${resolvedBridgeSettings.wallet_name}' created successfully.`,
 				);
 			}
 		}
 	} else {
-		console.log(
+		log.info(
 			`Wallet '${resolvedBridgeSettings.wallet_name}' loaded successfully.`,
 		);
 	}
@@ -458,26 +459,26 @@ async function importKeysToBitcoinCore(
 		timestamp: descriptor.timestamp,
 	}));
 
-	console.log("Importing descriptors...");
+	log.info("Importing descriptors...");
 	try {
 		const results = await rpcClient.importDescriptors(importRequests);
 		for (const [index, result] of results.entries()) {
 			if (result.success) {
-				console.log(`Descriptor ${index} imported successfully.`);
+				log.info(`Descriptor ${index} imported successfully.`);
 			} else {
-				console.log(
+				log.info(
 					`Failed to import descriptor ${index}: ${JSON.stringify(result.error)}`,
 				);
 			}
 		}
 	} catch (error) {
-		console.log(`Failed to call importdescriptors: ${error}`);
+		log.info(`Failed to call importdescriptors: ${error}`);
 	}
 
-	console.log("\nVerifying imported keys...");
+	log.info("\nVerifying imported keys...");
 	try {
 		const newAddress = await rpcClient.getNewAddress("", "bech32");
-		console.log(`New address from Bitcoin Core: ${newAddress}`);
+		log.info(`New address from Bitcoin Core: ${newAddress}`);
 
 		const derivedAddress = deriveAddressFromXpubSegwit(
 			resolvedBtcKeys.master_xpub,
@@ -485,17 +486,17 @@ async function importKeysToBitcoinCore(
 			0,
 			testnet,
 		);
-		console.log(`Derived address 0 from xpub: ${derivedAddress}`);
+		log.info(`Derived address 0 from xpub: ${derivedAddress}`);
 
 		if (newAddress === derivedAddress) {
-			console.log("✓ Verification successful: Addresses match!");
+			log.info("✓ Verification successful: Addresses match!");
 		} else {
-			console.log(
+			log.info(
 				"! Verification warning: Addresses do not match. This might be expected if the wallet was previously used.",
 			);
 		}
 	} catch (error) {
-		console.log(`Verification failed with error: ${error}`);
+		log.info(`Verification failed with error: ${error}`);
 	}
 }
 
@@ -537,7 +538,7 @@ async function main(): Promise<void> {
 		values.help ||
 		(!generateKeysFlag && !importKeysFlag && !generateOauthConfigFlag)
 	) {
-		console.log(`Usage: bun run src/main.ts [options]
+		log.info(`Usage: bun run src/main.ts [options]
 
 Options:
   -env <env>                         Environment to use (default: ${resolveEnvironment()})
@@ -569,7 +570,7 @@ Options:
 		const destDir = getBitcoinCoreConfDirectory();
 		const dest = join(destDir, "bitcoin.conf");
 
-		console.log(`Overwriting system bitcoin.conf at ${dest} with ${source}`);
+		log.info(`Overwriting system bitcoin.conf at ${dest} with ${source}`);
 		ensureDir(destDir);
 		copyFileSync(source, dest);
 

@@ -131,6 +131,37 @@ services:
         condition: service_healthy
     restart: "no"
 
+  # HTTP E2E stress against live apihandler + dbwriter (skipped in unit bun test).
+  # testhelper is started by backend/setup_scripts/run-tests.ts before integration.
+  test-layer2ledger-stress:
+    profiles: [test]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.test.layer2ledger
+    environment:
+      ENVIRONMENT: test
+      OPENL2_CONFIG_PATH: /app/.config
+      RUN_LEDGER_HTTP_STRESS: "1"
+      STRESS_TX_COUNT: ${STRESS_TX_COUNT:-100}
+      STRESS_CONCURRENCY: ${STRESS_CONCURRENCY:-10}
+      STRESS_SETTLE_TIMEOUT_MS: ${STRESS_SETTLE_TIMEOUT_MS:-120000}
+      LAYER2LEDGER_API_URL: http://layer2ledgerapihandler:8000
+      TESTHELPER_BASE_URL: http://layer2ledger-testhelper:8001
+      STRESS_RESULT_FILE: /test-output/test-layer2ledger-stress.throughput.json
+    command: ["bun", "test", "test/stress.test.ts"]
+    volumes:
+      - ./.config:/app/.config:ro
+    depends_on:
+      layer2ledger-postgres:
+        condition: service_healthy
+      layer2ledger-redis:
+        condition: service_healthy
+      layer2ledgerapihandler:
+        condition: service_healthy
+      layer2ledgerdbwriter:
+        condition: service_healthy
+    restart: "no"
+
   test-layer2bridge:
     profiles: [test]
     build:

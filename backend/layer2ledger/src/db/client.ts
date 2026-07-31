@@ -22,8 +22,13 @@ export function buildDatabaseUrl(settings: DatabaseSettings): string {
 
 export function createDatabase(
 	settings: DatabaseSettings,
+	options?: { maxConnections?: number },
 ): Layer2LedgerDatabase {
-	const sql = postgres(buildDatabaseUrl(settings), { max: 100 });
+	// Keep per-process pools small: apihandler, dbwriter, and testhelper each
+	// open their own pool against the same Postgres (default max_connections=100).
+	const sql = postgres(buildDatabaseUrl(settings), {
+		max: options?.maxConnections ?? 10,
+	});
 	const db = drizzle(sql, { schema });
 	return { db, sql };
 }

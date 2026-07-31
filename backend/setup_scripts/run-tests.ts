@@ -25,6 +25,7 @@ import {
 	getProjectRoot,
 	requireBun,
 } from "@openl2/config-loader";
+import { log } from "./src/logger";
 import {
 	containerResultPath,
 	createTestOutputDir,
@@ -34,6 +35,7 @@ import {
 	parseJunitCounts,
 	printTestResultsSummary,
 	type ServiceTestCounts,
+	STRESS_THROUGHPUT_FILENAME,
 	TEST_OUTPUT_MOUNT,
 } from "./test-results";
 
@@ -44,10 +46,6 @@ const CONFIG_MARKER = join(
 	".config/test/layer2ledger-common-config.json",
 );
 const ENV_TEST = join(ROOT, "backend/layer2ledger/.env.test");
-
-function log(message: string): void {
-	console.log(`==> ${message}`);
-}
 
 function loadEnvFile(path: string): Record<string, string> {
 	const values: Record<string, string> = {};
@@ -141,11 +139,11 @@ class DockerComposeTestRunner {
 
 	private async ensureTestConfig(): Promise<void> {
 		if (existsSync(CONFIG_MARKER)) {
-			log(`Test config found at ${CONFIG_MARKER.slice(this.root.length + 1)}`);
+			log.info(`Test config found at ${CONFIG_MARKER.slice(this.root.length + 1)}`);
 			return;
 		}
 
-		log("Generating test config (.config/test/)...");
+		log.info("Generating test config (.config/test/)...");
 		await this.runSetupScripts(
 			"-env",
 			Environment.TEST,
@@ -161,7 +159,7 @@ class DockerComposeTestRunner {
 		if (!dbName) {
 			throw new Error(`POSTGRES_DB missing from ${ENV_TEST}`);
 		}
-		log(`Ensuring PostgreSQL database exists: ${dbName}`);
+		log.info(`Ensuring PostgreSQL database exists: ${dbName}`);
 
 		const result = await this.run(
 			[
@@ -178,7 +176,7 @@ class DockerComposeTestRunner {
 		);
 
 		if (result.stdout.includes("1")) {
-			log(`PostgreSQL database ${dbName} already exists`);
+			log.info(`PostgreSQL database ${dbName} already exists`);
 			return;
 		}
 
@@ -195,7 +193,7 @@ class DockerComposeTestRunner {
 			],
 			{ check: true },
 		);
-		log(`Created PostgreSQL database ${dbName}`);
+		log.info(`Created PostgreSQL database ${dbName}`);
 	}
 
 	private async containerId(service: DockerServiceName): Promise<string> {
@@ -242,14 +240,14 @@ class DockerComposeTestRunner {
 				await this.containerId(service),
 			);
 			if (health === "healthy") {
-				log(`${service} is healthy`);
+				log.info(`${service} is healthy`);
 				return;
 			}
 			await Bun.sleep(2000);
 			waited += 2;
 		}
 
-		log(`ERROR: timed out waiting for ${service} to become healthy`);
+		log.error(`timed out waiting for ${service} to become healthy`);
 		await this.run(["ps"], { check: false });
 		throw new Error(`Timed out waiting for ${service}`);
 	}
@@ -259,21 +257,21 @@ class DockerComposeTestRunner {
 		if (id) {
 			const health = await this.containerHealth(id);
 			if (health !== "healthy") {
-				log(
+				log.info(
 					`ERROR: ${DockerService.BITCOIN_CORE} is running but not healthy (status: ${health}).`,
 				);
-				log(
+				log.info(
 					"Fix bitcoin-core manually. This script will not restart or recreate it.",
 				);
 				throw new Error(`${DockerService.BITCOIN_CORE} unhealthy`);
 			}
-			log(
+			log.info(
 				`${DockerService.BITCOIN_CORE} already running and healthy — leaving unchanged`,
 			);
 			return;
 		}
 
-		log(
+		log.info(
 			`${DockerService.BITCOIN_CORE} is not running — starting it (first-time only)...`,
 		);
 		await this.run(["up", "-d", DockerService.BITCOIN_CORE], { check: true });
@@ -281,7 +279,7 @@ class DockerComposeTestRunner {
 	}
 
 	private async startInfraServices(): Promise<void> {
-		log("Starting infrastructure for test (ENVIRONMENT=test)...");
+		log.info("Starting infrastructure for test (ENVIRONMENT=test)...");
 		await this.run(
 			["up", "-d", "--build", "--force-recreate", ...DOCKER_INFRA_SERVICES],
 			{
@@ -295,14 +293,14 @@ class DockerComposeTestRunner {
 	}
 
 	private async stopAppServices(): Promise<void> {
-		log(
+		log.info(
 			"Stopping application services so unit tests can use Postgres/Redis exclusively...",
 		);
 		await this.runQuiet(["stop", ...DOCKER_APP_SERVICES]);
 	}
 
 	private async startAppServices(): Promise<void> {
-		log("Starting backend application services for test (ENVIRONMENT=test)...");
+		log.info("Starting backend application services for test (ENVIRONMENT=test)...");
 		await this.run(
 			["up", "-d", "--build", "--force-recreate", ...DOCKER_APP_SERVICES],
 			{
@@ -315,7 +313,7 @@ class DockerComposeTestRunner {
 	}
 
 	private async ensureTesthelper(): Promise<void> {
-		log(
+		log.info(
 			`Building and starting ${DockerService.LAYER2LEDGER_TESTHELPER} (force-recreate)...`,
 		);
 		await this.run(
@@ -340,7 +338,7 @@ class DockerComposeTestRunner {
 	): Promise<boolean> {
 		let failed = false;
 		for (const testService of services) {
-			log(`Running ${testService}...`);
+			log.info(`Running ${testService}...`);
 			const { kind, command } = getServiceTestCommand(testService);
 			const composeArgs = [
 				"--profile",
@@ -352,15 +350,20 @@ class DockerComposeTestRunner {
 				`${outputDir}:${TEST_OUTPUT_MOUNT}`,
 				"-e",
 				`TEST_RESULT_FILE=${containerResultPath(testService)}`,
-				testService,
-				...command,
 			];
+			if (testService === DockerService.TEST_LAYER2LEDGER_STRESS) {
+				composeArgs.push(
+					"-e",
+					`STRESS_RESULT_FILE=${TEST_OUTPUT_MOUNT}/${STRESS_THROUGHPUT_FILENAME}`,
+				);
+			}
+			composeArgs.push(testService, ...command);
 
 			const containerPassed = await this.runQuiet(composeArgs);
 			if (containerPassed) {
-				log(`PASSED: ${testService}`);
+				log.info(`PASSED: ${testService}`);
 			} else {
-				log(`FAILED: ${testService}`);
+				log.error(`FAILED: ${testService}`);
 				failed = true;
 			}
 
@@ -377,7 +380,7 @@ class DockerComposeTestRunner {
 	}
 
 	private async stopTestProfileServices(): Promise<void> {
-		log("Stopping test-profile background services...");
+		log.info("Stopping test-profile background services...");
 		await this.runQuiet([
 			"--profile",
 			DockerComposeProfile.TEST,
@@ -388,7 +391,7 @@ class DockerComposeTestRunner {
 
 	private async cleanupTestContainers(): Promise<void> {
 		await this.stopTestProfileServices();
-		log("Removing stopped test containers (if any)...");
+		log.info("Removing stopped test containers (if any)...");
 		await this.runQuiet([
 			"--profile",
 			DockerComposeProfile.TEST,
@@ -406,12 +409,12 @@ class DockerComposeTestRunner {
 
 		const runId = formatTestOutputRunId();
 		const outputDir = createTestOutputDir(this.root, runId);
-		log(`Writing test reports to .test-output/${runId}/`);
+		log.info(`Writing test reports to .test-output/${runId}/`);
 		const results: ServiceTestCounts[] = [];
 
 		let exitCode = 0;
 
-		log("Running layer2ledger unit tests (no live apihandler/dbwriter)...");
+		log.info("Running layer2ledger unit tests (no live apihandler/dbwriter)...");
 		if (
 			await this.runTestServices(DOCKER_UNIT_TEST_SERVICES, outputDir, results)
 		) {
@@ -421,7 +424,7 @@ class DockerComposeTestRunner {
 		await this.startAppServices();
 		await this.ensureTesthelper();
 
-		log("Running integration test containers...");
+		log.info("Running integration test containers...");
 		if (
 			await this.runTestServices(
 				DOCKER_INTEGRATION_TEST_SERVICES,
@@ -437,9 +440,9 @@ class DockerComposeTestRunner {
 		printTestResultsSummary(outputDir, results, this.root);
 
 		if (exitCode === 0) {
-			log("All test containers passed");
+			log.info("All test containers passed");
 		} else {
-			log("One or more test containers failed");
+			log.error("One or more test containers failed");
 		}
 
 		return exitCode;

@@ -33,6 +33,7 @@ import {
 	resolveEnvironment,
 } from "@openl2/config-loader";
 import { parseCliArgs } from "./src/cli-args";
+import { log } from "./src/logger";
 
 const ROOT = getProjectRoot(import.meta.dir);
 
@@ -41,10 +42,6 @@ const ENVIRONMENT_VALUES = new Set<string>([
 	Environment.PROD,
 	Environment.TEST,
 ]);
-
-function log(message: string): void {
-	console.log(`==> ${message}`);
-}
 
 function parseEnvironment(raw: string): EnvironmentName {
 	if (!ENVIRONMENT_VALUES.has(raw)) {
@@ -197,7 +194,7 @@ class FirstTimeSetupRunner {
 				await this.containerId(service),
 			);
 			if (health === "healthy") {
-				log(`${service} is healthy`);
+				log.info(`${service} is healthy`);
 				return;
 			}
 			await Bun.sleep(2000);
@@ -207,7 +204,7 @@ class FirstTimeSetupRunner {
 	}
 
 	private async generateKeysAndConfigs(): Promise<void> {
-		log(`Generating keys and configs for environment=${this.environment}...`);
+		log.info(`Generating keys and configs for environment=${this.environment}...`);
 		await this.runSetupScripts(
 			"-env",
 			this.environment,
@@ -221,7 +218,7 @@ class FirstTimeSetupRunner {
 	private async startBitcoinCore(): Promise<void> {
 		// Recreate the container so it picks up the freshly generated bitcoin.conf.
 		// Named volume BITCOIN_CORE_DATA_VOLUME is preserved (no `down -v`).
-		log(
+		log.info(
 			`Starting ${DockerService.BITCOIN_CORE} container ` +
 				`(preserving chain data volume ${BITCOIN_CORE_DATA_VOLUME})...`,
 		);
@@ -260,21 +257,21 @@ class FirstTimeSetupRunner {
 		client: BitcoinRPCClient,
 		timeoutSec = 86_400,
 	): Promise<void> {
-		log("Waiting for Bitcoin Core blockchain sync to finish...");
+		log.info("Waiting for Bitcoin Core blockchain sync to finish...");
 		const deadline = Date.now() + timeoutSec * 1000;
 
 		while (Date.now() < deadline) {
 			const info = await client.getBlockchainInfo();
 			const progress = info.verificationprogress ?? 0;
 			const ibd = info.initialblockdownload ?? true;
-			log(
+			log.info(
 				`sync status: blocks=${info.blocks}/${info.headers} ` +
 					`progress=${(progress * 100).toFixed(2)}% ` +
 					`initialblockdownload=${ibd}`,
 			);
 
 			if (!ibd && info.blocks > 0 && info.blocks >= info.headers) {
-				log("Blockchain sync complete");
+				log.info("Blockchain sync complete");
 				return;
 			}
 
@@ -311,7 +308,7 @@ class FirstTimeSetupRunner {
 			bitcoinWalletDataSubdir(chain),
 			walletName,
 		);
-		log(`Deleting wallet directory only (keeping chain data): ${walletPath}`);
+		log.info(`Deleting wallet directory only (keeping chain data): ${walletPath}`);
 		await this.runCompose(
 			["exec", "-T", DockerService.BITCOIN_CORE, "rm", "-rf", walletPath],
 			{ check: true },
@@ -335,7 +332,7 @@ class FirstTimeSetupRunner {
 		}
 
 		if (exists && this.overwriteWallet) {
-			log(
+			log.info(
 				`Overwriting existing wallet "${walletName}" (chain data preserved)...`,
 			);
 			const loaded = await client.listWallets();
@@ -353,7 +350,7 @@ class FirstTimeSetupRunner {
 	}
 
 	private async importKeys(): Promise<void> {
-		log("Importing BTC keys into Bitcoin Core wallet...");
+		log.info("Importing BTC keys into Bitcoin Core wallet...");
 		await this.runSetupScripts(
 			"-env",
 			this.environment,
@@ -375,7 +372,7 @@ class FirstTimeSetupRunner {
 		await this.prepareWallet(client, bridgeSettings);
 		await this.importKeys();
 
-		log(
+		log.info(
 			`Setup complete for environment=${this.environment}. ` +
 				"You can now start the rest of the stack (e.g. `make prod`, `make dev`, or `make backend-dev`).",
 		);
@@ -383,7 +380,7 @@ class FirstTimeSetupRunner {
 }
 
 function printHelp(): void {
-	console.log(`Usage: bun run run-setup.ts [options]
+	log.info(`Usage: bun run run-setup.ts [options]
 
 First-time setup: generate keys, start bitcoin-core, wait for sync, import wallet keys.
 
@@ -417,6 +414,6 @@ async function main(): Promise<void> {
 try {
 	await main();
 } catch (error) {
-	console.error(error instanceof Error ? error.message : error);
+	log.error(error instanceof Error ? error.message : String(error));
 	process.exit(1);
 }

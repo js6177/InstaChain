@@ -13,6 +13,7 @@ import {
 	requireBun,
 } from "@openl2/config-loader";
 import { parseCliArgs } from "./src/cli-args";
+import { log } from "./src/logger";
 
 const ROOT = getProjectRoot(import.meta.dir);
 
@@ -22,10 +23,6 @@ const UNINSTALL_COMPOSE_FILES = [
 	DockerComposeFile.DEV,
 	DockerComposeFile.TEST,
 ] as const;
-
-function log(message: string): void {
-	console.log(`==> ${message}`);
-}
 
 async function promptContinue(): Promise<boolean> {
 	if (!process.stdin.isTTY) {
@@ -42,7 +39,7 @@ async function promptContinue(): Promise<boolean> {
 }
 
 function printHelp(): void {
-	console.log(`Usage: bun run run-uninstall.ts [options]
+	log.info(`Usage: bun run run-uninstall.ts [options]
 
 Remove all OpenL2 docker containers and attached volumes.
 
@@ -68,7 +65,7 @@ async function main(): Promise<void> {
 	if (!values.noprompt) {
 		const confirmed = await promptContinue();
 		if (!confirmed) {
-			log("Uninstall cancelled (did not receive 'c').");
+			log.info("Uninstall cancelled (did not receive 'c').");
 			process.exit(1);
 		}
 	}
@@ -87,7 +84,7 @@ async function main(): Promise<void> {
 		"--remove-orphans",
 	];
 
-	log("Removing OpenL2 docker containers and volumes...");
+	log.info("Removing OpenL2 docker containers and volumes...");
 	const proc = Bun.spawn(command, {
 		cwd: ROOT,
 		stdout: "inherit",
@@ -98,12 +95,12 @@ async function main(): Promise<void> {
 		throw new Error(`Uninstall failed with exit code ${exitCode}`);
 	}
 
-	log("Uninstall complete: containers and volumes removed.");
+	log.info("Uninstall complete: containers and volumes removed.");
 }
 
 try {
 	await main();
 } catch (error) {
-	console.error(error instanceof Error ? error.message : error);
+	log.error(error instanceof Error ? error.message : String(error));
 	process.exit(1);
 }
