@@ -1,9 +1,9 @@
 import type {
 	TransactionInsert,
 	TransactionRow,
+	TransactionTypeValue,
 	WithdrawalRequestInsert,
 } from "../db/schema";
-import { TransactionType } from "../db/schema";
 
 export const PENDING_TRANSACTIONS_LIST_KEY = "PendingTransactions";
 export const PENDING_WITHDRAWALS_LIST_KEY = "PendingWithdrawals";
@@ -14,7 +14,7 @@ export interface RedisTransaction {
 	fee: number;
 	source_address_pubkey: string;
 	destination_address_pubkey: string;
-	transaction_type: number;
+	transaction_type: TransactionTypeValue;
 	layer2_transaction_id: string;
 	signature: string;
 	signature_date: number;
@@ -56,7 +56,7 @@ export function transactionRowToRedis(row: TransactionRow): RedisTransaction {
 		fee: row.fee,
 		source_address_pubkey: row.sourceAddressPubkey,
 		destination_address_pubkey: row.destinationAddressPubkey,
-		transaction_type: row.transactionType,
+		transaction_type: row.transactionType as TransactionTypeValue,
 		layer2_transaction_id: row.layer2TransactionId,
 		signature: row.signature,
 		signature_date: row.signatureDate,
@@ -101,43 +101,28 @@ export function redisWithdrawalRequestToInsert(
 }
 
 export function createRedisTransaction(
-	partial: Partial<RedisTransaction> &
-		Pick<
-			RedisTransaction,
-			| "amount"
-			| "fee"
-			| "source_address_pubkey"
-			| "destination_address_pubkey"
-			| "transaction_type"
-			| "layer2_transaction_id"
-			| "signature"
-		>,
+	amount: number,
+	fee: number,
+	sourceAddressPubkey: string,
+	destinationAddressPubkey: string,
+	transactionType: TransactionTypeValue,
+	layer2TransactionId: string,
+	signature: string,
+	layer1TransactionId = "",
+	layer2WithdrawalId = "",
 ): RedisTransaction {
 	return {
 		timestamp: new Date().toISOString(),
+		amount,
+		fee,
+		source_address_pubkey: sourceAddressPubkey,
+		destination_address_pubkey: destinationAddressPubkey,
+		transaction_type: transactionType,
+		layer2_transaction_id: layer2TransactionId,
+		signature,
 		signature_date: 0,
-		layer1_transaction_id: "",
-		layer2_withdrawal_id: "",
+		layer1_transaction_id: layer1TransactionId,
+		layer2_withdrawal_id: layer2WithdrawalId,
 		batch_height: 0,
-		...partial,
 	};
-}
-
-export function createTransferRedisTransaction(params: {
-	amount: number;
-	fee: number;
-	sourceAddressPubkey: string;
-	destinationAddressPubkey: string;
-	layer2TransactionId: string;
-	signature: string;
-}): RedisTransaction {
-	return createRedisTransaction({
-		amount: params.amount,
-		fee: params.fee,
-		source_address_pubkey: params.sourceAddressPubkey,
-		destination_address_pubkey: params.destinationAddressPubkey,
-		transaction_type: TransactionType.TRX_TRANSFER,
-		layer2_transaction_id: params.layer2TransactionId,
-		signature: params.signature,
-	});
 }

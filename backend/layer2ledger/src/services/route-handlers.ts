@@ -65,7 +65,6 @@ import {
 } from "../redis/distributed-lock";
 import {
 	createRedisTransaction,
-	createTransferRedisTransaction,
 	type PendingTransaction,
 	type PendingWithdrawal,
 	type RedisWithdrawalRequest,
@@ -153,14 +152,15 @@ export function createRouteHandlers(
 				}
 
 				const pending: PendingTransaction = {
-					transaction: createTransferRedisTransaction({
-						amount: body.amount,
-						fee: body.fee,
-						sourceAddressPubkey: body.source_address_public_key,
-						destinationAddressPubkey: body.destination_address_public_key,
-						layer2TransactionId: body.transaction_id,
-						signature: body.signature,
-					}),
+					transaction: createRedisTransaction(
+						body.amount,
+						body.fee,
+						body.source_address_public_key,
+						body.destination_address_public_key,
+						TransactionType.TRX_TRANSFER,
+						body.transaction_id,
+						body.signature,
+					),
 					lock_token: lockToken,
 					addresses_locked: addressesToLock,
 				};
@@ -313,19 +313,19 @@ export function createRouteHandlers(
 				}
 
 				const pending: PendingTransaction = {
-					transaction: createRedisTransaction({
-						amount: deposit.amount,
-						fee: 0,
-						source_address_pubkey: settings.deposit_transaction_pubkey,
-						destination_address_pubkey: layer2Address,
-						transaction_type: TransactionType.TRX_DEPOSIT,
-						layer2_transaction_id: deposit.nonce,
-						signature: deposit.signature,
-						layer1_transaction_id: buildLayer1TransactionId(
+					transaction: createRedisTransaction(
+						deposit.amount,
+						0,
+						settings.deposit_transaction_pubkey,
+						layer2Address,
+						TransactionType.TRX_DEPOSIT,
+						deposit.nonce,
+						deposit.signature,
+						buildLayer1TransactionId(
 							deposit.layer1_transaction_id,
 							deposit.layer1_transaction_vout,
 						),
-					}),
+					),
 					lock_token: null,
 					addresses_locked: [],
 				};
@@ -421,16 +421,17 @@ export function createRouteHandlers(
 				};
 
 				const pending: PendingWithdrawal = {
-					transaction: createRedisTransaction({
-						amount: body.amount,
-						fee: 0,
-						source_address_pubkey: body.source_address_public_key,
-						destination_address_pubkey: "",
-						transaction_type: TransactionType.TRX_WITHDRAWAL_INITIATED,
-						layer2_transaction_id: body.layer2_transaction_id,
-						signature: body.signature,
-						layer2_withdrawal_id: layer2WithdrawalId,
-					}),
+					transaction: createRedisTransaction(
+						body.amount,
+						0,
+						body.source_address_public_key,
+						"",
+						TransactionType.TRX_WITHDRAWAL_INITIATED,
+						body.layer2_transaction_id,
+						body.signature,
+						"",
+						layer2WithdrawalId,
+					),
 					withdrawal_request: withdrawalRequest,
 					lock_token: lockToken,
 					addresses_locked: addressesToLock,
