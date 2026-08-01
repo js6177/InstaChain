@@ -5,9 +5,13 @@ import {
 import { createOpenL2Logger } from "@openl2/openl2-logger";
 import Redis from "ioredis";
 import { createDatabase, migrateDatabase } from "../db/client";
-import { DistributedLock } from "../redis/distributed-lock";
+import {
+	DistributedLock,
+	PENDING_TRANSACTIONS_LIST_KEY,
+} from "../redis/distributed-lock";
 import {
 	getCurrentBatchHeight,
+	pendingQueueSleepMs,
 	processPendingBatch,
 } from "./process-pending";
 
@@ -50,11 +54,21 @@ while (true) {
 			{ db, redis, lockManager },
 			currentBatchHeight,
 		);
-		if (nextHeight === currentBatchHeight) {
-			await Bun.sleep(1000);
-			continue;
+		if (nextHeight !== currentBatchHeight) {
+			currentBatchHeight = nextHeight;
 		}
-		currentBatchHeight = nextHeight;
+
+		const pendingCount = await redis.llen(PENDING_TRANSACTIONS_LIST_KEY);
+		const sleepMs = pendingQueueSleepMs(pendingCount);
+		if (sleepMs > 0) {
+			await Bun.sleep(sleepMs);
+		}
+		if(pendingCount > 0) {
+			log.info("Pending transactions", {
+				pending_count: pendingCount,
+				batch_height: currentBatchHeight,
+			});
+		}
 	} catch (error) {
 		log.exception("Error processing transactions", error);
 		await Bun.sleep(5000);

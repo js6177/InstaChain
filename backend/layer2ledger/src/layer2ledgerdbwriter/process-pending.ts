@@ -15,12 +15,44 @@ import {
 	PENDING_TRANSACTIONS_LIST_KEY,
 	PENDING_WITHDRAWALS_LIST_KEY,
 } from "../redis/distributed-lock";
+import { log } from "../logger";
 import { redisTransactionToInsert, redisWithdrawalRequestToInsert } from "../redis/models";
+
+/** Max items read from each Redis pending list per Postgres batch insert. */
+export const MAXIMUM_BATCH_INSERT_COUNT = 999;
+
+/** Max idle sleep between dbwriter loops when the pending queue is empty. */
+export const PENDING_BATCH_IDLE_SLEEP_MS = 1000;
 
 export interface ProcessPendingBatchContext {
 	db: Layer2LedgerDbClient;
 	redis: Redis;
 	lockManager: DistributedLock;
+}
+
+/**
+ * Sleep after a dbwriter loop based on remaining Redis pending depth:
+ * - pending > 2 * batch size → 0 (keep draining)
+ * - 0 < pending < batch size → proportional to remaining capacity
+ *   (e.g. 500 pending ≈ 0.5 * idle sleep)
+ * - pending === 0 → full idle sleep
+ * - otherwise (full batch waiting) → 0
+ */
+export function pendingQueueSleepMs(
+	pendingCount: number,
+	batchSize: number = MAXIMUM_BATCH_INSERT_COUNT,
+	idleSleepMs: number = PENDING_BATCH_IDLE_SLEEP_MS,
+): number {
+	if (pendingCount > 2 * batchSize) {
+		return 0;
+	}
+	if (pendingCount <= 0) {
+		return idleSleepMs;
+	}
+	if (pendingCount < batchSize) {
+		return ((batchSize - pendingCount) / batchSize) * idleSleepMs;
+	}
+	return 0;
 }
 
 /**
@@ -31,9 +63,18 @@ export async function processPendingBatch(
 	context: ProcessPendingBatchContext,
 	currentBatchHeight: number,
 ): Promise<number> {
+	const startedAt = performance.now();
 	const { db, redis, lockManager } = context;
-	const transactionsToProcess = await getPendingTransactions(redis, 0, 999);
-	const withdrawalsToProcess = await getPendingWithdrawals(redis, 0, 999);
+	const transactionsToProcess = await getPendingTransactions(
+		redis,
+		0,
+		MAXIMUM_BATCH_INSERT_COUNT,
+	);
+	const withdrawalsToProcess = await getPendingWithdrawals(
+		redis,
+		0,
+		MAXIMUM_BATCH_INSERT_COUNT,
+	);
 
 	if (
 		transactionsToProcess.length === 0 &&
@@ -128,6 +169,18 @@ export async function processPendingBatch(
 				pendingWithdrawal.lock_token,
 			);
 		}
+	}
+
+	const totalProcessed =
+		transactionsToProcess.length + withdrawalsToProcess.length;
+	if (totalProcessed > 0) {
+		log.info("Processed transactions", {
+			transactions_processed: transactionsToProcess.length,
+			withdrawals_processed: withdrawalsToProcess.length,
+			total_processed: totalProcessed,
+			batch_height: nextBatchHeight,
+			elapsed_ms: Math.round(performance.now() - startedAt),
+		});
 	}
 
 	return nextBatchHeight;

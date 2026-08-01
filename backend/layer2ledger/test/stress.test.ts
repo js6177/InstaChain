@@ -11,47 +11,26 @@ import {
 	buildTransferMessage,
 	NODE_ASSET_ID_HEX,
 } from "@openl2/openl2-messaging";
-import { newLayer2Address } from "./common";
+import {
+	computeLatencyStats,
+	mapPool,
+	newLayer2Address,
+	sleep,
+	type StressRunResult,
+	type StressThroughputResult,
+} from "./common";
 
 const runHttpStress = process.env.RUN_LEDGER_HTTP_STRESS === "1";
 
 const log = createOpenL2Logger({
 	serviceName: "layer2ledger-stress",
+	prettyJson: true,
 });
 
 const ledgerApiUrl =
 	process.env.LAYER2LEDGER_API_URL ?? "http://layer2ledgerapihandler:8000";
 const testhelperUrl =
 	process.env.TESTHELPER_BASE_URL ?? "http://layer2ledger-testhelper:8001";
-
-async function sleep(ms: number): Promise<void> {
-	await Bun.sleep(ms);
-}
-
-/** Run async work over items with a fixed concurrency limit. */
-async function mapPool<T, R>(
-	items: readonly T[],
-	concurrency: number,
-	fn: (item: T, index: number) => Promise<R>,
-): Promise<R[]> {
-	const results = new Array<R>(items.length);
-	let nextIndex = 0;
-
-	async function worker(): Promise<void> {
-		for (;;) {
-			const index = nextIndex;
-			nextIndex += 1;
-			if (index >= items.length) {
-				return;
-			}
-			results[index] = await fn(items[index] as T, index);
-		}
-	}
-
-	const workerCount = Math.max(1, Math.min(concurrency, items.length));
-	await Promise.all(Array.from({ length: workerCount }, () => worker()));
-	return results;
-}
 
 async function waitForApiHealth(
 	baseUrl: string,
@@ -75,12 +54,11 @@ async function waitForApiHealth(
 
 /**
  * Push `transactionCount` transfers through the live Elysia API, wait for the
- * running dbwriter to persist them, and return how many landed in Postgres
- * (via explorer.get_transaction).
+ * running dbwriter to persist them, and return push latency stats.
  */
 async function runPushTransactionStress(
 	transactionCount: number,
-): Promise<number> {
+): Promise<StressRunResult> {
 	const amount = 100;
 	const fee = 10;
 	const initialBalance = 1000;
@@ -132,11 +110,13 @@ async function runPushTransactionStress(
 		);
 	});
 
+	const pushLatenciesMs: number[] = [];
 	const pushResponses = await mapPool(
 		prepared,
 		concurrency,
-		async ({ source, dest, transactionId, signature }) =>
-			unwrapLayer2LedgerResponse(
+		async ({ source, dest, transactionId, signature }) => {
+			const startedAt = performance.now();
+			const response = unwrapLayer2LedgerResponse(
 				await ledger.transfer.push_transaction.post({
 					amount,
 					destination_address_public_key: dest.public_key_str_base58,
@@ -145,7 +125,12 @@ async function runPushTransactionStress(
 					source_address_public_key: source.public_key_str_base58,
 					transaction_id: transactionId,
 				}),
-			),
+			);
+			if (response.error_code === ErrorCodes.SUCCESS) {
+				pushLatenciesMs.push(performance.now() - startedAt);
+			}
+			return response;
+		},
 	);
 
 	const accepted = pushResponses.filter(
@@ -161,31 +146,33 @@ async function runPushTransactionStress(
 		);
 	}
 
-	const transactionIds = prepared.map(({ transactionId }) => transactionId);
+	const pendingIds = new Set(
+		prepared.map(({ transactionId }) => transactionId),
+	);
 	const deadline = Date.now() + settleTimeoutMs;
-	let processedToPostgres = 0;
 
-	while (Date.now() < deadline) {
-		const lookups = await mapPool(
-			transactionIds,
-			concurrency,
-			async (transactionId) =>
-				unwrapLayer2LedgerResponse(
-					await ledger.explorer.get_transaction.post({
-						layer2_transaction_id: transactionId,
-					}),
-				),
-		);
-		processedToPostgres = lookups.filter(
-			(response) => response.error_code === ErrorCodes.SUCCESS,
-		).length;
-		if (processedToPostgres === transactionCount) {
-			return processedToPostgres;
+	while (pendingIds.size > 0 && Date.now() < deadline) {
+		const stillPending = [...pendingIds];
+		await mapPool(stillPending, concurrency, async (transactionId) => {
+			const response = unwrapLayer2LedgerResponse(
+				await ledger.explorer.get_transaction.post({
+					layer2_transaction_id: transactionId,
+				}),
+			);
+			if (response.error_code === ErrorCodes.SUCCESS) {
+				pendingIds.delete(transactionId);
+			}
+		});
+
+		if (pendingIds.size > 0) {
+			await sleep(500);
 		}
-		await sleep(500);
 	}
 
-	return processedToPostgres;
+	return {
+		processedToPostgres: transactionCount - pendingIds.size,
+		pushLatencyMs: computeLatencyStats(pushLatenciesMs),
+	};
 }
 
 describe.skipIf(!runHttpStress)("pushTransaction HTTP stress", () => {
@@ -198,20 +185,26 @@ describe.skipIf(!runHttpStress)("pushTransaction HTTP stress", () => {
 			);
 
 			const startedAt = performance.now();
-			const processedToPostgres =
+			const { processedToPostgres, pushLatencyMs } =
 				await runPushTransactionStress(transactionCount);
 			const elapsedMs = Math.round(performance.now() - startedAt);
 			const txsPerSecond = Number(
 				((processedToPostgres / Math.max(elapsedMs, 1)) * 1000).toFixed(2),
 			);
-			const throughput = {
+			const throughput: StressThroughputResult = {
 				transactionCount,
 				processedToPostgres,
 				elapsedMs,
 				txsPerSecond,
+				pushLatencyMs,
 			};
 
-			log.info("pushTransaction stress throughput", throughput);
+			log.info("pushTransaction stress throughput", {
+				txs_per_second: txsPerSecond,
+				processed: `${processedToPostgres}/${transactionCount}`,
+				elapsed_ms: elapsedMs,
+				push_latency_ms: pushLatencyMs,
+			});
 
 			const stressResultFile = process.env.STRESS_RESULT_FILE;
 			if (stressResultFile) {

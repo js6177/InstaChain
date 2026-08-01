@@ -48,6 +48,29 @@ backend-test:
 		layer2bridge \
 		layer2ledger-testhelper
 
+# Rebuild and run only the layer2ledger HTTP stress test (not the full suite).
+# Ensures apihandler, dbwriter, and testhelper are up, then `compose run --build`.
+# Examples:
+#   make stress-test
+#   STRESS_TX_COUNT=51000 STRESS_CONCURRENCY=20 make stress-test
+# Note: plain `docker compose run` does NOT rebuild the image unless you pass --build.
+stress-test:
+	mkdir -p .test-output/stress
+	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test \
+		up -d --build \
+		layer2ledger-postgres \
+		layer2ledger-redis \
+		layer2ledgerapihandler \
+		layer2ledgerdbwriter \
+		layer2ledger-testhelper
+	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test \
+		run --rm --build \
+		-v "$(CURDIR)/.test-output/stress:/test-output" \
+		-e "STRESS_TX_COUNT=$${STRESS_TX_COUNT:-100}" \
+		-e "STRESS_CONCURRENCY=$${STRESS_CONCURRENCY:-10}" \
+		-e "STRESS_SETTLE_TIMEOUT_MS=$${STRESS_SETTLE_TIMEOUT_MS:-120000}" \
+		test-layer2ledger-stress
+
 test:
 	bun run test:docker
 

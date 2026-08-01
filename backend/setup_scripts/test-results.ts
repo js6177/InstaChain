@@ -10,11 +10,20 @@ export const TEST_OUTPUT_MOUNT = "/test-output";
 export const STRESS_THROUGHPUT_FILENAME =
 	"test-layer2ledger-stress.throughput.json";
 
+export interface StressLatencyStatsMs {
+	average: number;
+	shortest: number;
+	longest: number;
+	bottomQuartile: number;
+	upperQuartile: number;
+}
+
 export interface StressThroughputResult {
 	transactionCount: number;
 	processedToPostgres: number;
 	elapsedMs: number;
 	txsPerSecond: number;
+	pushLatencyMs?: StressLatencyStatsMs;
 }
 
 export interface ServiceTestCounts {
@@ -344,15 +353,45 @@ export function readStressThroughputResult(
 		) {
 			return null;
 		}
+
 		return {
 			transactionCount,
 			processedToPostgres,
 			elapsedMs,
 			txsPerSecond,
+			pushLatencyMs: parseLatencyStats(record.pushLatencyMs),
 		};
 	} catch {
 		return null;
 	}
+}
+
+function parseLatencyStats(value: unknown): StressLatencyStatsMs | undefined {
+	if (!value || typeof value !== "object") {
+		return undefined;
+	}
+	const latency = value as Record<string, unknown>;
+	const average = latency.average;
+	const shortest = latency.shortest;
+	const longest = latency.longest;
+	const bottomQuartile = latency.bottomQuartile;
+	const upperQuartile = latency.upperQuartile;
+	if (
+		typeof average !== "number" ||
+		typeof shortest !== "number" ||
+		typeof longest !== "number" ||
+		typeof bottomQuartile !== "number" ||
+		typeof upperQuartile !== "number"
+	) {
+		return undefined;
+	}
+	return {
+		average,
+		shortest,
+		longest,
+		bottomQuartile,
+		upperQuartile,
+	};
 }
 
 export function printStressThroughputSummary(outputDir: string): void {
@@ -365,5 +404,6 @@ export function printStressThroughputSummary(outputDir: string): void {
 		processed: `${result.processedToPostgres}/${result.transactionCount}`,
 		elapsed_ms: result.elapsedMs,
 		txs_per_second: result.txsPerSecond,
+		push_latency_ms: result.pushLatencyMs ?? null,
 	});
 }

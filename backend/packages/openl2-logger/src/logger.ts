@@ -1,3 +1,4 @@
+import { Writable } from "node:stream";
 import pino, { type Logger as PinoLogger } from "pino";
 import { getLogContext } from "./context";
 import { createSessionId } from "./ids";
@@ -18,6 +19,11 @@ export interface CreateOpenL2LoggerOptions {
 	sessionId?: string;
 	/** Extra static fields merged into every log entry. */
 	base?: Record<string, unknown>;
+	/**
+	 * When true, emit indented multi-line JSON instead of one-line NDJSON.
+	 * Useful for local/test readability; leave false in production.
+	 */
+	prettyJson?: boolean;
 }
 
 export interface OpenL2Logger {
@@ -118,32 +124,50 @@ function wrapPinoLogger(
  * `session_id` is generated once per call and remains stable for the
  * lifetime of the returned logger instance (typically one per process).
  */
+function createPrettyJsonDestination(): Writable {
+	return new Writable({
+		write(chunk, _encoding, callback) {
+			const line = chunk.toString();
+			try {
+				const parsed: unknown = JSON.parse(line);
+				process.stdout.write(`${JSON.stringify(parsed, null, 2)}\n`);
+			} catch {
+				process.stdout.write(line.endsWith("\n") ? line : `${line}\n`);
+			}
+			callback();
+		},
+	});
+}
+
 export function createOpenL2Logger(
 	options: CreateOpenL2LoggerOptions,
 ): OpenL2Logger {
 	const sessionId = options.sessionId ?? createSessionId();
 	const serviceName = options.serviceName;
 
-	const pinoLogger = pino({
-		level: options.level ?? LogSeverity.Info,
-		base: {
-			service: serviceName,
-			session_id: sessionId,
-			...options.base,
-		},
-		customLevels: LOG_SEVERITY_LEVELS,
-		useOnlyCustomLevels: true,
-		messageKey: "message",
-		formatters: {
-			level(label) {
-				return { severity: label };
+	const pinoLogger = pino(
+		{
+			level: options.level ?? LogSeverity.Info,
+			base: {
+				service: serviceName,
+				session_id: sessionId,
+				...options.base,
+			},
+			customLevels: LOG_SEVERITY_LEVELS,
+			useOnlyCustomLevels: true,
+			messageKey: "message",
+			formatters: {
+				level(label) {
+					return { severity: label };
+				},
+			},
+			mixin() {
+				const requestId = getLogContext()?.request_id;
+				return requestId ? { request_id: requestId } : {};
 			},
 		},
-		mixin() {
-			const requestId = getLogContext()?.request_id;
-			return requestId ? { request_id: requestId } : {};
-		},
-	}) as SeverityPinoLogger;
+		options.prettyJson ? createPrettyJsonDestination() : undefined,
+	) as SeverityPinoLogger;
 
 	return wrapPinoLogger(pinoLogger, serviceName, sessionId);
 }
