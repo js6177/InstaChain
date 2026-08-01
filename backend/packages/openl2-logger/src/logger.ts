@@ -34,6 +34,7 @@ export interface OpenL2Logger {
 	child(bindings: Record<string, unknown>): OpenL2Logger;
 
 	info(message: string, fields?: Record<string, unknown>): void;
+	performance(message: string, fields?: Record<string, unknown>): void;
 	warning(message: string, fields?: Record<string, unknown>): void;
 	error(message: string, fields?: Record<string, unknown>): void;
 	exception(
@@ -85,6 +86,9 @@ function wrapPinoLogger(
 
 		info(message, fields) {
 			logAt(LogSeverity.Info, message, fields);
+		},
+		performance(message, fields) {
+			logAt(LogSeverity.Performance, message, fields);
 		},
 		warning(message, fields) {
 			logAt(LogSeverity.Warning, message, fields);

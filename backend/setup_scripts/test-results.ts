@@ -18,12 +18,26 @@ export interface StressLatencyStatsMs {
 	upperQuartile: number;
 }
 
+export interface StressPhaseTimingsMs {
+	prepareMs: number;
+	signMs: number;
+	seedMs: number;
+	pushMs: number;
+	settleMs: number;
+	totalMs: number;
+}
+
 export interface StressThroughputResult {
 	transactionCount: number;
 	processedToPostgres: number;
+	/** Push-wave wall clock only (basis for txs/sec). */
 	elapsedMs: number;
 	txsPerSecond: number;
+	/** Client HTTP RTT under stress concurrency (not handler-only time). */
+	pushClientRttMs?: StressLatencyStatsMs;
+	/** @deprecated Prefer pushClientRttMs; kept for older result files. */
 	pushLatencyMs?: StressLatencyStatsMs;
+	phaseTimingsMs?: StressPhaseTimingsMs;
 }
 
 export interface ServiceTestCounts {
@@ -359,7 +373,10 @@ export function readStressThroughputResult(
 			processedToPostgres,
 			elapsedMs,
 			txsPerSecond,
-			pushLatencyMs: parseLatencyStats(record.pushLatencyMs),
+			pushClientRttMs:
+				parseLatencyStats(record.pushClientRttMs) ??
+				parseLatencyStats(record.pushLatencyMs),
+			phaseTimingsMs: parsePhaseTimings(record.phaseTimingsMs),
 		};
 	} catch {
 		return null;
@@ -394,6 +411,30 @@ function parseLatencyStats(value: unknown): StressLatencyStatsMs | undefined {
 	};
 }
 
+function parsePhaseTimings(value: unknown): StressPhaseTimingsMs | undefined {
+	if (!value || typeof value !== "object") {
+		return undefined;
+	}
+	const phases = value as Record<string, unknown>;
+	const prepareMs = phases.prepareMs;
+	const signMs = phases.signMs;
+	const seedMs = phases.seedMs;
+	const pushMs = phases.pushMs;
+	const settleMs = phases.settleMs;
+	const totalMs = phases.totalMs;
+	if (
+		typeof prepareMs !== "number" ||
+		typeof signMs !== "number" ||
+		typeof seedMs !== "number" ||
+		typeof pushMs !== "number" ||
+		typeof settleMs !== "number" ||
+		typeof totalMs !== "number"
+	) {
+		return undefined;
+	}
+	return { prepareMs, signMs, seedMs, pushMs, settleMs, totalMs };
+}
+
 export function printStressThroughputSummary(outputDir: string): void {
 	const result = readStressThroughputResult(outputDir);
 	if (!result) {
@@ -404,6 +445,7 @@ export function printStressThroughputSummary(outputDir: string): void {
 		processed: `${result.processedToPostgres}/${result.transactionCount}`,
 		elapsed_ms: result.elapsedMs,
 		txs_per_second: result.txsPerSecond,
-		push_latency_ms: result.pushLatencyMs ?? null,
+		phase_timings_ms: result.phaseTimingsMs ?? null,
+		push_client_rtt_ms: result.pushClientRttMs ?? null,
 	});
 }

@@ -8,18 +8,40 @@ export interface LatencyStatsMs {
 	upperQuartile: number;
 }
 
+export interface StressPhaseTimingsMs {
+	/** Address generation + transfer message build (excludes signing). */
+	prepareMs: number;
+	/** Wall-clock to sign all transfer messages. */
+	signMs: number;
+	seedMs: number;
+	/** Wall-clock for the concurrent push wave only. */
+	pushMs: number;
+	settleMs: number;
+	totalMs: number;
+}
+
 export interface StressRunResult {
 	processedToPostgres: number;
-	/** Latency of the push_transaction HTTP call alone. */
-	pushLatencyMs: LatencyStatsMs;
+	/**
+	 * Client-side round-trip time for each push_transaction HTTP call.
+	 * Includes Docker network, HTTP/Elysia overhead, and any time the request
+	 * waits to be scheduled on the server — not the same as handler-only
+	 * performance timings in apihandler logs.
+	 */
+	pushClientRttMs: LatencyStatsMs;
+	phaseTimingsMs: StressPhaseTimingsMs;
 }
 
 export interface StressThroughputResult {
 	transactionCount: number;
 	processedToPostgres: number;
+	/** Wall-clock for the concurrent push wave only (excludes prepare/seed/settle). */
 	elapsedMs: number;
+	/** accepted_pushes / push_wave_seconds */
 	txsPerSecond: number;
-	pushLatencyMs: LatencyStatsMs;
+	/** @see StressRunResult.pushClientRttMs */
+	pushClientRttMs: LatencyStatsMs;
+	phaseTimingsMs: StressPhaseTimingsMs;
 }
 
 export function newLayer2Address(): Layer2Address {

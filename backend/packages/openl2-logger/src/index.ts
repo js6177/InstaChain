@@ -6,6 +6,7 @@ export {
 	runWithLogContext,
 	type LogContext,
 } from "./context";
+export { logPerformance } from "./decorators";
 export { createId, createRequestId, createSessionId } from "./ids";
 export {
 	createOpenL2Logger,

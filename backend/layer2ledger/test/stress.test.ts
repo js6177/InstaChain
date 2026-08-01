@@ -54,7 +54,7 @@ async function waitForApiHealth(
 
 /**
  * Push `transactionCount` transfers through the live Elysia API, wait for the
- * running dbwriter to persist them, and return push latency stats.
+ * running dbwriter to persist them, and return push client-RTT + phase timings.
  */
 async function runPushTransactionStress(
 	transactionCount: number,
@@ -79,7 +79,8 @@ async function runPushTransactionStress(
 	const nodeId = nodeInfo.node_info.node_id;
 	const assetId = nodeInfo.node_info.asset_id || NODE_ASSET_ID_HEX;
 
-	const prepared = await mapPool(
+	const prepareStartedAt = performance.now();
+	const unsigned = await mapPool(
 		Array.from({ length: transactionCount }, (_, index) => index),
 		concurrency,
 		async () => {
@@ -95,11 +96,23 @@ async function runPushTransactionStress(
 				fee,
 				transactionId,
 			);
+			return { source, dest, transactionId, message };
+		},
+	);
+	const prepareMs = Math.round(performance.now() - prepareStartedAt);
+
+	const signStartedAt = performance.now();
+	const prepared = await mapPool(
+		unsigned,
+		concurrency,
+		async ({ source, dest, transactionId, message }) => {
 			const signature = await source.signMessage(message);
 			return { source, dest, transactionId, signature };
 		},
 	);
+	const signMs = Math.round(performance.now() - signStartedAt);
 
+	const seedStartedAt = performance.now();
 	await mapPool(prepared, concurrency, async ({ source }) => {
 		unwrapLayer2TestHelperResponse(
 			await testhelper.testhelper.seed.balance.post({
@@ -109,8 +122,10 @@ async function runPushTransactionStress(
 			}),
 		);
 	});
+	const seedMs = Math.round(performance.now() - seedStartedAt);
 
 	const pushLatenciesMs: number[] = [];
+	const pushStartedAt = performance.now();
 	const pushResponses = await mapPool(
 		prepared,
 		concurrency,
@@ -132,6 +147,7 @@ async function runPushTransactionStress(
 			return response;
 		},
 	);
+	const pushMs = Math.round(performance.now() - pushStartedAt);
 
 	const accepted = pushResponses.filter(
 		(response) => response.error_code === ErrorCodes.SUCCESS,
@@ -151,6 +167,7 @@ async function runPushTransactionStress(
 	);
 	const deadline = Date.now() + settleTimeoutMs;
 
+	const settleStartedAt = performance.now();
 	while (pendingIds.size > 0 && Date.now() < deadline) {
 		const stillPending = [...pendingIds];
 		await mapPool(stillPending, concurrency, async (transactionId) => {
@@ -168,10 +185,19 @@ async function runPushTransactionStress(
 			await sleep(500);
 		}
 	}
+	const settleMs = Math.round(performance.now() - settleStartedAt);
 
 	return {
 		processedToPostgres: transactionCount - pendingIds.size,
-		pushLatencyMs: computeLatencyStats(pushLatenciesMs),
+		pushClientRttMs: computeLatencyStats(pushLatenciesMs),
+		phaseTimingsMs: {
+			prepareMs,
+			signMs,
+			seedMs,
+			pushMs,
+			settleMs,
+			totalMs: prepareMs + signMs + seedMs + pushMs + settleMs,
+		},
 	};
 }
 
@@ -184,26 +210,31 @@ describe.skipIf(!runHttpStress)("pushTransaction HTTP stress", () => {
 				true,
 			);
 
-			const startedAt = performance.now();
-			const { processedToPostgres, pushLatencyMs } =
+			const { processedToPostgres, pushClientRttMs, phaseTimingsMs } =
 				await runPushTransactionStress(transactionCount);
-			const elapsedMs = Math.round(performance.now() - startedAt);
 			const txsPerSecond = Number(
-				((processedToPostgres / Math.max(elapsedMs, 1)) * 1000).toFixed(2),
+				(
+					(processedToPostgres / Math.max(phaseTimingsMs.pushMs, 1)) *
+					1000
+				).toFixed(2),
 			);
 			const throughput: StressThroughputResult = {
 				transactionCount,
 				processedToPostgres,
-				elapsedMs,
+				elapsedMs: phaseTimingsMs.pushMs,
 				txsPerSecond,
-				pushLatencyMs,
+				pushClientRttMs,
+				phaseTimingsMs,
 			};
 
 			log.info("pushTransaction stress throughput", {
 				txs_per_second: txsPerSecond,
 				processed: `${processedToPostgres}/${transactionCount}`,
-				elapsed_ms: elapsedMs,
-				push_latency_ms: pushLatencyMs,
+				// Push-wave wall clock only (basis for txs/sec).
+				elapsed_ms: phaseTimingsMs.pushMs,
+				phase_timings_ms: phaseTimingsMs,
+				// Client HTTP RTT under concurrency; higher than handler-only apihandler logs.
+				push_client_rtt_ms: pushClientRttMs,
 			});
 
 			const stressResultFile = process.env.STRESS_RESULT_FILE;
