@@ -45,8 +45,9 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.layer2ledgerapihandler
-    ports:
-      - "${LAYER2LEDGER_FASTAPI_PORT:-8000}:8000"
+    # Replicas are reached via layer2ledgerapihandler-nginx (host port mapping).
+    expose:
+      - "8000"
     env_file:
       - ./backend/layer2ledger/.env.${ENVIRONMENT:-prod}
     environment:
@@ -59,6 +60,43 @@ services:
         condition: service_healthy
       layer2ledger-redis:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "bun -e \"fetch('http://127.0.0.1:8000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    deploy:
+      # Override at up-time: LAYER2LEDGER_APIHANDLER_REPLICAS=N docker compose up --scale layer2ledgerapihandler=N
+      replicas: 4
+    restart: unless-stopped
+
+  # Reverse proxy / LB in front of apihandler replicas (round-robin).
+  layer2ledgerapihandler-nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "${LAYER2LEDGER_FASTAPI_PORT:-8000}:8000"
+    volumes:
+      - ./docker/nginx.layer2ledgerapihandler.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      layer2ledgerapihandler:
+        condition: service_healthy
+    healthcheck:
+      # Probe a real backend via the proxy (not /nginx-health) so stale upstream
+      # IPs after apihandler recreate cannot leave nginx "healthy" while serving 502.
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:8000/ | grep -q Success",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
     restart: unless-stopped
 
   layer2ledgerdbwriter:
@@ -139,8 +177,8 @@ services:
     depends_on:
       bitcoin-core:
         condition: service_healthy
-      layer2ledgerapihandler:
-        condition: service_started
+      layer2ledgerapihandler-nginx:
+        condition: service_healthy
     restart: unless-stopped
 
   wallet-web:
@@ -151,8 +189,8 @@ services:
     ports:
       - "${WALLET_WEB_PORT:-5173}:80"
     depends_on:
-      layer2ledgerapihandler:
-        condition: service_started
+      layer2ledgerapihandler-nginx:
+        condition: service_healthy
       layer2ledgeroauthmanager:
         condition: service_healthy
     restart: unless-stopped

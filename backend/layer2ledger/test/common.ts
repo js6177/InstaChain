@@ -20,8 +20,22 @@ export interface StressPhaseTimingsMs {
 	totalMs: number;
 }
 
+/** Counts of API failures keyed by a stable reason string. */
+export interface StressApiErrorCounts {
+	total: number;
+	byReason: Record<string, number>;
+}
+
+export interface StressApiErrors {
+	push: StressApiErrorCounts;
+	settle: StressApiErrorCounts;
+	seed: StressApiErrorCounts;
+}
+
 export interface StressRunResult {
 	processedToPostgres: number;
+	/** Successful push_transaction responses. */
+	acceptedPushes: number;
 	/**
 	 * Client-side round-trip time for each push_transaction HTTP call.
 	 * Includes Docker network, HTTP/Elysia overhead, and any time the request
@@ -30,11 +44,13 @@ export interface StressRunResult {
 	 */
 	pushClientRttMs: LatencyStatsMs;
 	phaseTimingsMs: StressPhaseTimingsMs;
+	apiErrors: StressApiErrors;
 }
 
 export interface StressThroughputResult {
 	transactionCount: number;
 	processedToPostgres: number;
+	acceptedPushes: number;
 	/** Wall-clock for the concurrent push wave only (excludes prepare/seed/settle). */
 	elapsedMs: number;
 	/** accepted_pushes / push_wave_seconds */
@@ -42,6 +58,27 @@ export interface StressThroughputResult {
 	/** @see StressRunResult.pushClientRttMs */
 	pushClientRttMs: LatencyStatsMs;
 	phaseTimingsMs: StressPhaseTimingsMs;
+	apiErrors: StressApiErrors;
+}
+
+export function emptyApiErrorCounts(): StressApiErrorCounts {
+	return { total: 0, byReason: {} };
+}
+
+export function emptyApiErrors(): StressApiErrors {
+	return {
+		push: emptyApiErrorCounts(),
+		settle: emptyApiErrorCounts(),
+		seed: emptyApiErrorCounts(),
+	};
+}
+
+export function recordApiError(
+	bucket: StressApiErrorCounts,
+	reason: string,
+): void {
+	bucket.total += 1;
+	bucket.byReason[reason] = (bucket.byReason[reason] ?? 0) + 1;
 }
 
 export function newLayer2Address(): Layer2Address {

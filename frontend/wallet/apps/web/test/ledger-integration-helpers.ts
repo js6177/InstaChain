@@ -60,6 +60,7 @@ export function isLedgerIntegrationEnabled(): boolean {
 	const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
 	return (
 		apiBase.includes("layer2ledgerapihandler") ||
+		apiBase.includes("layer2ledgerapihandler-nginx") ||
 		apiBase.includes("localhost:8000") ||
 		apiBase.includes("127.0.0.1:8000")
 	);

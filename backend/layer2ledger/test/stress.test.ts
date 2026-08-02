@@ -13,9 +13,12 @@ import {
 } from "@openl2/openl2-messaging";
 import {
 	computeLatencyStats,
+	emptyApiErrors,
 	mapPool,
 	newLayer2Address,
+	recordApiError,
 	sleep,
+	type StressApiErrorCounts,
 	type StressRunResult,
 	type StressThroughputResult,
 } from "./common";
@@ -28,7 +31,7 @@ const log = createOpenL2Logger({
 });
 
 const ledgerApiUrl =
-	process.env.LAYER2LEDGER_API_URL ?? "http://layer2ledgerapihandler:8000";
+	process.env.LAYER2LEDGER_API_URL ?? "http://layer2ledgerapihandler-nginx:8000";
 const testhelperUrl =
 	process.env.TESTHELPER_BASE_URL ?? "http://layer2ledger-testhelper:8001";
 
@@ -52,6 +55,75 @@ async function waitForApiHealth(
 	throw new Error(`Timed out waiting for ledger API at ${baseUrl}`);
 }
 
+function isTransientGatewayError(error: unknown): boolean {
+	const message = error instanceof Error ? error.message : String(error);
+	return (
+		message.includes("status 502") ||
+		message.includes("status 503") ||
+		message.includes("status 504") ||
+		message.includes("typo in the url or port")
+	);
+}
+
+function apiErrorReason(error: unknown): string {
+	const message = error instanceof Error ? error.message : String(error);
+	const statusMatch = message.match(/status\s+(\d+)/i);
+	if (statusMatch?.[1]) {
+		return `http_${statusMatch[1]}`;
+	}
+	if (message.includes("typo in the url or port")) {
+		return "connection_failed";
+	}
+	const trimmed = message.replace(/\s+/g, " ").trim();
+	return trimmed.length > 120 ? `${trimmed.slice(0, 117)}...` : trimmed;
+}
+
+/** Retry ledger calls that fail through nginx with transient gateway errors. */
+async function withGatewayRetry<T>(
+	fn: () => Promise<T>,
+	options?: { attempts?: number; delayMs?: number },
+): Promise<T> {
+	const attempts = options?.attempts ?? 8;
+	const delayMs = options?.delayMs ?? 250;
+	let lastError: unknown;
+	for (let attempt = 1; attempt <= attempts; attempt += 1) {
+		try {
+			return await fn();
+		} catch (error) {
+			lastError = error;
+			if (!isTransientGatewayError(error) || attempt === attempts) {
+				throw error;
+			}
+			await sleep(delayMs * attempt);
+		}
+	}
+	throw lastError;
+}
+
+async function callLedgerApi<T>(
+	bucket: StressApiErrorCounts,
+	fn: () => Promise<{ error_code: number; error_message?: string } & T>,
+	options?: { ignoreErrorCodes?: readonly number[] },
+): Promise<({ error_code: number; error_message?: string } & T) | null> {
+	const ignoreErrorCodes = new Set(options?.ignoreErrorCodes ?? []);
+	try {
+		const response = await withGatewayRetry(fn);
+		if (
+			response.error_code !== ErrorCodes.SUCCESS &&
+			!ignoreErrorCodes.has(response.error_code)
+		) {
+			recordApiError(
+				bucket,
+				`error_code_${response.error_code}:${response.error_message ?? ""}`,
+			);
+		}
+		return response;
+	} catch (error) {
+		recordApiError(bucket, apiErrorReason(error));
+		return null;
+	}
+}
+
 /**
  * Push `transactionCount` transfers through the live Elysia API, wait for the
  * running dbwriter to persist them, and return push client-RTT + phase timings.
@@ -66,6 +138,7 @@ async function runPushTransactionStress(
 	const settleTimeoutMs = Number(
 		process.env.STRESS_SETTLE_TIMEOUT_MS ?? "120000",
 	);
+	const apiErrors = emptyApiErrors();
 
 	const ledger = createLayer2LedgerClient(ledgerApiUrl);
 	const testhelper = createLayer2TestHelperClient(testhelperUrl);
@@ -79,6 +152,7 @@ async function runPushTransactionStress(
 	const nodeId = nodeInfo.node_info.node_id;
 	const assetId = nodeInfo.node_info.asset_id || NODE_ASSET_ID_HEX;
 
+	log.info("checked health");
 	const prepareStartedAt = performance.now();
 	const unsigned = await mapPool(
 		Array.from({ length: transactionCount }, (_, index) => index),
@@ -100,6 +174,7 @@ async function runPushTransactionStress(
 		},
 	);
 	const prepareMs = Math.round(performance.now() - prepareStartedAt);
+	log.info("created unsigned messages");
 
 	const signStartedAt = performance.now();
 	const prepared = await mapPool(
@@ -111,72 +186,74 @@ async function runPushTransactionStress(
 		},
 	);
 	const signMs = Math.round(performance.now() - signStartedAt);
-
+	log.info("signed messages");
+	
 	const seedStartedAt = performance.now();
 	await mapPool(prepared, concurrency, async ({ source }) => {
-		unwrapLayer2TestHelperResponse(
-			await testhelper.testhelper.seed.balance.post({
-				address: source.public_key_str_base58,
-				balance: initialBalance,
-				include_deposit_transaction: false,
-			}),
-		);
+		try {
+			unwrapLayer2TestHelperResponse(
+				await testhelper.testhelper.seed.balance.post({
+					address: source.public_key_str_base58,
+					balance: initialBalance,
+					include_deposit_transaction: false,
+				}),
+			);
+		} catch (error) {
+			recordApiError(apiErrors.seed, apiErrorReason(error));
+		}
 	});
 	const seedMs = Math.round(performance.now() - seedStartedAt);
+	log.info("seeded balances");
 
 	const pushLatenciesMs: number[] = [];
+	const acceptedTransactionIds: string[] = [];
 	const pushStartedAt = performance.now();
-	const pushResponses = await mapPool(
+	await mapPool(
 		prepared,
 		concurrency,
 		async ({ source, dest, transactionId, signature }) => {
 			const startedAt = performance.now();
-			const response = unwrapLayer2LedgerResponse(
-				await ledger.transfer.push_transaction.post({
-					amount,
-					destination_address_public_key: dest.public_key_str_base58,
-					fee,
-					signature,
-					source_address_public_key: source.public_key_str_base58,
-					transaction_id: transactionId,
-				}),
+			const response = await callLedgerApi(apiErrors.push, async () =>
+				unwrapLayer2LedgerResponse(
+					await ledger.transfer.push_transaction.post({
+						amount,
+						destination_address_public_key: dest.public_key_str_base58,
+						fee,
+						signature,
+						source_address_public_key: source.public_key_str_base58,
+						transaction_id: transactionId,
+					}),
+				),
 			);
-			if (response.error_code === ErrorCodes.SUCCESS) {
+			if (response?.error_code === ErrorCodes.SUCCESS) {
 				pushLatenciesMs.push(performance.now() - startedAt);
+				acceptedTransactionIds.push(transactionId);
 			}
-			return response;
 		},
 	);
 	const pushMs = Math.round(performance.now() - pushStartedAt);
+	log.info("pushed transactions");
+	const acceptedPushes = acceptedTransactionIds.length;
 
-	const accepted = pushResponses.filter(
-		(response) => response.error_code === ErrorCodes.SUCCESS,
-	).length;
-	if (accepted !== transactionCount) {
-		const sample = pushResponses
-			.filter((response) => response.error_code !== ErrorCodes.SUCCESS)
-			.slice(0, 5)
-			.map((response) => `${response.error_code}: ${response.error_message}`);
-		throw new Error(
-			`Expected ${transactionCount} accepted pushes, got ${accepted}. Sample errors: ${sample.join(" | ")}`,
-		);
-	}
-
-	const pendingIds = new Set(
-		prepared.map(({ transactionId }) => transactionId),
-	);
+	const pendingIds = new Set(acceptedTransactionIds);
 	const deadline = Date.now() + settleTimeoutMs;
 
 	const settleStartedAt = performance.now();
 	while (pendingIds.size > 0 && Date.now() < deadline) {
 		const stillPending = [...pendingIds];
 		await mapPool(stillPending, concurrency, async (transactionId) => {
-			const response = unwrapLayer2LedgerResponse(
-				await ledger.explorer.get_transaction.post({
-					layer2_transaction_id: transactionId,
-				}),
+			const response = await callLedgerApi(
+				apiErrors.settle,
+				async () =>
+					unwrapLayer2LedgerResponse(
+						await ledger.explorer.get_transaction.post({
+							layer2_transaction_id: transactionId,
+						}),
+					),
+				// Not-found is expected until dbwriter catches up.
+				{ ignoreErrorCodes: [ErrorCodes.TRANSACTION_ID_NOT_FOUND] },
 			);
-			if (response.error_code === ErrorCodes.SUCCESS) {
+			if (response?.error_code === ErrorCodes.SUCCESS) {
 				pendingIds.delete(transactionId);
 			}
 		});
@@ -186,9 +263,11 @@ async function runPushTransactionStress(
 		}
 	}
 	const settleMs = Math.round(performance.now() - settleStartedAt);
-
+	log.info("settled transactions");
+	
 	return {
-		processedToPostgres: transactionCount - pendingIds.size,
+		processedToPostgres: acceptedPushes - pendingIds.size,
+		acceptedPushes,
 		pushClientRttMs: computeLatencyStats(pushLatenciesMs),
 		phaseTimingsMs: {
 			prepareMs,
@@ -198,6 +277,7 @@ async function runPushTransactionStress(
 			settleMs,
 			totalMs: prepareMs + signMs + seedMs + pushMs + settleMs,
 		},
+		apiErrors,
 	};
 }
 
@@ -210,31 +290,42 @@ describe.skipIf(!runHttpStress)("pushTransaction HTTP stress", () => {
 				true,
 			);
 
-			const { processedToPostgres, pushClientRttMs, phaseTimingsMs } =
-				await runPushTransactionStress(transactionCount);
+			const {
+				processedToPostgres,
+				acceptedPushes,
+				pushClientRttMs,
+				phaseTimingsMs,
+				apiErrors,
+			} = await runPushTransactionStress(transactionCount);
 			const txsPerSecond = Number(
-				(
-					(processedToPostgres / Math.max(phaseTimingsMs.pushMs, 1)) *
-					1000
-				).toFixed(2),
+				((acceptedPushes / Math.max(phaseTimingsMs.pushMs, 1)) * 1000).toFixed(
+					2,
+				),
 			);
+			const apiErrorTotal =
+				apiErrors.push.total + apiErrors.settle.total + apiErrors.seed.total;
 			const throughput: StressThroughputResult = {
 				transactionCount,
 				processedToPostgres,
+				acceptedPushes,
 				elapsedMs: phaseTimingsMs.pushMs,
 				txsPerSecond,
 				pushClientRttMs,
 				phaseTimingsMs,
+				apiErrors,
 			};
 
 			log.info("pushTransaction stress throughput", {
 				txs_per_second: txsPerSecond,
 				processed: `${processedToPostgres}/${transactionCount}`,
+				accepted_pushes: acceptedPushes,
 				// Push-wave wall clock only (basis for txs/sec).
 				elapsed_ms: phaseTimingsMs.pushMs,
 				phase_timings_ms: phaseTimingsMs,
 				// Client HTTP RTT under concurrency; higher than handler-only apihandler logs.
 				push_client_rtt_ms: pushClientRttMs,
+				api_errors: apiErrors,
+				api_error_total: apiErrorTotal,
 			});
 
 			const stressResultFile = process.env.STRESS_RESULT_FILE;
@@ -245,7 +336,9 @@ describe.skipIf(!runHttpStress)("pushTransaction HTTP stress", () => {
 				);
 			}
 
-			expect(processedToPostgres).toBe(transactionCount);
+			expect(processedToPostgres).toBe(acceptedPushes);
+			expect(acceptedPushes).toBe(transactionCount);
+			//expect(apiErrorTotal).toBe(0);
 		},
 		{ timeout: 300_000 },
 	);

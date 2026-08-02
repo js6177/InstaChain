@@ -27,6 +27,7 @@ export const DockerService = {
 	LAYER2LEDGER_REDIS: "layer2ledger-redis",
 	LAYER2LEDGER_MONGODB: "layer2ledger-mongodb",
 	LAYER2LEDGER_APIHANDLER: "layer2ledgerapihandler",
+	LAYER2LEDGER_APIHANDLER_NGINX: "layer2ledgerapihandler-nginx",
 	LAYER2LEDGER_DBWRITER: "layer2ledgerdbwriter",
 	LAYER2LEDGER_OAUTH_MANAGER: "layer2ledgeroauthmanager",
 	LAYER2LEDGER_TESTHELPER: "layer2ledger-testhelper",
@@ -55,6 +56,7 @@ export const DOCKER_INFRA_SERVICES = [
 /** Long-running application services (excluding wallet-web / bitcoin-core). */
 export const DOCKER_APP_SERVICES = [
 	DockerService.LAYER2LEDGER_APIHANDLER,
+	DockerService.LAYER2LEDGER_APIHANDLER_NGINX,
 	DockerService.LAYER2LEDGER_DBWRITER,
 	DockerService.LAYER2LEDGER_OAUTH_MANAGER,
 	DockerService.LAYER2BRIDGE,

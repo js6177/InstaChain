@@ -9,6 +9,9 @@ services:
       - ./.config/dev/bitcoin.conf:/config/bitcoin.conf:ro
 
   layer2ledgerapihandler:
+    # Single replica under --inspect (host debug port cannot map to multiple tasks).
+    deploy:
+      replicas: 1
     ports:
       - "${LAYER2LEDGER_APIHANDLER_DEBUG_PORT:-5678}:5678"
     environment:
@@ -96,7 +99,7 @@ services:
       - ./frontend/wallet/packages:/app/frontend/wallet/packages:ro
       - ./shared:/app/shared:ro
     depends_on:
-      layer2ledgerapihandler:
+      layer2ledgerapihandler-nginx:
         condition: service_started
       layer2ledgeroauthmanager:
         condition: service_started

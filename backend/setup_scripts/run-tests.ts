@@ -301,8 +301,18 @@ class DockerComposeTestRunner {
 
 	private async startAppServices(): Promise<void> {
 		log.info("Starting backend application services for test (ENVIRONMENT=test)...");
+		const apihandlerReplicas =
+			process.env.LAYER2LEDGER_APIHANDLER_REPLICAS ?? "2";
 		await this.run(
-			["up", "-d", "--build", "--force-recreate", ...DOCKER_APP_SERVICES],
+			[
+				"up",
+				"-d",
+				"--build",
+				"--force-recreate",
+				"--scale",
+				`${DockerService.LAYER2LEDGER_APIHANDLER}=${apihandlerReplicas}`,
+				...DOCKER_APP_SERVICES,
+			],
 			{
 				check: true,
 			},

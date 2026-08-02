@@ -34,16 +34,10 @@ services:
     environment:
       ENVIRONMENT: test
       OPENL2_CONFIG_PATH: /app/.config
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "bun -e \"fetch('http://127.0.0.1:8000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
-        ]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-      start_period: 20s
+
+  layer2ledgerapihandler-nginx:
+    environment:
+      ENVIRONMENT: test
 
   layer2ledgerdbwriter:
     env_file:
@@ -145,7 +139,7 @@ services:
       STRESS_TX_COUNT: ${STRESS_TX_COUNT:-100}
       STRESS_CONCURRENCY: ${STRESS_CONCURRENCY:-10}
       STRESS_SETTLE_TIMEOUT_MS: ${STRESS_SETTLE_TIMEOUT_MS:-120000}
-      LAYER2LEDGER_API_URL: http://layer2ledgerapihandler:8000
+      LAYER2LEDGER_API_URL: http://layer2ledgerapihandler-nginx:8000
       TESTHELPER_BASE_URL: http://layer2ledger-testhelper:8001
       STRESS_RESULT_FILE: /test-output/test-layer2ledger-stress.throughput.json
     command: ["bun", "test", "test/stress.test.ts"]
@@ -157,6 +151,8 @@ services:
       layer2ledger-redis:
         condition: service_healthy
       layer2ledgerapihandler:
+        condition: service_healthy
+      layer2ledgerapihandler-nginx:
         condition: service_healthy
       layer2ledgerdbwriter:
         condition: service_healthy
@@ -179,6 +175,8 @@ services:
       layer2ledger-redis:
         condition: service_healthy
       layer2ledgerapihandler:
+        condition: service_healthy
+      layer2ledgerapihandler-nginx:
         condition: service_healthy
       layer2ledgerdbwriter:
         condition: service_healthy
@@ -236,6 +234,8 @@ services:
         condition: service_healthy
       layer2ledgerapihandler:
         condition: service_healthy
+      layer2ledgerapihandler-nginx:
+        condition: service_healthy
     restart: "no"
 
   test-wallet-web:
@@ -259,6 +259,8 @@ services:
       layer2ledger-mongodb:
         condition: service_healthy
       layer2ledgerapihandler:
+        condition: service_healthy
+      layer2ledgerapihandler-nginx:
         condition: service_healthy
       layer2ledgerdbwriter:
         condition: service_healthy

@@ -38,6 +38,7 @@ backend-dev:
 #   bun run setup:first-time -- -env=test
 backend-test:
 	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test up --build \
+		--scale layer2ledgerapihandler=$${LAYER2LEDGER_APIHANDLER_REPLICAS:-2} \
 		layer2ledger-postgres \
 		layer2ledger-redis \
 		layer2ledger-mongodb \
@@ -47,6 +48,8 @@ backend-test:
 		bitcoin-core \
 		layer2bridge \
 		layer2ledger-testhelper
+	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test \
+		up -d --force-recreate --no-deps layer2ledgerapihandler-nginx
 
 # Rebuild and run only the layer2ledger HTTP stress test (not the full suite).
 # Ensures apihandler, dbwriter, and testhelper are up, then `compose run --build`.
@@ -58,11 +61,15 @@ stress-test:
 	mkdir -p .test-output/stress
 	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test \
 		up -d --build \
+		--scale layer2ledgerapihandler=$${LAYER2LEDGER_APIHANDLER_REPLICAS:-2} \
 		layer2ledger-postgres \
 		layer2ledger-redis \
 		layer2ledgerapihandler \
 		layer2ledgerdbwriter \
 		layer2ledger-testhelper
+	# Recreate nginx after apihandler so it never keeps stale replica IPs from a prior run.
+	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test \
+		up -d --force-recreate --no-deps layer2ledgerapihandler-nginx
 	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test \
 		run --rm --build \
 		-v "$(CURDIR)/.test-output/stress:/test-output" \

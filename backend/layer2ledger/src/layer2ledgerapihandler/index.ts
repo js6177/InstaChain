@@ -25,11 +25,18 @@ const { db, sql } = createDatabase({
 	dbName: commonConfig.database.db_name,
 });
 
-await migrateDatabase(sql, {
-	dropExisting:
-		process.env.ENVIRONMENT === "test" &&
-		commonConfig.drop_tables_before_test_completed === true,
-});
+// Serialize schema setup across Docker replicas (advisory lock is cluster-wide).
+const MIGRATION_LOCK_KEY = 724_310_001;
+await sql`SELECT pg_advisory_lock(${MIGRATION_LOCK_KEY})`;
+try {
+	await migrateDatabase(sql, {
+		dropExisting:
+			process.env.ENVIRONMENT === "test" &&
+			commonConfig.drop_tables_before_test_completed === true,
+	});
+} finally {
+	await sql`SELECT pg_advisory_unlock(${MIGRATION_LOCK_KEY})`;
+}
 
 const redis = new Redis({
 	host: commonConfig.redis.host,

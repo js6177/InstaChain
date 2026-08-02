@@ -27,9 +27,21 @@ export interface StressPhaseTimingsMs {
 	totalMs: number;
 }
 
+export interface StressApiErrorCounts {
+	total: number;
+	byReason: Record<string, number>;
+}
+
+export interface StressApiErrors {
+	push: StressApiErrorCounts;
+	settle: StressApiErrorCounts;
+	seed: StressApiErrorCounts;
+}
+
 export interface StressThroughputResult {
 	transactionCount: number;
 	processedToPostgres: number;
+	acceptedPushes?: number;
 	/** Push-wave wall clock only (basis for txs/sec). */
 	elapsedMs: number;
 	txsPerSecond: number;
@@ -38,6 +50,7 @@ export interface StressThroughputResult {
 	/** @deprecated Prefer pushClientRttMs; kept for older result files. */
 	pushLatencyMs?: StressLatencyStatsMs;
 	phaseTimingsMs?: StressPhaseTimingsMs;
+	apiErrors?: StressApiErrors;
 }
 
 export interface ServiceTestCounts {
@@ -371,16 +384,54 @@ export function readStressThroughputResult(
 		return {
 			transactionCount,
 			processedToPostgres,
+			acceptedPushes:
+				typeof record.acceptedPushes === "number"
+					? record.acceptedPushes
+					: undefined,
 			elapsedMs,
 			txsPerSecond,
 			pushClientRttMs:
 				parseLatencyStats(record.pushClientRttMs) ??
 				parseLatencyStats(record.pushLatencyMs),
 			phaseTimingsMs: parsePhaseTimings(record.phaseTimingsMs),
+			apiErrors: parseApiErrors(record.apiErrors),
 		};
 	} catch {
 		return null;
 	}
+}
+
+function parseApiErrorCounts(value: unknown): StressApiErrorCounts | undefined {
+	if (!value || typeof value !== "object") {
+		return undefined;
+	}
+	const record = value as Record<string, unknown>;
+	if (typeof record.total !== "number" || typeof record.byReason !== "object") {
+		return undefined;
+	}
+	const byReason: Record<string, number> = {};
+	for (const [key, count] of Object.entries(
+		record.byReason as Record<string, unknown>,
+	)) {
+		if (typeof count === "number") {
+			byReason[key] = count;
+		}
+	}
+	return { total: record.total, byReason };
+}
+
+function parseApiErrors(value: unknown): StressApiErrors | undefined {
+	if (!value || typeof value !== "object") {
+		return undefined;
+	}
+	const record = value as Record<string, unknown>;
+	const push = parseApiErrorCounts(record.push);
+	const settle = parseApiErrorCounts(record.settle);
+	const seed = parseApiErrorCounts(record.seed);
+	if (!push || !settle || !seed) {
+		return undefined;
+	}
+	return { push, settle, seed };
 }
 
 function parseLatencyStats(value: unknown): StressLatencyStatsMs | undefined {
@@ -441,11 +492,19 @@ export function printStressThroughputSummary(outputDir: string): void {
 		return;
 	}
 
+	const apiErrorTotal = result.apiErrors
+		? result.apiErrors.push.total +
+			result.apiErrors.settle.total +
+			result.apiErrors.seed.total
+		: 0;
 	log.info("pushTransaction stress throughput", {
 		processed: `${result.processedToPostgres}/${result.transactionCount}`,
+		accepted_pushes: result.acceptedPushes ?? null,
 		elapsed_ms: result.elapsedMs,
 		txs_per_second: result.txsPerSecond,
 		phase_timings_ms: result.phaseTimingsMs ?? null,
 		push_client_rtt_ms: result.pushClientRttMs ?? null,
+		api_errors: result.apiErrors ?? null,
+		api_error_total: apiErrorTotal,
 	});
 }

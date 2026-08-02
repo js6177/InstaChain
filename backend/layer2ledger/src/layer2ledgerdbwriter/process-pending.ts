@@ -19,7 +19,7 @@ import { log } from "../logger";
 import { redisTransactionToInsert, redisWithdrawalRequestToInsert } from "../redis/models";
 
 /** Max items read from each Redis pending list per Postgres batch insert. */
-export const MAXIMUM_BATCH_INSERT_COUNT = 999;
+export const MAXIMUM_BATCH_INSERT_COUNT = 3999;
 
 /** Max idle sleep between dbwriter loops when the pending queue is empty. */
 export const PENDING_BATCH_IDLE_SLEEP_MS = 1000;
