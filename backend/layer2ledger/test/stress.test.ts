@@ -27,7 +27,6 @@ const runHttpStress = process.env.RUN_LEDGER_HTTP_STRESS === "1";
 
 const log = createOpenL2Logger({
 	serviceName: "layer2ledger-stress",
-	prettyJson: true,
 });
 
 const ledgerApiUrl =
@@ -264,7 +263,7 @@ async function runPushTransactionStress(
 	}
 	const settleMs = Math.round(performance.now() - settleStartedAt);
 	log.info("settled transactions");
-	
+
 	return {
 		processedToPostgres: acceptedPushes - pendingIds.size,
 		acceptedPushes,
@@ -315,18 +314,24 @@ describe.skipIf(!runHttpStress)("pushTransaction HTTP stress", () => {
 				apiErrors,
 			};
 
-			log.info("pushTransaction stress throughput", {
-				txs_per_second: txsPerSecond,
-				processed: `${processedToPostgres}/${transactionCount}`,
-				accepted_pushes: acceptedPushes,
-				// Push-wave wall clock only (basis for txs/sec).
-				elapsed_ms: phaseTimingsMs.pushMs,
-				phase_timings_ms: phaseTimingsMs,
-				// Client HTTP RTT under concurrency; higher than handler-only apihandler logs.
-				push_client_rtt_ms: pushClientRttMs,
-				api_errors: apiErrors,
-				api_error_total: apiErrorTotal,
-			});
+			const processed = `${processedToPostgres}/${transactionCount}`;
+			log.info(
+				`pushTransaction stress throughput: ${txsPerSecond} txs/s ` +
+					`(processed ${processed}, accepted_pushes=${acceptedPushes}, ` +
+					`elapsed_ms=${phaseTimingsMs.pushMs}, api_errors=${apiErrorTotal})`,
+				{
+					txs_per_second: txsPerSecond,
+					processed,
+					accepted_pushes: acceptedPushes,
+					// Push-wave wall clock only (basis for txs/sec).
+					elapsed_ms: phaseTimingsMs.pushMs,
+					phase_timings_ms: phaseTimingsMs,
+					// Client HTTP RTT under concurrency; higher than handler-only apihandler logs.
+					push_client_rtt_ms: pushClientRttMs,
+					api_errors: apiErrors,
+					api_error_total: apiErrorTotal,
+				},
+			);
 
 			const stressResultFile = process.env.STRESS_RESULT_FILE;
 			if (stressResultFile) {

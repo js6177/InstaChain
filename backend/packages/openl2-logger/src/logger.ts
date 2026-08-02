@@ -1,5 +1,6 @@
+import { createWriteStream, type WriteStream } from "node:fs";
 import { Writable } from "node:stream";
-import pino, { type Logger as PinoLogger } from "pino";
+import pino, { multistream, type Logger as PinoLogger } from "pino";
 import { getLogContext } from "./context";
 import { createSessionId } from "./ids";
 import {
@@ -9,7 +10,7 @@ import {
 } from "./severity";
 
 export interface CreateOpenL2LoggerOptions {
-	/** Logical service name included on every log entry. */
+	/** Logical service name included on every structured log entry. */
 	serviceName: string;
 	/**
 	 * Minimum severity to emit. Defaults to {@link LogSeverity.Info}.
@@ -17,11 +18,15 @@ export interface CreateOpenL2LoggerOptions {
 	level?: LogSeverity | LogSeverityLevel;
 	/** Override the process session id (mainly for tests). */
 	sessionId?: string;
-	/** Extra static fields merged into every log entry. */
+	/** Extra static fields merged into every structured log entry. */
 	base?: Record<string, unknown>;
 	/**
-	 * When true, emit indented multi-line JSON instead of one-line NDJSON.
-	 * Useful for local/test readability; leave false in production.
+	 * Optional path for structured NDJSON logs.
+	 * When unset, structured output is only sent to the ingestion placeholder.
+	 */
+	logFile?: string;
+	/**
+	 * @deprecated Console always prints the message only. Ignored.
 	 */
 	prettyJson?: boolean;
 }
@@ -53,6 +58,10 @@ export interface OpenL2Logger {
 }
 
 type SeverityPinoLogger = PinoLogger<LogSeverityLevel>;
+
+interface ParsedLogLine {
+	message?: unknown;
+}
 
 function wrapPinoLogger(
 	pinoLogger: SeverityPinoLogger,
@@ -119,22 +128,16 @@ function wrapPinoLogger(
 	};
 }
 
-/**
- * Create a service-scoped OpenL2 logger backed by Pino.
- *
- * Every entry includes `service`, `session_id`, and (when available)
- * `request_id` from async request context.
- *
- * `session_id` is generated once per call and remains stable for the
- * lifetime of the returned logger instance (typically one per process).
- */
-function createPrettyJsonDestination(): Writable {
+/** Console sink: human-readable message only (no structured fields). */
+function createConsoleMessageDestination(): Writable {
 	return new Writable({
 		write(chunk, _encoding, callback) {
 			const line = chunk.toString();
 			try {
-				const parsed: unknown = JSON.parse(line);
-				process.stdout.write(`${JSON.stringify(parsed, null, 2)}\n`);
+				const parsed = JSON.parse(line) as ParsedLogLine;
+				const message =
+					typeof parsed.message === "string" ? parsed.message : line.trim();
+				process.stdout.write(`${message}\n`);
 			} catch {
 				process.stdout.write(line.endsWith("\n") ? line : `${line}\n`);
 			}
@@ -143,15 +146,55 @@ function createPrettyJsonDestination(): Writable {
 	});
 }
 
+/**
+ * Placeholder structured sink for log aggregation / service ingestion.
+ * Currently discards entries; wire a real transport here later.
+ */
+function createStructuredIngestionDestination(): Writable {
+	return new Writable({
+		write(_chunk, _encoding, callback) {
+			// TODO: forward NDJSON to the log ingestion service.
+			callback();
+		},
+	});
+}
+
+function createLogFileDestination(logFile: string): WriteStream {
+	return createWriteStream(logFile, { flags: "a" });
+}
+
+/**
+ * Create a service-scoped OpenL2 logger backed by Pino.
+ *
+ * Console output is the log message only. Structured NDJSON (with service,
+ * session_id, request_id, and fields) is written to {@link CreateOpenL2LoggerOptions.logFile}
+ * when set, and always passed to the structured ingestion placeholder.
+ *
+ * `session_id` is generated once per call and remains stable for the
+ * lifetime of the returned logger instance (typically one per process).
+ */
 export function createOpenL2Logger(
 	options: CreateOpenL2LoggerOptions,
 ): OpenL2Logger {
 	const sessionId = options.sessionId ?? createSessionId();
 	const serviceName = options.serviceName;
+	const level = options.level ?? LogSeverity.Info;
+
+	const streams: Parameters<typeof multistream>[0] = [
+		{ level, stream: createConsoleMessageDestination() },
+		{ level, stream: createStructuredIngestionDestination() },
+	];
+
+	if (options.logFile) {
+		streams.push({
+			level,
+			stream: createLogFileDestination(options.logFile),
+		});
+	}
 
 	const pinoLogger = pino(
 		{
-			level: options.level ?? LogSeverity.Info,
+			level,
 			base: {
 				service: serviceName,
 				session_id: sessionId,
@@ -170,7 +213,10 @@ export function createOpenL2Logger(
 				return requestId ? { request_id: requestId } : {};
 			},
 		},
-		options.prettyJson ? createPrettyJsonDestination() : undefined,
+		multistream(streams, {
+			levels: { ...LOG_SEVERITY_LEVELS },
+			dedupe: true,
+		}),
 	) as SeverityPinoLogger;
 
 	return wrapPinoLogger(pinoLogger, serviceName, sessionId);

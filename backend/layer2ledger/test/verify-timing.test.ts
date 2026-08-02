@@ -9,7 +9,6 @@ import { computeLatencyStats, newLayer2Address } from "./common";
 
 const log = createOpenL2Logger({
 	serviceName: "openl2-messaging-verify-bench",
-	prettyJson: true,
 });
 
 describe("openl2 message verification timing", () => {
@@ -82,15 +81,38 @@ describe("openl2 message verification timing", () => {
 				(total, value) => total + value,
 				0,
 			);
+			const verifiesPerSecond = Number(
+				((messageCount / Math.max(verifyElapsedMs, 1)) * 1000).toFixed(2),
+			);
 
-			log.info("openl2 message verification timing", {
-				message_count: messageCount,
-				sign_latency_ms: signLatencyMs,
-				verify_latency_ms: verifyLatencyMs,
-				verifies_per_second: Number(
-					((messageCount / Math.max(verifyElapsedMs, 1)) * 1000).toFixed(2),
-				),
-			});
+			log.info(
+				`openl2 message verification timing: ${verifiesPerSecond} verifies/s ` +
+					`(messages=${messageCount}, avg_sign_ms=${signLatencyMs.average}, ` +
+					`avg_verify_ms=${verifyLatencyMs.average})`,
+				{
+					message_count: messageCount,
+					sign_latency_ms: signLatencyMs,
+					verify_latency_ms: verifyLatencyMs,
+					verifies_per_second: verifiesPerSecond,
+				},
+			);
+
+			const verifyResultFile = process.env.VERIFY_RESULT_FILE;
+			if (verifyResultFile) {
+				await Bun.write(
+					verifyResultFile,
+					`${JSON.stringify(
+						{
+							messageCount,
+							signLatencyMs,
+							verifyLatencyMs,
+							verifiesPerSecond,
+						},
+						null,
+						2,
+					)}\n`,
+				);
+			}
 		},
 		{ timeout: 180_000 },
 	);

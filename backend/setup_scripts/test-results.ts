@@ -7,8 +7,10 @@ import { log } from "./src/logger";
 export const TEST_OUTPUT_MOUNT = "/test-output";
 
 /** Written by layer2ledger stress.test.ts; summarized at end of run-tests. */
-export const STRESS_THROUGHPUT_FILENAME =
-	"test-layer2ledger-stress.throughput.json";
+export const STRESS_THROUGHPUT_FILENAME = "test-layer2ledger-stress.throughput.json";
+
+/** Written by layer2ledger verify-timing.test.ts; summarized at end of run-tests. */
+export const VERIFY_TIMING_FILENAME = "test-layer2ledger.verify-timing.json";
 
 export interface StressLatencyStatsMs {
 	average: number;
@@ -352,6 +354,7 @@ export function printTestResultsSummary(
 	);
 
 	printStressThroughputSummary(outputDir);
+	printVerifyTimingSummary(outputDir);
 }
 
 export function readStressThroughputResult(
@@ -497,14 +500,84 @@ export function printStressThroughputSummary(outputDir: string): void {
 			result.apiErrors.settle.total +
 			result.apiErrors.seed.total
 		: 0;
-	log.info("pushTransaction stress throughput", {
-		processed: `${result.processedToPostgres}/${result.transactionCount}`,
-		accepted_pushes: result.acceptedPushes ?? null,
-		elapsed_ms: result.elapsedMs,
-		txs_per_second: result.txsPerSecond,
-		phase_timings_ms: result.phaseTimingsMs ?? null,
-		push_client_rtt_ms: result.pushClientRttMs ?? null,
-		api_errors: result.apiErrors ?? null,
-		api_error_total: apiErrorTotal,
-	});
+	const processed = `${result.processedToPostgres}/${result.transactionCount}`;
+	log.info(
+		`pushTransaction stress throughput: ${result.txsPerSecond} txs/s ` +
+			`(processed ${processed}, accepted_pushes=${result.acceptedPushes ?? "n/a"}, ` +
+			`elapsed_ms=${result.elapsedMs}, api_errors=${apiErrorTotal})`,
+		{
+			processed,
+			accepted_pushes: result.acceptedPushes ?? null,
+			elapsed_ms: result.elapsedMs,
+			txs_per_second: result.txsPerSecond,
+			phase_timings_ms: result.phaseTimingsMs ?? null,
+			push_client_rtt_ms: result.pushClientRttMs ?? null,
+			api_errors: result.apiErrors ?? null,
+			api_error_total: apiErrorTotal,
+		},
+	);
+}
+
+export interface VerifyTimingResult {
+	messageCount: number;
+	signLatencyMs: StressLatencyStatsMs;
+	verifyLatencyMs: StressLatencyStatsMs;
+	verifiesPerSecond: number;
+}
+
+export function readVerifyTimingResult(
+	outputDir: string,
+): VerifyTimingResult | null {
+	const filePath = join(outputDir, VERIFY_TIMING_FILENAME);
+	if (!existsSync(filePath)) {
+		return null;
+	}
+
+	try {
+		const parsed = JSON.parse(readFileSync(filePath, "utf8")) as unknown;
+		if (!parsed || typeof parsed !== "object") {
+			return null;
+		}
+		const record = parsed as Record<string, unknown>;
+		const messageCount = record.messageCount;
+		const verifiesPerSecond = record.verifiesPerSecond;
+		const signLatencyMs = parseLatencyStats(record.signLatencyMs);
+		const verifyLatencyMs = parseLatencyStats(record.verifyLatencyMs);
+		if (
+			typeof messageCount !== "number" ||
+			typeof verifiesPerSecond !== "number" ||
+			!signLatencyMs ||
+			!verifyLatencyMs
+		) {
+			return null;
+		}
+		return {
+			messageCount,
+			signLatencyMs,
+			verifyLatencyMs,
+			verifiesPerSecond,
+		};
+	} catch {
+		return null;
+	}
+}
+
+export function printVerifyTimingSummary(outputDir: string): void {
+	const result = readVerifyTimingResult(outputDir);
+	if (!result) {
+		return;
+	}
+
+	log.info(
+		`openl2 message verification timing: ${result.verifiesPerSecond} verifies/s ` +
+			`(messages=${result.messageCount}, ` +
+			`avg_sign_ms=${result.signLatencyMs.average}, ` +
+			`avg_verify_ms=${result.verifyLatencyMs.average})`,
+		{
+			message_count: result.messageCount,
+			sign_latency_ms: result.signLatencyMs,
+			verify_latency_ms: result.verifyLatencyMs,
+			verifies_per_second: result.verifiesPerSecond,
+		},
+	);
 }

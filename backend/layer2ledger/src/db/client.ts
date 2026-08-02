@@ -28,6 +28,8 @@ export function createDatabase(
 	// open their own pool against the same Postgres (default max_connections=100).
 	const sql = postgres(buildDatabaseUrl(settings), {
 		max: options?.maxConnections ?? 10,
+		// Do not print notices to console.
+		onnotice: () => {},
 	});
 	const db = drizzle(sql, { schema });
 	return { db, sql };

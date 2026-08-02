@@ -116,6 +116,8 @@ services:
     environment:
       ENVIRONMENT: test
       OPENL2_CONFIG_PATH: /app/.config
+      # Overridden by run-tests.ts to the dated .test-output mount path.
+      VERIFY_RESULT_FILE: /test-output/test-layer2ledger.verify-timing.json
     volumes:
       - ./.config:/app/.config:ro
     depends_on:

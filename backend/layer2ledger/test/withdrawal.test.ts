@@ -99,7 +99,7 @@ describe("withdrawal route handlers", () => {
 			WithdrawalStatus.WITHDRAWAL_STATUS_ACKNOWLEDGED,
 		);
 
-		const layer1TransactionId = "l1_tx_id_123";
+		const layer1TransactionId = `l1_tx_${crypto.randomUUID()}`;
 		const layer1TransactionVout = 0;
 		const broadcastMessage = buildWithdrawalBroadcastedMessage(
 			backendCommon.node_id,

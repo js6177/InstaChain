@@ -37,6 +37,7 @@ import {
 	type ServiceTestCounts,
 	STRESS_THROUGHPUT_FILENAME,
 	TEST_OUTPUT_MOUNT,
+	VERIFY_TIMING_FILENAME,
 } from "./test-results";
 
 const ROOT = getProjectRoot(import.meta.dir);
@@ -196,12 +197,21 @@ class DockerComposeTestRunner {
 		log.info(`Created PostgreSQL database ${dbName}`);
 	}
 
-	private async containerId(service: DockerServiceName): Promise<string> {
+	private async containerIds(service: DockerServiceName): Promise<string[]> {
 		const result = await this.run(["ps", "-q", service], {
 			check: false,
 			captureOutput: true,
 		});
-		return result.stdout.trim();
+		// Scaled services (e.g. layer2ledgerapihandler replicas) return one ID per line.
+		return result.stdout
+			.split(/\s+/)
+			.map((id) => id.trim())
+			.filter((id) => id.length > 0);
+	}
+
+	private async containerId(service: DockerServiceName): Promise<string> {
+		const ids = await this.containerIds(service);
+		return ids[0] ?? "";
 	}
 
 	private async containerHealth(containerId: string): Promise<string> {
@@ -236,12 +246,19 @@ class DockerComposeTestRunner {
 	): Promise<void> {
 		let waited = 0;
 		while (waited < timeoutSec) {
-			const health = await this.containerHealth(
-				await this.containerId(service),
-			);
-			if (health === "healthy") {
-				log.info(`${service} is healthy`);
-				return;
+			const ids = await this.containerIds(service);
+			if (ids.length > 0) {
+				const healths = await Promise.all(
+					ids.map((id) => this.containerHealth(id)),
+				);
+				if (healths.every((health) => health === "healthy")) {
+					log.info(
+						ids.length > 1
+							? `${service} is healthy (${ids.length} replicas)`
+							: `${service} is healthy`,
+					);
+					return;
+				}
 			}
 			await Bun.sleep(2000);
 			waited += 2;
@@ -361,6 +378,12 @@ class DockerComposeTestRunner {
 				"-e",
 				`TEST_RESULT_FILE=${containerResultPath(testService)}`,
 			];
+			if (testService === DockerService.TEST_LAYER2LEDGER) {
+				composeArgs.push(
+					"-e",
+					`VERIFY_RESULT_FILE=${TEST_OUTPUT_MOUNT}/${VERIFY_TIMING_FILENAME}`,
+				);
+			}
 			if (testService === DockerService.TEST_LAYER2LEDGER_STRESS) {
 				composeArgs.push(
 					"-e",
