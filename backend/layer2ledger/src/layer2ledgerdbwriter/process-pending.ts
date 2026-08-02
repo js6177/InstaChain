@@ -174,13 +174,19 @@ export async function processPendingBatch(
 	const totalProcessed =
 		transactionsToProcess.length + withdrawalsToProcess.length;
 	if (totalProcessed > 0) {
-		log.info("Processed transactions", {
-			transactions_processed: transactionsToProcess.length,
-			withdrawals_processed: withdrawalsToProcess.length,
-			total_processed: totalProcessed,
-			batch_height: nextBatchHeight,
-			elapsed_ms: Math.round(performance.now() - startedAt),
-		});
+		const elapsedMs = Math.round(performance.now() - startedAt);
+		log.info(
+			`Processed transactions: total=${totalProcessed} ` +
+				`(tx=${transactionsToProcess.length}, withdrawals=${withdrawalsToProcess.length}, ` +
+				`batch_height=${nextBatchHeight}, elapsed_ms=${elapsedMs})`,
+			{
+				transactions_processed: transactionsToProcess.length,
+				withdrawals_processed: withdrawalsToProcess.length,
+				total_processed: totalProcessed,
+				batch_height: nextBatchHeight,
+				elapsed_ms: elapsedMs,
+			},
+		);
 	}
 
 	return nextBatchHeight;

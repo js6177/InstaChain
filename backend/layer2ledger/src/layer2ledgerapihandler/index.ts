@@ -1,5 +1,4 @@
 import {
-	getLayer2LedgerHost,
 	getLayer2LedgerPort,
 	loadBackendCommonConfig,
 	loadLayer2LedgerAPIHandlerConfig,
@@ -17,26 +16,46 @@ const commonConfig = loadLayer2LedgerCommonConfig();
 const apiHandlerConfig = loadLayer2LedgerAPIHandlerConfig();
 const backendCommonConfig = loadBackendCommonConfig();
 
-const { db, sql } = createDatabase({
+const directDbSettings = {
 	dbUser: commonConfig.database.db_user,
 	dbPassword: commonConfig.database.db_password,
 	dbHost: commonConfig.database.db_host,
 	dbPort: commonConfig.database.db_port,
 	dbName: commonConfig.database.db_name,
-});
+};
 
-// Serialize schema setup across Docker replicas (advisory lock is cluster-wide).
+const poolDbSettings = {
+	...directDbSettings,
+	dbHost: commonConfig.database.db_pool_host ?? commonConfig.database.db_host,
+	dbPort: commonConfig.database.db_pool_port ?? commonConfig.database.db_port,
+};
+
+const usesPgBouncer =
+	poolDbSettings.dbHost !== directDbSettings.dbHost ||
+	poolDbSettings.dbPort !== directDbSettings.dbPort;
+
+// Session advisory locks require a direct Postgres connection (not transaction pooling).
+const { sql: migrationSql } = createDatabase(directDbSettings, {
+	maxConnections: 1,
+});
 const MIGRATION_LOCK_KEY = 724_310_001;
-await sql`SELECT pg_advisory_lock(${MIGRATION_LOCK_KEY})`;
+await migrationSql`SELECT pg_advisory_lock(${MIGRATION_LOCK_KEY})`;
 try {
-	await migrateDatabase(sql, {
+	await migrateDatabase(migrationSql, {
 		dropExisting:
 			process.env.ENVIRONMENT === "test" &&
 			commonConfig.drop_tables_before_test_completed === true,
 	});
 } finally {
-	await sql`SELECT pg_advisory_unlock(${MIGRATION_LOCK_KEY})`;
+	await migrationSql`SELECT pg_advisory_unlock(${MIGRATION_LOCK_KEY})`;
+	await migrationSql.end({ timeout: 2 });
 }
+
+// Request traffic goes through PgBouncer in transaction mode when configured.
+const { db, sql } = createDatabase(poolDbSettings, {
+	maxConnections: 10,
+	prepare: !usesPgBouncer,
+});
 
 const redis = new Redis({
 	host: commonConfig.redis.host,
@@ -67,8 +86,17 @@ const app = createLayer2LedgerApp(handlers).listen({
 	port,
 });
 
-registerProcessShutdown(() => app.stop());
+registerProcessShutdown(async () => {
+	app.stop();
+	await redis.quit();
+	await sql.end({ timeout: 2 });
+});
 
-log.info(`layer2ledgerapihandler listening on http://${host}:${port}`);
+log.info(
+	`layer2ledgerapihandler listening on http://${host}:${port}` +
+		(usesPgBouncer
+			? ` (db via PgBouncer ${poolDbSettings.dbHost}:${poolDbSettings.dbPort})`
+			: " (db direct)"),
+);
 
 export type App = typeof app;

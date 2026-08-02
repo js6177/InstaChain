@@ -191,6 +191,9 @@ function generateKeys(
 	);
 
 	const dbHost = containered ? layer2ledgerDockerEnv.postgresHost : "localhost";
+	const dbPoolHost = containered
+		? layer2ledgerDockerEnv.pgbouncerHost
+		: "localhost";
 	const redisHost = containered ? layer2ledgerDockerEnv.redisHost : "localhost";
 
 	const layer2ledgerCommonSettings: Layer2LedgerCommonConfig = {
@@ -200,6 +203,8 @@ function generateKeys(
 			db_host: dbHost,
 			db_port: String(layer2ledgerDockerEnv.postgresPort),
 			db_name: layer2ledgerDockerEnv.postgresDb,
+			db_pool_host: dbPoolHost,
+			db_pool_port: String(layer2ledgerDockerEnv.pgbouncerPort),
 		},
 		redis: {
 			host: redisHost,

@@ -22,12 +22,19 @@ export function buildDatabaseUrl(settings: DatabaseSettings): string {
 
 export function createDatabase(
 	settings: DatabaseSettings,
-	options?: { maxConnections?: number },
+	options?: {
+		maxConnections?: number;
+		/**
+		 * Prepared statements are incompatible with PgBouncer transaction pooling.
+		 * Set false when connecting through PgBouncer.
+		 */
+		prepare?: boolean;
+	},
 ): Layer2LedgerDatabase {
-	// Keep per-process pools small: apihandler, dbwriter, and testhelper each
-	// open their own pool against the same Postgres (default max_connections=100).
+	// Keep per-process client pools modest; apihandler multiplexes via PgBouncer.
 	const sql = postgres(buildDatabaseUrl(settings), {
 		max: options?.maxConnections ?? 10,
+		prepare: options?.prepare ?? true,
 		// Do not print notices to console.
 		onnotice: () => {},
 	});

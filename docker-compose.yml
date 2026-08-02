@@ -17,6 +17,25 @@ services:
       timeout: 5s
       retries: 5
 
+  # Transaction-mode pooler for apihandler replicas. dbwriter connects to postgres directly.
+  layer2ledger-pgbouncer:
+    image: edoburu/pgbouncer:1.21.0-p2
+    volumes:
+      - ./docker/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./docker/pgbouncer.userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    expose:
+      - "6432"
+    depends_on:
+      layer2ledger-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
   layer2ledger-redis:
     image: redis:7-alpine
     ports:
@@ -56,7 +75,7 @@ services:
     volumes:
       - ./.config:/app/.config:ro
     depends_on:
-      layer2ledger-postgres:
+      layer2ledger-pgbouncer:
         condition: service_healthy
       layer2ledger-redis:
         condition: service_healthy
@@ -72,7 +91,7 @@ services:
       start_period: 20s
     deploy:
       # Override at up-time: LAYER2LEDGER_APIHANDLER_REPLICAS=N docker compose up --scale layer2ledgerapihandler=N
-      replicas: 4
+      replicas: 8
     restart: unless-stopped
 
   # Reverse proxy / LB in front of apihandler replicas (round-robin).

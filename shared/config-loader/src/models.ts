@@ -49,6 +49,9 @@ export interface Layer2LedgerDockerEnvSettings {
 	postgresDb: string;
 	postgresHost: string;
 	postgresPort: number;
+	/** PgBouncer service host used by apihandler (transaction pooling). */
+	pgbouncerHost: string;
+	pgbouncerPort: number;
 	redisHost: string;
 	redisPort: number;
 	databaseUrl: string;
@@ -71,9 +74,16 @@ export interface Layer2LedgerTestHelperConfig {
 export interface PostgresqlDatabaseSettings {
 	db_user: string;
 	db_password: string;
+	/** Direct Postgres host (dbwriter, migrations, testhelper). */
 	db_host: string;
 	db_port: string;
 	db_name: string;
+	/**
+	 * PgBouncer host for apihandler request traffic (transaction pool mode).
+	 * When unset, clients fall back to {@link db_host}.
+	 */
+	db_pool_host?: string;
+	db_pool_port?: string;
 }
 
 export interface RedisSettings {

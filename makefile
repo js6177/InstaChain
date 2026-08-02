@@ -22,6 +22,7 @@ dev:
 backend-dev:
 	ENVIRONMENT=dev docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build \
 		layer2ledger-postgres \
+		layer2ledger-pgbouncer \
 		layer2ledger-redis \
 		layer2ledger-mongodb \
 		layer2ledgerapihandler \
@@ -40,6 +41,7 @@ backend-test:
 	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test up --build \
 		--scale layer2ledgerapihandler=$${LAYER2LEDGER_APIHANDLER_REPLICAS:-2} \
 		layer2ledger-postgres \
+		layer2ledger-pgbouncer \
 		layer2ledger-redis \
 		layer2ledger-mongodb \
 		layer2ledgerapihandler \
@@ -63,6 +65,7 @@ stress-test:
 		up -d --build \
 		--scale layer2ledgerapihandler=$${LAYER2LEDGER_APIHANDLER_REPLICAS:-2} \
 		layer2ledger-postgres \
+		layer2ledger-pgbouncer \
 		layer2ledger-redis \
 		layer2ledgerapihandler \
 		layer2ledgerdbwriter \

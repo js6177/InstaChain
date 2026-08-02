@@ -108,6 +108,8 @@ export function loadLayer2LedgerDockerEnvSettings(
 		postgresDb: requireEnvValue(values, "POSTGRES_DB"),
 		postgresHost: requireEnvValue(values, "POSTGRES_HOST"),
 		postgresPort: requireEnvNumber(values, "POSTGRES_PORT"),
+		pgbouncerHost: requireEnvValue(values, "PGBOUNCER_HOST"),
+		pgbouncerPort: requireEnvNumber(values, "PGBOUNCER_PORT"),
 		redisHost: requireEnvValue(values, "REDIS_HOST"),
 		redisPort: requireEnvNumber(values, "REDIS_PORT"),
 		databaseUrl: requireEnvValue(values, "DATABASE_URL"),

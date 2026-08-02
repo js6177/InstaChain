@@ -20,13 +20,17 @@ const log = createOpenL2Logger({
 });
 
 const commonConfig = loadLayer2LedgerCommonConfig();
-const { db, sql: postgresSql } = createDatabase({
-	dbUser: commonConfig.database.db_user,
-	dbPassword: commonConfig.database.db_password,
-	dbHost: commonConfig.database.db_host,
-	dbPort: commonConfig.database.db_port,
-	dbName: commonConfig.database.db_name,
-});
+// Direct Postgres (not PgBouncer): one long-lived connection for the writer loop.
+const { db, sql: postgresSql } = createDatabase(
+	{
+		dbUser: commonConfig.database.db_user,
+		dbPassword: commonConfig.database.db_password,
+		dbHost: commonConfig.database.db_host,
+		dbPort: commonConfig.database.db_port,
+		dbName: commonConfig.database.db_name,
+	},
+	{ maxConnections: 1 },
+);
 
 await migrateDatabase(postgresSql);
 
@@ -63,11 +67,14 @@ while (true) {
 		if (sleepMs > 0) {
 			await Bun.sleep(sleepMs);
 		}
-		if(pendingCount > 0) {
-			log.info("Pending transactions", {
-				pending_count: pendingCount,
-				batch_height: currentBatchHeight,
-			});
+		if (pendingCount > 0) {
+			log.info(
+				`Pending transactions: pending_count=${pendingCount}, batch_height=${currentBatchHeight}`,
+				{
+					pending_count: pendingCount,
+					batch_height: currentBatchHeight,
+				},
+			);
 		}
 	} catch (error) {
 		log.exception("Error processing transactions", error);
