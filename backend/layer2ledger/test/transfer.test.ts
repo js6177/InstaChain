@@ -259,5 +259,17 @@ describe("transfer route handler", () => {
 			.where(eq(layer2AddressBalance.address, dest.public_key_str_base58))
 			.limit(1);
 		expect(destBalance[0]?.balance).toBe(transferAmount);
+
+		// After commit, bloom filter should reject the same transaction id without
+		// relying on a fresh Postgres hit for the negative (absent) path.
+		const duplicate = await createHandlers().pushTransaction({
+			amount: transferAmount,
+			destination_address_public_key: dest.public_key_str_base58,
+			fee,
+			signature,
+			source_address_public_key: source.public_key_str_base58,
+			transaction_id: transactionId,
+		});
+		expect(duplicate.error_code).toBe(ErrorCodes.CANNOT_DUPLICATE_TRANSACTION);
 	});
 });

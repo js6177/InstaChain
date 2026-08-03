@@ -10,6 +10,7 @@ import { createLayer2LedgerApp } from "../api/app";
 import { createDatabase, migrateDatabase } from "../db/client";
 import { log } from "../logger";
 import { DistributedLock } from "../redis/distributed-lock";
+import { ensureTransactionIdBloomFilter } from "../redis/transaction-id-bloom";
 import { createRouteHandlers } from "../services/route-handlers";
 
 const commonConfig = loadLayer2LedgerCommonConfig();
@@ -65,6 +66,7 @@ const redis = new Redis({
 
 const lockManager = new DistributedLock(redis);
 await lockManager.setup();
+await ensureTransactionIdBloomFilter(db, redis);
 
 const handlers = createRouteHandlers({
 	db,

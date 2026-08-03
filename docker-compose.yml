@@ -37,7 +37,8 @@ services:
     restart: unless-stopped
 
   layer2ledger-redis:
-    image: redis:7-alpine
+    # Prod: Redis Stack server (includes RedisBloom). Dev/test overlays use redis/redis-stack.
+    image: redis/redis-stack-server:7.4.0-v3
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:

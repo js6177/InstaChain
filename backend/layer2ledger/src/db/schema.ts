@@ -1,6 +1,7 @@
 import {
 	bigint,
 	boolean,
+	customType,
 	integer,
 	json,
 	pgEnum,
@@ -10,6 +11,12 @@ import {
 	timestamp,
 	varchar,
 } from "drizzle-orm/pg-core";
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+	dataType() {
+		return "bytea";
+	},
+});
 
 export const transactionTypeEnum = pgEnum("transaction_type", [
 	"TRX_TRANSFER",
@@ -167,6 +174,15 @@ export const keyValueStore = pgTable("key_value_store", {
 	value: varchar("value").notNull(),
 });
 
+/** Per-batch RedisBloom snapshots (BF.SCANDUMP bytes) for restart restore. */
+export const transactionIdBloomFilters = pgTable(
+	"transaction_id_bloom_filters",
+	{
+		batchHeight: integer("batch_height").primaryKey().notNull(),
+		bloomFilter: bytea("bloom_filter").notNull(),
+	},
+);
+
 export const masterPublicKeyIndices = pgTable("master_public_key_indices", {
 	id: serial("id").primaryKey(),
 	mpkIndex: bigint("mpk_index", { mode: "number" }).notNull(),
@@ -182,6 +198,7 @@ export const schema = {
 	layer1Addresses,
 	transactionDurations,
 	keyValueStore,
+	transactionIdBloomFilters,
 	masterPublicKeyIndices,
 };
 
@@ -191,3 +208,5 @@ export type Layer2AddressBalanceRow = typeof layer2AddressBalance.$inferSelect;
 export type DepositAddressRow = typeof depositAddresses.$inferSelect;
 export type WithdrawalRequestRow = typeof withdrawalRequests.$inferSelect;
 export type WithdrawalRequestInsert = typeof withdrawalRequests.$inferInsert;
+export type TransactionIdBloomFilterRow = typeof transactionIdBloomFilters.$inferSelect;
+export type TransactionIdBloomFilterInsert = typeof transactionIdBloomFilters.$inferInsert;

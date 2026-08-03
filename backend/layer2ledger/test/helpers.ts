@@ -17,6 +17,10 @@ import {
 	PENDING_TRANSACTIONS_LIST_KEY,
 	PENDING_WITHDRAWALS_LIST_KEY,
 } from "../src/redis/distributed-lock";
+import {
+	ensureTransactionIdBloomFilter,
+	TRANSACTION_ID_BLOOM_KEY,
+} from "../src/redis/transaction-id-bloom";
 import { createRouteHandlers } from "../src/services/route-handlers";
 import { newLayer2Address } from "./common";
 
@@ -74,7 +78,14 @@ export function bridgeSigningAddress(): Layer2Address {
 export async function setupLedgerTests(): Promise<void> {
 	await migrateDatabase(sql);
 	await lockManager.setup();
-	await redis.del(PENDING_TRANSACTIONS_LIST_KEY, PENDING_WITHDRAWALS_LIST_KEY);
+	await redis.del(
+		PENDING_TRANSACTIONS_LIST_KEY,
+		PENDING_WITHDRAWALS_LIST_KEY,
+		TRANSACTION_ID_BLOOM_KEY,
+	);
+	// Fresh empty bloom for this process; skip replaying historical Postgres rows.
+	process.env.SKIP_BLOOM_PG_REBUILD = "1";
+	await ensureTransactionIdBloomFilter(db, redis);
 }
 
 export async function teardownLedgerTests(): Promise<void> {

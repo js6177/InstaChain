@@ -71,6 +71,7 @@ import {
 	type PendingWithdrawal,
 	type RedisWithdrawalRequest,
 } from "../redis/models";
+import { bloomMaybeContainsTransactionId } from "../redis/transaction-id-bloom";
 import {
 	buildLayer1TransactionId,
 	buildLayer2WithdrawalId,
@@ -82,6 +83,30 @@ export interface RouteHandlerContext {
 	lockManager: DistributedLock;
 	settings: Layer2LedgerAPIHandlerConfig;
 	messaging: MessagingContext;
+}
+
+/**
+ * Bloom says absent → definitely not a duplicate (skip Postgres).
+ * Bloom says maybe → confirm with a Postgres primary-key lookup.
+ */
+async function isDuplicateLayer2TransactionId(
+	db: Layer2LedgerDbClient,
+	redis: Redis,
+	layer2TransactionId: string,
+): Promise<boolean> {
+	const maybePresent = await bloomMaybeContainsTransactionId(
+		redis,
+		layer2TransactionId,
+	);
+	if (!maybePresent) {
+		return false;
+	}
+	const existing = await db
+		.select({ id: transactions.layer2TransactionId })
+		.from(transactions)
+		.where(eq(transactions.layer2TransactionId, layer2TransactionId))
+		.limit(1);
+	return existing.length > 0;
 }
 
 class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
@@ -129,12 +154,9 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 		}
 
 		try {
-			const existing = await db
-				.select()
-				.from(transactions)
-				.where(eq(transactions.layer2TransactionId, body.transaction_id))
-				.limit(1);
-			if (existing.length > 0) {
+			if (
+				await isDuplicateLayer2TransactionId(db, redis, body.transaction_id)
+			) {
 				await lockManager.releaseMultiLock(addressesToLock, lockToken);
 				return buildCommonResponse(ErrorCodes.CANNOT_DUPLICATE_TRANSACTION);
 			}
@@ -280,12 +302,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 				continue;
 			}
 
-			const existing = await db
-				.select()
-				.from(transactions)
-				.where(eq(transactions.layer2TransactionId, deposit.nonce))
-				.limit(1);
-			if (existing.length > 0) {
+			if (await isDuplicateLayer2TransactionId(db, redis, deposit.nonce)) {
 				results.push({
 					layer1_transaction_id: deposit.layer1_transaction_id,
 					layer1_transaction_vout: deposit.layer1_transaction_vout,
@@ -383,14 +400,13 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 		}
 
 		try {
-			const existing = await db
-				.select()
-				.from(transactions)
-				.where(
-					eq(transactions.layer2TransactionId, body.layer2_transaction_id),
+			if (
+				await isDuplicateLayer2TransactionId(
+					db,
+					redis,
+					body.layer2_transaction_id,
 				)
-				.limit(1);
-			if (existing.length > 0) {
+			) {
 				await lockManager.releaseMultiLock(addressesToLock, lockToken);
 				return buildCommonResponse(ErrorCodes.CANNOT_DUPLICATE_TRANSACTION);
 			}

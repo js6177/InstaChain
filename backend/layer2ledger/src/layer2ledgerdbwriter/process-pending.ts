@@ -17,6 +17,10 @@ import {
 } from "../redis/distributed-lock";
 import { log } from "../logger";
 import { redisTransactionToInsert, redisWithdrawalRequestToInsert } from "../redis/models";
+import {
+	addTransactionIdsToBloomFilter,
+	persistBloomFilterSnapshot,
+} from "../redis/transaction-id-bloom";
 
 /** Max items read from each Redis pending list per Postgres batch insert. */
 export const MAXIMUM_BATCH_INSERT_COUNT = 3999;
@@ -153,6 +157,13 @@ export async function processPendingBatch(
 			-1,
 		);
 	}
+
+	// Update the committed-tx bloom filter and persist a snapshot before unlocks.
+	const committedTransactionIds = newTransactions.map(
+		(tx) => tx.layer2TransactionId,
+	);
+	await addTransactionIdsToBloomFilter(redis, committedTransactionIds);
+	await persistBloomFilterSnapshot(db, redis, nextBatchHeight);
 
 	for (const pendingTx of transactionsToProcess) {
 		if (pendingTx.lock_token) {

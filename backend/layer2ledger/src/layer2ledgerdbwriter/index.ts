@@ -9,6 +9,7 @@ import {
 	DistributedLock,
 	PENDING_TRANSACTIONS_LIST_KEY,
 } from "../redis/distributed-lock";
+import { ensureTransactionIdBloomFilter } from "../redis/transaction-id-bloom";
 import {
 	getCurrentBatchHeight,
 	pendingQueueSleepMs,
@@ -42,6 +43,7 @@ const redis = new Redis({
 
 const lockManager = new DistributedLock(redis);
 await lockManager.setup();
+await ensureTransactionIdBloomFilter(db, redis);
 
 log.info("Starting layer2ledgerdbwriter...");
 
