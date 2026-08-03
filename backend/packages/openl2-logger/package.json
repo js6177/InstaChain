@@ -7,9 +7,13 @@
 	"exports": {
 		".": "./src/index.ts",
 		"./constants": "./src/constants.ts",
-		"./elysia": "./src/elysia.ts"
+		"./elysia": "./src/elysia.ts",
+		"./instrumentation": "./src/instrumentation.ts"
 	},
 	"dependencies": {
+		"@opentelemetry/api": "^1.9.1",
+		"@opentelemetry/api-logs": "^0.221.0",
+		"@opentelemetry/sdk-node": "^0.221.0",
 		"pino": "^9.7.0"
 	},
 	"devDependencies": {

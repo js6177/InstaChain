@@ -15,4 +15,4 @@ WORKDIR /app
 COPY --from=installer /app .
 WORKDIR /app/backend/layer2ledger
 EXPOSE 8000
-CMD ["bun", "run", "src/layer2ledgerapihandler/index.ts"]
+CMD ["bun", "run", "--preload", "@openl2/openl2-logger/instrumentation", "src/layer2ledgerapihandler/index.ts"]

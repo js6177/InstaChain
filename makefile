@@ -31,6 +31,21 @@ backend-dev:
 		bitcoin-core \
 		layer2bridge
 
+# SigNoz UI + OTLP collector + Docker/infra telemetry agent.
+# UI: http://localhost:8080  |  OTLP: localhost:4317 (gRPC), localhost:4318 (HTTP)
+# Requires infra services from the base compose (postgres/redis/mongodb) for metric scrapes.
+observability:
+	ENVIRONMENT=$${ENVIRONMENT:-test} docker compose -f docker-compose.yml -f docker-compose.signoz.yml --profile observability up -d --build \
+		layer2ledger-postgres \
+		layer2ledger-redis \
+		layer2ledger-mongodb \
+		signoz-zookeeper \
+		signoz-clickhouse \
+		signoz-telemetrystore-migrator \
+		signoz \
+		signoz-otel-collector \
+		openl2-otel-agent
+
 # Start all backend services (everything except wallet-web) with ENVIRONMENT=test,
 # including the layer2ledger-testhelper (profile: test) used for seeding. This lets the
 # frontend run locally against the test backend (e.g. to exercise the ledger integration

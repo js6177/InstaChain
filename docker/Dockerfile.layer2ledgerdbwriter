@@ -14,4 +14,4 @@ FROM oven/bun:1.3.14-slim AS runner
 WORKDIR /app
 COPY --from=installer /app .
 WORKDIR /app/backend/layer2ledger
-CMD ["bun", "run", "src/layer2ledgerdbwriter/index.ts"]
+CMD ["bun", "run", "--preload", "@openl2/openl2-logger/instrumentation", "src/layer2ledgerdbwriter/index.ts"]

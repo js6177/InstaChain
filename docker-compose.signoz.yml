@@ -1,0 +1,174 @@
+# SigNoz observability stack (UI + OTLP ingest + infra collection agent).
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.signoz.yml --profile observability up -d
+#   make observability
+#
+# UI: http://localhost:8080
+# OTLP: signoz-otel-collector:4317 (gRPC) / :4318 (HTTP)
+
+services:
+  signoz-zookeeper:
+    profiles: [observability]
+    image: signoz/zookeeper:3.7.1
+    container_name: signoz-zookeeper
+    user: root
+    restart: unless-stopped
+    environment:
+      - ZOO_SERVER_ID=1
+      - ALLOW_ANONYMOUS_LOGIN=yes
+      - ZOO_AUTOPURGE_INTERVAL=1
+      - ZOO_ENABLE_PROMETHEUS_METRICS=yes
+      - ZOO_PROMETHEUS_METRICS_PORT_NUMBER=9141
+    volumes:
+      - signoz-zookeeper:/bitnami/zookeeper
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s -m 2 http://localhost:8080/commands/ruok | grep error | grep null",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  signoz-clickhouse:
+    profiles: [observability]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.signoz-clickhouse
+    image: instachain-signoz-clickhouse
+    container_name: signoz-clickhouse
+    tty: true
+    restart: unless-stopped
+    environment:
+      - CLICKHOUSE_SKIP_USER_SETUP=1
+    depends_on:
+      signoz-zookeeper:
+        condition: service_healthy
+    volumes:
+      - ./docker/signoz/common/clickhouse/config.xml:/etc/clickhouse-server/config.xml
+      - ./docker/signoz/common/clickhouse/users.xml:/etc/clickhouse-server/users.xml
+      - ./docker/signoz/common/clickhouse/custom-function.xml:/etc/clickhouse-server/custom-function.xml
+      - ./docker/signoz/common/clickhouse/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml
+      - ./docker/signoz/common/clickhouse/user-scripts-path.xml:/etc/clickhouse-server/config.d/user-scripts-path.xml
+      # Persist data only — histogramQuantile UDF is baked into the image under /opt/signoz.
+      - signoz-clickhouse:/var/lib/clickhouse/
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "0.0.0.0:8123/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  signoz-telemetrystore-migrator:
+    profiles: [observability]
+    image: signoz/signoz-otel-collector:v0.144.5
+    container_name: signoz-telemetrystore-migrator
+    restart: on-failure
+    depends_on:
+      signoz-clickhouse:
+        condition: service_healthy
+    environment:
+      - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_DSN=tcp://signoz-clickhouse:9000
+      - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_CLUSTER=cluster
+      - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_REPLICATION=true
+      - SIGNOZ_OTEL_COLLECTOR_TIMEOUT=10m
+    entrypoint: ["/bin/sh"]
+    command:
+      - -c
+      - |
+        /signoz-otel-collector migrate bootstrap &&
+        /signoz-otel-collector migrate sync up &&
+        /signoz-otel-collector migrate async up
+
+  signoz:
+    profiles: [observability]
+    image: signoz/signoz:v0.129.0
+    container_name: signoz
+    restart: unless-stopped
+    depends_on:
+      signoz-clickhouse:
+        condition: service_healthy
+      signoz-telemetrystore-migrator:
+        condition: service_completed_successfully
+    ports:
+      - "${SIGNOZ_UI_PORT:-8080}:8080"
+    volumes:
+      - signoz-sqlite:/var/lib/signoz/
+    environment:
+      - SIGNOZ_ALERTMANAGER_PROVIDER=signoz
+      - SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN=tcp://signoz-clickhouse:9000
+      - SIGNOZ_SQLSTORE_SQLITE_PATH=/var/lib/signoz/signoz.db
+      - SIGNOZ_TOKENIZER_JWT_SECRET=${SIGNOZ_JWT_SECRET:-openl2-signoz-dev-secret}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8080/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  signoz-otel-collector:
+    profiles: [observability]
+    image: signoz/signoz-otel-collector:v0.144.5
+    container_name: signoz-otel-collector
+    restart: unless-stopped
+    depends_on:
+      signoz-clickhouse:
+        condition: service_healthy
+      signoz-telemetrystore-migrator:
+        condition: service_completed_successfully
+    # Run without OpAMP manager config so the mounted collector config is authoritative.
+    entrypoint: ["/bin/sh"]
+    command:
+      - -c
+      - |
+        /signoz-otel-collector migrate sync check &&
+        /signoz-otel-collector --config=/etc/otel-collector-config.yaml
+    volumes:
+      - ./docker/signoz/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    environment:
+      - OTEL_RESOURCE_ATTRIBUTES=host.name=openl2-signoz,os.type=linux
+      - LOW_CARDINAL_EXCEPTION_GROUPING=false
+      - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_DSN=tcp://signoz-clickhouse:9000
+      - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_CLUSTER=cluster
+      - SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_REPLICATION=true
+      - SIGNOZ_OTEL_COLLECTOR_TIMEOUT=10m
+    ports:
+      - "${SIGNOZ_OTLP_GRPC_PORT:-4317}:4317"
+      - "${SIGNOZ_OTLP_HTTP_PORT:-4318}:4318"
+    expose:
+      - "4317"
+      - "4318"
+
+  # Collects Docker container logs + Redis/Postgres/MongoDB metrics into SigNoz.
+  openl2-otel-agent:
+    profiles: [observability]
+    image: otel/opentelemetry-collector-contrib:0.139.0
+    container_name: openl2-otel-agent
+    restart: unless-stopped
+    user: "0:0"
+    depends_on:
+      - signoz-otel-collector
+      - layer2ledger-postgres
+      - layer2ledger-redis
+      - layer2ledger-mongodb
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    env_file:
+      - ./backend/layer2ledger/.env.${ENVIRONMENT:-prod}
+    volumes:
+      - ./docker/signoz/otel-agent-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=${ENVIRONMENT:-prod},service.namespace=openl2
+
+volumes:
+  signoz-clickhouse:
+    name: openl2-signoz-clickhouse
+  signoz-sqlite:
+    name: openl2-signoz-sqlite
+  signoz-zookeeper:
+    name: openl2-signoz-zookeeper

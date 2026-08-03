@@ -33,9 +33,9 @@
 		"uuid": "^10.0.0"
 	},
 	"scripts": {
-		"dev": "bun run src/index.ts",
-		"dev:debug": "bun --inspect-wait=0.0.0.0:6499/debug run src/index.ts",
-		"start": "bun run src/index.ts",
+		"dev": "bun run --preload @openl2/openl2-logger/instrumentation src/index.ts",
+		"dev:debug": "bun --inspect-wait=0.0.0.0:6499/debug run --preload @openl2/openl2-logger/instrumentation src/index.ts",
+		"start": "bun run --preload @openl2/openl2-logger/instrumentation src/index.ts",
 		"build": "tsc"
 	}
 }

@@ -72,6 +72,10 @@ services:
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-prod}
       OPENL2_CONFIG_PATH: /app/.config
+      # SigNoz / OTLP (no-op when collector is down; see docker-compose.signoz.yml)
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://signoz-otel-collector:4318}
+      OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-http/protobuf}
+      OTEL_SERVICE_NAME: layer2ledgerapihandler
     volumes:
       - ./.config:/app/.config:ro
     depends_on:
@@ -127,6 +131,9 @@ services:
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-prod}
       OPENL2_CONFIG_PATH: /app/.config
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://signoz-otel-collector:4318}
+      OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-http/protobuf}
+      OTEL_SERVICE_NAME: layer2ledgerdbwriter
     volumes:
       - ./.config:/app/.config:ro
     depends_on:
@@ -147,6 +154,9 @@ services:
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-prod}
       OPENL2_CONFIG_PATH: /app/.config
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://signoz-otel-collector:4318}
+      OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-http/protobuf}
+      OTEL_SERVICE_NAME: layer2ledgeroauthmanager
     volumes:
       - ./.config:/app/.config:ro
     depends_on:
@@ -190,6 +200,9 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-prod}
       OPENL2_CONFIG_PATH: /app/.config
       OPENL2_OUTPUT_PATH: /app/.output
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://signoz-otel-collector:4318}
+      OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-http/protobuf}
+      OTEL_SERVICE_NAME: layer2bridge
     volumes:
       - ./.config:/app/.config:ro
       - layer2bridge_output:/app/.output

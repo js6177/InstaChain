@@ -3,6 +3,7 @@ import { Writable } from "node:stream";
 import pino, { multistream, type Logger as PinoLogger } from "pino";
 import { getLogContext } from "./context";
 import { createSessionId } from "./ids";
+import { createOtelLogsDestination } from "./otel-logs";
 import {
 	LOG_SEVERITY_LEVELS,
 	LogSeverity,
@@ -22,7 +23,7 @@ export interface CreateOpenL2LoggerOptions {
 	base?: Record<string, unknown>;
 	/**
 	 * Optional path for structured NDJSON logs.
-	 * When unset, structured output is only sent to the ingestion placeholder.
+	 * OTLP export uses OpenTelemetry (`@openl2/openl2-logger/instrumentation` preload).
 	 */
 	logFile?: string;
 	/**
@@ -146,19 +147,6 @@ function createConsoleMessageDestination(): Writable {
 	});
 }
 
-/**
- * Placeholder structured sink for log aggregation / service ingestion.
- * Currently discards entries; wire a real transport here later.
- */
-function createStructuredIngestionDestination(): Writable {
-	return new Writable({
-		write(_chunk, _encoding, callback) {
-			// TODO: forward NDJSON to the log ingestion service.
-			callback();
-		},
-	});
-}
-
 function createLogFileDestination(logFile: string): WriteStream {
 	return createWriteStream(logFile, { flags: "a" });
 }
@@ -166,9 +154,9 @@ function createLogFileDestination(logFile: string): WriteStream {
 /**
  * Create a service-scoped OpenL2 logger backed by Pino.
  *
- * Console output is the log message only. Structured NDJSON (with service,
- * session_id, request_id, and fields) is written to {@link CreateOpenL2LoggerOptions.logFile}
- * when set, and always passed to the structured ingestion placeholder.
+ * Console output is the log message only. Structured fields go to
+ * {@link CreateOpenL2LoggerOptions.logFile} (optional) and to OpenTelemetry
+ * Logs when `@openl2/openl2-logger/instrumentation` is preloaded.
  *
  * `session_id` is generated once per call and remains stable for the
  * lifetime of the returned logger instance (typically one per process).
@@ -182,7 +170,7 @@ export function createOpenL2Logger(
 
 	const streams: Parameters<typeof multistream>[0] = [
 		{ level, stream: createConsoleMessageDestination() },
-		{ level, stream: createStructuredIngestionDestination() },
+		{ level, stream: createOtelLogsDestination() },
 	];
 
 	if (options.logFile) {

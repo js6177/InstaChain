@@ -1,0 +1,4 @@
+<!-- Point executable UDFs at the image-baked /opt/signoz path (not the data volume). -->
+<clickhouse>
+    <user_scripts_path>/opt/signoz/user_scripts/</user_scripts_path>
+</clickhouse>

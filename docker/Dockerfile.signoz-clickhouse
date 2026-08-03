@@ -1,0 +1,25 @@
+# ClickHouse for SigNoz with the histogramQuantile UDF baked in (replaces the
+# one-shot signoz-init-clickhouse download container).
+#
+# Binary is installed under /opt/signoz so it is not shadowed by the
+# /var/lib/clickhouse data volume.
+FROM clickhouse/clickhouse-server:25.5.6
+
+ARG TARGETARCH
+ARG HISTOGRAM_QUANTILE_VERSION=v0.0.1
+
+RUN set -eux; \
+	arch="${TARGETARCH:-amd64}"; \
+	case "${arch}" in \
+		amd64|x86_64) node_arch=amd64 ;; \
+		arm64|aarch64) node_arch=arm64 ;; \
+		*) echo "unsupported arch: ${arch}" >&2; exit 1 ;; \
+	esac; \
+	mkdir -p /opt/signoz/user_scripts; \
+	cd /tmp; \
+	wget -O histogram-quantile.tar.gz \
+		"https://github.com/SigNoz/signoz/releases/download/histogram-quantile%2F${HISTOGRAM_QUANTILE_VERSION}/histogram-quantile_linux_${node_arch}.tar.gz"; \
+	tar -xzf histogram-quantile.tar.gz; \
+	mv histogram-quantile /opt/signoz/user_scripts/histogramQuantile; \
+	chmod +x /opt/signoz/user_scripts/histogramQuantile; \
+	rm -f histogram-quantile.tar.gz

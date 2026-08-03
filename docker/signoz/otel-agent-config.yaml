@@ -1,0 +1,98 @@
+# OpenTelemetry contrib agent: Docker logs + Redis/Postgres/MongoDB metrics → SigNoz.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  filelog:
+    include:
+      - /var/lib/docker/containers/*/*-json.log
+    start_at: end
+    include_file_name: false
+    include_file_path: true
+    operators:
+      - id: parser-docker
+        type: json_parser
+        timestamp:
+          parse_from: attributes.time
+          layout: "%Y-%m-%dT%H:%M:%S.%LZ"
+      - id: extract_container_id
+        type: regex_parser
+        regex: '^/var/lib/docker/containers/(?P<container_id>[0-9a-f]+)/.*-json\.log$'
+        parse_from: attributes["log.file.path"]
+      - id: move_log_body
+        type: move
+        from: attributes.log
+        to: body
+      - id: move_stream
+        type: move
+        from: attributes.stream
+        to: attributes["log.iostream"]
+
+  docker_stats:
+    endpoint: unix:///var/run/docker.sock
+    collection_interval: 15s
+    timeout: 20s
+    api_version: "1.44"
+
+  redis:
+    endpoint: layer2ledger-redis:6379
+    collection_interval: 15s
+
+  postgresql:
+    endpoint: layer2ledger-postgres:5432
+    transport: tcp
+    username: ${env:POSTGRES_USER}
+    password: ${env:POSTGRES_PASSWORD}
+    # Omit databases list so all non-template DBs are scraped (dev/test/prod names differ).
+    collection_interval: 15s
+    tls:
+      insecure: true
+
+  mongodb:
+    hosts:
+      - endpoint: layer2ledger-mongodb:27017
+    collection_interval: 15s
+    tls:
+      insecure: true
+
+processors:
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 512
+    spike_limit_mib: 128
+  batch:
+    send_batch_size: 512
+    timeout: 5s
+  resourcedetection:
+    detectors: [env, system, docker]
+    timeout: 2s
+
+exporters:
+  otlphttp:
+    endpoint: http://signoz-otel-collector:4318
+    tls:
+      insecure: true
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  pipelines:
+    logs:
+      receivers: [otlp, filelog]
+      processors: [memory_limiter, resourcedetection, batch]
+      exporters: [otlphttp]
+    metrics:
+      receivers: [otlp, docker_stats, redis, postgresql, mongodb]
+      processors: [memory_limiter, resourcedetection, batch]
+      exporters: [otlphttp]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resourcedetection, batch]
+      exporters: [otlphttp]
