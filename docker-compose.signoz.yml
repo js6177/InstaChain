@@ -5,6 +5,7 @@
 #
 # UI: http://localhost:8080
 # OTLP: signoz-otel-collector:4317 (gRPC) / :4318 (HTTP)
+# MCP: http://localhost:8081/mcp (set SIGNOZ_API_KEY; override port with SIGNOZ_MCP_PORT)
 
 services:
   signoz-zookeeper:
@@ -142,6 +143,27 @@ services:
     expose:
       - "4317"
       - "4318"
+
+  # SigNoz MCP server (HTTP) for AI clients. Requires SIGNOZ_API_KEY (service-account key).
+  # Host port defaults to 8081 because layer2ledger API nginx already binds :8000.
+  # Override with SIGNOZ_MCP_PORT=8000 if the ledger API is not publishing that port.
+  # Verify: curl -fsS "http://localhost:${SIGNOZ_MCP_PORT:-8081}/livez" && echo " OK"
+  signoz-mcp:
+    profiles: [observability]
+    image: signoz/signoz-mcp-server:latest
+    container_name: signoz-mcp
+    restart: unless-stopped
+    depends_on:
+      signoz:
+        condition: service_healthy
+    ports:
+      - "${SIGNOZ_MCP_PORT:-8081}:8000"
+    environment:
+      - TRANSPORT_MODE=http
+      - MCP_SERVER_PORT=8000
+      - SIGNOZ_URL=http://signoz:8080
+      - SIGNOZ_API_KEY=${SIGNOZ_API_KEY}
+      - LOG_LEVEL=${SIGNOZ_MCP_LOG_LEVEL:-info}
 
   # Collects Docker container logs + Redis/Postgres/MongoDB metrics into SigNoz.
   openl2-otel-agent:

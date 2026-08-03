@@ -33,6 +33,7 @@ backend-dev:
 
 # SigNoz UI + OTLP collector + Docker/infra telemetry agent.
 # UI: http://localhost:8080  |  OTLP: localhost:4317 (gRPC), localhost:4318 (HTTP)
+# MCP: http://localhost:8081/mcp (export SIGNOZ_API_KEY first; optional SIGNOZ_MCP_PORT)
 # Requires infra services from the base compose (postgres/redis/mongodb) for metric scrapes.
 observability:
 	ENVIRONMENT=$${ENVIRONMENT:-test} docker compose -f docker-compose.yml -f docker-compose.signoz.yml --profile observability up -d --build \
@@ -44,6 +45,7 @@ observability:
 		signoz-telemetrystore-migrator \
 		signoz \
 		signoz-otel-collector \
+		signoz-mcp \
 		openl2-otel-agent
 
 # Start all backend services (everything except wallet-web) with ENVIRONMENT=test,
