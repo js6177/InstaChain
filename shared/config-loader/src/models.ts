@@ -1,3 +1,4 @@
+import type { BalanceCacheEvictionPolicy } from "./balance-cache-eviction-policy";
 import type { BitcoinChainName } from "./bitcoin-chain";
 
 export interface OAuth2ServiceParams {
@@ -89,6 +90,13 @@ export interface PostgresqlDatabaseSettings {
 export interface RedisSettings {
 	host: string;
 	port: number;
+	/**
+	 * How cached address balances are evicted from Redis.
+	 * @see BalanceCacheEvictionPolicy
+	 */
+	balance_cache_eviction_policy?: BalanceCacheEvictionPolicy | string;
+	/** Used when {@link balance_cache_eviction_policy} is `ttl`. */
+	balance_cache_ttl_seconds?: number;
 }
 
 export interface Layer2LedgerCommonConfig {

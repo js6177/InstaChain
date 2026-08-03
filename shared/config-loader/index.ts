@@ -1,4 +1,9 @@
 export {
+	BalanceCacheEvictionPolicy,
+	DEFAULT_BALANCE_CACHE_TTL_SECONDS,
+	parseBalanceCacheEvictionPolicy,
+} from "./src/balance-cache-eviction-policy";
+export {
 	BitcoinChain,
 	type BitcoinChainName,
 	bitcoinWalletDataSubdir,

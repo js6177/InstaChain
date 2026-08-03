@@ -9,6 +9,10 @@ import {
 	withdrawalRequests,
 } from "../db/schema";
 import {
+	type AddressBalanceCacheOptions,
+	setCachedAddressBalances,
+} from "../redis/address-balance-cache";
+import {
 	type DistributedLock,
 	getPendingTransactions,
 	getPendingWithdrawals,
@@ -32,6 +36,7 @@ export interface ProcessPendingBatchContext {
 	db: Layer2LedgerDbClient;
 	redis: Redis;
 	lockManager: DistributedLock;
+	balanceCache: AddressBalanceCacheOptions;
 }
 
 /**
@@ -68,7 +73,7 @@ export async function processPendingBatch(
 	currentBatchHeight: number,
 ): Promise<number> {
 	const startedAt = performance.now();
-	const { db, redis, lockManager } = context;
+	const { db, redis, lockManager, balanceCache } = context;
 	const transactionsToProcess = await getPendingTransactions(
 		redis,
 		0,
@@ -123,6 +128,7 @@ export async function processPendingBatch(
 		([address, balance]) => ({ address, balance }),
 	);
 
+	let absoluteBalances: Array<{ address: string; balance: number }> = [];
 	await db.transaction(async (tx) => {
 		if (newTransactions.length > 0) {
 			await tx.insert(transactions).values(newTransactions);
@@ -131,7 +137,8 @@ export async function processPendingBatch(
 			await tx.insert(withdrawalRequests).values(newWithdrawals);
 		}
 		if (addressBalances.length > 0) {
-			await tx
+			// RETURNING yields post-upsert absolute balances (no extra SELECT).
+			absoluteBalances = await tx
 				.insert(layer2AddressBalance)
 				.values(addressBalances)
 				.onConflictDoUpdate({
@@ -139,6 +146,10 @@ export async function processPendingBatch(
 					set: {
 						balance: sql`${layer2AddressBalance.balance} + excluded.balance`,
 					},
+				})
+				.returning({
+					address: layer2AddressBalance.address,
+					balance: layer2AddressBalance.balance,
 				});
 		}
 	});
@@ -164,6 +175,11 @@ export async function processPendingBatch(
 	);
 	await addTransactionIdsToBloomFilter(redis, committedTransactionIds);
 	await persistBloomFilterSnapshot(db, redis, nextBatchHeight);
+
+	// Refresh Redis balance cache from the upsert RETURNING values before unlocks.
+	if (absoluteBalances.length > 0) {
+		await setCachedAddressBalances(redis, absoluteBalances, balanceCache);
+	}
 
 	for (const pendingTx of transactionsToProcess) {
 		if (pendingTx.lock_token) {

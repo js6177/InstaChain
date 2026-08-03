@@ -141,6 +141,9 @@ class PostgresqlDatabaseSettings(BaseModel):
 class RedisSettings(BaseModel):
     host: str
     port: int
+    # Application-level balance cache eviction: "none" | "ttl"
+    balance_cache_eviction_policy: Optional[str] = "none"
+    balance_cache_ttl_seconds: Optional[int] = 3600
 
 # Layer2Ledger settings that are shared between layer2ledgerapihandler and layer2ledgerdbwriter
 class Layer2LedgerCommonSettings(BaseModel):

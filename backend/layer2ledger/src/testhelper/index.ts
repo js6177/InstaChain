@@ -1,14 +1,20 @@
 import {
 	getTestHelperPort,
 	loadLayer2LedgerCommonConfig,
+	registerProcessShutdown,
 } from "@openl2/config-loader";
 import { Layer2Address } from "@openl2/pubkey-utils";
+import Redis from "ioredis";
 import { createDatabase, migrateDatabase } from "../db/client";
 import {
 	layer2AddressBalance,
 	TransactionType,
 	transactions,
 } from "../db/schema";
+import {
+	resolveAddressBalanceCacheOptions,
+	setCachedAddressBalance,
+} from "../redis/address-balance-cache";
 import { createTestHelperApp } from "./app";
 import type { TestHelperRouteHandlers } from "./handlers";
 import { log } from "./logger";
@@ -26,6 +32,12 @@ const { db, sql: postgresSql } = createDatabase({
 	dbPort: commonConfig.database.db_port,
 	dbName: commonConfig.database.db_name,
 });
+const redis = new Redis({
+	host: commonConfig.redis.host,
+	port: commonConfig.redis.port,
+	maxRetriesPerRequest: null,
+});
+const balanceCache = resolveAddressBalanceCacheOptions(commonConfig.redis);
 
 // Schema reset is handled by layer2ledgerapihandler on test startup. The testhelper
 // only seeds data and must not drop tables — compose run would recreate this container
@@ -40,6 +52,7 @@ async function upsertBalance(address: string, balance: number): Promise<void> {
 			target: layer2AddressBalance.address,
 			set: { balance },
 		});
+	await setCachedAddressBalance(redis, address, balance, balanceCache);
 }
 
 async function maybeInsertDepositTransaction(
@@ -111,6 +124,12 @@ const app = createTestHelperApp(handlers).listen({
 	// Bind all interfaces so Docker healthchecks and other containers can reach us.
 	hostname: "0.0.0.0",
 	port: getTestHelperPort(),
+});
+
+registerProcessShutdown(async () => {
+	app.stop();
+	await redis.quit();
+	await postgresSql.end({ timeout: 2 });
 });
 
 log.info(`testhelper listening on http://0.0.0.0:${getTestHelperPort()}`);

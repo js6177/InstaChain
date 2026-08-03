@@ -9,6 +9,7 @@ import Redis from "ioredis";
 import { createLayer2LedgerApp } from "../api/app";
 import { createDatabase, migrateDatabase } from "../db/client";
 import { log } from "../logger";
+import { resolveAddressBalanceCacheOptions } from "../redis/address-balance-cache";
 import { DistributedLock } from "../redis/distributed-lock";
 import { ensureTransactionIdBloomFilter } from "../redis/transaction-id-bloom";
 import { createRouteHandlers } from "../services/route-handlers";
@@ -78,6 +79,7 @@ const handlers = createRouteHandlers({
 		layer2BridgeSigningPublicKey:
 			backendCommonConfig.layer2bridge_signing_public_key,
 	},
+	balanceCache: resolveAddressBalanceCacheOptions(commonConfig.redis),
 });
 
 const host = "0.0.0.0";

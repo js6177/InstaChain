@@ -15,6 +15,7 @@ import type {
 	Layer2LedgerTestHelperConfig,
 } from "@openl2/config-loader";
 import {
+	BalanceCacheEvictionPolicy,
 	BitcoinChain,
 	DockerService,
 	type EnvironmentName,
@@ -209,6 +210,8 @@ function generateKeys(
 		redis: {
 			host: redisHost,
 			port: layer2ledgerDockerEnv.redisPort,
+			balance_cache_eviction_policy: BalanceCacheEvictionPolicy.None,
+			balance_cache_ttl_seconds: 3600,
 		},
 	};
 

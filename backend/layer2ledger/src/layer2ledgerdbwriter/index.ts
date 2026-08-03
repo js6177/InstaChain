@@ -5,6 +5,7 @@ import {
 import { createOpenL2Logger } from "@openl2/openl2-logger";
 import Redis from "ioredis";
 import { createDatabase, migrateDatabase } from "../db/client";
+import { resolveAddressBalanceCacheOptions } from "../redis/address-balance-cache";
 import {
 	DistributedLock,
 	PENDING_TRANSACTIONS_LIST_KEY,
@@ -44,6 +45,7 @@ const redis = new Redis({
 const lockManager = new DistributedLock(redis);
 await lockManager.setup();
 await ensureTransactionIdBloomFilter(db, redis);
+const balanceCache = resolveAddressBalanceCacheOptions(commonConfig.redis);
 
 log.info("Starting layer2ledgerdbwriter...");
 
@@ -57,7 +59,7 @@ let currentBatchHeight = await getCurrentBatchHeight(db);
 while (true) {
 	try {
 		const nextHeight = await processPendingBatch(
-			{ db, redis, lockManager },
+			{ db, redis, lockManager, balanceCache },
 			currentBatchHeight,
 		);
 		if (nextHeight !== currentBatchHeight) {

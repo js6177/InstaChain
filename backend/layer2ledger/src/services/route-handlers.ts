@@ -60,6 +60,11 @@ import {
 } from "../db/schema";
 import { log } from "../logger";
 import { mapTransactionRow } from "../mappers/transaction-mapper";
+import {
+	type AddressBalanceCacheOptions,
+	getCachedAddressBalance,
+	setCachedAddressBalance,
+} from "../redis/address-balance-cache";
 import type { DistributedLock } from "../redis/distributed-lock";
 import {
 	PENDING_TRANSACTIONS_LIST_KEY,
@@ -83,6 +88,7 @@ export interface RouteHandlerContext {
 	lockManager: DistributedLock;
 	settings: Layer2LedgerAPIHandlerConfig;
 	messaging: MessagingContext;
+	balanceCache: AddressBalanceCacheOptions;
 }
 
 /**
@@ -107,6 +113,32 @@ async function isDuplicateLayer2TransactionId(
 		.where(eq(transactions.layer2TransactionId, layer2TransactionId))
 		.limit(1);
 	return existing.length > 0;
+}
+
+/**
+ * Read absolute balance from Redis cache, falling back to Postgres and warming
+ * the cache on miss.
+ */
+async function getAddressBalance(
+	db: Layer2LedgerDbClient,
+	redis: Redis,
+	address: string,
+	balanceCache: AddressBalanceCacheOptions,
+): Promise<number | undefined> {
+	const cached = await getCachedAddressBalance(redis, address);
+	if (cached !== null) {
+		return cached;
+	}
+	const balanceRows = await db
+		.select({ balance: layer2AddressBalance.balance })
+		.from(layer2AddressBalance)
+		.where(eq(layer2AddressBalance.address, address))
+		.limit(1);
+	const balance = balanceRows[0]?.balance;
+	if (balance !== undefined) {
+		await setCachedAddressBalance(redis, address, balance, balanceCache);
+	}
+	return balance;
 }
 
 class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
@@ -161,14 +193,12 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 				return buildCommonResponse(ErrorCodes.CANNOT_DUPLICATE_TRANSACTION);
 			}
 
-			const balanceRows = await db
-				.select()
-				.from(layer2AddressBalance)
-				.where(
-					eq(layer2AddressBalance.address, body.source_address_public_key),
-				)
-				.limit(1);
-			const balance = balanceRows[0]?.balance;
+			const balance = await getAddressBalance(
+				db,
+				redis,
+				body.source_address_public_key,
+				this.ctx.balanceCache,
+			);
 			if (balance === undefined || balance < body.amount) {
 				await lockManager.releaseMultiLock(addressesToLock, lockToken);
 				return buildCommonResponse(ErrorCodes.INSUFFICIENT_FUNDS);
@@ -411,14 +441,12 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 				return buildCommonResponse(ErrorCodes.CANNOT_DUPLICATE_TRANSACTION);
 			}
 
-			const balanceRows = await db
-				.select()
-				.from(layer2AddressBalance)
-				.where(
-					eq(layer2AddressBalance.address, body.source_address_public_key),
-				)
-				.limit(1);
-			const balance = balanceRows[0]?.balance;
+			const balance = await getAddressBalance(
+				db,
+				redis,
+				body.source_address_public_key,
+				this.ctx.balanceCache,
+			);
 			if (balance === undefined || balance < body.amount) {
 				await lockManager.releaseMultiLock(addressesToLock, lockToken);
 				return buildCommonResponse(ErrorCodes.INSUFFICIENT_FUNDS);
@@ -647,19 +675,19 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 	}
 
 	async getBalance(body: GetBalanceRequest): Promise<GetBalanceResponse> {
-		const { db } = this.ctx;
+		const { db, redis, balanceCache } = this.ctx;
 		const balances: GetBalanceResponseBalance[] = [];
 		for (const publicKey of body.public_keys) {
-			const rows = await db
-				.select()
-				.from(layer2AddressBalance)
-				.where(eq(layer2AddressBalance.address, publicKey))
-				.limit(1);
-			const row = rows[0];
+			const balance = await getAddressBalance(
+				db,
+				redis,
+				publicKey,
+				balanceCache,
+			);
 			balances.push({
 				public_key: publicKey,
-				balance: row?.balance ?? 0,
-				address_found: row !== undefined,
+				balance: balance ?? 0,
+				address_found: balance !== undefined,
 			});
 		}
 		return {

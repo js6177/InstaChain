@@ -13,6 +13,10 @@ import {
 	processPendingBatch,
 } from "../src/layer2ledgerdbwriter/process-pending";
 import {
+	clearAddressBalanceCache,
+	resolveAddressBalanceCacheOptions,
+} from "../src/redis/address-balance-cache";
+import {
 	DistributedLock,
 	PENDING_TRANSACTIONS_LIST_KEY,
 	PENDING_WITHDRAWALS_LIST_KEY,
@@ -48,6 +52,7 @@ export const redis = new Redis({
 });
 
 export const lockManager = new DistributedLock(redis);
+export const balanceCache = resolveAddressBalanceCacheOptions(commonConfig.redis);
 
 export function createHandlers(): Layer2LedgerRouteHandlers {
 	return createRouteHandlers({
@@ -60,6 +65,7 @@ export function createHandlers(): Layer2LedgerRouteHandlers {
 			layer2BridgeSigningPublicKey:
 				backendCommon.layer2bridge_signing_public_key,
 		},
+		balanceCache,
 	});
 }
 
@@ -83,6 +89,7 @@ export async function setupLedgerTests(): Promise<void> {
 		PENDING_WITHDRAWALS_LIST_KEY,
 		TRANSACTION_ID_BLOOM_KEY,
 	);
+	await clearAddressBalanceCache(redis);
 	// Fresh empty bloom for this process; skip replaying historical Postgres rows.
 	process.env.SKIP_BLOOM_PG_REBUILD = "1";
 	await ensureTransactionIdBloomFilter(db, redis);
@@ -99,5 +106,8 @@ export async function clearPendingQueues(): Promise<void> {
 
 export async function drainPendingQueues(): Promise<void> {
 	const batchHeight = await getCurrentBatchHeight(db);
-	await processPendingBatch({ db, redis, lockManager }, batchHeight);
+	await processPendingBatch(
+		{ db, redis, lockManager, balanceCache },
+		batchHeight,
+	);
 }
