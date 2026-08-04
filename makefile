@@ -75,7 +75,9 @@ backend-test:
 # Examples:
 #   make stress-test
 #   STRESS_TX_COUNT=51000 STRESS_CONCURRENCY=20 make stress-test
+#   STRESS_ADDRESS_OVERLAP_PERCENT=75 make stress-test
 # Note: plain `docker compose run` does NOT rebuild the image unless you pass --build.
+# Runs two rounds: cold (cache cleared after seed) then warm with overlapping sources.
 stress-test:
 	mkdir -p .test-output/stress
 	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test \
@@ -96,6 +98,8 @@ stress-test:
 		-e "STRESS_TX_COUNT=$${STRESS_TX_COUNT:-100}" \
 		-e "STRESS_CONCURRENCY=$${STRESS_CONCURRENCY:-10}" \
 		-e "STRESS_SETTLE_TIMEOUT_MS=$${STRESS_SETTLE_TIMEOUT_MS:-120000}" \
+		-e "STRESS_SETTLE_CONCURRENCY=$${STRESS_SETTLE_CONCURRENCY:-}" \
+		-e "STRESS_ADDRESS_OVERLAP_PERCENT=$${STRESS_ADDRESS_OVERLAP_PERCENT:-50}" \
 		test-layer2ledger-stress
 
 test:

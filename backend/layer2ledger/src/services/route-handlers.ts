@@ -63,6 +63,8 @@ import { mapTransactionRow } from "../mappers/transaction-mapper";
 import {
 	type AddressBalanceCacheOptions,
 	getCachedAddressBalance,
+	recordAddressBalanceCacheHit,
+	recordAddressBalanceCacheMiss,
 	setCachedAddressBalance,
 } from "../redis/address-balance-cache";
 import type { DistributedLock } from "../redis/distributed-lock";
@@ -127,8 +129,10 @@ async function getAddressBalance(
 ): Promise<number | undefined> {
 	const cached = await getCachedAddressBalance(redis, address);
 	if (cached !== null) {
+		await recordAddressBalanceCacheHit(redis);
 		return cached;
 	}
+	await recordAddressBalanceCacheMiss(redis);
 	const balanceRows = await db
 		.select({ balance: layer2AddressBalance.balance })
 		.from(layer2AddressBalance)

@@ -8,9 +8,19 @@ import type Redis from "ioredis";
 /** Redis key prefix for absolute layer2 address balances. */
 export const ADDRESS_BALANCE_CACHE_KEY_PREFIX = "Layer2AddressBalance";
 
+/** Shared counters for balance-cache read hits/misses (across apihandler replicas). */
+export const ADDRESS_BALANCE_CACHE_HITS_KEY = "Layer2AddressBalanceStats:hits";
+export const ADDRESS_BALANCE_CACHE_MISSES_KEY =
+	"Layer2AddressBalanceStats:misses";
+
 export interface AddressBalanceCacheOptions {
 	evictionPolicy: BalanceCacheEvictionPolicy;
 	ttlSeconds: number;
+}
+
+export interface AddressBalanceCacheStats {
+	hits: number;
+	misses: number;
 }
 
 export function balanceCacheKey(address: string): string {
@@ -107,4 +117,38 @@ export async function clearAddressBalanceCache(redis: Redis): Promise<void> {
 			await redis.del(...keys);
 		}
 	} while (cursor !== "0");
+}
+
+export async function recordAddressBalanceCacheHit(redis: Redis): Promise<void> {
+	await redis.incr(ADDRESS_BALANCE_CACHE_HITS_KEY);
+}
+
+export async function recordAddressBalanceCacheMiss(
+	redis: Redis,
+): Promise<void> {
+	await redis.incr(ADDRESS_BALANCE_CACHE_MISSES_KEY);
+}
+
+export async function resetAddressBalanceCacheStats(
+	redis: Redis,
+): Promise<void> {
+	await redis.mset(
+		ADDRESS_BALANCE_CACHE_HITS_KEY,
+		"0",
+		ADDRESS_BALANCE_CACHE_MISSES_KEY,
+		"0",
+	);
+}
+
+export async function getAddressBalanceCacheStats(
+	redis: Redis,
+): Promise<AddressBalanceCacheStats> {
+	const [hitsRaw, missesRaw] = await redis.mget(
+		ADDRESS_BALANCE_CACHE_HITS_KEY,
+		ADDRESS_BALANCE_CACHE_MISSES_KEY,
+	);
+	return {
+		hits: Number(hitsRaw ?? 0) || 0,
+		misses: Number(missesRaw ?? 0) || 0,
+	};
 }

@@ -32,6 +32,11 @@ export interface StressApiErrors {
 	seed: StressApiErrorCounts;
 }
 
+export interface StressCacheStats {
+	hits: number;
+	misses: number;
+}
+
 export interface StressRunResult {
 	processedToPostgres: number;
 	/** Successful push_transaction responses. */
@@ -45,9 +50,11 @@ export interface StressRunResult {
 	pushClientRttMs: LatencyStatsMs;
 	phaseTimingsMs: StressPhaseTimingsMs;
 	apiErrors: StressApiErrors;
+	cache: StressCacheStats;
 }
 
-export interface StressThroughputResult {
+export interface StressRoundThroughputResult {
+	round: 1 | 2;
 	transactionCount: number;
 	processedToPostgres: number;
 	acceptedPushes: number;
@@ -59,6 +66,15 @@ export interface StressThroughputResult {
 	pushClientRttMs: LatencyStatsMs;
 	phaseTimingsMs: StressPhaseTimingsMs;
 	apiErrors: StressApiErrors;
+	cache: StressCacheStats;
+	/** Round 2: how many source addresses were reused from round 1. */
+	reusedSourceCount: number;
+}
+
+export interface StressThroughputResult {
+	transactionCount: number;
+	addressOverlapPercent: number;
+	rounds: [StressRoundThroughputResult, StressRoundThroughputResult];
 }
 
 export function emptyApiErrorCounts(): StressApiErrorCounts {

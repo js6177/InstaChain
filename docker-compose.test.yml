@@ -145,6 +145,7 @@ services:
       STRESS_TX_COUNT: ${STRESS_TX_COUNT:-100}
       STRESS_CONCURRENCY: ${STRESS_CONCURRENCY:-10}
       STRESS_SETTLE_TIMEOUT_MS: ${STRESS_SETTLE_TIMEOUT_MS:-120000}
+      STRESS_ADDRESS_OVERLAP_PERCENT: ${STRESS_ADDRESS_OVERLAP_PERCENT:-50}
       LAYER2LEDGER_API_URL: http://layer2ledgerapihandler-nginx:8000
       TESTHELPER_BASE_URL: http://layer2ledger-testhelper:8001
       STRESS_RESULT_FILE: /test-output/test-layer2ledger-stress.throughput.json
