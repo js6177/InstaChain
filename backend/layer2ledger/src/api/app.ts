@@ -14,6 +14,7 @@ import {
 	GET_NODE_INFO_ROUTE,
 	GET_TRANSACTION_ROUTE,
 	GET_WITHDRAWAL_REQUESTS_ROUTE,
+	HEALTH_ROUTE,
 	INFO_ROUTER_PREFIX,
 	PUSH_TRANSACTION_ROUTE,
 	REQUEST_WITHDRAWAL_ROUTE,
@@ -59,6 +60,7 @@ export function createLayer2LedgerApp(handlers: Layer2LedgerRouteHandlers) {
 			}),
 		)
 		.get("/", () => handlers.health())
+		.get(HEALTH_ROUTE, () => handlers.health())
 		.group(TRANSFER_ROUTER_PREFIX, (app) =>
 			app.post(
 				PUSH_TRANSACTION_ROUTE,

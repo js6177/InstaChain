@@ -102,6 +102,36 @@ stress-test:
 		-e "STRESS_ADDRESS_OVERLAP_PERCENT=$${STRESS_ADDRESS_OVERLAP_PERCENT:-50}" \
 		test-layer2ledger-stress
 
+# Lightweight GET /health stress through nginx (no seed/sign/settle/db path).
+# Useful to measure edge + apihandler admission without transfer workload.
+# Examples:
+#   make stress-test-health
+#   STRESS_REQUEST_COUNT=50000 STRESS_CONCURRENCY=2000 make stress-test-health
+#   STRESS_HEALTH_PATH=/nginx-health make stress-test-health   # nginx-only (no upstream)
+stress-test-health:
+	mkdir -p .test-output/stress
+	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test \
+		up -d --build \
+		--scale layer2ledgerapihandler=$${LAYER2LEDGER_APIHANDLER_REPLICAS:-2} \
+		layer2ledger-postgres \
+		layer2ledger-pgbouncer \
+		layer2ledger-redis \
+		layer2ledgerapihandler \
+		layer2ledgerapihandler-nginx
+	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test \
+		up -d --force-recreate --no-deps layer2ledgerapihandler-nginx
+	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test \
+		run --rm --build \
+		-v "$(CURDIR)/.test-output/stress:/test-output" \
+		-e RUN_LEDGER_HTTP_STRESS=0 \
+		-e RUN_LEDGER_HEALTH_STRESS=1 \
+		-e "STRESS_REQUEST_COUNT=$${STRESS_REQUEST_COUNT:-$${STRESS_TX_COUNT:-10000}}" \
+		-e "STRESS_CONCURRENCY=$${STRESS_CONCURRENCY:-2000}" \
+		-e "STRESS_HEALTH_PATH=$${STRESS_HEALTH_PATH:-/health}" \
+		-e STRESS_HEALTH_RESULT_FILE=/test-output/test-layer2ledger-health-stress.throughput.json \
+		-v "$(CURDIR)/backend/layer2ledger/test:/app/backend/layer2ledger/test:ro" \
+		test-layer2ledger-stress
+
 test:
 	bun run test:docker
 

@@ -24,11 +24,13 @@ import {
 } from "../src/redis/address-balance-cache";
 import {
 	computeLatencyStats,
+	emptyApiErrorCounts,
 	emptyApiErrors,
 	mapPool,
 	newLayer2Address,
 	recordApiError,
 	sleep,
+	type LatencyStatsMs,
 	type StressApiErrorCounts,
 	type StressRoundThroughputResult,
 	type StressRunResult,
@@ -36,6 +38,7 @@ import {
 } from "./common";
 
 const runHttpStress = process.env.RUN_LEDGER_HTTP_STRESS === "1";
+const runHealthStress = process.env.RUN_LEDGER_HEALTH_STRESS === "1";
 
 const log = createOpenL2Logger({
 	serviceName: "layer2ledger-stress",
@@ -45,6 +48,20 @@ const ledgerApiUrl =
 	process.env.LAYER2LEDGER_API_URL ?? "http://layer2ledgerapihandler-nginx:8000";
 const testhelperUrl =
 	process.env.TESTHELPER_BASE_URL ?? "http://layer2ledger-testhelper:8001";
+
+/** Default is the ledger health API (proxied through nginx → apihandler). */
+const healthPath = process.env.STRESS_HEALTH_PATH ?? "/health";
+
+interface HealthStressResult {
+	path: string;
+	requestCount: number;
+	concurrency: number;
+	accepted: number;
+	elapsedMs: number;
+	requestsPerSecond: number;
+	clientRttMs: LatencyStatsMs;
+	apiErrors: StressApiErrorCounts;
+}
 
 function parseAddressOverlapPercent(): number {
 	const raw = process.env.STRESS_ADDRESS_OVERLAP_PERCENT ?? "50";
@@ -434,6 +451,147 @@ function printRoundSummary(round: StressRoundThroughputResult): void {
 	});
 }
 
+function isNginxLocalHealthPath(path: string): boolean {
+	return path === "/nginx-health";
+}
+
+async function responseIsHealthy(response: Response): Promise<boolean> {
+	if (!response.ok) {
+		return false;
+	}
+	if (isNginxLocalHealthPath(healthPath)) {
+		const text = await response.text();
+		return text.includes("ok");
+	}
+	const body = (await response.json()) as { error_code?: number };
+	return body.error_code === ErrorCodes.SUCCESS;
+}
+
+async function waitForHealthEndpoint(timeoutMs: number): Promise<void> {
+	const url = `${ledgerApiUrl.replace(/\/$/, "")}${healthPath}`;
+	const deadline = Date.now() + timeoutMs;
+	while (Date.now() < deadline) {
+		try {
+			const response = await fetch(url);
+			if (await responseIsHealthy(response)) {
+				return;
+			}
+		} catch {
+			// Retry until timeout.
+		}
+		await sleep(250);
+	}
+	throw new Error(`Timed out waiting for health at ${url}`);
+}
+
+describe.skipIf(!runHealthStress)("health HTTP stress", () => {
+	it(
+		"measures nginx+apihandler throughput for the lightweight health API",
+		async () => {
+			const requestCount = Number(
+				process.env.STRESS_REQUEST_COUNT ??
+					process.env.STRESS_TX_COUNT ??
+					"10000",
+			);
+			const concurrency = Number(process.env.STRESS_CONCURRENCY ?? "2000");
+			expect(Number.isFinite(requestCount) && requestCount > 0).toBe(true);
+			expect(Number.isFinite(concurrency) && concurrency > 0).toBe(true);
+
+			const url = `${ledgerApiUrl.replace(/\/$/, "")}${healthPath}`;
+			await waitForHealthEndpoint(60_000);
+			log.info(`health stress starting path=${healthPath} url=${url}`);
+
+			const apiErrors = emptyApiErrorCounts();
+			const latenciesMs: number[] = [];
+			let accepted = 0;
+
+			const startedAt = performance.now();
+			await mapPool(
+				Array.from({ length: requestCount }, (_, index) => index),
+				concurrency,
+				async () => {
+					const reqStarted = performance.now();
+					try {
+						const response = await fetch(url);
+						if (!response.ok) {
+							recordApiError(apiErrors, `http_${response.status}`);
+							return;
+						}
+						if (isNginxLocalHealthPath(healthPath)) {
+							const text = await response.text();
+							if (!text.includes("ok")) {
+								recordApiError(apiErrors, "nginx_health_unexpected_body");
+								return;
+							}
+						} else {
+							const body = (await response.json()) as {
+								error_code?: number;
+								error_message?: string;
+							};
+							if (body.error_code !== ErrorCodes.SUCCESS) {
+								recordApiError(
+									apiErrors,
+									`error_code_${body.error_code}:${body.error_message ?? ""}`,
+								);
+								return;
+							}
+						}
+						accepted += 1;
+						latenciesMs.push(performance.now() - reqStarted);
+					} catch (error) {
+						recordApiError(apiErrors, apiErrorReason(error));
+					}
+				},
+			);
+			const elapsedMs = Math.round(performance.now() - startedAt);
+			const requestsPerSecond = Number(
+				((accepted / Math.max(elapsedMs, 1)) * 1000).toFixed(2),
+			);
+			const clientRttMs = computeLatencyStats(latenciesMs);
+
+			const result: HealthStressResult = {
+				path: healthPath,
+				requestCount,
+				concurrency,
+				accepted,
+				elapsedMs,
+				requestsPerSecond,
+				clientRttMs,
+				apiErrors,
+			};
+
+			const summary =
+				`health_stress path=${healthPath} requests=${requestCount} ` +
+				`concurrency=${concurrency} accepted=${accepted} ` +
+				`elapsed_ms=${elapsedMs} reqs_per_sec=${requestsPerSecond} ` +
+				`rtt_avg_ms=${clientRttMs.average} rtt_p25=${clientRttMs.bottomQuartile} ` +
+				`rtt_p75=${clientRttMs.upperQuartile} errors=${apiErrors.total}`;
+			console.log(summary);
+			log.info("health stress complete", {
+				path: healthPath,
+				request_count: requestCount,
+				concurrency,
+				accepted,
+				elapsed_ms: elapsedMs,
+				requests_per_second: requestsPerSecond,
+				client_rtt_ms: clientRttMs,
+				api_errors: apiErrors,
+			});
+
+			const resultFile =
+				process.env.STRESS_HEALTH_RESULT_FILE ??
+				process.env.STRESS_RESULT_FILE;
+			if (resultFile) {
+				await Bun.write(resultFile, `${JSON.stringify(result, null, 2)}\n`);
+			}
+
+			expect(accepted).toBe(requestCount);
+			expect(apiErrors.total).toBe(0);
+		},
+		{ timeout: 300_000 },
+	);
+});
+
 describe.skipIf(!runHttpStress)("pushTransaction HTTP stress", () => {
 	it(
 		"measures end-to-end throughput for a cold round then a warm overlap round",
@@ -463,6 +621,9 @@ describe.skipIf(!runHttpStress)("pushTransaction HTTP stress", () => {
 					redis,
 				});
 				const round1 = toRoundResult(1, transactionCount, round1Run, 0);
+
+				await sleep(10000);
+				log.info("waited 5 seconds");
 
 				const reuseSources = round1Run.sources.slice(0, reuseCount);
 				const round2Run = await runPushTransactionStress({

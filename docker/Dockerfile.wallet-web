@@ -18,7 +18,7 @@ COPY frontend/wallet/.env.docker ./frontend/wallet/apps/web/.env.production
 WORKDIR /app/frontend/wallet/apps/web
 RUN bun run build
 
-FROM nginx:1.27-alpine AS runner
+FROM nginx:1.30.4-alpine AS runner
 COPY docker/nginx.wallet-web.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/frontend/wallet/apps/web/dist /usr/share/nginx/html
 EXPOSE 80

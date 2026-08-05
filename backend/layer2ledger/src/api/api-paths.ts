@@ -5,6 +5,9 @@ export const EXPLORER_ROUTER_PREFIX = "/explorer";
 export const INFO_ROUTER_PREFIX = "/info";
 export const AUDIT_ROUTER_PREFIX = "/audit";
 
+/** Lightweight liveness probe (same payload as GET /). */
+export const HEALTH_ROUTE = "/health";
+
 export const GET_DEPOSIT_ADDRESS_ROUTE = "/get_deposit_address";
 export const DEPOSIT_CONFIRMED_ROUTE = "/deposit_confirmed";
 export const PUSH_TRANSACTION_ROUTE = "/push_transaction";

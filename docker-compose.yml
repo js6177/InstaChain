@@ -99,13 +99,28 @@ services:
       replicas: 8
     restart: unless-stopped
 
-  # Reverse proxy / LB in front of apihandler replicas (round-robin).
+  # Reverse proxy / LB in front of apihandler replicas.
+  # Entrypoint builds a real upstream (least_conn + keepalive) from Docker DNS
+  # and reloads when replica IPs change — avoids stale static upstreams without
+  # per-request variable proxy_pass (which cannot use keepalive).
   layer2ledgerapihandler-nginx:
-    image: nginx:1.27-alpine
+    image: nginx:1.30.4-alpine
     ports:
       - "${LAYER2LEDGER_FASTAPI_PORT:-8000}:8000"
+    environment:
+      BACKEND_HOST: layer2ledgerapihandler
+      BACKEND_PORT: "8000"
+      NGINX_UPSTREAM_KEEPALIVE: "${NGINX_UPSTREAM_KEEPALIVE:-128}"
+      NGINX_UPSTREAM_REFRESH_SEC: "${NGINX_UPSTREAM_REFRESH_SEC:-2}"
+    # worker_connections 16384 needs headroom above the default 1024 nofile.
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
     volumes:
       - ./docker/nginx.layer2ledgerapihandler.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx.layer2ledgerapihandler.entrypoint.dev.sh:/entrypoint.sh:ro
     depends_on:
       layer2ledgerapihandler:
         condition: service_healthy
