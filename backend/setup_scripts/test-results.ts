@@ -289,6 +289,37 @@ function escapeXml(value: string): string {
 		.replaceAll("'", "&apos;");
 }
 
+const ANSI_GREEN = "\u001b[32m";
+const ANSI_RED = "\u001b[31m";
+const ANSI_RESET = "\u001b[0m";
+
+function colorize(text: string, color: string): string {
+	return `${color}${text}${ANSI_RESET}`;
+}
+
+function formatServiceTestLine(
+	result: ServiceTestCounts,
+	widths: {
+		service: number;
+		passed: number;
+		failed: number;
+		ran: number;
+		skipped: number;
+	},
+	includeSkipped: boolean,
+): string {
+	const status =
+		result.containerPassed && result.failed === 0 ? "PASSED" : "FAILED";
+	const service = result.service.padEnd(widths.service);
+	const passed = String(result.passed).padStart(widths.passed);
+	const failed = String(result.failed).padStart(widths.failed);
+	const ran = String(result.tests).padStart(widths.ran);
+	const skippedPart = includeSkipped
+		? `, ${String(result.skipped).padStart(widths.skipped)} skipped`
+		: "";
+	return `${service}  ${status.padEnd(6)} — ${passed} passed, ${failed} failed, ${ran} ran${skippedPart}`;
+}
+
 export function printTestResultsSummary(
 	outputDir: string,
 	results: readonly ServiceTestCounts[],
@@ -309,18 +340,48 @@ export function printTestResultsSummary(
 		totalPassed += result.passed;
 		totalFailed += result.failed;
 		totalSkipped += result.skipped;
-
-		const status =
-			result.containerPassed && result.failed === 0 ? "PASSED" : "FAILED";
-		const skippedPart = result.skipped > 0 ? `, ${result.skipped} skipped` : "";
-		log.info(
-			`${result.service}: ${status} — ${result.passed} passed, ${result.failed} failed, ${result.tests} ran${skippedPart}`,
-		);
 	}
 
+	const includeSkipped = totalSkipped > 0;
+	const widths = {
+		service: Math.max(
+			1,
+			...results.map((result) => result.service.length),
+		),
+		passed: Math.max(
+			1,
+			...results.map((result) => String(result.passed).length),
+			String(totalPassed).length,
+		),
+		failed: Math.max(
+			1,
+			...results.map((result) => String(result.failed).length),
+			String(totalFailed).length,
+		),
+		ran: Math.max(
+			1,
+			...results.map((result) => String(result.tests).length),
+			String(totalTests).length,
+		),
+		skipped: Math.max(
+			1,
+			...results.map((result) => String(result.skipped).length),
+			String(totalSkipped).length,
+		),
+	};
+
+	for (const result of results) {
+		log.info(formatServiceTestLine(result, widths, includeSkipped));
+	}
+
+	const passedText = colorize(String(totalPassed), ANSI_GREEN);
+	const failedText =
+		totalFailed > 0
+			? colorize(String(totalFailed), ANSI_RED)
+			: String(totalFailed);
 	log.info(
-		`Totals: ${totalPassed} passed, ${totalFailed} failed, ${totalTests} ran` +
-			(totalSkipped > 0 ? `, ${totalSkipped} skipped` : ""),
+		`Totals: ${passedText} passed, ${failedText} failed, ${totalTests} ran` +
+			(includeSkipped ? `, ${totalSkipped} skipped` : ""),
 	);
 
 	printStressThroughputSummary(outputDir);
