@@ -28,38 +28,19 @@ export class HealthStressResult {
 		if (!isStructuredObject(data)) {
 			return null;
 		}
-		const {
-			path,
-			requestCount,
-			concurrency,
-			accepted,
-			elapsedMs,
-			requestsPerSecond,
-			clientRttMs,
-			apiErrors,
-		} = data;
-		if (
-			typeof path !== "string" ||
-			typeof requestCount !== "number" ||
-			typeof concurrency !== "number" ||
-			typeof accepted !== "number" ||
-			typeof elapsedMs !== "number" ||
-			typeof requestsPerSecond !== "number"
-		) {
-			return null;
-		}
-		const parsedRtt = LatencyStatsMs.parse(clientRttMs ?? null);
-		const parsedErrors = StressApiErrorCounts.parse(apiErrors ?? null);
+		const typed = data as HealthStressResult;
+		const parsedRtt = LatencyStatsMs.parse(typed.clientRttMs ?? null);
+		const parsedErrors = StressApiErrorCounts.parse(typed.apiErrors ?? null);
 		if (!parsedRtt || !parsedErrors) {
 			return null;
 		}
 		return new HealthStressResult({
-			path,
-			requestCount,
-			concurrency,
-			accepted,
-			elapsedMs,
-			requestsPerSecond,
+			path: typed.path,
+			requestCount: typed.requestCount,
+			concurrency: typed.concurrency,
+			accepted: typed.accepted,
+			elapsedMs: typed.elapsedMs,
+			requestsPerSecond: typed.requestsPerSecond,
 			clientRttMs: parsedRtt,
 			apiErrors: parsedErrors,
 		});

@@ -12,7 +12,6 @@ export {
 	StressCacheStats,
 	StressPhaseTimingsMs,
 	StressProfilerSessionSummary,
-	StressRoundThroughputResult,
 	StressRunResult,
 	StressThroughputResult,
 	VerifyTimingResult,

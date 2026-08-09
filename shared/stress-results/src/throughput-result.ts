@@ -34,9 +34,11 @@ export class StressRunResult {
 	}
 }
 
-/** One round in the on-disk stress throughput file. */
-export class StressRoundThroughputResult {
-	readonly round: number;
+/**
+ * On-disk stress throughput file written by `stress.test.ts`
+ * (`STRESS_RESULT_FILE` / `test-layer2ledger-stress.throughput.json`).
+ */
+export class StressThroughputResult {
 	readonly transactionCount: number;
 	readonly processedToPostgres: number;
 	readonly acceptedPushes: number;
@@ -52,7 +54,7 @@ export class StressRoundThroughputResult {
 	 * (from server profiler session dbwriter stats).
 	 */
 	readonly settledTxsPerSecond: number;
-	/** Server profiler session id used for this round. */
+	/** Server profiler session id used for this run. */
 	readonly profilerSessionId: string;
 	/**
 	 * @deprecated Prefer {@link pushTxsPerSecond}; kept equal to push rate for
@@ -64,11 +66,8 @@ export class StressRoundThroughputResult {
 	readonly phaseTimingsMs: StressPhaseTimingsMs;
 	readonly apiErrors: StressApiErrors;
 	readonly cache: StressCacheStats;
-	/** How many source addresses were reused from a prior round (0 for cold). */
-	readonly reusedSourceCount: number;
 
-	constructor(init: StressRoundThroughputResult) {
-		this.round = init.round;
+	constructor(init: StressThroughputResult) {
 		this.transactionCount = init.transactionCount;
 		this.processedToPostgres = init.processedToPostgres;
 		this.acceptedPushes = init.acceptedPushes;
@@ -81,94 +80,6 @@ export class StressRoundThroughputResult {
 		this.phaseTimingsMs = init.phaseTimingsMs;
 		this.apiErrors = init.apiErrors;
 		this.cache = init.cache;
-		this.reusedSourceCount = init.reusedSourceCount;
-	}
-
-	static parse(
-		data: StressRoundThroughputResult | null,
-	): StressRoundThroughputResult | null {
-		if (!isStructuredObject(data)) {
-			return null;
-		}
-		const {
-			round,
-			transactionCount,
-			processedToPostgres,
-			acceptedPushes,
-			elapsedMs,
-			pushTxsPerSecond,
-			settledTxsPerSecond,
-			profilerSessionId,
-			txsPerSecond,
-			pushClientRttMs,
-			phaseTimingsMs,
-			apiErrors,
-			cache,
-			reusedSourceCount,
-		} = data;
-		if (
-			typeof round !== "number" ||
-			!Number.isInteger(round) ||
-			round < 1 ||
-			typeof transactionCount !== "number" ||
-			typeof processedToPostgres !== "number" ||
-			typeof acceptedPushes !== "number" ||
-			typeof elapsedMs !== "number" ||
-			typeof pushTxsPerSecond !== "number" ||
-			typeof settledTxsPerSecond !== "number" ||
-			typeof profilerSessionId !== "string" ||
-			typeof txsPerSecond !== "number" ||
-			typeof reusedSourceCount !== "number"
-		) {
-			return null;
-		}
-		const parsedRtt = LatencyStatsMs.parse(pushClientRttMs ?? null);
-		const parsedPhases = StressPhaseTimingsMs.parse(phaseTimingsMs ?? null);
-		const parsedErrors = StressApiErrors.parse(apiErrors ?? null);
-		const parsedCache = StressCacheStats.parse(cache ?? null);
-		if (!parsedRtt || !parsedPhases || !parsedErrors || !parsedCache) {
-			return null;
-		}
-		return new StressRoundThroughputResult({
-			round,
-			transactionCount,
-			processedToPostgres,
-			acceptedPushes,
-			elapsedMs,
-			pushTxsPerSecond,
-			settledTxsPerSecond,
-			profilerSessionId,
-			txsPerSecond,
-			pushClientRttMs: parsedRtt,
-			phaseTimingsMs: parsedPhases,
-			apiErrors: parsedErrors,
-			cache: parsedCache,
-			reusedSourceCount,
-		});
-	}
-}
-
-/**
- * On-disk stress throughput file written by `stress.test.ts`
- * (`STRESS_RESULT_FILE` / `test-layer2ledger-stress.throughput.json`).
- */
-export class StressThroughputResult {
-	readonly transactionCount: number;
-	/**
-	 * Legacy overlap percent between rounds. Cold-only runs write `0`; kept so
-	 * older result files still parse.
-	 */
-	readonly addressOverlapPercent: number;
-	readonly rounds: readonly StressRoundThroughputResult[];
-
-	constructor(init: {
-		transactionCount: number;
-		addressOverlapPercent: number;
-		rounds: readonly StressRoundThroughputResult[];
-	}) {
-		this.transactionCount = init.transactionCount;
-		this.addressOverlapPercent = init.addressOverlapPercent;
-		this.rounds = init.rounds;
 	}
 
 	static parse(
@@ -177,31 +88,35 @@ export class StressThroughputResult {
 		if (!isStructuredObject(data)) {
 			return null;
 		}
-		const { transactionCount, addressOverlapPercent, rounds } = data;
-		if (
-			typeof transactionCount !== "number" ||
-			typeof addressOverlapPercent !== "number" ||
-			!Array.isArray(rounds) ||
-			rounds.length < 1
-		) {
+		const typed = data as StressThroughputResult;
+		const parsedRtt = LatencyStatsMs.parse(typed.pushClientRttMs ?? null);
+		const parsedPhases = StressPhaseTimingsMs.parse(
+			typed.phaseTimingsMs ?? null,
+		);
+		const parsedErrors = StressApiErrors.parse(typed.apiErrors ?? null);
+		const parsedCache = StressCacheStats.parse(typed.cache ?? null);
+		if (!parsedRtt || !parsedPhases || !parsedErrors || !parsedCache) {
 			return null;
 		}
-		const parsedRounds: StressRoundThroughputResult[] = [];
-		for (const round of rounds) {
-			const parsed = StressRoundThroughputResult.parse(round ?? null);
-			if (!parsed) {
-				return null;
-			}
-			parsedRounds.push(parsed);
-		}
 		return new StressThroughputResult({
-			transactionCount,
-			addressOverlapPercent,
-			rounds: parsedRounds,
+			transactionCount: typed.transactionCount,
+			processedToPostgres: typed.processedToPostgres,
+			acceptedPushes: typed.acceptedPushes,
+			elapsedMs: typed.elapsedMs,
+			pushTxsPerSecond: typed.pushTxsPerSecond,
+			settledTxsPerSecond: typed.settledTxsPerSecond,
+			profilerSessionId: typed.profilerSessionId,
+			txsPerSecond: typed.txsPerSecond,
+			pushClientRttMs: parsedRtt,
+			phaseTimingsMs: parsedPhases,
+			apiErrors: parsedErrors,
+			cache: parsedCache,
 		});
 	}
 
 	static fromJsonText(text: string): StressThroughputResult | null {
-		return StressThroughputResult.parse(parseJsonAs<StressThroughputResult>(text));
+		return StressThroughputResult.parse(
+			parseJsonAs<StressThroughputResult>(text),
+		);
 	}
 }

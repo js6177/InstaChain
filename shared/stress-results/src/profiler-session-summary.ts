@@ -34,46 +34,19 @@ export class StressProfilerSessionSummary {
 		if (!isStructuredObject(data)) {
 			return null;
 		}
-		const {
-			sessionId,
-			outputFile,
-			pushTxsPerSecond,
-			settledTxsPerSecond,
-			pushPeakConcurrent,
-			pushAvgLatencyMs,
-			pushCount,
-			dbwriterWritesTotal,
-			pushMs,
-			pushToSettleMs,
-			settleMs,
-		} = data;
-		if (
-			typeof sessionId !== "string" ||
-			!(typeof outputFile === "string" || outputFile === null) ||
-			typeof pushTxsPerSecond !== "number" ||
-			typeof settledTxsPerSecond !== "number" ||
-			typeof pushPeakConcurrent !== "number" ||
-			typeof pushAvgLatencyMs !== "number" ||
-			typeof pushCount !== "number" ||
-			typeof dbwriterWritesTotal !== "number" ||
-			typeof pushMs !== "number" ||
-			typeof pushToSettleMs !== "number" ||
-			typeof settleMs !== "number"
-		) {
-			return null;
-		}
+		const typed = data as StressProfilerSessionSummary;
 		return new StressProfilerSessionSummary({
-			sessionId,
-			outputFile,
-			pushTxsPerSecond,
-			settledTxsPerSecond,
-			pushPeakConcurrent,
-			pushAvgLatencyMs,
-			pushCount,
-			dbwriterWritesTotal,
-			pushMs,
-			pushToSettleMs,
-			settleMs,
+			sessionId: typed.sessionId,
+			outputFile: typed.outputFile ?? null,
+			pushTxsPerSecond: typed.pushTxsPerSecond,
+			settledTxsPerSecond: typed.settledTxsPerSecond,
+			pushPeakConcurrent: typed.pushPeakConcurrent,
+			pushAvgLatencyMs: typed.pushAvgLatencyMs,
+			pushCount: typed.pushCount,
+			dbwriterWritesTotal: typed.dbwriterWritesTotal,
+			pushMs: typed.pushMs,
+			pushToSettleMs: typed.pushToSettleMs,
+			settleMs: typed.settleMs,
 		});
 	}
 }

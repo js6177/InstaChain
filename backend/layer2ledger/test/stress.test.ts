@@ -37,7 +37,6 @@ import {
 	StressCacheStats,
 	StressPhaseTimingsMs,
 	StressProfilerSessionSummary,
-	StressRoundThroughputResult,
 	StressRunResult,
 	StressThroughputResult,
 	type StressApiErrorCounts,
@@ -201,7 +200,7 @@ interface RunPushStressOptions {
 	transactionCount: number;
 	/**
 	 * After seeding, wipe the Redis balance cache so push reads miss and fall
-	 * back to Postgres (cold round).
+	 * back to Postgres (cold cache).
 	 */
 	clearBalanceCacheBeforePush?: boolean;
 	redis: Redis;
@@ -301,7 +300,7 @@ async function runPushTransactionStress(
 
 	if (clearBalanceCacheBeforePush) {
 		await clearAddressBalanceCache(redis);
-		log.info("cleared balance cache before push (cold round)");
+		log.info("cleared balance cache before push (cold cache)");
 	}
 
 	await resetAddressBalanceCacheStats(redis);
@@ -469,13 +468,11 @@ async function persistProfilerSessionReport(
 	return summarizeProfilerSession(reportForFile, outputFile);
 }
 
-function toRoundResult(
-	round: number,
+function toThroughputResult(
 	transactionCount: number,
 	run: StressRunResult,
-): StressRoundThroughputResult {
-	return new StressRoundThroughputResult({
-		round,
+): StressThroughputResult {
+	return new StressThroughputResult({
 		transactionCount,
 		processedToPostgres: run.processedToPostgres,
 		acceptedPushes: run.acceptedPushes,
@@ -488,37 +485,33 @@ function toRoundResult(
 		phaseTimingsMs: run.phaseTimingsMs,
 		apiErrors: run.apiErrors,
 		cache: run.cache,
-		reusedSourceCount: 0,
 	});
 }
 
-function printRoundSummary(round: StressRoundThroughputResult): void {
+function printThroughputSummary(result: StressThroughputResult): void {
 	const visualizationUrl = profilerSessionVisualizationUrl(
-		round.profilerSessionId,
+		result.profilerSessionId,
 	);
 	const line =
-		`round=${round.round} profiler_session=${round.profilerSessionId} ` +
-		`push_ms=${round.phaseTimingsMs.pushMs} ` +
-		`settle_ms=${round.phaseTimingsMs.settleMs} ` +
-		`push_to_settle_ms=${round.phaseTimingsMs.pushToSettleMs} ` +
-		`total_ms=${round.phaseTimingsMs.totalMs} ` +
-		`push_txs_per_sec=${round.pushTxsPerSecond} ` +
-		`settled_txs_per_sec=${round.settledTxsPerSecond} ` +
-		`cache_hits=${round.cache.hits} cache_misses=${round.cache.misses} ` +
-		`reused_sources=${round.reusedSourceCount}`;
+		`profiler_session=${result.profilerSessionId} ` +
+		`push_ms=${result.phaseTimingsMs.pushMs} ` +
+		`settle_ms=${result.phaseTimingsMs.settleMs} ` +
+		`push_to_settle_ms=${result.phaseTimingsMs.pushToSettleMs} ` +
+		`total_ms=${result.phaseTimingsMs.totalMs} ` +
+		`push_txs_per_sec=${result.pushTxsPerSecond} ` +
+		`settled_txs_per_sec=${result.settledTxsPerSecond} ` +
+		`cache_hits=${result.cache.hits} cache_misses=${result.cache.misses}`;
 	console.log(line);
 	// Print the URL alone so terminals that auto-linkify can make it clickable.
 	console.log(visualizationUrl);
-	log.info("stress round summary", {
-		round: round.round,
-		profiler_session_id: round.profilerSessionId,
+	log.info("stress throughput summary", {
+		profiler_session_id: result.profilerSessionId,
 		visualization_url: visualizationUrl,
-		phase_timings_ms: round.phaseTimingsMs,
-		push_txs_per_second: round.pushTxsPerSecond,
-		settled_txs_per_second: round.settledTxsPerSecond,
-		txs_per_second: round.txsPerSecond,
-		cache: round.cache,
-		reused_source_count: round.reusedSourceCount,
+		phase_timings_ms: result.phaseTimingsMs,
+		push_txs_per_second: result.pushTxsPerSecond,
+		settled_txs_per_second: result.settledTxsPerSecond,
+		txs_per_second: result.txsPerSecond,
+		cache: result.cache,
 	});
 }
 
@@ -643,27 +636,21 @@ async function runPushTransactionHttpStress(): Promise<void> {
 	});
 
 	try {
-		const round1Run = await runPushTransactionStress({
+		const run = await runPushTransactionStress({
 			transactionCount,
 			clearBalanceCacheBeforePush: true,
 			redis,
 		});
-		const round1 = toRoundResult(1, transactionCount, round1Run);
-
-		const throughput = new StressThroughputResult({
-			transactionCount,
-			addressOverlapPercent: 0,
-			rounds: [round1],
-		});
+		const throughput = toThroughputResult(transactionCount, run);
 
 		console.log(
 			`stress cold-cache summary tx_count=${transactionCount}`,
 		);
-		printRoundSummary(round1);
+		printThroughputSummary(throughput);
 
 		log.info("pushTransaction cold-cache stress complete", {
 			transaction_count: transactionCount,
-			rounds: throughput.rounds,
+			throughput,
 		});
 
 		const stressResultFile = process.env.STRESS_RESULT_FILE;
@@ -674,8 +661,8 @@ async function runPushTransactionHttpStress(): Promise<void> {
 			);
 		}
 
-		expect(round1.processedToPostgres).toBe(round1.acceptedPushes);
-		expect(round1.acceptedPushes).toBe(transactionCount);
+		expect(throughput.processedToPostgres).toBe(throughput.acceptedPushes);
+		expect(throughput.acceptedPushes).toBe(transactionCount);
 	} finally {
 		await redis.quit();
 	}

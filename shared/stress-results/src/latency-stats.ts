@@ -20,22 +20,13 @@ export class LatencyStatsMs {
 		if (!isStructuredObject(data)) {
 			return null;
 		}
-		const { average, shortest, longest, bottomQuartile, upperQuartile } = data;
-		if (
-			typeof average !== "number" ||
-			typeof shortest !== "number" ||
-			typeof longest !== "number" ||
-			typeof bottomQuartile !== "number" ||
-			typeof upperQuartile !== "number"
-		) {
-			return null;
-		}
+		const typed = data as LatencyStatsMs;
 		return new LatencyStatsMs({
-			average,
-			shortest,
-			longest,
-			bottomQuartile,
-			upperQuartile,
+			average: typed.average,
+			shortest: typed.shortest,
+			longest: typed.longest,
+			bottomQuartile: typed.bottomQuartile,
+			upperQuartile: typed.upperQuartile,
 		});
 	}
 }

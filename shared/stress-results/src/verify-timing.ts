@@ -22,24 +22,17 @@ export class VerifyTimingResult {
 		if (!isStructuredObject(data)) {
 			return null;
 		}
-		const { messageCount, signLatencyMs, verifyLatencyMs, verifiesPerSecond } =
-			data;
-		if (
-			typeof messageCount !== "number" ||
-			typeof verifiesPerSecond !== "number"
-		) {
-			return null;
-		}
-		const parsedSign = LatencyStatsMs.parse(signLatencyMs ?? null);
-		const parsedVerify = LatencyStatsMs.parse(verifyLatencyMs ?? null);
+		const typed = data as VerifyTimingResult;
+		const parsedSign = LatencyStatsMs.parse(typed.signLatencyMs ?? null);
+		const parsedVerify = LatencyStatsMs.parse(typed.verifyLatencyMs ?? null);
 		if (!parsedSign || !parsedVerify) {
 			return null;
 		}
 		return new VerifyTimingResult({
-			messageCount,
+			messageCount: typed.messageCount,
 			signLatencyMs: parsedSign,
 			verifyLatencyMs: parsedVerify,
-			verifiesPerSecond,
+			verifiesPerSecond: typed.verifiesPerSecond,
 		});
 	}
 

@@ -23,7 +23,6 @@ export {
 	StressCacheStats,
 	StressPhaseTimingsMs,
 	StressProfilerSessionSummary,
-	StressRoundThroughputResult,
 	StressThroughputResult,
 	VerifyTimingResult,
 } from "@openl2/stress-results";
@@ -349,29 +348,25 @@ export function printStressThroughputSummary(outputDir: string): void {
 		return;
 	}
 
-	for (const round of result.rounds) {
-		const phases = round.phaseTimingsMs;
-		log.info(
-			`pushTransaction stress round=${round.round} ` +
-				`push_txs_per_sec=${round.pushTxsPerSecond} ` +
-				`settled_txs_per_sec=${round.settledTxsPerSecond} ` +
-				`(accepted ${round.acceptedPushes}/${round.transactionCount}, ` +
-				`settled ${round.processedToPostgres}/${round.transactionCount}, ` +
-				`push_ms=${phases.pushMs}, ` +
-				`push_to_settle_ms=${phases.pushToSettleMs})`,
-			{
-				round: round.round,
-				push_txs_per_second: round.pushTxsPerSecond,
-				settled_txs_per_second: round.settledTxsPerSecond,
-				accepted_pushes: round.acceptedPushes,
-				processed_to_postgres: round.processedToPostgres,
-				phase_timings_ms: phases,
-				cache: round.cache,
-				reused_source_count: round.reusedSourceCount,
-				profiler_session_id: round.profilerSessionId,
-			},
-		);
-	}
+	const phases = result.phaseTimingsMs;
+	log.info(
+		`pushTransaction stress ` +
+			`push_txs_per_sec=${result.pushTxsPerSecond} ` +
+			`settled_txs_per_sec=${result.settledTxsPerSecond} ` +
+			`(accepted ${result.acceptedPushes}/${result.transactionCount}, ` +
+			`settled ${result.processedToPostgres}/${result.transactionCount}, ` +
+			`push_ms=${phases.pushMs}, ` +
+			`push_to_settle_ms=${phases.pushToSettleMs})`,
+		{
+			push_txs_per_second: result.pushTxsPerSecond,
+			settled_txs_per_second: result.settledTxsPerSecond,
+			accepted_pushes: result.acceptedPushes,
+			processed_to_postgres: result.processedToPostgres,
+			phase_timings_ms: phases,
+			cache: result.cache,
+			profiler_session_id: result.profilerSessionId,
+		},
+	);
 }
 
 export function readVerifyTimingResult(

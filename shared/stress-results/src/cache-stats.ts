@@ -13,10 +13,10 @@ export class StressCacheStats {
 		if (!isStructuredObject(data)) {
 			return null;
 		}
-		const { hits, misses } = data;
-		if (typeof hits !== "number" || typeof misses !== "number") {
-			return null;
-		}
-		return new StressCacheStats({ hits, misses });
+		const typed = data as StressCacheStats;
+		return new StressCacheStats({
+			hits: typed.hits,
+			misses: typed.misses,
+		});
 	}
 }

@@ -1,6 +1,6 @@
 import { isStructuredObject } from "./json";
 
-/** Wall-clock phase timings for a pushTransaction stress round. */
+/** Wall-clock phase timings for a pushTransaction stress run. */
 export class StressPhaseTimingsMs {
 	/** Address generation + transfer message build (excludes signing). */
 	readonly prepareMs: number;
@@ -32,34 +32,15 @@ export class StressPhaseTimingsMs {
 		if (!isStructuredObject(data)) {
 			return null;
 		}
-		const {
-			prepareMs,
-			signMs,
-			seedMs,
-			pushMs,
-			settleMs,
-			pushToSettleMs,
-			totalMs,
-		} = data;
-		if (
-			typeof prepareMs !== "number" ||
-			typeof signMs !== "number" ||
-			typeof seedMs !== "number" ||
-			typeof pushMs !== "number" ||
-			typeof settleMs !== "number" ||
-			typeof totalMs !== "number"
-		) {
-			return null;
-		}
+		const typed = data as StressPhaseTimingsMs;
 		return new StressPhaseTimingsMs({
-			prepareMs,
-			signMs,
-			seedMs,
-			pushMs,
-			settleMs,
-			pushToSettleMs:
-				typeof pushToSettleMs === "number" ? pushToSettleMs : pushMs + settleMs,
-			totalMs,
+			prepareMs: typed.prepareMs,
+			signMs: typed.signMs,
+			seedMs: typed.seedMs,
+			pushMs: typed.pushMs,
+			settleMs: typed.settleMs,
+			pushToSettleMs: typed.pushToSettleMs ?? typed.pushMs + typed.settleMs,
+			totalMs: typed.totalMs,
 		});
 	}
 }
