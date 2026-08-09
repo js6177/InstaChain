@@ -15,9 +15,12 @@ import {
 import type { Layer2Address } from "@openl2/pubkey-utils";
 import Redis from "ioredis";
 import {
+	type AddressBalanceCacheOptions,
 	clearAddressBalanceCache,
 	getAddressBalanceCacheStats,
 	resetAddressBalanceCacheStats,
+	resolveAddressBalanceCacheOptions,
+	setCachedAddressBalances,
 } from "../src/redis/address-balance-cache";
 import {
 	ProfilerApiName,
@@ -41,6 +44,17 @@ import {
 	StressThroughputResult,
 	type StressApiErrorCounts,
 } from "./common";
+
+enum BalanceCacheMode {
+	Cold = "cold",
+	Warm = "warm",
+}
+
+interface StressVisualizationLink {
+	title: string;
+	sessionId: string;
+	url: string;
+}
 
 /**
  * Bun's default in-flight `fetch` cap is 256. `bun test` does not honor raising
@@ -199,11 +213,15 @@ interface PreparedTransfer {
 interface RunPushStressOptions {
 	transactionCount: number;
 	/**
-	 * After seeding, wipe the Redis balance cache so push reads miss and fall
-	 * back to Postgres (cold cache).
+	 * cold: wipe Redis balance cache after seeding so push reads miss and fall
+	 * back to Postgres. warm: fill Redis with each source address balance
+	 * before push so get_balance hits the cache.
 	 */
-	clearBalanceCacheBeforePush?: boolean;
+	balanceCacheMode: BalanceCacheMode;
+	/** Display title stored on the profiler session report / explorer UI. */
+	title: string;
 	redis: Redis;
+	balanceCache: AddressBalanceCacheOptions;
 }
 
 /**
@@ -215,8 +233,10 @@ async function runPushTransactionStress(
 ): Promise<StressRunResult> {
 	const {
 		transactionCount,
-		clearBalanceCacheBeforePush = false,
+		balanceCacheMode,
+		title,
 		redis,
+		balanceCache,
 	} = options;
 	const amount = 100;
 	const fee = 10;
@@ -245,7 +265,7 @@ async function runPushTransactionStress(
 	const nodeId = nodeInfo.node_info.node_id;
 	const assetId = nodeInfo.node_info.asset_id || NODE_ASSET_ID_HEX;
 
-	log.info("checked health");
+	log.info("checked health", { title, balance_cache_mode: balanceCacheMode });
 	const prepareStartedAt = performance.now();
 	const unsigned = await mapPool(
 		Array.from({ length: transactionCount }, (_, index) => index),
@@ -298,9 +318,25 @@ async function runPushTransactionStress(
 	const seedMs = Math.round(performance.now() - seedStartedAt);
 	log.info("seeded balances");
 
-	if (clearBalanceCacheBeforePush) {
+	if (balanceCacheMode === BalanceCacheMode.Cold) {
 		await clearAddressBalanceCache(redis);
 		log.info("cleared balance cache before push (cold cache)");
+	} else {
+		const cacheEntries = prepared.map(({ source }) => ({
+			address: source.public_key_str_base58,
+			balance: initialBalance,
+		}));
+		const cacheChunkSize = 1000;
+		for (let i = 0; i < cacheEntries.length; i += cacheChunkSize) {
+			await setCachedAddressBalances(
+				redis,
+				cacheEntries.slice(i, i + cacheChunkSize),
+				balanceCache,
+			);
+		}
+		log.info("filled balance cache before push (warm cache)", {
+			addresses: cacheEntries.length,
+		});
 	}
 
 	await resetAddressBalanceCacheStats(redis);
@@ -312,12 +348,14 @@ async function runPushTransactionStress(
 	const startSession = unwrapLayer2LedgerResponse(
 		await ledger.health.start_profiler_session.post({
 			session_id: profilerSessionId,
+			title,
 			apis: [ProfilerApiName.PushTransaction, ProfilerApiName.Dbwriter],
 		}),
 	);
 	expect(startSession.error_code).toBe(ErrorCodes.SUCCESS);
 
 	log.info("push wave starting", {
+		title,
 		profiler_session_id: profilerSessionId,
 		started_at_unix_ms: startSession.started_at_unix_ms,
 	});
@@ -386,7 +424,7 @@ async function runPushTransactionStress(
 		throw new Error("stop_profiler_session returned no session report");
 	}
 	const profilerSession = await persistProfilerSessionReport(
-		stopSession.session,
+		stopSession.session ?? null,
 	);
 
 	return new StressRunResult({
@@ -445,7 +483,7 @@ function summarizeProfilerSession(
 }
 
 async function persistProfilerSessionReport(
-	report: ProfilerSessionReport,
+	report: ProfilerSessionReport | object | null,
 ): Promise<StressProfilerSessionSummary> {
 	// Eden/JSON responses are plain objects — rehydrate before using class methods.
 	const parsed = ProfilerSessionReport.parse(report);
@@ -461,7 +499,9 @@ async function persistProfilerSessionReport(
 	const reportForFile = parsed.withOutputFile(outputFile);
 	await Bun.write(outputFile, `${JSON.stringify(reportForFile, null, 2)}\n`);
 	const visualizationUrl = profilerSessionVisualizationUrl(parsed.session_id);
-	console.log(`profiler session report written path=${outputFile}`);
+	console.log(
+		`profiler session report written path=${outputFile} title=${parsed.title}`,
+	);
 	// Print the URL alone so terminals that auto-linkify can make it clickable.
 	console.log("profiler session visualization:");
 	console.log(visualizationUrl);
@@ -488,11 +528,15 @@ function toThroughputResult(
 	});
 }
 
-function printThroughputSummary(result: StressThroughputResult): void {
+function printThroughputSummary(
+	title: string,
+	result: StressThroughputResult,
+): void {
 	const visualizationUrl = profilerSessionVisualizationUrl(
 		result.profilerSessionId,
 	);
 	const line =
+		`title=${title} ` +
 		`profiler_session=${result.profilerSessionId} ` +
 		`push_ms=${result.phaseTimingsMs.pushMs} ` +
 		`settle_ms=${result.phaseTimingsMs.settleMs} ` +
@@ -505,6 +549,7 @@ function printThroughputSummary(result: StressThroughputResult): void {
 	// Print the URL alone so terminals that auto-linkify can make it clickable.
 	console.log(visualizationUrl);
 	log.info("stress throughput summary", {
+		title,
 		profiler_session_id: result.profilerSessionId,
 		visualization_url: visualizationUrl,
 		phase_timings_ms: result.phaseTimingsMs,
@@ -513,6 +558,27 @@ function printThroughputSummary(result: StressThroughputResult): void {
 		txs_per_second: result.txsPerSecond,
 		cache: result.cache,
 	});
+}
+
+function printStressVisualizationUrls(
+	links: readonly StressVisualizationLink[],
+): void {
+	console.log("stress profiler visualization urls:");
+	for (const link of links) {
+		console.log(`${link.title}:`);
+		console.log(link.url);
+	}
+}
+
+function stressResultFileForMode(mode: BalanceCacheMode): string | null {
+	const base = process.env.STRESS_RESULT_FILE;
+	if (!base) {
+		return null;
+	}
+	if (mode === BalanceCacheMode.Cold) {
+		return base;
+	}
+	return base.replace(/(\.json)?$/i, ".warm-cache.json");
 }
 
 async function waitForHealthEndpoint(timeoutMs: number): Promise<void> {
@@ -622,13 +688,96 @@ async function runHealthHttpStress(): Promise<void> {
 	expect(apiErrors.total).toBe(0);
 }
 
+async function runPushTransactionStressVariant(
+	options: {
+		transactionCount: number;
+		balanceCacheMode: BalanceCacheMode;
+		title: string;
+		redis: Redis;
+		balanceCache: AddressBalanceCacheOptions;
+	},
+): Promise<StressVisualizationLink> {
+	const {
+		transactionCount,
+		balanceCacheMode,
+		title,
+		redis,
+		balanceCache,
+	} = options;
+	const run = await runPushTransactionStress({
+		transactionCount,
+		balanceCacheMode,
+		title,
+		redis,
+		balanceCache,
+	});
+	const throughput = toThroughputResult(transactionCount, run);
+
+	console.log(
+		`stress ${balanceCacheMode}-cache summary title=${title} tx_count=${transactionCount}`,
+	);
+	printThroughputSummary(title, throughput);
+
+	log.info(`pushTransaction ${balanceCacheMode}-cache stress complete`, {
+		title,
+		transaction_count: transactionCount,
+		throughput,
+	});
+
+	const stressResultFile = stressResultFileForMode(balanceCacheMode);
+	if (stressResultFile) {
+		await Bun.write(
+			stressResultFile,
+			`${JSON.stringify(throughput, null, 2)}\n`,
+		);
+	}
+
+	expect(throughput.processedToPostgres).toBe(throughput.acceptedPushes);
+	expect(throughput.acceptedPushes).toBe(transactionCount);
+
+	return {
+		title,
+		sessionId: throughput.profilerSessionId,
+		url: profilerSessionVisualizationUrl(throughput.profilerSessionId),
+	};
+}
+
+/** Cold Redis balance cache: push reads miss and load balances from Postgres. */
+async function runColdBalanceCachePushStress(
+	transactionCount: number,
+	redis: Redis,
+	balanceCache: AddressBalanceCacheOptions,
+): Promise<StressVisualizationLink> {
+	return runPushTransactionStressVariant({
+		transactionCount,
+		balanceCacheMode: BalanceCacheMode.Cold,
+		title: "pushTransaction cold balance cache",
+		redis,
+		balanceCache,
+	});
+}
+
+/** Warm Redis balance cache: source balances are prefilled before push. */
+async function runWarmBalanceCachePushStress(
+	transactionCount: number,
+	redis: Redis,
+	balanceCache: AddressBalanceCacheOptions,
+): Promise<StressVisualizationLink> {
+	return runPushTransactionStressVariant({
+		transactionCount,
+		balanceCacheMode: BalanceCacheMode.Warm,
+		title: "pushTransaction warm balance cache",
+		redis,
+		balanceCache,
+	});
+}
+
 async function runPushTransactionHttpStress(): Promise<void> {
 	const transactionCount = Number(process.env.STRESS_TX_COUNT ?? "50000");
 	expect(Number.isFinite(transactionCount) && transactionCount > 0).toBe(true);
 
-	const commonConfig = loadLayer2LedgerCommonConfig(
-		process.env.ENVIRONMENT ?? "test",
-	);
+	const commonConfig = loadLayer2LedgerCommonConfig();
+	const balanceCache = resolveAddressBalanceCacheOptions(commonConfig.redis);
 	const redis = new Redis({
 		host: commonConfig.redis.host,
 		port: commonConfig.redis.port,
@@ -636,33 +785,22 @@ async function runPushTransactionHttpStress(): Promise<void> {
 	});
 
 	try {
-		const run = await runPushTransactionStress({
-			transactionCount,
-			clearBalanceCacheBeforePush: true,
-			redis,
-		});
-		const throughput = toThroughputResult(transactionCount, run);
-
-		console.log(
-			`stress cold-cache summary tx_count=${transactionCount}`,
+		const visualizationLinks: StressVisualizationLink[] = [];
+		visualizationLinks.push(
+			await runColdBalanceCachePushStress(
+				transactionCount,
+				redis,
+				balanceCache,
+			),
 		);
-		printThroughputSummary(throughput);
-
-		log.info("pushTransaction cold-cache stress complete", {
-			transaction_count: transactionCount,
-			throughput,
-		});
-
-		const stressResultFile = process.env.STRESS_RESULT_FILE;
-		if (stressResultFile) {
-			await Bun.write(
-				stressResultFile,
-				`${JSON.stringify(throughput, null, 2)}\n`,
-			);
-		}
-
-		expect(throughput.processedToPostgres).toBe(throughput.acceptedPushes);
-		expect(throughput.acceptedPushes).toBe(transactionCount);
+		visualizationLinks.push(
+			await runWarmBalanceCachePushStress(
+				transactionCount,
+				redis,
+				balanceCache,
+			),
+		);
+		printStressVisualizationUrls(visualizationLinks);
 	} finally {
 		await redis.quit();
 	}

@@ -82,6 +82,8 @@ export const GetFeeRequest = t.Object({});
 export const StartProfilerSessionRequest = t.Object({
 	session_id: t.String({ minLength: 1 }),
 	apis: t.Array(t.String({ minLength: 1 }), { minItems: 1 }),
+	/** Display name shown in explorer profiler visualization. */
+	title: t.String({ minLength: 1 }),
 });
 
 export const StopProfilerSessionRequest = t.Object({

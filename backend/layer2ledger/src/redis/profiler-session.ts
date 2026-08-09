@@ -820,6 +820,7 @@ export async function buildProfilerSessionReport(
 	);
 	return new ProfilerSessionReport({
 		session_id: session.session_id,
+		title: session.title,
 		apis: session.apis,
 		started_at_unix_ms: session.started_at_unix_ms,
 		ended_at_unix_ms: endedAtUnixMs,

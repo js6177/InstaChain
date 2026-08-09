@@ -179,8 +179,9 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 		body: StartProfilerSessionRequest,
 	): Promise<StartProfilerSessionResponse> {
 		const sessionId = body.session_id.trim();
+		const title = body.title.trim();
 		const apis = body.apis.map((api) => api.trim()).filter(Boolean);
-		if (!sessionId || apis.length === 0) {
+		if (!sessionId || !title || apis.length === 0) {
 			return {
 				...buildCommonResponse(ErrorCodes.INVALID_PROFILER_SESSION),
 			};
@@ -195,6 +196,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 		}
 		const session = new StartProfilerSession({
 			session_id: sessionId,
+			title,
 			apis,
 			started_at_unix_ms: Date.now(),
 		});
@@ -202,12 +204,14 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 		setProfilerSessionId(sessionId);
 		log.info("profiler session started", {
 			session_id: sessionId,
+			title,
 			apis,
 			started_at_unix_ms: session.started_at_unix_ms,
 		});
 		return {
 			...buildCommonResponse(ErrorCodes.SUCCESS),
 			session_id: sessionId,
+			title,
 			apis,
 			started_at_unix_ms: session.started_at_unix_ms,
 		};

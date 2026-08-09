@@ -428,9 +428,17 @@ function StatsSessionView(): React.JSX.Element | null {
 			<Card>
 				<CardHeader>
 					<CardTitle className="text-xl">
-						{LABELS.HEADING_PROFILER_STATS}
+						{session?.title ?? LABELS.HEADING_PROFILER_STATS}
 					</CardTitle>
+					{session?.title ? (
+						<CardDescription className="mt-1">
+							{LABELS.HEADING_PROFILER_STATS}
+						</CardDescription>
+					) : null}
 					<CardDescription className="font-mono break-all text-foreground mt-2">
+						<span className="block text-xs text-muted-foreground mb-1">
+							{LABELS.TEXT_PROFILER_SESSION_ID}
+						</span>
 						{sessionId}
 					</CardDescription>
 				</CardHeader>
