@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Remove all OpenL2 docker containers and attached volumes.
+ * Remove all OpenL2 containers and attached volumes (Podman or Docker).
  *
  * By default prompts for confirmation (press `c` to continue).
  * Pass `-noprompt` to skip the confirmation (for scripting).
@@ -11,6 +11,8 @@ import {
 	DockerComposeProfile,
 	getProjectRoot,
 	requireBun,
+	resolveComposeCommand,
+	resolveContainerCli,
 } from "@openl2/config-loader";
 import { parseCliArgs } from "./src/cli-args";
 import { log } from "./src/logger";
@@ -33,7 +35,7 @@ async function promptContinue(): Promise<boolean> {
 	}
 
 	const warning =
-		"Warning: this command permanently removes all OpenL2 docker containers and any attached volumes. Press 'c' to continue removal";
+		"Warning: this command permanently removes all OpenL2 containers and any attached volumes. Press 'c' to continue removal";
 	const answer = prompt(warning);
 	return (answer ?? "").trim().toLowerCase() === "c";
 }
@@ -41,7 +43,7 @@ async function promptContinue(): Promise<boolean> {
 function printHelp(): void {
 	log.info(`Usage: bun run run-uninstall.ts [options]
 
-Remove all OpenL2 docker containers and attached volumes.
+Remove all OpenL2 containers and attached volumes.
 
 Options:
   -noprompt    Skip the interactive confirmation prompt
@@ -70,7 +72,8 @@ async function main(): Promise<void> {
 		}
 	}
 
-	const compose = ["docker", "compose", "--progress", "quiet"];
+	const containerCli = resolveContainerCli();
+	const compose = [...resolveComposeCommand(), "--progress", "quiet"];
 	for (const composeFile of UNINSTALL_COMPOSE_FILES) {
 		compose.push("-f", composeFile);
 	}
@@ -84,7 +87,9 @@ async function main(): Promise<void> {
 		"--remove-orphans",
 	];
 
-	log.info("Removing OpenL2 docker containers and volumes...");
+	log.info(
+		`Removing OpenL2 containers and volumes (engine=${containerCli})...`,
+	);
 	const proc = Bun.spawn(command, {
 		cwd: ROOT,
 		stdout: "inherit",

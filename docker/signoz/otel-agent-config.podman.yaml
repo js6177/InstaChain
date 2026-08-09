@@ -1,0 +1,76 @@
+# OpenTelemetry contrib agent for rootless Podman:
+# - docker_stats via the Podman API socket (mounted at /var/run/docker.sock)
+# - Redis/Postgres/MongoDB metrics
+# Container JSON log scraping under /var/lib/docker/containers is Docker-only
+# and is omitted here (use journald / compose logs under Podman).
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  docker_stats:
+    endpoint: unix:///var/run/docker.sock
+    collection_interval: 15s
+    timeout: 20s
+    api_version: "1.44"
+
+  redis:
+    endpoint: layer2ledger-redis:6379
+    collection_interval: 15s
+
+  postgresql:
+    endpoint: layer2ledger-postgres:5432
+    transport: tcp
+    username: ${env:POSTGRES_USER}
+    password: ${env:POSTGRES_PASSWORD}
+    collection_interval: 15s
+    tls:
+      insecure: true
+
+  mongodb:
+    hosts:
+      - endpoint: layer2ledger-mongodb:27017
+    collection_interval: 15s
+    tls:
+      insecure: true
+
+processors:
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 512
+    spike_limit_mib: 128
+  batch:
+    send_batch_size: 512
+    timeout: 5s
+  resourcedetection:
+    detectors: [env, system]
+    timeout: 2s
+
+exporters:
+  otlphttp:
+    endpoint: http://signoz-otel-collector:4318
+    tls:
+      insecure: true
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resourcedetection, batch]
+      exporters: [otlphttp]
+    metrics:
+      receivers: [otlp, docker_stats, redis, postgresql, mongodb]
+      processors: [memory_limiter, resourcedetection, batch]
+      exporters: [otlphttp]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resourcedetection, batch]
+      exporters: [otlphttp]

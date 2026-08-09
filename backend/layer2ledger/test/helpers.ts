@@ -5,9 +5,11 @@ import {
 	loadLayer2LedgerCommonConfig,
 } from "@openl2/config-loader";
 import { Layer2Address } from "@openl2/pubkey-utils";
+import { getTableName } from "drizzle-orm";
 import Redis from "ioredis";
 import type { Layer2LedgerRouteHandlers } from "../src/api/handlers";
 import { createDatabase, migrateDatabase } from "../src/db/client";
+import { schema } from "../src/db/schema";
 import {
 	getCurrentBatchHeight,
 	processPendingBatch,
@@ -83,6 +85,12 @@ export function bridgeSigningAddress(): Layer2Address {
 
 export async function setupLedgerTests(): Promise<void> {
 	await migrateDatabase(sql);
+	// Shared test Postgres accumulates rows across runs; clear ledger tables so
+	// queries like getWithdrawalRequests (all PENDING) start from an empty DB.
+	const tableNames = Object.values(schema).map((table) => getTableName(table));
+	await sql.unsafe(
+		`TRUNCATE TABLE ${tableNames.map((name) => `"${name}"`).join(", ")} RESTART IDENTITY CASCADE`,
+	);
 	await lockManager.setup();
 	await redis.del(
 		PENDING_TRANSACTIONS_LIST_KEY,

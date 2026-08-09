@@ -1,16 +1,19 @@
 #!/usr/bin/env bun
 /**
- * Run backend and frontend tests inside Docker containers.
+ * Run backend and frontend tests inside containers (Podman or Docker).
  *
  * - Starts infrastructure with ENVIRONMENT=test
  * - Runs layer2ledger unit tests before apihandler/dbwriter (avoids DB/Redis lock contention)
  * - Starts application services, then runs integration test containers (including wallet vitest)
  * - Leaves a running healthy bitcoin-core container untouched
+ * - Builds images quietly (`compose build -q`); stress throughput is not included
+ *   (use `make stress-test` / `make stress-test-health`)
  */
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+	type ContainerCliName,
 	DOCKER_APP_SERVICES,
 	DOCKER_INFRA_SERVICES,
 	DOCKER_INTEGRATION_TEST_SERVICES,
@@ -24,6 +27,8 @@ import {
 	Environment,
 	getProjectRoot,
 	requireBun,
+	resolveComposeCommand,
+	resolveContainerCli,
 } from "@openl2/config-loader";
 import { log } from "./src/logger";
 import {
@@ -32,10 +37,10 @@ import {
 	ensureServiceResultFile,
 	formatTestOutputRunId,
 	getServiceTestCommand,
+	listJunitFailureNames,
 	parseJunitCounts,
 	printTestResultsSummary,
 	type ServiceTestCounts,
-	STRESS_THROUGHPUT_FILENAME,
 	TEST_OUTPUT_MOUNT,
 	VERIFY_TIMING_FILENAME,
 } from "./test-results";
@@ -70,6 +75,7 @@ interface InspectState {
 
 class DockerComposeTestRunner {
 	private readonly env: Record<string, string>;
+	private readonly containerCli: ContainerCliName;
 	private readonly compose: string[];
 	private readonly bunPath: string;
 
@@ -79,10 +85,16 @@ class DockerComposeTestRunner {
 			string,
 			string
 		>;
-		this.compose = ["docker", "compose", "--progress", "quiet"];
+		this.containerCli = resolveContainerCli();
+		this.compose = [
+			...resolveComposeCommand(),
+			"--progress",
+			"quiet",
+		];
 		for (const composeFile of DOCKER_TEST_COMPOSE_FILES) {
 			this.compose.push("-f", composeFile);
 		}
+		log.info(`Using container engine: ${this.containerCli}`);
 	}
 
 	private async run(
@@ -105,10 +117,39 @@ class DockerComposeTestRunner {
 		const exitCode = await proc.exited;
 
 		if (check && exitCode !== 0) {
+			if (captureOutput) {
+				const combined = [stdout, stderr].filter(Boolean).join("\n").trim();
+				if (combined) {
+					log.error(combined);
+				}
+			}
 			throw new Error(`Command failed (${exitCode}): ${command.join(" ")}`);
 		}
 
 		return { exitCode, stdout, stderr };
+	}
+
+	/**
+	 * Build images with compose `build -q` so BuildKit/layer logs stay off the
+	 * console; failures still dump captured output.
+	 */
+	private async buildQuiet(
+		services: readonly string[],
+		options?: { profile?: string },
+	): Promise<void> {
+		if (services.length === 0) {
+			return;
+		}
+		log.info(`Building images (quiet): ${services.join(", ")}`);
+		const args = [
+			...(options?.profile
+				? ["--profile", options.profile]
+				: []),
+			"build",
+			"-q",
+			...services,
+		];
+		await this.run(args, { check: true, captureOutput: true });
 	}
 
 	private async runQuiet(args: string[]): Promise<boolean> {
@@ -219,7 +260,7 @@ class DockerComposeTestRunner {
 			return "missing";
 		}
 
-		const proc = Bun.spawn(["docker", "inspect", containerId], {
+		const proc = Bun.spawn([this.containerCli, "inspect", containerId], {
 			stdout: "pipe",
 			stderr: "pipe",
 		});
@@ -297,11 +338,16 @@ class DockerComposeTestRunner {
 
 	private async startInfraServices(): Promise<void> {
 		log.info("Starting infrastructure for test (ENVIRONMENT=test)...");
+		await this.buildQuiet(DOCKER_INFRA_SERVICES);
 		await this.run(
-			["up", "-d", "--build", "--force-recreate", ...DOCKER_INFRA_SERVICES],
-			{
-				check: true,
-			},
+			[
+				"up",
+				"-d",
+				"--quiet-pull",
+				"--force-recreate",
+				...DOCKER_INFRA_SERVICES,
+			],
+			{ check: true },
 		);
 		for (const service of DOCKER_INFRA_SERVICES) {
 			await this.waitForHealthy(service);
@@ -320,19 +366,18 @@ class DockerComposeTestRunner {
 		log.info("Starting backend application services for test (ENVIRONMENT=test)...");
 		const apihandlerReplicas =
 			process.env.LAYER2LEDGER_APIHANDLER_REPLICAS ?? "2";
+		await this.buildQuiet(DOCKER_APP_SERVICES);
 		await this.run(
 			[
 				"up",
 				"-d",
-				"--build",
+				"--quiet-pull",
 				"--force-recreate",
 				"--scale",
 				`${DockerService.LAYER2LEDGER_APIHANDLER}=${apihandlerReplicas}`,
 				...DOCKER_APP_SERVICES,
 			],
-			{
-				check: true,
-			},
+			{ check: true },
 		);
 		for (const service of DOCKER_APP_SERVICES) {
 			await this.waitForHealthy(service);
@@ -343,13 +388,16 @@ class DockerComposeTestRunner {
 		log.info(
 			`Building and starting ${DockerService.LAYER2LEDGER_TESTHELPER} (force-recreate)...`,
 		);
+		await this.buildQuiet([DockerService.LAYER2LEDGER_TESTHELPER], {
+			profile: DockerComposeProfile.TEST,
+		});
 		await this.run(
 			[
 				"--profile",
 				DockerComposeProfile.TEST,
 				"up",
 				"-d",
-				"--build",
+				"--quiet-pull",
 				"--force-recreate",
 				DockerService.LAYER2LEDGER_TESTHELPER,
 			],
@@ -366,13 +414,16 @@ class DockerComposeTestRunner {
 		let failed = false;
 		for (const testService of services) {
 			log.info(`Running ${testService}...`);
+			await this.buildQuiet([testService], {
+				profile: DockerComposeProfile.TEST,
+			});
 			const { kind, command } = getServiceTestCommand(testService);
 			const composeArgs = [
 				"--profile",
 				DockerComposeProfile.TEST,
 				"run",
 				"--rm",
-				"--build",
+				"--quiet-pull",
 				"-v",
 				`${outputDir}:${TEST_OUTPUT_MOUNT}`,
 				"-e",
@@ -384,32 +435,36 @@ class DockerComposeTestRunner {
 					`VERIFY_RESULT_FILE=${TEST_OUTPUT_MOUNT}/${VERIFY_TIMING_FILENAME}`,
 				);
 			}
-			if (testService === DockerService.TEST_LAYER2LEDGER_STRESS) {
-				composeArgs.push(
-					"-e",
-					`STRESS_RESULT_FILE=${TEST_OUTPUT_MOUNT}/${STRESS_THROUGHPUT_FILENAME}`,
-					"-e",
-					"RUN_LEDGER_HTTP_STRESS=1",
-				);
-			}
 			composeArgs.push(testService, ...command);
 
 			const containerPassed = await this.runQuiet(composeArgs);
+			const resultPath = join(outputDir, testService);
+			ensureServiceResultFile(outputDir, testService, containerPassed, kind);
+			const counts = parseJunitCounts(
+				testService,
+				resultPath,
+				containerPassed,
+			);
+			results.push(counts);
+
 			if (containerPassed) {
 				log.info(`PASSED: ${testService}`);
 			} else {
+				// Podman/Docker wrap a non-zero test exit as
+				// `Error: executing … exit status 1` — surface the real failures.
 				log.error(`FAILED: ${testService}`);
+				const failureNames = listJunitFailureNames(resultPath);
+				if (failureNames.length > 0) {
+					for (const name of failureNames) {
+						log.error(`  • ${name}`);
+					}
+				} else {
+					log.error(
+						`  (no JUnit failure details; see ${resultPath} or re-run the service container)`,
+					);
+				}
 				failed = true;
 			}
-
-			ensureServiceResultFile(outputDir, testService, containerPassed, kind);
-			results.push(
-				parseJunitCounts(
-					testService,
-					join(outputDir, testService),
-					containerPassed,
-				),
-			);
 		}
 		return failed;
 	}

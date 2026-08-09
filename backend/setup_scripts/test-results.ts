@@ -48,7 +48,7 @@ export enum TestRunnerKind {
 
 export interface ServiceTestCommand {
 	kind: TestRunnerKind;
-	/** Extra args after `docker compose run … SERVICE`. Empty = image CMD. */
+	/** Extra args after `compose run … SERVICE`. Empty = image CMD. */
 	command: string[];
 }
 
@@ -182,6 +182,32 @@ export function ensureServiceResultFile(
 				? "stress"
 				: "seed";
 	writeSyntheticJunit(filePath, service, containerPassed, caseName);
+}
+
+/** Failing / errored testcase names from a JUnit XML report (best-effort). */
+export function listJunitFailureNames(filePath: string): string[] {
+	if (!existsSync(filePath)) {
+		return [];
+	}
+	const xml = readFileSync(filePath, "utf8");
+	const names: string[] = [];
+	const casePattern =
+		/<testcase\b([^>]*)>([\s\S]*?)<\/testcase>|<testcase\b([^>]*)\/>/g;
+	for (const match of xml.matchAll(casePattern)) {
+		const attrs = match[1] ?? match[3] ?? "";
+		const body = match[2] ?? "";
+		if (!body.includes("<failure") && !body.includes("<error")) {
+			continue;
+		}
+		const name = attrs.match(/\bname="([^"]*)"/)?.[1];
+		const classname = attrs.match(/\bclassname="([^"]*)"/)?.[1];
+		if (name && classname) {
+			names.push(`${classname} :: ${name}`);
+		} else if (name) {
+			names.push(name);
+		}
+	}
+	return names;
 }
 
 export function parseJunitCounts(

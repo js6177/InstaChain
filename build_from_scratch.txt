@@ -1,6 +1,9 @@
 Install:
 bun
-docker
+podman (preferred, rootless) or docker
+# With Podman, enable the user API socket once:
+#   systemctl --user enable --now podman.socket
+# Force an engine: export CONTAINER_CLI=podman   # or docker
 
 For native bitcoin key deps on Windows, you may still need:
 Microsoft Visual C++ 14.0 or greater (https://visualstudio.microsoft.com/visual-cpp-build-tools/)
@@ -18,11 +21,15 @@ bun run setup -- -env=test -containered=true -import-keys-to-bitcoin-core
 
 make backend-test
 
-To run all tests in docker containers:
+To run all tests in containers (Podman/Docker) — unit + integration, no stress:
 make test
 # or: bun run test:docker
 
-To debug/run the frontend tests in vscode with the backend in docker containers:
+Throughput stress (separate; not part of test:docker):
+make stress-test
+# make stress-test-health
+
+To debug/run the frontend tests in vscode with the backend in containers:
 make backend-test
 cp frontend/wallet/apps/web/.env.test.local.example frontend/wallet/apps/web/.env.test.local
 cd frontend/wallet/apps/web && bun run test

@@ -1,0 +1,13 @@
+# Rootless Podman overlay for SigNoz otel-agent.
+# Usage (auto-selected by `make observability` when CONTAINER_CLI=podman):
+#   podman compose -f docker-compose.yml -f docker-compose.signoz.yml \
+#     -f docker-compose.signoz-podman.yml --profile observability up -d
+#
+# Requires a running user Podman API socket:
+#   systemctl --user enable --now podman.socket
+
+services:
+  openl2-otel-agent:
+    volumes: !override
+      - ./docker/signoz/otel-agent-config.podman.yaml:/etc/otelcol-contrib/config.yaml:ro
+      - ${XDG_RUNTIME_DIR}/podman/podman.sock:/var/run/docker.sock:ro

@@ -85,10 +85,10 @@ describe("withdrawal route handlers", () => {
 			latest_timestamp: 0,
 		});
 		expect(getRequests.error_code).toBe(ErrorCodes.SUCCESS);
-		expect(getRequests.withdrawal_requests).toHaveLength(1);
-		expect(getRequests.withdrawal_requests[0]?.layer2_withdrawal_id).toBe(
-			layer2WithdrawalId,
+		const matchedRequests = getRequests.withdrawal_requests.filter(
+			(req) => req.layer2_withdrawal_id === layer2WithdrawalId,
 		);
+		expect(matchedRequests).toHaveLength(1);
 
 		const acknowledged = await db
 			.select()
@@ -185,6 +185,7 @@ describe("withdrawal route handlers", () => {
 			balance: initialBalance,
 		});
 
+		const layer2WithdrawalIds: string[] = [];
 		for (const amount of withdrawalAmounts) {
 			const transactionId = crypto.randomUUID();
 			const message = buildWithdrawalRequestMessage(
@@ -204,6 +205,11 @@ describe("withdrawal route handlers", () => {
 				source_address_public_key: source.public_key_str_base58,
 			});
 			expect(response.error_code).toBe(ErrorCodes.SUCCESS);
+			const pending = await getPendingWithdrawals(redis, 0, -1);
+			expect(pending).toHaveLength(1);
+			layer2WithdrawalIds.push(
+				pending[0]!.withdrawal_request.layer2_withdrawal_id,
+			);
 			await drainPendingQueues();
 		}
 
@@ -211,17 +217,13 @@ describe("withdrawal route handlers", () => {
 			latest_timestamp: 0,
 		});
 		expect(getRequests.error_code).toBe(ErrorCodes.SUCCESS);
-		expect(getRequests.withdrawal_requests).toHaveLength(numWithdrawals);
-
-		const reqMap = new Map(
-			getRequests.withdrawal_requests.map((req) => [
-				req.amount,
-				req.layer2_withdrawal_id,
-			]),
+		const matchedRequests = getRequests.withdrawal_requests.filter((req) =>
+			layer2WithdrawalIds.includes(req.layer2_withdrawal_id),
 		);
-		const layer2WithdrawalIds = withdrawalAmounts.map(
-			(amount) => reqMap.get(amount)!,
-		);
+		expect(matchedRequests).toHaveLength(numWithdrawals);
+		expect(
+			new Set(matchedRequests.map((req) => req.layer2_withdrawal_id)),
+		).toEqual(new Set(layer2WithdrawalIds));
 
 		const layer1TransactionId = `l1_tx_batched_${crypto.randomUUID()}`;
 		const layer1TransactionVout = 0;
@@ -318,6 +320,7 @@ describe("withdrawal route handlers", () => {
 			});
 		}
 
+		const layer2WithdrawalIds: string[] = [];
 		for (let i = 0; i < numWithdrawals; i++) {
 			const source = sources[i]!;
 			const amount = withdrawalAmounts[i]!;
@@ -339,22 +342,25 @@ describe("withdrawal route handlers", () => {
 				source_address_public_key: source.public_key_str_base58,
 			});
 			expect(response.error_code).toBe(ErrorCodes.SUCCESS);
+			const pending = await getPendingWithdrawals(redis, 0, -1);
+			expect(pending).toHaveLength(1);
+			layer2WithdrawalIds.push(
+				pending[0]!.withdrawal_request.layer2_withdrawal_id,
+			);
 			await drainPendingQueues();
 		}
 
 		const getRequests = await handlers.getWithdrawalRequests({
 			latest_timestamp: 0,
 		});
-		expect(getRequests.withdrawal_requests).toHaveLength(numWithdrawals);
-		const reqMap = new Map(
-			getRequests.withdrawal_requests.map((req) => [
-				req.amount,
-				req.layer2_withdrawal_id,
-			]),
+		expect(getRequests.error_code).toBe(ErrorCodes.SUCCESS);
+		const matchedRequests = getRequests.withdrawal_requests.filter((req) =>
+			layer2WithdrawalIds.includes(req.layer2_withdrawal_id),
 		);
-		const layer2WithdrawalIds = withdrawalAmounts.map(
-			(amount) => reqMap.get(amount)!,
-		);
+		expect(matchedRequests).toHaveLength(numWithdrawals);
+		expect(
+			new Set(matchedRequests.map((req) => req.layer2_withdrawal_id)),
+		).toEqual(new Set(layer2WithdrawalIds));
 
 		const layer1TransactionId = `l1_tx_multi_src_${crypto.randomUUID()}`;
 		const layer1TransactionVout = 0;

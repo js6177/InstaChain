@@ -2,7 +2,7 @@
 /**
  * First-time environment setup:
  * 1. Generate service keys/configs via setup scripts
- * 2. Start the bitcoin-core docker container (keeps the chain data volume)
+ * 2. Start the bitcoin-core container (keeps the chain data volume)
  * 3. Wait until the blockchain has finished syncing
  * 4. Import BTC descriptors into the Bitcoin Core wallet
  *
@@ -16,6 +16,7 @@ import {
 	BITCOIN_CORE_DATA_VOLUME,
 	BitcoinChain,
 	bitcoinWalletDataSubdir,
+	type ContainerCliName,
 	composeFilesForEnvironment,
 	DockerService,
 	type DockerServiceName,
@@ -30,6 +31,8 @@ import {
 	loadLayer2LedgerDockerEnvSettings,
 	readBitcoinConf,
 	requireBun,
+	resolveComposeCommand,
+	resolveContainerCli,
 	resolveEnvironment,
 } from "@openl2/config-loader";
 import { parseCliArgs } from "./src/cli-args";
@@ -85,6 +88,7 @@ function loadBitcoinRpcSettingsForImport(
 
 class FirstTimeSetupRunner {
 	private readonly env: Record<string, string>;
+	private readonly containerCli: ContainerCliName;
 	private readonly compose: string[];
 	private readonly bunPath: string;
 
@@ -99,10 +103,16 @@ class FirstTimeSetupRunner {
 			ENVIRONMENT: environment,
 			OPENL2_CONFIG_PATH: join(root, ".config"),
 		} as Record<string, string>;
-		this.compose = ["docker", "compose", "--progress", "quiet"];
+		this.containerCli = resolveContainerCli();
+		this.compose = [
+			...resolveComposeCommand(),
+			"--progress",
+			"quiet",
+		];
 		for (const composeFile of composeFilesForEnvironment(environment)) {
 			this.compose.push("-f", composeFile);
 		}
+		log.info(`Using container engine: ${this.containerCli}`);
 	}
 
 	private async runCompose(
@@ -161,7 +171,7 @@ class FirstTimeSetupRunner {
 			return "missing";
 		}
 
-		const proc = Bun.spawn(["docker", "inspect", containerId], {
+		const proc = Bun.spawn([this.containerCli, "inspect", containerId], {
 			stdout: "pipe",
 			stderr: "pipe",
 		});

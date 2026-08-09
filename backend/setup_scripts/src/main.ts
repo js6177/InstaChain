@@ -32,6 +32,7 @@ import {
 	loadOAuthManagerDockerEnvSettings,
 	readBitcoinConf,
 	readConfig,
+	resolveComposeCommand,
 	resolveEnvironment,
 	Services,
 	writeBitcoinConf,
@@ -171,7 +172,7 @@ async function waitForBitcoinRpc(
 	throw new Error(
 		`Could not connect to Bitcoin Core RPC at ${rpcSettings.rpchost}:${rpcSettings.rpcport} after ${timeoutSec}s. ` +
 			`Ensure the ${DockerService.BITCOIN_CORE} container is running and RPC is published ` +
-			`(docker compose up -d --force-recreate ${DockerService.BITCOIN_CORE}). Last error: ${lastError}`,
+			`(${resolveComposeCommand().join(" ")} up -d --force-recreate ${DockerService.BITCOIN_CORE}). Last error: ${lastError}`,
 	);
 }
 

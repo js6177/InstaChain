@@ -1,10 +1,13 @@
 import { Environment, type EnvironmentName } from "./services";
 
-/** Top-level docker compose files in the repo root. */
+/** Top-level docker/podman compose files in the repo root. */
 export const DockerComposeFile = {
 	BASE: "docker-compose.yml",
 	DEV: "docker-compose.dev.yml",
 	TEST: "docker-compose.test.yml",
+	SIGNOZ: "docker-compose.signoz.yml",
+	/** Remaps otel-agent mounts for rootless Podman (use with {@link SIGNOZ}). */
+	SIGNOZ_PODMAN: "docker-compose.signoz-podman.yml",
 } as const;
 
 export type DockerComposeFileName =
@@ -19,7 +22,7 @@ export type DockerComposeProfileName =
 	(typeof DockerComposeProfile)[keyof typeof DockerComposeProfile];
 
 /**
- * Docker Compose service names (container IDs in `docker compose` commands).
+ * Compose service names (container IDs in `podman/docker compose` commands).
  * These are distinct from {@link Services} config-file identifiers.
  */
 export const DockerService = {
@@ -64,15 +67,22 @@ export const DOCKER_APP_SERVICES = [
 	DockerService.LAYER2BRIDGE,
 ] as const satisfies readonly DockerServiceName[];
 
-/** One-shot test runner containers under the test compose profile. */
+/** One-shot test runner containers under the test compose profile (CI / test:docker). */
 export const DOCKER_TEST_SERVICES = [
 	DockerService.TEST_LAYER2LEDGER,
-	DockerService.TEST_LAYER2LEDGER_STRESS,
 	DockerService.TEST_LAYER2BRIDGE,
 	DockerService.TEST_BITCOIN_CORE_RPC,
 	DockerService.TEST_LAYER2LEDGER_OAUTH_MANAGER,
 	DockerService.TEST_LAYER2LEDGER_SEED,
 	DockerService.TEST_WALLET_WEB,
+] as const satisfies readonly DockerServiceName[];
+
+/**
+ * Throughput stress runners — not part of {@link DOCKER_TEST_SERVICES}.
+ * Run separately via `make stress-test` / `make stress-test-health`.
+ */
+export const DOCKER_STRESS_TEST_SERVICES = [
+	DockerService.TEST_LAYER2LEDGER_STRESS,
 ] as const satisfies readonly DockerServiceName[];
 
 /** Unit-test containers that should run without live app services. */
@@ -82,7 +92,6 @@ export const DOCKER_UNIT_TEST_SERVICES = [
 
 /** Integration-test containers that need live app services. */
 export const DOCKER_INTEGRATION_TEST_SERVICES = [
-	DockerService.TEST_LAYER2LEDGER_STRESS,
 	DockerService.TEST_LAYER2BRIDGE,
 	DockerService.TEST_BITCOIN_CORE_RPC,
 	DockerService.TEST_LAYER2LEDGER_OAUTH_MANAGER,

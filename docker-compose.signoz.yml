@@ -1,7 +1,8 @@
 # SigNoz observability stack (UI + OTLP ingest + infra collection agent).
 # Usage:
-#   docker compose -f docker-compose.yml -f docker-compose.signoz.yml --profile observability up -d
+#   $(CONTAINER_CLI) compose -f docker-compose.yml -f docker-compose.signoz.yml --profile observability up -d
 #   make observability
+# Under Podman, also include docker-compose.signoz-podman.yml (see makefile).
 #
 # UI: http://localhost:8080
 # OTLP: signoz-otel-collector:4317 (gRPC) / :4318 (HTTP)

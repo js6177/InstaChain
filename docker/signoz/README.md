@@ -1,14 +1,19 @@
 # SigNoz (OpenL2 observability)
 
-Self-hosted SigNoz stack for application logs (Pino → OTLP), Docker container logs, and Redis / PostgreSQL / MongoDB metrics.
+Self-hosted SigNoz stack for application logs (Pino → OTLP), container metrics, and Redis / PostgreSQL / MongoDB metrics.
 
 ## Start
 
 ```bash
 make observability
-# or
+# or (Docker):
 docker compose -f docker-compose.yml -f docker-compose.signoz.yml --profile observability up -d
+# or (rootless Podman — enable socket first: systemctl --user enable --now podman.socket):
+podman compose -f docker-compose.yml -f docker-compose.signoz.yml \
+  -f docker-compose.signoz-podman.yml --profile observability up -d
 ```
+
+Under Podman, `openl2-otel-agent` uses the Podman API socket for `docker_stats` and skips `/var/lib/docker/containers` log scraping (Docker-only).
 
 - **UI:** http://localhost:8080  
 - **OTLP gRPC:** `signoz-otel-collector:4317` (host `localhost:4317`)  
@@ -18,7 +23,8 @@ docker compose -f docker-compose.yml -f docker-compose.signoz.yml --profile obse
 ```bash
 # Start / restart MCP only (API key from Settings → Service Accounts)
 export SIGNOZ_API_KEY="$(cat tmp/signoz-key.txt)"
-docker compose -f docker-compose.yml -f docker-compose.signoz.yml --profile observability up -d signoz-mcp
+# Use the same compose engine as the rest of the stack (podman or docker):
+$(CONTAINER_CLI:-podman) compose -f docker-compose.yml -f docker-compose.signoz.yml --profile observability up -d signoz-mcp
 curl -fsS "http://localhost:${SIGNOZ_MCP_PORT:-8081}/livez" && echo " OK"
 ```
 
@@ -32,7 +38,7 @@ Backend services preload `@openl2/openl2-logger/instrumentation` (OpenTelemetry 
 | `signoz-clickhouse` / `signoz-zookeeper` | Telemetry storage (`Dockerfile.signoz-clickhouse` bakes in `histogramQuantile`) |
 | `signoz-otel-collector` | OTLP ingest → ClickHouse |
 | `signoz-mcp` | MCP HTTP server for AI clients (`SIGNOZ_API_KEY` required) |
-| `openl2-otel-agent` | Docker logs + redis/postgres/mongo metrics → collector |
+| `openl2-otel-agent` | Container stats + redis/postgres/mongo metrics → collector (Docker also scrapes container JSON logs) |
 
 Needs ~4GB RAM for Docker.
 

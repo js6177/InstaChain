@@ -1,3 +1,8 @@
+# Container engine: podman (preferred when installed) or docker.
+# Override: make CONTAINER_CLI=docker …  or  export CONTAINER_CLI=podman
+CONTAINER_CLI ?= $(shell if command -v podman >/dev/null 2>&1; then echo podman; else echo docker; fi)
+COMPOSE = $(CONTAINER_CLI) compose
+
 # Production-like stack (ENVIRONMENT defaults to prod in docker-compose.yml).
 # First-time setup (generate keys, start bitcoin-core, wait for sync, import wallet):
 #   bun run setup:first-time -- -env=prod
@@ -5,22 +10,22 @@
 #   bun run setup:first-time -- -env=prod -overwrite-wallet
 # Bitcoin chain data is stored in the named volume openl2-bitcoin-core-data.
 # bitcoind receives a graceful RPC stop on container shutdown (stop_grace_period: 30s).
-# Safe: docker compose up -d --force-recreate bitcoin-core
-# Avoid: docker compose down -v  (removes volumes)
+# Safe: $(COMPOSE) up -d --force-recreate bitcoin-core
+# Avoid: $(COMPOSE) down -v  (removes volumes)
 prod:
-	docker compose up --build
+	$(COMPOSE) up --build
 # Dev overlay: debug ports, source bind mounts (ENVIRONMENT defaults to dev in docker-compose.dev.yml).
 # First-time setup:
 #   bun run setup:first-time -- -env=dev
 dev:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+	$(COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml up --build
 
 # Start all backend services (everything except wallet-web) so the frontend
 # can be run on the local machine (e.g. `bun run dev` in frontend/wallet/apps/web)
 # against the containerized backend. Uses the dev overlay for debug ports/source mounts.
 # Generate config first (see the `dev` target above).
 backend-dev:
-	ENVIRONMENT=dev docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build \
+	ENVIRONMENT=dev $(COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml up --build \
 		layer2ledger-postgres \
 		layer2ledger-pgbouncer \
 		layer2ledger-redis \
@@ -31,12 +36,18 @@ backend-dev:
 		bitcoin-core \
 		layer2bridge
 
-# SigNoz UI + OTLP collector + Docker/infra telemetry agent.
+# SigNoz UI + OTLP collector + infra telemetry agent.
 # UI: http://localhost:8080  |  OTLP: localhost:4317 (gRPC), localhost:4318 (HTTP)
 # MCP: http://localhost:8081/mcp (export SIGNOZ_API_KEY first; optional SIGNOZ_MCP_PORT)
 # Requires infra services from the base compose (postgres/redis/mongodb) for metric scrapes.
+# Under Podman, also applies docker-compose.signoz-podman.yml (API socket; no Docker log dir).
+SIGNOZ_COMPOSE_FILES = -f docker-compose.yml -f docker-compose.signoz.yml
+ifeq ($(CONTAINER_CLI),podman)
+SIGNOZ_COMPOSE_FILES += -f docker-compose.signoz-podman.yml
+endif
+
 observability:
-	ENVIRONMENT=$${ENVIRONMENT:-test} docker compose -f docker-compose.yml -f docker-compose.signoz.yml --profile observability up -d --build \
+	ENVIRONMENT=$${ENVIRONMENT:-test} $(COMPOSE) $(SIGNOZ_COMPOSE_FILES) --profile observability up -d --build \
 		layer2ledger-postgres \
 		layer2ledger-redis \
 		layer2ledger-mongodb \
@@ -55,7 +66,7 @@ observability:
 # First-time setup:
 #   bun run setup:first-time -- -env=test
 backend-test:
-	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test up --build \
+	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test up --build \
 		--scale layer2ledgerapihandler=$${LAYER2LEDGER_APIHANDLER_REPLICAS:-2} \
 		layer2ledger-postgres \
 		layer2ledger-pgbouncer \
@@ -67,20 +78,27 @@ backend-test:
 		bitcoin-core \
 		layer2bridge \
 		layer2ledger-testhelper
-	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test \
+	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
 		up -d --force-recreate --no-deps layer2ledgerapihandler-nginx
 
-# Rebuild and run only the layer2ledger HTTP stress test (not the full suite).
-# Ensures apihandler, dbwriter, and testhelper are up, then `compose run --build`.
-# Examples:
+# Throughput stress (not part of `make test` / test:docker).
+# Quiet image builds; examples:
 #   make stress-test
 #   STRESS_TX_COUNT=50000 STRESS_CONCURRENCY=2000 make stress-test
-# Note: plain `docker compose run` does NOT rebuild the image unless you pass --build.
-# Runs one cold round (balance cache cleared after seed).
 stress-test:
 	mkdir -p .test-output/stress
-	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test \
-		up -d --build \
+	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
+		build -q \
+		layer2ledger-postgres \
+		layer2ledger-pgbouncer \
+		layer2ledger-redis \
+		layer2ledgerapihandler \
+		layer2ledgerapihandler-nginx \
+		layer2ledgerdbwriter \
+		layer2ledger-testhelper \
+		test-layer2ledger-stress
+	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
+		up -d --quiet-pull \
 		--scale layer2ledgerapihandler=$${LAYER2LEDGER_APIHANDLER_REPLICAS:-2} \
 		layer2ledger-postgres \
 		layer2ledger-pgbouncer \
@@ -89,38 +107,47 @@ stress-test:
 		layer2ledgerdbwriter \
 		layer2ledger-testhelper
 	# Recreate nginx after apihandler so it never keeps stale replica IPs from a prior run.
-	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test \
-		up -d --force-recreate --no-deps layer2ledgerapihandler-nginx
-	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test \
-		run --rm --build \
+	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
+		up -d --quiet-pull --force-recreate --no-deps layer2ledgerapihandler-nginx
+	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
+		run --rm --quiet-pull \
 		-v "$(CURDIR)/.test-output/stress:/test-output" \
 		-e "STRESS_TX_COUNT=$${STRESS_TX_COUNT:-50000}" \
 		-e "STRESS_CONCURRENCY=$${STRESS_CONCURRENCY:-10}" \
 		-e "STRESS_SETTLE_TIMEOUT_MS=$${STRESS_SETTLE_TIMEOUT_MS:-600000}" \
 		-e "STRESS_SETTLE_CONCURRENCY=$${STRESS_SETTLE_CONCURRENCY:-}" \
 		-e "STRESS_NGINX_SAMPLE_MS=$${STRESS_NGINX_SAMPLE_MS:-250}" \
+		-e "STRESS_RESULT_FILE=/test-output/test-layer2ledger-stress.throughput.json" \
+		-e RUN_LEDGER_HTTP_STRESS=1 \
 		test-layer2ledger-stress
 
 # Lightweight GET /health stress through nginx (no seed/sign/settle/db path).
-# Useful to measure edge + apihandler admission without transfer workload.
 # Examples:
 #   make stress-test-health
 #   STRESS_REQUEST_COUNT=50000 STRESS_CONCURRENCY=2000 make stress-test-health
 #   STRESS_HEALTH_PATH=/nginx-health make stress-test-health   # nginx-only (no upstream)
 stress-test-health:
 	mkdir -p .test-output/stress
-	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test \
-		up -d --build \
+	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
+		build -q \
+		layer2ledger-postgres \
+		layer2ledger-pgbouncer \
+		layer2ledger-redis \
+		layer2ledgerapihandler \
+		layer2ledgerapihandler-nginx \
+		test-layer2ledger-stress
+	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
+		up -d --quiet-pull \
 		--scale layer2ledgerapihandler=$${LAYER2LEDGER_APIHANDLER_REPLICAS:-2} \
 		layer2ledger-postgres \
 		layer2ledger-pgbouncer \
 		layer2ledger-redis \
 		layer2ledgerapihandler \
 		layer2ledgerapihandler-nginx
-	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test \
-		up -d --force-recreate --no-deps layer2ledgerapihandler-nginx
-	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test \
-		run --rm --build \
+	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
+		up -d --quiet-pull --force-recreate --no-deps layer2ledgerapihandler-nginx
+	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
+		run --rm --quiet-pull \
 		-v "$(CURDIR)/.test-output/stress:/test-output" \
 		-e RUN_LEDGER_HTTP_STRESS=0 \
 		-e RUN_LEDGER_HEALTH_STRESS=1 \
@@ -131,17 +158,18 @@ stress-test-health:
 		-v "$(CURDIR)/backend/layer2ledger/test:/app/backend/layer2ledger/test:ro" \
 		test-layer2ledger-stress
 
+# Unit + integration containers only (no stress). Stress: make stress-test
 test:
 	bun run test:docker
 
 # Tear down the test stack, including profile-gated services (e.g. layer2ledger-testhelper).
 test-down:
-	docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test down
+	$(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test down
 
 test-down-v:
-	docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test down -v
+	$(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test down -v
 
-# Permanently remove all OpenL2 docker containers and attached volumes.
+# Permanently remove all OpenL2 containers and attached volumes.
 # Interactive confirmation: press 'c' to continue.
 # Non-interactive: bun run uninstall -- -noprompt
 uninstall:

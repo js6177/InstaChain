@@ -27,6 +27,10 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .cache
 *.tsbuildinfo
 
+# pm2 local runtime (sockets break container build context tar)
+.pm2
+
+
 # IntelliJ based IDEs
 .idea
 

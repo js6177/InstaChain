@@ -1,14 +1,16 @@
-These setup scripts should be run once (before docker building) before setup in order to:
+These setup scripts should be run once (before building containers) before setup in order to:
 - generate signing/verifying keys in order for various services to communicate securily with each other (by signing and verifying messages sent between them)
 - copies the docker env variables for the 3rd party apps (bitcoin core, redis, mongodb, postgresql) into a single config.json for each backend service so that the backend services can connect to them
 
+Container engine: Podman is preferred when installed (rootless). Override with `CONTAINER_CLI=docker` or `CONTAINER_CLI=podman`. For Podman, enable the user socket: `systemctl --user enable --now podman.socket`.
+
 The backend can be run two ways:
-- through docker containers, where each service is it's own docker contianer and the docker containers also contains the images of 3rd party servers (postgresql server, redis server, bitcoin core)
+- through containers (Podman or Docker), where each service is its own container and the stack also includes 3rd party servers (postgresql, redis, bitcoin core)
 - or on a local dev machine, where each backend service can be run through bun, and redis/postgres servers are ran on localhost too. This should be mainly used as a dev setup for debugging with VS code.
 
 In order to setup in either mode, you first need to run the setup scripts in order to generate all the necesary keys.
 
-## Recommended first-time Docker setup
+## Recommended first-time container setup
 
 From the repo root, this orchestrates key generation, starting `bitcoin-core`, waiting for chain sync, and importing the wallet:
 
@@ -20,7 +22,7 @@ bun run setup:first-time -- -env=dev
 bun run setup:first-time -- -env=prod -overwrite-wallet
 ```
 
-To permanently remove all OpenL2 docker containers and volumes:
+To permanently remove all OpenL2 containers and volumes:
 
 ```bash
 bun run uninstall

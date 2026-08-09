@@ -3,7 +3,8 @@ This is a monorepo that contains backend services and a frontend web app.
 monorepo:
 bun 1.3.9
 uv 0.10.4
-docker 29.6.1
+podman 5.x (preferred, rootless) or docker 29.x
+
 turbo 2.9.2
 biome 2.5.2
 
