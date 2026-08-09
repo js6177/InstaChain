@@ -29,7 +29,7 @@ export class StressProfilerSessionSummary {
 	}
 
 	static parse(
-		data: StressProfilerSessionSummary | null | undefined,
+		data: StressProfilerSessionSummary | null,
 	): StressProfilerSessionSummary | null {
 		if (!isStructuredObject(data)) {
 			return null;

@@ -5,7 +5,7 @@ import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { Toggle } from "@/components/ui/toggle";
 import { AboutPage } from "./pages/AboutPage";
-import { ExplorerPage } from "./pages/ExplorerPage";
+import ExplorerPage from "./pages/ExplorerPage";
 import { OAuthCallbackPage } from "./pages/OAuthCallbackPage";
 import { WalletPage } from "./pages/WalletPage";
 

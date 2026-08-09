@@ -121,14 +121,10 @@ export interface ImportDescriptorResult {
 	error?: BitcoinRpcError | Record<string, unknown> | null;
 }
 
-export function isWalletAlreadyLoaded(
-	error: BitcoinRpcError | null | undefined,
-): boolean {
-	return error?.code === -35;
+export function isWalletAlreadyLoaded(error: BitcoinRpcError | null): boolean {
+	return error !== null && error.code === -35;
 }
 
-export function isWalletAlreadyExists(
-	error: BitcoinRpcError | null | undefined,
-): boolean {
-	return error?.code === -4;
+export function isWalletAlreadyExists(error: BitcoinRpcError | null): boolean {
+	return error !== null && error.code === -4;
 }

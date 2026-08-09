@@ -28,6 +28,8 @@ import {
 	type GetFeeRequest,
 	type GetFeeResponse,
 	type GetNodeInfoResponse,
+	type GetProfilerSessionRequest,
+	type GetProfilerSessionResponse,
 	type GetTransactionRequest,
 	type GetTransactionResponse,
 	type GetTransactionsRequest,
@@ -91,11 +93,19 @@ import {
 	buildProfilerSessionReport,
 	clearProfilerSession,
 	getActiveProfilerSession,
+	loadProfilerSessionReport,
 	profilerSessionOutputPath,
-	type StartProfilerSession,
+	saveProfilerSessionReport,
+	StartProfilerSession,
 	startProfilerSessionInRedis,
 } from "../redis/profiler-session";
-import { Profiler } from "../utils/profiler";
+import { PushTransactionProfiler } from "../transaction-processing/push-transaction-profiler";
+import {
+	notePushTransactionSectionSample,
+	PushTransactionSection,
+	timePushTransactionSection,
+	timePushTransactionSectionSync,
+} from "../transaction-processing/push-transaction-section-profiler";
 
 export interface RouteHandlerContext {
 	db: Layer2LedgerDbClient;
@@ -183,11 +193,11 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 				session_id: sessionId,
 			});
 		}
-		const session: StartProfilerSession = {
+		const session = new StartProfilerSession({
 			session_id: sessionId,
 			apis,
 			started_at_unix_ms: Date.now(),
-		};
+		});
 		await startProfilerSessionInRedis(this.ctx.redis, session);
 		setProfilerSessionId(sessionId);
 		log.info("profiler session started", {
@@ -227,7 +237,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 		const outputFile = profilerSessionOutputPath(sessionId);
 		let writtenOutputFile: string | null = null;
 		try {
-			const reportForFile = { ...report, output_file: outputFile };
+			const reportForFile = report.withOutputFile(outputFile);
 			await Bun.write(
 				outputFile,
 				`${JSON.stringify(reportForFile, null, 2)}\n`,
@@ -245,17 +255,41 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 			});
 		}
 
+		const sessionReport = report.withOutputFile(writtenOutputFile);
+		await saveProfilerSessionReport(this.ctx.redis, sessionReport);
 		await clearProfilerSession(this.ctx.redis, sessionId);
 		setProfilerSessionId(undefined);
-		const sessionReport = { ...report, output_file: writtenOutputFile };
 		log.info("profiler session stopped", {
 			session_id: sessionId,
 			api_stats: sessionReport.api_stats,
 			dbwriter: sessionReport.dbwriter,
+			queue_depth_samples:
+				sessionReport.timeseries.dbwriter_queue_depth.length,
 		});
 		return {
 			...buildCommonResponse(ErrorCodes.SUCCESS),
 			session: sessionReport,
+		};
+	}
+
+	async getProfilerSession(
+		body: GetProfilerSessionRequest,
+	): Promise<GetProfilerSessionResponse> {
+		const sessionId = body.session_id.trim();
+		if (!sessionId) {
+			return {
+				...buildCommonResponse(ErrorCodes.INVALID_PROFILER_SESSION),
+			};
+		}
+		const session = await loadProfilerSessionReport(this.ctx.redis, sessionId);
+		if (!session) {
+			return {
+				...buildCommonResponse(ErrorCodes.PROFILER_SESSION_NOT_FOUND),
+			};
+		}
+		return {
+			...buildCommonResponse(ErrorCodes.SUCCESS),
+			session,
 		};
 	}
 
@@ -264,26 +298,42 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 		body: PushTransactionRequest,
 	): Promise<CommonResponse> {
 		const { db, redis, lockManager, messaging } = this.ctx;
-		const profile = await new Profiler("pushTransaction", redis).begin();
+		const profile = await new PushTransactionProfiler(
+			"pushTransaction",
+			redis,
+		).begin();
 		try {
-			if (!isPubkeyValidChars(body.source_address_public_key)) {
-				return buildCommonResponse(ErrorCodes.INVALID_SOURCE_ADDRESS);
-			}
-			if (!isPubkeyValidChars(body.destination_address_public_key)) {
-				return buildCommonResponse(ErrorCodes.INVALID_DESTINATION_ADDRESS);
-			}
-			if (body.amount <= 0) {
-				return buildCommonResponse(ErrorCodes.INVALID_AMOUNT);
+			const validationError = timePushTransactionSectionSync(
+				PushTransactionSection.Validate,
+				() => {
+					if (!isPubkeyValidChars(body.source_address_public_key)) {
+						return ErrorCodes.INVALID_SOURCE_ADDRESS;
+					}
+					if (!isPubkeyValidChars(body.destination_address_public_key)) {
+						return ErrorCodes.INVALID_DESTINATION_ADDRESS;
+					}
+					if (body.amount <= 0) {
+						return ErrorCodes.INVALID_AMOUNT;
+					}
+					return null;
+				},
+			);
+			if (validationError !== null) {
+				return buildCommonResponse(validationError);
 			}
 
-			const validSignature = await verifyTransferMessage(
-				messaging,
-				body.source_address_public_key,
-				body.destination_address_public_key,
-				body.amount,
-				body.fee,
-				body.transaction_id,
-				body.signature,
+			const validSignature = await timePushTransactionSection(
+				PushTransactionSection.VerifySignature,
+				() =>
+					verifyTransferMessage(
+						messaging,
+						body.source_address_public_key,
+						body.destination_address_public_key,
+						body.amount,
+						body.fee,
+						body.transaction_id,
+						body.signature,
+					),
 			);
 			if (!validSignature) {
 				return buildCommonResponse(ErrorCodes.INVALID_SIGNATURE);
@@ -293,46 +343,61 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 				body.source_address_public_key,
 				body.destination_address_public_key,
 			].sort();
-			const lockToken = await lockManager.acquireMultiLock(addressesToLock);
+			const lockToken = await timePushTransactionSection(
+				PushTransactionSection.AcquireLock,
+				() => lockManager.acquireMultiLock(addressesToLock),
+			);
 			if (!lockToken) {
 				return buildCommonResponse(ErrorCodes.ADDRESS_LOCKED);
 			}
 
 			try {
-				if (
-					await isDuplicateLayer2TransactionId(db, redis, body.transaction_id)
-				) {
+				const isDuplicate = await timePushTransactionSection(
+					PushTransactionSection.DuplicateCheck,
+					() =>
+						isDuplicateLayer2TransactionId(db, redis, body.transaction_id),
+				);
+				if (isDuplicate) {
 					await lockManager.releaseMultiLock(addressesToLock, lockToken);
 					return buildCommonResponse(ErrorCodes.CANNOT_DUPLICATE_TRANSACTION);
 				}
 
-				const balance = await getAddressBalance(
-					db,
-					redis,
-					body.source_address_public_key,
-					this.ctx.balanceCache,
+				const balance = await timePushTransactionSection(
+					PushTransactionSection.GetBalance,
+					() =>
+						getAddressBalance(
+							db,
+							redis,
+							body.source_address_public_key,
+							this.ctx.balanceCache,
+						),
 				);
 				if (balance === undefined || balance < body.amount) {
 					await lockManager.releaseMultiLock(addressesToLock, lockToken);
 					return buildCommonResponse(ErrorCodes.INSUFFICIENT_FUNDS);
 				}
 
-				const pending: PendingTransaction = {
-					transaction: createRedisTransaction(
-						body.amount,
-						body.fee,
-						body.source_address_public_key,
-						body.destination_address_public_key,
-						TransactionType.TRX_TRANSFER,
-						body.transaction_id,
-						body.signature,
-					),
-					lock_token: lockToken,
-					addresses_locked: addressesToLock,
-				};
-				await redis.rpush(
-					PENDING_TRANSACTIONS_LIST_KEY,
-					JSON.stringify(pending),
+				await timePushTransactionSection(
+					PushTransactionSection.Enqueue,
+					async () => {
+						const pending: PendingTransaction = {
+							transaction: createRedisTransaction(
+								body.amount,
+								body.fee,
+								body.source_address_public_key,
+								body.destination_address_public_key,
+								TransactionType.TRX_TRANSFER,
+								body.transaction_id,
+								body.signature,
+							),
+							lock_token: lockToken,
+							addresses_locked: addressesToLock,
+						};
+						await redis.rpush(
+							PENDING_TRANSACTIONS_LIST_KEY,
+							JSON.stringify(pending),
+						);
+					},
 				);
 			} catch (error) {
 				await lockManager.releaseMultiLock(addressesToLock, lockToken);
@@ -344,6 +409,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 				"Confirmed, pending insertion into db",
 			);
 		} finally {
+			notePushTransactionSectionSample(redis, profile.sessionId);
 			await profile.end();
 		}
 	}

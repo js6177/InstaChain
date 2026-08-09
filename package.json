@@ -16,7 +16,7 @@
 		"setup": "bun run --filter @openl2/setup-scripts setup",
 		"setup:first-time": "bun run --filter @openl2/setup-scripts setup:first-time",
 		"test:docker": "bun run --filter @openl2/setup-scripts test:docker",
-		"uninstall": "bun run ./backend/setup_scripts/run-uninstall.ts"
+		"uninstall": "bun run --filter @openl2/setup-scripts uninstall"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.5.2",

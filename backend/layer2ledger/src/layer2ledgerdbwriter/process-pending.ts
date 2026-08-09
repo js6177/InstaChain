@@ -25,8 +25,10 @@ import { redisTransactionToInsert, redisWithdrawalRequestToInsert } from "../red
 import {
 	getActiveProfilerSession,
 	ProfilerApiName,
-	recordProfilerDbwriterBatch,
-	recordProfilerDbwriterQueueEmpty,
+	recordPushTransactionProfilerDbwriterBatch,
+	recordPushTransactionProfilerDbwriterQueueEmpty,
+	recordPushTransactionProfilerDbwriterRedisActive,
+	recordPushTransactionProfilerDbwriterWriteActive,
 } from "../redis/profiler-session";
 import {
 	addTransactionIdsToBloomFilter,
@@ -96,7 +98,7 @@ export async function processPendingBatch(
 		transactionsToProcess.length === 0 &&
 		withdrawalsToProcess.length === 0
 	) {
-		await maybeRecordProfilerQueueEmpty(redis);
+		await recordQueueEmpty(redis);
 		return currentBatchHeight;
 	}
 
@@ -137,73 +139,83 @@ export async function processPendingBatch(
 	);
 
 	let absoluteBalances: Array<{ address: string; balance: number }> = [];
-	await db.transaction(async (tx) => {
-		if (newTransactions.length > 0) {
-			await tx.insert(transactions).values(newTransactions);
-		}
-		if (newWithdrawals.length > 0) {
-			await tx.insert(withdrawalRequests).values(newWithdrawals);
-		}
-		if (addressBalances.length > 0) {
-			// RETURNING yields post-upsert absolute balances (no extra SELECT).
-			absoluteBalances = await tx
-				.insert(layer2AddressBalance)
-				.values(addressBalances)
-				.onConflictDoUpdate({
-					target: layer2AddressBalance.address,
-					set: {
-						balance: sql`${layer2AddressBalance.balance} + excluded.balance`,
-					},
-				})
-				.returning({
-					address: layer2AddressBalance.address,
-					balance: layer2AddressBalance.balance,
-				});
-		}
-	});
-
-	if (transactionsToProcess.length > 0) {
-		await redis.ltrim(
-			PENDING_TRANSACTIONS_LIST_KEY,
-			transactionsToProcess.length,
-			-1,
-		);
-	}
-	if (withdrawalsToProcess.length > 0) {
-		await redis.ltrim(
-			PENDING_WITHDRAWALS_LIST_KEY,
-			withdrawalsToProcess.length,
-			-1,
-		);
+	await recordWriteActive(redis, true);
+	try {
+		await db.transaction(async (tx) => {
+			if (newTransactions.length > 0) {
+				await tx.insert(transactions).values(newTransactions);
+			}
+			if (newWithdrawals.length > 0) {
+				await tx.insert(withdrawalRequests).values(newWithdrawals);
+			}
+			if (addressBalances.length > 0) {
+				// RETURNING yields post-upsert absolute balances (no extra SELECT).
+				absoluteBalances = await tx
+					.insert(layer2AddressBalance)
+					.values(addressBalances)
+					.onConflictDoUpdate({
+						target: layer2AddressBalance.address,
+						set: {
+							balance: sql`${layer2AddressBalance.balance} + excluded.balance`,
+						},
+					})
+					.returning({
+						address: layer2AddressBalance.address,
+						balance: layer2AddressBalance.balance,
+					});
+			}
+		});
+	} finally {
+		await recordWriteActive(redis, false);
 	}
 
-	// Update the committed-tx bloom filter and persist a snapshot before unlocks.
-	const committedTransactionIds = newTransactions.map(
-		(tx) => tx.layer2TransactionId,
-	);
-	await addTransactionIdsToBloomFilter(redis, committedTransactionIds);
-	await persistBloomFilterSnapshot(db, redis, nextBatchHeight);
-
-	// Refresh Redis balance cache from the upsert RETURNING values before unlocks.
-	if (absoluteBalances.length > 0) {
-		await setCachedAddressBalances(redis, absoluteBalances, balanceCache);
-	}
-
-	for (const pendingTx of transactionsToProcess) {
-		if (pendingTx.lock_token) {
-			await lockManager.releaseMultiLock(
-				pendingTx.addresses_locked,
-				pendingTx.lock_token,
+	await recordRedisActive(redis, true);
+	try {
+		if (transactionsToProcess.length > 0) {
+			await redis.ltrim(
+				PENDING_TRANSACTIONS_LIST_KEY,
+				transactionsToProcess.length,
+				-1,
 			);
 		}
-	}
-	for (const pendingWithdrawal of withdrawalsToProcess) {
-		if (pendingWithdrawal.lock_token) {
-			await lockManager.releaseMultiLock(
-				pendingWithdrawal.addresses_locked,
-				pendingWithdrawal.lock_token,
+		if (withdrawalsToProcess.length > 0) {
+			await redis.ltrim(
+				PENDING_WITHDRAWALS_LIST_KEY,
+				withdrawalsToProcess.length,
+				-1,
 			);
 		}
+
+		// Update the committed-tx bloom filter and persist a snapshot before unlocks.
+		const committedTransactionIds = newTransactions.map(
+			(tx) => tx.layer2TransactionId,
+		);
+		await addTransactionIdsToBloomFilter(redis, committedTransactionIds);
+		await persistBloomFilterSnapshot(db, redis, nextBatchHeight);
+
+		// Refresh Redis balance cache from the upsert RETURNING values before unlocks.
+		if (absoluteBalances.length > 0) {
+			await setCachedAddressBalances(redis, absoluteBalances, balanceCache);
+		}
+
+		for (const pendingTx of transactionsToProcess) {
+			if (pendingTx.lock_token) {
+				await lockManager.releaseMultiLock(
+					pendingTx.addresses_locked,
+					pendingTx.lock_token,
+				);
+			}
+		}
+		for (const pendingWithdrawal of withdrawalsToProcess) {
+			if (pendingWithdrawal.lock_token) {
+				await lockManager.releaseMultiLock(
+					pendingWithdrawal.addresses_locked,
+					pendingWithdrawal.lock_token,
+				);
+			}
+		}
+	} finally {
+		await recordRedisActive(redis, false);
 	}
 
 	const totalProcessed =
@@ -222,21 +234,77 @@ export async function processPendingBatch(
 				elapsed_ms: elapsedMs,
 			},
 		);
-		await maybeRecordProfilerDbWrites(redis, totalProcessed);
+		await recordDbWrites(redis, totalProcessed);
 	}
 
 	const pendingRemaining = await redis.llen(PENDING_TRANSACTIONS_LIST_KEY);
 	const pendingWithdrawalsRemaining = await redis.llen(
 		PENDING_WITHDRAWALS_LIST_KEY,
 	);
-	if (pendingRemaining === 0 && pendingWithdrawalsRemaining === 0) {
-		await maybeRecordProfilerQueueEmpty(redis);
+	// Only stamp empty after a drain that cleared the queues (not every idle loop),
+	// and overwrite so the last drain-to-empty wins.
+	if (
+		totalProcessed > 0 &&
+		pendingRemaining === 0 &&
+		pendingWithdrawalsRemaining === 0
+	) {
+		await recordQueueEmpty(redis);
 	}
 
 	return nextBatchHeight;
 }
 
-async function maybeRecordProfilerDbWrites(
+async function recordWriteActive(
+	redis: Redis,
+	writing: boolean,
+): Promise<void> {
+	try {
+		const session = await getActiveProfilerSession(redis);
+		if (!session?.apis.includes(ProfilerApiName.Dbwriter)) {
+			return;
+		}
+		setProfilerSessionId(session.session_id);
+		await recordPushTransactionProfilerDbwriterWriteActive(
+			redis,
+			session.session_id,
+			writing,
+		);
+		log.performance("profiler dbwriter write active", {
+			session_id: session.session_id,
+			writing: writing ? 1 : 0,
+			event: writing ? "dbwriter_write_enter" : "dbwriter_write_exit",
+		});
+	} catch {
+		// Best-effort; never fail the writer loop.
+	}
+}
+
+async function recordRedisActive(
+	redis: Redis,
+	redisActive: boolean,
+): Promise<void> {
+	try {
+		const session = await getActiveProfilerSession(redis);
+		if (!session?.apis.includes(ProfilerApiName.Dbwriter)) {
+			return;
+		}
+		setProfilerSessionId(session.session_id);
+		await recordPushTransactionProfilerDbwriterRedisActive(
+			redis,
+			session.session_id,
+			redisActive,
+		);
+		log.performance("profiler dbwriter redis active", {
+			session_id: session.session_id,
+			redis_active: redisActive ? 1 : 0,
+			event: redisActive ? "dbwriter_redis_enter" : "dbwriter_redis_exit",
+		});
+	} catch {
+		// Best-effort; never fail the writer loop.
+	}
+}
+
+async function recordDbWrites(
 	redis: Redis,
 	writes: number,
 ): Promise<void> {
@@ -246,7 +314,11 @@ async function maybeRecordProfilerDbWrites(
 			return;
 		}
 		setProfilerSessionId(session.session_id);
-		await recordProfilerDbwriterBatch(redis, session.session_id, writes);
+		await recordPushTransactionProfilerDbwriterBatch(
+			redis,
+			session.session_id,
+			writes,
+		);
 		log.performance("profiler dbwriter batch", {
 			session_id: session.session_id,
 			writes,
@@ -257,14 +329,17 @@ async function maybeRecordProfilerDbWrites(
 	}
 }
 
-async function maybeRecordProfilerQueueEmpty(redis: Redis): Promise<void> {
+async function recordQueueEmpty(redis: Redis): Promise<void> {
 	try {
 		const session = await getActiveProfilerSession(redis);
 		if (!session?.apis.includes(ProfilerApiName.Dbwriter)) {
 			return;
 		}
 		setProfilerSessionId(session.session_id);
-		await recordProfilerDbwriterQueueEmpty(redis, session.session_id);
+		await recordPushTransactionProfilerDbwriterQueueEmpty(
+			redis,
+			session.session_id,
+		);
 		log.performance("profiler dbwriter queue empty", {
 			session_id: session.session_id,
 			event: "dbwriter_queue_empty",

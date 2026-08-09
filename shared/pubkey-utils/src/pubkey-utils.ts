@@ -187,8 +187,8 @@ function createLayer2AddressPubkey(mneumonic: string): string {
 	return l2Address.public_key_str_base58;
 }
 
-function isPubkeyValidChars(pubkey: string | null | undefined): boolean {
-	return !!pubkey?.match(/^[a-zA-Z0-9]+$/);
+function isPubkeyValidChars(pubkey: string | null): boolean {
+	return pubkey !== null && /^[a-zA-Z0-9]+$/.test(pubkey);
 }
 
 export {

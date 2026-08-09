@@ -88,10 +88,15 @@ export const StopProfilerSessionRequest = t.Object({
 	session_id: t.String({ minLength: 1 }),
 });
 
+export const GetProfilerSessionRequest = t.Object({
+	session_id: t.String({ minLength: 1 }),
+});
+
 export type PushTransactionRequest = typeof PushTransactionRequest.static;
 export type StartProfilerSessionRequest =
 	typeof StartProfilerSessionRequest.static;
 export type StopProfilerSessionRequest = typeof StopProfilerSessionRequest.static;
+export type GetProfilerSessionRequest = typeof GetProfilerSessionRequest.static;
 export type GetDepositAddressRequest = typeof GetDepositAddressRequest.static;
 export type DepositsConfirmed = typeof DepositsConfirmed.static;
 export type DepositConfirmedRequest = typeof DepositConfirmedRequest.static;

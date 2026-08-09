@@ -20,13 +20,13 @@ export class StressApiErrorCounts {
 	}
 
 	static parse(
-		data: StressApiErrorCounts | null | undefined,
+		data: StressApiErrorCounts | null,
 	): StressApiErrorCounts | null {
 		if (!isStructuredObject(data)) {
 			return null;
 		}
 		const { total, byReason } = data;
-		if (typeof total !== "number" || !isStructuredObject(byReason)) {
+		if (typeof total !== "number" || !isStructuredObject(byReason ?? null)) {
 			return null;
 		}
 		const parsedReasons: Record<string, number> = {};
@@ -54,15 +54,13 @@ export class StressApiErrors {
 		return new StressApiErrors();
 	}
 
-	static parse(
-		data: StressApiErrors | null | undefined,
-	): StressApiErrors | null {
+	static parse(data: StressApiErrors | null): StressApiErrors | null {
 		if (!isStructuredObject(data)) {
 			return null;
 		}
-		const push = StressApiErrorCounts.parse(data.push);
-		const settle = StressApiErrorCounts.parse(data.settle);
-		const seed = StressApiErrorCounts.parse(data.seed);
+		const push = StressApiErrorCounts.parse(data.push ?? null);
+		const settle = StressApiErrorCounts.parse(data.settle ?? null);
+		const seed = StressApiErrorCounts.parse(data.seed ?? null);
 		if (!push || !settle || !seed) {
 			return null;
 		}

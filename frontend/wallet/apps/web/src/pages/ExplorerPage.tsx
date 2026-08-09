@@ -12,8 +12,9 @@ import {
 } from "@openl2/wallet-shared";
 import { Search } from "lucide-react";
 import type * as React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+	Link,
 	Route,
 	Routes,
 	useNavigate,
@@ -31,10 +32,16 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { OAuthUserCard } from "../components/OAuthUserCard";
+import { ProfilerSessionChart } from "../components/ProfilerSessionChart";
+import {
+	collectProfilerXValues,
+	recalculateTotalTxsPerSec,
+} from "../components/profiler-session-chart-utils";
 import { TransactionItem } from "../components/TransactionItem";
 import { useFindOAuthUserById } from "../hooks/useLayer2LedgerOauthManagerQueries";
 import {
 	useAddressBalance,
+	useProfilerSession,
 	useTransaction,
 	useTransactions,
 } from "../hooks/useLayer2Queries";
@@ -111,7 +118,7 @@ function AddressView(): React.JSX.Element | null {
 							>
 								{isBalanceLoading
 									? "..."
-									: formatAmount(balance?.balance, denomination)}{" "}
+									: formatAmount(balance?.balance ?? null, denomination)}{" "}
 								{denomination}
 							</p>
 						</div>
@@ -278,7 +285,7 @@ function OAuthUserExplorerView(): React.JSX.Element {
 							>
 								{isBalanceLoading && pubkey
 									? "..."
-									: formatAmount(balance?.balance, denomination)}{" "}
+									: formatAmount(balance?.balance ?? null, denomination)}{" "}
 								{denomination}
 							</p>
 						</div>
@@ -318,15 +325,279 @@ function OAuthUserExplorerView(): React.JSX.Element {
 	);
 }
 
+function StatsFormView(): React.JSX.Element {
+	const navigate = useNavigate();
+	const [sessionId, setSessionId] = useState("");
+
+	const handleSubmit = (e: React.FormEvent): void => {
+		e.preventDefault();
+		const trimmed = sessionId.trim();
+		if (!trimmed) return;
+		navigate(ROUTES.buildExplorerStats(trimmed));
+	};
+
+	return (
+		<div className="space-y-6 animate-in fade-in">
+			<Card>
+				<CardHeader>
+					<CardTitle className="text-xl">
+						{LABELS.HEADING_PROFILER_STATS}
+					</CardTitle>
+					<CardDescription>{LABELS.TEXT_PROFILER_STATS_DESC}</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<form onSubmit={handleSubmit} className="flex gap-2">
+						<Input
+							placeholder={LABELS.PLACEHOLDER_PROFILER_SESSION_ID}
+							value={sessionId}
+							onChange={(e: React.ChangeEvent<HTMLInputElement>): void =>
+								setSessionId(e.target.value)
+							}
+							className="flex-1 font-mono"
+						/>
+						<Button type="submit">{LABELS.BUTTON_LOAD_STATS}</Button>
+					</form>
+				</CardContent>
+			</Card>
+		</div>
+	);
+}
+
+function StatsSessionView(): React.JSX.Element | null {
+	const { sessionId } = useParams();
+	const navigate = useNavigate();
+	const { data, isLoading, isError } = useProfilerSession(sessionId || "");
+	const [showStartMarker, setShowStartMarker] = useState(true);
+	const [showEndMarker, setShowEndMarker] = useState(true);
+	const [throughputStartMs, setThroughputStartMs] = useState<number | null>(
+		null,
+	);
+	const [throughputEndMs, setThroughputEndMs] = useState<number | null>(null);
+	const [committedTxsPerSec, setCommittedTxsPerSec] = useState<number | null>(
+		null,
+	);
+	const [viewStartMs, setViewStartMs] = useState(0);
+	const [viewEndMs, setViewEndMs] = useState(1);
+	const initializedSessionIdRef = useRef<string | null>(null);
+
+	const session = data?.session;
+
+	const dataMaxMs = useMemo(() => {
+		if (!session) {
+			return 1;
+		}
+		const xs = collectProfilerXValues(
+			session.timeseries,
+			throughputStartMs,
+			throughputEndMs,
+		);
+		return Math.max(xs[xs.length - 1] ?? 1, 1);
+	}, [session, throughputStartMs, throughputEndMs]);
+
+	useEffect(() => {
+		if (!session) {
+			return;
+		}
+		if (initializedSessionIdRef.current === session.session_id) {
+			return;
+		}
+		initializedSessionIdRef.current = session.session_id;
+		const start = session.dbwriter?.throughput_start_ms ?? null;
+		const end = session.dbwriter?.throughput_end_ms ?? null;
+		setThroughputStartMs(start);
+		setThroughputEndMs(end);
+		setShowStartMarker(true);
+		setShowEndMarker(true);
+		setCommittedTxsPerSec(
+			recalculateTotalTxsPerSec(
+				session.dbwriter?.writes_total ?? 0,
+				start,
+				end,
+			),
+		);
+		const xs = collectProfilerXValues(session.timeseries, start, end);
+		const max = Math.max(xs[xs.length - 1] ?? 1, 1);
+		setViewStartMs(0);
+		setViewEndMs(max);
+	}, [session]);
+
+	if (!sessionId) return null;
+
+	return (
+		<div className="space-y-6 animate-in fade-in">
+			<Card>
+				<CardHeader>
+					<CardTitle className="text-xl">
+						{LABELS.HEADING_PROFILER_STATS}
+					</CardTitle>
+					<CardDescription className="font-mono break-all text-foreground mt-2">
+						{sessionId}
+					</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-4">
+					<form
+						onSubmit={(e: React.FormEvent): void => {
+							e.preventDefault();
+							const form = e.target as HTMLFormElement;
+							const input = form.elements.namedItem(
+								"sessionId",
+							) as HTMLInputElement | null;
+							const next = input?.value.trim();
+							if (next) {
+								navigate(ROUTES.buildExplorerStats(next));
+							}
+						}}
+						className="flex gap-2"
+					>
+						<Input
+							name="sessionId"
+							defaultValue={sessionId}
+							placeholder={LABELS.PLACEHOLDER_PROFILER_SESSION_ID}
+							className="flex-1 font-mono"
+						/>
+						<Button type="submit">{LABELS.BUTTON_LOAD_STATS}</Button>
+					</form>
+
+					{isLoading && (
+						<p className="text-muted-foreground animate-pulse">
+							{LABELS.TEXT_LOADING_PROFILER_SESSION}
+						</p>
+					)}
+					{(isError || (!isLoading && !session)) && (
+						<p className="text-red-500">
+							{LABELS.TEXT_PROFILER_SESSION_NOT_FOUND}
+						</p>
+					)}
+					{session && (
+						<>
+							<div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+								<div>
+									<div className="text-muted-foreground">
+										{LABELS.TEXT_PROFILER_STAT_TOTAL_TXS_PER_SEC}
+									</div>
+									<div className="font-semibold">
+										{committedTxsPerSec ?? "—"}
+									</div>
+								</div>
+								<div>
+									<div className="text-muted-foreground">
+										{LABELS.TEXT_PROFILER_STAT_THROUGHPUT_START_MS}
+									</div>
+									<button
+										type="button"
+										title={LABELS.TEXT_PROFILER_STAT_THROUGHPUT_MARKER_HINT}
+										onClick={(): void =>
+											setShowStartMarker((value) => !value)
+										}
+										className={`font-semibold font-mono text-xs sm:text-sm rounded px-1.5 py-0.5 transition-colors ${
+											showStartMarker
+												? "bg-green-600/15 text-green-700 ring-1 ring-green-600 dark:text-green-400"
+												: "hover:bg-muted"
+										}`}
+									>
+										{throughputStartMs ?? "—"}
+									</button>
+								</div>
+								<div>
+									<div className="text-muted-foreground">
+										{LABELS.TEXT_PROFILER_STAT_THROUGHPUT_END_MS}
+									</div>
+									<button
+										type="button"
+										title={LABELS.TEXT_PROFILER_STAT_THROUGHPUT_MARKER_HINT}
+										onClick={(): void => setShowEndMarker((value) => !value)}
+										className={`font-semibold font-mono text-xs sm:text-sm rounded px-1.5 py-0.5 transition-colors ${
+											showEndMarker
+												? "bg-red-600/15 text-red-700 ring-1 ring-red-600 dark:text-red-400"
+												: "hover:bg-muted"
+										}`}
+									>
+										{throughputEndMs ?? "—"}
+									</button>
+								</div>
+								<div>
+									<div className="text-muted-foreground">
+										{LABELS.TEXT_PROFILER_STAT_PUSH_TXS_PER_SEC}
+									</div>
+									<div className="font-semibold">
+										{session.api_stats.find(
+											(stats) => stats.api === "pushTransaction",
+										)?.throughput_per_sec ?? "—"}
+									</div>
+								</div>
+								<div>
+									<div className="text-muted-foreground">
+										{LABELS.TEXT_PROFILER_STAT_PEAK_CONCURRENT}
+									</div>
+									<div className="font-semibold">
+										{session.api_stats.find(
+											(stats) => stats.api === "pushTransaction",
+										)?.peak_concurrent ?? "—"}
+									</div>
+								</div>
+								<div>
+									<div className="text-muted-foreground">
+										{LABELS.TEXT_PROFILER_STAT_DBWRITER_WRITES}
+									</div>
+									<div className="font-semibold">
+										{session.dbwriter?.writes_total ?? "—"}
+									</div>
+								</div>
+							</div>
+							<ProfilerSessionChart
+								session={session}
+								throughputStartMs={throughputStartMs}
+								throughputEndMs={throughputEndMs}
+								showStartMarker={showStartMarker}
+								showEndMarker={showEndMarker}
+								viewStartMs={viewStartMs}
+								viewEndMs={viewEndMs}
+								dataMaxMs={dataMaxMs}
+								onViewRangeChange={(startMs, endMs): void => {
+									setViewStartMs(startMs);
+									setViewEndMs(endMs);
+								}}
+								onBoundsDraft={(startMs, endMs): void => {
+									setThroughputStartMs(startMs);
+									setThroughputEndMs(endMs);
+								}}
+								onBoundsCommit={(startMs, endMs): void => {
+									setThroughputStartMs(startMs);
+									setThroughputEndMs(endMs);
+									setCommittedTxsPerSec(
+										recalculateTotalTxsPerSec(
+											session.dbwriter?.writes_total ?? 0,
+											startMs,
+											endMs,
+										),
+									);
+								}}
+							/>
+						</>
+					)}
+				</CardContent>
+			</Card>
+		</div>
+	);
+}
+
 export function ExplorerPage(): React.JSX.Element {
 	return (
-		<div className="max-w-4xl mx-auto w-full pt-4 pb-12">
+		<div className="max-w-5xl mx-auto w-full pt-4 pb-12">
 			<div className="mb-8 text-center">
 				<h1 className="text-4xl font-extrabold tracking-tight mb-2">
 					Block Explorer
 				</h1>
 				<p className="text-muted-foreground">
 					Search and view a Layer2 address or transaction
+				</p>
+				<p className="mt-3 text-sm">
+					<Link
+						to={ROUTES.buildExplorerStats()}
+						className="text-primary underline-offset-4 hover:underline"
+					>
+						{LABELS.HEADING_PROFILER_STATS}
+					</Link>
 				</p>
 			</div>
 
@@ -347,6 +618,11 @@ export function ExplorerPage(): React.JSX.Element {
 					path={ROUTES.EXPLORER_TRANSACTION}
 					element={<TransactionViewWrapper />}
 				/>
+				<Route path={ROUTES.EXPLORER_STATS} element={<StatsFormView />} />
+				<Route
+					path={ROUTES.EXPLORER_STATS_SESSION}
+					element={<StatsSessionView />}
+				/>
 				<Route
 					path={ROUTES.EXPLORER_OAUTH_USER}
 					element={<OAuthUserExplorerView />}
@@ -355,3 +631,5 @@ export function ExplorerPage(): React.JSX.Element {
 		</div>
 	);
 }
+
+export default ExplorerPage;

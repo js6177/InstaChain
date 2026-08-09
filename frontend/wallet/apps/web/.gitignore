@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Vitest outputs (also redirected under repo .test-output/ in vite.config.ts)
+.vitest-attachments/
+.vitest/
+__screenshots__/
+test/__screenshots__/

@@ -4,3 +4,7 @@ alwaysApply: true
 ---
 
 Always add types to complex models (i.e. pydantic for python and interface for typescript), instead of using dicts.
+
+Do not define any params or variables as 'undefined', all types should either be known or be null.
+
+Where possible (i.e. a variable has a finite amount of possible string values), declare enums and use the enum values instead of string literals.

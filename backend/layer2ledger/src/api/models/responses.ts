@@ -172,7 +172,39 @@ export const ProfilerDbwriterStatsResponse = t.Object({
 	writes_total: t.Number(),
 	batches: t.Number(),
 	queue_empty_at_unix_ms: t.Nullable(t.Number()),
+	/** Ms since profiler start: first incoming API call for total txs/s. */
+	throughput_start_ms: t.Nullable(t.Number()),
+	/** Ms since profiler start: last pending-queue empty for total txs/s. */
+	throughput_end_ms: t.Nullable(t.Number()),
 	throughput_per_sec: t.Nullable(t.Number()),
+});
+
+export const ProfilerTimeseriesPointResponse = t.Object({
+	t_ms: t.Number(),
+	value: t.Number(),
+});
+
+export const ProfilerPushTransactionSectionAvgResponse = t.Object({
+	validate: t.Array(ProfilerTimeseriesPointResponse),
+	verify_signature: t.Array(ProfilerTimeseriesPointResponse),
+	acquire_lock: t.Array(ProfilerTimeseriesPointResponse),
+	duplicate_check: t.Array(ProfilerTimeseriesPointResponse),
+	get_balance: t.Array(ProfilerTimeseriesPointResponse),
+	enqueue: t.Array(ProfilerTimeseriesPointResponse),
+});
+
+export const ProfilerSessionTimeseriesResponse = t.Object({
+	avg_replica_concurrent: t.Array(ProfilerTimeseriesPointResponse),
+	push_transaction_entries_cumulative: t.Array(
+		ProfilerTimeseriesPointResponse,
+	),
+	push_transaction_exits_cumulative: t.Array(ProfilerTimeseriesPointResponse),
+	dbwriter_writes_cumulative: t.Array(ProfilerTimeseriesPointResponse),
+	dbwriter_queue_depth: t.Array(ProfilerTimeseriesPointResponse),
+	dbwriter_write_active: t.Array(ProfilerTimeseriesPointResponse),
+	dbwriter_sleep_active: t.Array(ProfilerTimeseriesPointResponse),
+	dbwriter_redis_active: t.Array(ProfilerTimeseriesPointResponse),
+	push_transaction_section_avg_ms: ProfilerPushTransactionSectionAvgResponse,
 });
 
 export const ProfilerSessionReportResponse = t.Object({
@@ -182,6 +214,7 @@ export const ProfilerSessionReportResponse = t.Object({
 	ended_at_unix_ms: t.Number(),
 	api_stats: t.Array(ProfilerApiStatsResponse),
 	dbwriter: t.Nullable(ProfilerDbwriterStatsResponse),
+	timeseries: ProfilerSessionTimeseriesResponse,
 	output_file: t.Nullable(t.String()),
 });
 
@@ -195,6 +228,13 @@ export const StartProfilerSessionResponse = t.Composite([
 ]);
 
 export const StopProfilerSessionResponse = t.Composite([
+	CommonResponse,
+	t.Object({
+		session: t.Optional(ProfilerSessionReportResponse),
+	}),
+]);
+
+export const GetProfilerSessionResponse = t.Composite([
 	CommonResponse,
 	t.Object({
 		session: t.Optional(ProfilerSessionReportResponse),
@@ -234,3 +274,9 @@ export type StartProfilerSessionResponse =
 	typeof StartProfilerSessionResponse.static;
 export type StopProfilerSessionResponse =
 	typeof StopProfilerSessionResponse.static;
+export type ProfilerTimeseriesPointResponse =
+	typeof ProfilerTimeseriesPointResponse.static;
+export type ProfilerSessionTimeseriesResponse =
+	typeof ProfilerSessionTimeseriesResponse.static;
+export type GetProfilerSessionResponse =
+	typeof GetProfilerSessionResponse.static;

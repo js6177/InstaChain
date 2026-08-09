@@ -47,6 +47,9 @@ export default defineConfig({
 			"@": path.resolve(__dirname, "./src"),
 		},
 	},
+	optimizeDeps: {
+		include: ["echarts", "echarts-for-react", "@testing-library/react"],
+	},
 	server: {
 		host: true,
 		port: 5173,
@@ -54,6 +57,12 @@ export default defineConfig({
 			clientPort: 5173,
 		},
 		sourcemapIgnoreList: false, // Ensure VS Code doesn't skip "internal" files
+		fs: {
+			allow: [
+				path.resolve(__dirname, "../.."),
+				path.resolve(__dirname, "../../../../shared"),
+			],
+		},
 		watch: {
 			ignored: [
 				"**/node_modules/**",
@@ -74,6 +83,11 @@ export default defineConfig({
 			reportsDirectory: path.resolve(__dirname, "../../.coverage"),
 			include: ["src/**"],
 		},
+		// Root-only: keep failure attachments out of the package tree / git status.
+		attachmentsDir: path.resolve(
+			__dirname,
+			"../../../../.test-output/vitest-attachments",
+		),
 		projects: [
 			{
 				extends: true,
@@ -89,6 +103,12 @@ export default defineConfig({
 						viewport: { width: 1280, height: 720 },
 						provider: webdriverio(isDocker ? dockerChromeProviderOptions : {}),
 						instances: [{ browser: "chrome" }],
+						// Keep failure screenshots out of frontend/** — Bun workspace scanning
+						// ENOENTs on directories named like *.test.tsx under the workspace glob.
+						screenshotDirectory: path.resolve(
+							__dirname,
+							"../../../../.test-output/vitest-screenshots",
+						),
 					},
 				},
 			},

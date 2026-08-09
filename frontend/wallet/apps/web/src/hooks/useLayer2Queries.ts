@@ -99,3 +99,17 @@ export const useWithdrawMutation = () => {
 		},
 	});
 };
+
+export const useProfilerSession = (sessionId: string) => {
+	return useQuery({
+		queryKey: ["ProfilerSession", sessionId],
+		queryFn: async () => {
+			return unwrapLayer2LedgerResponse(
+				await ledgerApi.health.GetProfilerSession.post({
+					session_id: sessionId,
+				}),
+			);
+		},
+		enabled: !!sessionId,
+	});
+};

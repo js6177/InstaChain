@@ -24,9 +24,7 @@ export class HealthStressResult {
 		this.apiErrors = init.apiErrors;
 	}
 
-	static parse(
-		data: HealthStressResult | null | undefined,
-	): HealthStressResult | null {
+	static parse(data: HealthStressResult | null): HealthStressResult | null {
 		if (!isStructuredObject(data)) {
 			return null;
 		}
@@ -50,8 +48,8 @@ export class HealthStressResult {
 		) {
 			return null;
 		}
-		const parsedRtt = LatencyStatsMs.parse(clientRttMs);
-		const parsedErrors = StressApiErrorCounts.parse(apiErrors);
+		const parsedRtt = LatencyStatsMs.parse(clientRttMs ?? null);
+		const parsedErrors = StressApiErrorCounts.parse(apiErrors ?? null);
 		if (!parsedRtt || !parsedErrors) {
 			return null;
 		}

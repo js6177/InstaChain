@@ -28,9 +28,7 @@ export class StressPhaseTimingsMs {
 		this.totalMs = init.totalMs;
 	}
 
-	static parse(
-		data: StressPhaseTimingsMs | null | undefined,
-	): StressPhaseTimingsMs | null {
+	static parse(data: StressPhaseTimingsMs | null): StressPhaseTimingsMs | null {
 		if (!isStructuredObject(data)) {
 			return null;
 		}

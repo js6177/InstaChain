@@ -18,6 +18,7 @@ import {
 	INFO_ROUTER_PREFIX,
 	PUSH_TRANSACTION_ROUTE,
 	REQUEST_WITHDRAWAL_ROUTE,
+	GET_PROFILER_SESSION_ROUTE,
 	START_PROFILER_SESSION_ROUTE,
 	STOP_PROFILER_SESSION_ROUTE,
 	TRANSFER_ROUTER_PREFIX,
@@ -37,6 +38,7 @@ import {
 	GetWithdrawalRequestsRequest,
 	PushTransactionRequest,
 	RequestWithdrawalRequest,
+	GetProfilerSessionRequest,
 	StartProfilerSessionRequest,
 	StopProfilerSessionRequest,
 	WithdrawalBroadcastedRequest,
@@ -51,6 +53,7 @@ import {
 	GetTransactionResponse,
 	GetTransactionsResponse,
 	GetWithdrawalRequestsResponse,
+	GetProfilerSessionResponse,
 	StartProfilerSessionResponse,
 	StopProfilerSessionResponse,
 	WithdrawalBroadcastedResponse,
@@ -83,6 +86,14 @@ export function createLayer2LedgerApp(handlers: Layer2LedgerRouteHandlers) {
 					{
 						body: StopProfilerSessionRequest,
 						response: StopProfilerSessionResponse,
+					},
+				)
+				.post(
+					GET_PROFILER_SESSION_ROUTE,
+					({ body }) => handlers.getProfilerSession(body),
+					{
+						body: GetProfilerSessionRequest,
+						response: GetProfilerSessionResponse,
 					},
 				),
 		)

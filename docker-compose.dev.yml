@@ -99,6 +99,7 @@ services:
       - ./frontend/wallet/.env.docker
     volumes:
       - ./frontend/wallet/apps/web/src:/app/frontend/wallet/apps/web/src:ro
+      - ./frontend/wallet/apps/web/vite.config.ts:/app/frontend/wallet/apps/web/vite.config.ts:ro
       - ./frontend/wallet/packages:/app/frontend/wallet/packages:ro
       - ./shared:/app/shared:ro
     depends_on:

@@ -6,8 +6,6 @@ export function parseJsonAs<T>(text: string): T {
 	return JSON.parse(text) as T;
 }
 
-export function isStructuredObject(
-	value: object | null | undefined,
-): value is object {
-	return value !== null && value !== undefined && typeof value === "object";
+export function isStructuredObject(value: object | null): value is object {
+	return value !== null && typeof value === "object";
 }

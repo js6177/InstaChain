@@ -528,7 +528,7 @@ export function WalletPage(): React.JSX.Element {
 							>
 								{isBalanceLoading
 									? "..."
-									: formatAmount(balance?.balance, denomination)}{" "}
+									: formatAmount(balance?.balance ?? null, denomination)}{" "}
 								<button
 									onClick={toggleDenomination}
 									className="text-2xl text-muted-foreground font-normal hover:text-foreground transition-colors"

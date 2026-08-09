@@ -17,17 +17,14 @@ import Redis from "ioredis";
 import {
 	clearAddressBalanceCache,
 	getAddressBalanceCacheStats,
-	getCachedAddressBalance,
 	resetAddressBalanceCacheStats,
-	resolveAddressBalanceCacheOptions,
-	setCachedAddressBalances,
 } from "../src/redis/address-balance-cache";
 import {
 	ProfilerApiName,
+	ProfilerSessionReport,
 	profilerSessionOutputPath,
-	type ProfilerSessionReport,
 } from "../src/redis/profiler-session";
-import { profilerInFlightKey } from "../src/utils/profiler";
+import { profilerInFlightKey } from "../src/transaction-processing/push-transaction-profiler";
 import {
 	computeLatencyStats,
 	emptyApiErrorCounts,
@@ -90,19 +87,18 @@ const ledgerApiUrl =
 	process.env.LAYER2LEDGER_API_URL ?? "http://layer2ledgerapihandler-nginx:8000";
 const testhelperUrl =
 	process.env.TESTHELPER_BASE_URL ?? "http://layer2ledger-testhelper:8001";
+/** Host-facing wallet origin for profiler session charts (docker publishes :5173). */
+const walletWebOrigin = (
+	process.env.WALLET_WEB_ORIGIN ??
+	process.env.VITE_APP_ORIGIN ??
+	"http://localhost:5173"
+).replace(/\/$/, "");
 
 /** Default is the ledger health API (proxied through nginx → apihandler). */
 const healthPath = process.env.STRESS_HEALTH_PATH ?? "/health";
 
-function parseAddressOverlapPercent(): number {
-	const raw = process.env.STRESS_ADDRESS_OVERLAP_PERCENT ?? "50";
-	const value = Number(raw);
-	if (!Number.isInteger(value) || value < 0 || value > 100) {
-		throw new Error(
-			`STRESS_ADDRESS_OVERLAP_PERCENT must be an integer between 0 and 100, got "${raw}"`,
-		);
-	}
-	return value;
+function profilerSessionVisualizationUrl(sessionId: string): string {
+	return `${walletWebOrigin}/explorer/stats/${encodeURIComponent(sessionId)}`;
 }
 
 async function waitForApiHealth(
@@ -203,19 +199,11 @@ interface PreparedTransfer {
 
 interface RunPushStressOptions {
 	transactionCount: number;
-	/** When set, the first N transfers reuse these source addresses (N = length). */
-	reuseSources?: readonly Layer2Address[];
 	/**
 	 * After seeding, wipe the Redis balance cache so push reads miss and fall
 	 * back to Postgres (cold round).
 	 */
 	clearBalanceCacheBeforePush?: boolean;
-	/**
-	 * After seeding, wipe the Redis balance cache and re-warm only
-	 * `reuseSources`. Needed because testhelper seed also writes Redis, which
-	 * would otherwise make the non-overlap half look like cache hits.
-	 */
-	warmOnlyReuseSources?: boolean;
 	redis: Redis;
 }
 
@@ -225,22 +213,12 @@ interface RunPushStressOptions {
  */
 async function runPushTransactionStress(
 	options: RunPushStressOptions,
-): Promise<StressRunResult & { sources: Layer2Address[] }> {
+): Promise<StressRunResult> {
 	const {
 		transactionCount,
-		reuseSources = [],
 		clearBalanceCacheBeforePush = false,
-		warmOnlyReuseSources = false,
 		redis,
 	} = options;
-	if (clearBalanceCacheBeforePush && warmOnlyReuseSources) {
-		throw new Error(
-			"clearBalanceCacheBeforePush and warmOnlyReuseSources are mutually exclusive",
-		);
-	}
-	const balanceCache = resolveAddressBalanceCacheOptions(
-		loadLayer2LedgerCommonConfig(process.env.ENVIRONMENT ?? "test").redis,
-	);
 	const amount = 100;
 	const fee = 10;
 	const initialBalance = 1000;
@@ -255,9 +233,6 @@ async function runPushTransactionStress(
 		process.env.STRESS_SETTLE_TIMEOUT_MS ?? "120000",
 	);
 	const apiErrors = emptyApiErrors();
-	const reusedSourceKeys = new Set(
-		reuseSources.map((address) => address.public_key_str_base58),
-	);
 
 	const ledger = createLayer2LedgerClient(ledgerApiUrl);
 	const testhelper = createLayer2TestHelperClient(testhelperUrl);
@@ -276,11 +251,8 @@ async function runPushTransactionStress(
 	const unsigned = await mapPool(
 		Array.from({ length: transactionCount }, (_, index) => index),
 		concurrency,
-		async (index) => {
-			const source =
-				index < reuseSources.length
-					? (reuseSources[index] as Layer2Address)
-					: newLayer2Address();
+		async () => {
+			const source = newLayer2Address();
 			const dest = newLayer2Address();
 			const transactionId = crypto.randomUUID();
 			const message = buildTransferMessage(
@@ -312,10 +284,6 @@ async function runPushTransactionStress(
 
 	const seedStartedAt = performance.now();
 	await mapPool(prepared, concurrency, async ({ source }) => {
-		// Reused round-1 sources keep residual balance + cache entry; skip re-seed.
-		if (reusedSourceKeys.has(source.public_key_str_base58)) {
-			return;
-		}
 		try {
 			unwrapLayer2TestHelperResponse(
 				await testhelper.testhelper.seed.balance.post({
@@ -334,28 +302,6 @@ async function runPushTransactionStress(
 	if (clearBalanceCacheBeforePush) {
 		await clearAddressBalanceCache(redis);
 		log.info("cleared balance cache before push (cold round)");
-	} else if (warmOnlyReuseSources) {
-		// Seed writes Redis for newly created sources; strip those so only the
-		// overlap percent remains warm going into the push wave.
-		const warmEntries: Array<{ address: string; balance: number }> = [];
-		for (const source of reuseSources) {
-			const balance = await getCachedAddressBalance(
-				redis,
-				source.public_key_str_base58,
-			);
-			if (balance !== null) {
-				warmEntries.push({
-					address: source.public_key_str_base58,
-					balance,
-				});
-			}
-		}
-		await clearAddressBalanceCache(redis);
-		await setCachedAddressBalances(redis, warmEntries, balanceCache);
-		log.info(
-			`warmed overlap-only balance cache entries=${warmEntries.length} ` +
-				`of reused_sources=${reuseSources.length}`,
-		);
 	}
 
 	await resetAddressBalanceCacheStats(redis);
@@ -444,26 +390,23 @@ async function runPushTransactionStress(
 		stopSession.session,
 	);
 
-	return {
-		...new StressRunResult({
-			processedToPostgres: acceptedPushes - pendingIds.size,
-			acceptedPushes,
-			pushClientRttMs: computeLatencyStats(pushLatenciesMs),
-			phaseTimingsMs: new StressPhaseTimingsMs({
-				prepareMs,
-				signMs,
-				seedMs,
-				pushMs: profilerSession.pushMs,
-				settleMs: profilerSession.settleMs,
-				pushToSettleMs: profilerSession.pushToSettleMs,
-				totalMs: prepareMs + signMs + seedMs + profilerSession.pushToSettleMs,
-			}),
-			apiErrors,
-			cache: new StressCacheStats(cache),
-			profilerSession,
+	return new StressRunResult({
+		processedToPostgres: acceptedPushes - pendingIds.size,
+		acceptedPushes,
+		pushClientRttMs: computeLatencyStats(pushLatenciesMs),
+		phaseTimingsMs: new StressPhaseTimingsMs({
+			prepareMs,
+			signMs,
+			seedMs,
+			pushMs: profilerSession.pushMs,
+			settleMs: profilerSession.settleMs,
+			pushToSettleMs: profilerSession.pushToSettleMs,
+			totalMs: prepareMs + signMs + seedMs + profilerSession.pushToSettleMs,
 		}),
-		sources: prepared.map((item) => item.source),
-	};
+		apiErrors,
+		cache: new StressCacheStats(cache),
+		profilerSession,
+	});
 }
 
 function summarizeProfilerSession(
@@ -479,9 +422,11 @@ function summarizeProfilerSession(
 			? Math.max(pushStats.last_end_unix_ms - pushStats.first_start_unix_ms, 0)
 			: 0;
 	const pushToSettleMs =
-		report.dbwriter?.queue_empty_at_unix_ms != null
+		report.dbwriter?.throughput_start_ms != null &&
+		report.dbwriter.throughput_end_ms != null
 			? Math.max(
-					report.dbwriter.queue_empty_at_unix_ms - report.started_at_unix_ms,
+					report.dbwriter.throughput_end_ms -
+						report.dbwriter.throughput_start_ms,
 					0,
 				)
 			: pushMs;
@@ -503,23 +448,31 @@ function summarizeProfilerSession(
 async function persistProfilerSessionReport(
 	report: ProfilerSessionReport,
 ): Promise<StressProfilerSessionSummary> {
+	// Eden/JSON responses are plain objects — rehydrate before using class methods.
+	const parsed = ProfilerSessionReport.parse(report);
+	if (!parsed) {
+		throw new Error("stop_profiler_session returned an invalid session report");
+	}
 	const outputDir =
 		process.env.PROFILER_SESSION_OUTPUT_DIR ??
 		(process.env.STRESS_RESULT_FILE
 			? process.env.STRESS_RESULT_FILE.replace(/\/[^/]+$/, "")
 			: "/tmp");
-	const outputFile = profilerSessionOutputPath(report.session_id, outputDir);
-	const reportForFile = { ...report, output_file: outputFile };
+	const outputFile = profilerSessionOutputPath(parsed.session_id, outputDir);
+	const reportForFile = parsed.withOutputFile(outputFile);
 	await Bun.write(outputFile, `${JSON.stringify(reportForFile, null, 2)}\n`);
+	const visualizationUrl = profilerSessionVisualizationUrl(parsed.session_id);
 	console.log(`profiler session report written path=${outputFile}`);
+	// Print the URL alone so terminals that auto-linkify can make it clickable.
+	console.log("profiler session visualization:");
+	console.log(visualizationUrl);
 	return summarizeProfilerSession(reportForFile, outputFile);
 }
 
 function toRoundResult(
-	round: 1 | 2,
+	round: number,
 	transactionCount: number,
 	run: StressRunResult,
-	reusedSourceCount: number,
 ): StressRoundThroughputResult {
 	return new StressRoundThroughputResult({
 		round,
@@ -535,11 +488,14 @@ function toRoundResult(
 		phaseTimingsMs: run.phaseTimingsMs,
 		apiErrors: run.apiErrors,
 		cache: run.cache,
-		reusedSourceCount,
+		reusedSourceCount: 0,
 	});
 }
 
 function printRoundSummary(round: StressRoundThroughputResult): void {
+	const visualizationUrl = profilerSessionVisualizationUrl(
+		round.profilerSessionId,
+	);
 	const line =
 		`round=${round.round} profiler_session=${round.profilerSessionId} ` +
 		`push_ms=${round.phaseTimingsMs.pushMs} ` +
@@ -551,9 +507,12 @@ function printRoundSummary(round: StressRoundThroughputResult): void {
 		`cache_hits=${round.cache.hits} cache_misses=${round.cache.misses} ` +
 		`reused_sources=${round.reusedSourceCount}`;
 	console.log(line);
+	// Print the URL alone so terminals that auto-linkify can make it clickable.
+	console.log(visualizationUrl);
 	log.info("stress round summary", {
 		round: round.round,
 		profiler_session_id: round.profilerSessionId,
+		visualization_url: visualizationUrl,
 		phase_timings_ms: round.phaseTimingsMs,
 		push_txs_per_second: round.pushTxsPerSecond,
 		settled_txs_per_second: round.settledTxsPerSecond,
@@ -673,10 +632,6 @@ async function runHealthHttpStress(): Promise<void> {
 async function runPushTransactionHttpStress(): Promise<void> {
 	const transactionCount = Number(process.env.STRESS_TX_COUNT ?? "50000");
 	expect(Number.isFinite(transactionCount) && transactionCount > 0).toBe(true);
-	const addressOverlapPercent = parseAddressOverlapPercent();
-	const reuseCount = Math.round(
-		(transactionCount * addressOverlapPercent) / 100,
-	);
 
 	const commonConfig = loadLayer2LedgerCommonConfig(
 		process.env.ENVIRONMENT ?? "test",
@@ -693,40 +648,20 @@ async function runPushTransactionHttpStress(): Promise<void> {
 			clearBalanceCacheBeforePush: true,
 			redis,
 		});
-		const round1 = toRoundResult(1, transactionCount, round1Run, 0);
-
-		await sleep(10000);
-		log.info("waited 5 seconds");
-
-		const reuseSources = round1Run.sources.slice(0, reuseCount);
-		const round2Run = await runPushTransactionStress({
-			transactionCount,
-			reuseSources,
-			warmOnlyReuseSources: true,
-			redis,
-		});
-		const round2 = toRoundResult(
-			2,
-			transactionCount,
-			round2Run,
-			reuseSources.length,
-		);
+		const round1 = toRoundResult(1, transactionCount, round1Run);
 
 		const throughput = new StressThroughputResult({
 			transactionCount,
-			addressOverlapPercent,
-			rounds: [round1, round2],
+			addressOverlapPercent: 0,
+			rounds: [round1],
 		});
 
 		console.log(
-			`stress two-round summary overlap_percent=${addressOverlapPercent} ` +
-				`tx_count=${transactionCount} reused_sources=${reuseSources.length}`,
+			`stress cold-cache summary tx_count=${transactionCount}`,
 		);
 		printRoundSummary(round1);
-		printRoundSummary(round2);
 
-		log.info("pushTransaction two-round stress complete", {
-			address_overlap_percent: addressOverlapPercent,
+		log.info("pushTransaction cold-cache stress complete", {
 			transaction_count: transactionCount,
 			rounds: throughput.rounds,
 		});
@@ -741,9 +676,6 @@ async function runPushTransactionHttpStress(): Promise<void> {
 
 		expect(round1.processedToPostgres).toBe(round1.acceptedPushes);
 		expect(round1.acceptedPushes).toBe(transactionCount);
-		expect(round2.processedToPostgres).toBe(round2.acceptedPushes);
-		expect(round2.acceptedPushes).toBe(transactionCount);
-		expect(round2.reusedSourceCount).toBe(reuseCount);
 	} finally {
 		await redis.quit();
 	}

@@ -9,9 +9,7 @@ export class StressCacheStats {
 		this.misses = init.misses;
 	}
 
-	static parse(
-		data: StressCacheStats | null | undefined,
-	): StressCacheStats | null {
+	static parse(data: StressCacheStats | null): StressCacheStats | null {
 		if (!isStructuredObject(data)) {
 			return null;
 		}

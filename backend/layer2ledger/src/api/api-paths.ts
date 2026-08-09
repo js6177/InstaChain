@@ -17,6 +17,9 @@ export const START_PROFILER_SESSION_ROUTE = "/start_profiler_session";
 /** Stop a profiler session (relative to {@link HEALTH_ROUTER_PREFIX}). */
 export const STOP_PROFILER_SESSION_ROUTE = "/stop_profiler_session";
 
+/** Fetch a profiler session report + timeseries (relative to {@link HEALTH_ROUTER_PREFIX}). */
+export const GET_PROFILER_SESSION_ROUTE = "/GetProfilerSession";
+
 export const GET_DEPOSIT_ADDRESS_ROUTE = "/get_deposit_address";
 export const DEPOSIT_CONFIRMED_ROUTE = "/deposit_confirmed";
 export const PUSH_TRANSACTION_ROUTE = "/push_transaction";

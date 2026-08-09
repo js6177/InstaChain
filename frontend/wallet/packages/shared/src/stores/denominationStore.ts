@@ -34,10 +34,10 @@ export const useDenominationStore = create<DenominationState>()(
 );
 
 export const formatAmount = (
-	sats: number | undefined | null,
+	sats: number | null,
 	denomination: Denomination,
 ): string => {
-	if (sats === undefined || sats === null) return "0";
+	if (sats === null) return "0";
 	if (denomination === Denomination.Btc) {
 		// Remove trailing zeroes after formatting to 8 decimals
 		return (sats / 100000000)

@@ -2,7 +2,7 @@ import {
 	loadLayer2LedgerCommonConfig,
 	registerProcessShutdown,
 } from "@openl2/config-loader";
-import { createOpenL2Logger } from "@openl2/openl2-logger";
+import { createOpenL2Logger, setProfilerSessionId } from "@openl2/openl2-logger";
 import Redis from "ioredis";
 import { createDatabase, migrateDatabase } from "../db/client";
 import { resolveAddressBalanceCacheOptions } from "../redis/address-balance-cache";
@@ -10,6 +10,12 @@ import {
 	DistributedLock,
 	PENDING_TRANSACTIONS_LIST_KEY,
 } from "../redis/distributed-lock";
+import {
+	getActiveProfilerSession,
+	ProfilerApiName,
+	recordPushTransactionProfilerDbwriterQueueDepth,
+	recordPushTransactionProfilerDbwriterSleepActive,
+} from "../redis/profiler-session";
 import { ensureTransactionIdBloomFilter } from "../redis/transaction-id-bloom";
 import {
 	getCurrentBatchHeight,
@@ -67,9 +73,10 @@ while (true) {
 		}
 
 		const pendingCount = await redis.llen(PENDING_TRANSACTIONS_LIST_KEY);
+		await recordQueueDepth(redis, pendingCount);
 		const sleepMs = pendingQueueSleepMs(pendingCount);
 		if (sleepMs > 0) {
-			await Bun.sleep(sleepMs);
+			await sleepWithProfiler(redis, sleepMs);
 		}
 		if (pendingCount > 0) {
 			log.info(
@@ -82,6 +89,59 @@ while (true) {
 		}
 	} catch (error) {
 		log.exception("Error processing transactions", error);
-		await Bun.sleep(5000);
+		await sleepWithProfiler(redis, 5000);
+	}
+}
+
+async function sleepWithProfiler(redis: Redis, sleepMs: number): Promise<void> {
+	await recordSleepActive(redis, true);
+	try {
+		await Bun.sleep(sleepMs);
+	} finally {
+		await recordSleepActive(redis, false);
+	}
+}
+
+async function recordSleepActive(
+	redis: Redis,
+	sleeping: boolean,
+): Promise<void> {
+	try {
+		const session = await getActiveProfilerSession(redis);
+		if (!session?.apis.includes(ProfilerApiName.Dbwriter)) {
+			return;
+		}
+		setProfilerSessionId(session.session_id);
+		await recordPushTransactionProfilerDbwriterSleepActive(
+			redis,
+			session.session_id,
+			sleeping,
+		);
+		log.performance("profiler dbwriter sleep active", {
+			session_id: session.session_id,
+			sleeping: sleeping ? 1 : 0,
+			event: sleeping ? "dbwriter_sleep_enter" : "dbwriter_sleep_exit",
+		});
+	} catch {
+		// Best-effort; never fail the writer loop.
+	}
+}
+
+async function recordQueueDepth(
+	redis: Redis,
+	queueDepth: number,
+): Promise<void> {
+	try {
+		const session = await getActiveProfilerSession(redis);
+		if (!session?.apis.includes(ProfilerApiName.Dbwriter)) {
+			return;
+		}
+		await recordPushTransactionProfilerDbwriterQueueDepth(
+			redis,
+			session.session_id,
+			queueDepth,
+		);
+	} catch {
+		// Best-effort; never fail the writer loop.
 	}
 }

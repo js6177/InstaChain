@@ -18,9 +18,7 @@ export class VerifyTimingResult {
 		this.verifiesPerSecond = init.verifiesPerSecond;
 	}
 
-	static parse(
-		data: VerifyTimingResult | null | undefined,
-	): VerifyTimingResult | null {
+	static parse(data: VerifyTimingResult | null): VerifyTimingResult | null {
 		if (!isStructuredObject(data)) {
 			return null;
 		}
@@ -32,8 +30,8 @@ export class VerifyTimingResult {
 		) {
 			return null;
 		}
-		const parsedSign = LatencyStatsMs.parse(signLatencyMs);
-		const parsedVerify = LatencyStatsMs.parse(verifyLatencyMs);
+		const parsedSign = LatencyStatsMs.parse(signLatencyMs ?? null);
+		const parsedVerify = LatencyStatsMs.parse(verifyLatencyMs ?? null);
 		if (!parsedSign || !parsedVerify) {
 			return null;
 		}

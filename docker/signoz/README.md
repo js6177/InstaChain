@@ -58,6 +58,19 @@ The stress entrypoint runs `bun test/stress.test.ts` (not `bun test`) and re-exe
 
 Apihandler structured logs include `replica_id` (Docker Compose `HOSTNAME`, e.g. `…-layer2ledgerapihandler-3`). In SigNoz, group or filter performance logs by `replica_id` to compare throughput/latency across replicas. Override with `OPENL2_REPLICA_ID` if needed.
 
+**Wallet Explorer — session chart**
+
+After a stress run (or any profiler session), open `/explorer/stats/<session_id>` (or **Profiler Stats** in the Explorer UI). That page calls `POST /health/GetProfilerSession` and charts:
+
+- **Concurrency**: average replica in-flight
+- **Cumulative**: pushTransaction entries / exits + dbwriter writes
+- **Redis pending queue**: pending transaction depth (one sample per dbwriter loop)
+- **Dbwriter activity**: square waves for Postgres write / Redis housekeeping / sleep
+- **pushTransaction section timing**: rolling-average ms per section (validate, verify signature, acquire lock, duplicate check, get balance, enqueue)
+
+**Total txs/s** is `writes_total / (throughput_end_ms - throughput_start_ms)`: from the first apihandler `pushTransaction` span start until the Redis pending queue transitions to 0 for the last time. Bounds are ms since profiler start (`dbwriter.throughput_start_ms` / `throughput_end_ms`). Drag the green/red vertical markers on any chart to adjust those bounds.
+
+
 ## Nginx hit logging
 
 Each proxied request is logged as:

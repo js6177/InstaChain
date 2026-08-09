@@ -7,6 +7,7 @@ import type {
 	GetTransactionRequest,
 	GetTransactionsRequest,
 	GetWithdrawalRequestsRequest,
+	GetProfilerSessionRequest,
 	PushTransactionRequest,
 	RequestWithdrawalRequest,
 	StartProfilerSessionRequest,
@@ -20,6 +21,7 @@ import type {
 	GetDepositAddressResponse,
 	GetFeeResponse,
 	GetNodeInfoResponse,
+	GetProfilerSessionResponse,
 	GetTransactionResponse,
 	GetTransactionsResponse,
 	GetWithdrawalRequestsResponse,
@@ -37,6 +39,9 @@ export interface Layer2LedgerRouteHandlers {
 	stopProfilerSession(
 		body: StopProfilerSessionRequest,
 	): Promise<StopProfilerSessionResponse>;
+	getProfilerSession(
+		body: GetProfilerSessionRequest,
+	): Promise<GetProfilerSessionResponse>;
 	pushTransaction(body: PushTransactionRequest): Promise<CommonResponse>;
 	getDepositAddress(
 		body: GetDepositAddressRequest,

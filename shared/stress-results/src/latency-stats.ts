@@ -16,7 +16,7 @@ export class LatencyStatsMs {
 		this.upperQuartile = init.upperQuartile;
 	}
 
-	static parse(data: LatencyStatsMs | null | undefined): LatencyStatsMs | null {
+	static parse(data: LatencyStatsMs | null): LatencyStatsMs | null {
 		if (!isStructuredObject(data)) {
 			return null;
 		}

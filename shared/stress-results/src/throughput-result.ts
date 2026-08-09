@@ -34,9 +34,9 @@ export class StressRunResult {
 	}
 }
 
-/** One round in the on-disk two-round stress throughput file. */
+/** One round in the on-disk stress throughput file. */
 export class StressRoundThroughputResult {
-	readonly round: 1 | 2;
+	readonly round: number;
 	readonly transactionCount: number;
 	readonly processedToPostgres: number;
 	readonly acceptedPushes: number;
@@ -64,7 +64,7 @@ export class StressRoundThroughputResult {
 	readonly phaseTimingsMs: StressPhaseTimingsMs;
 	readonly apiErrors: StressApiErrors;
 	readonly cache: StressCacheStats;
-	/** Round 2: how many source addresses were reused from round 1. */
+	/** How many source addresses were reused from a prior round (0 for cold). */
 	readonly reusedSourceCount: number;
 
 	constructor(init: StressRoundThroughputResult) {
@@ -85,7 +85,7 @@ export class StressRoundThroughputResult {
 	}
 
 	static parse(
-		data: StressRoundThroughputResult | null | undefined,
+		data: StressRoundThroughputResult | null,
 	): StressRoundThroughputResult | null {
 		if (!isStructuredObject(data)) {
 			return null;
@@ -107,7 +107,9 @@ export class StressRoundThroughputResult {
 			reusedSourceCount,
 		} = data;
 		if (
-			(round !== 1 && round !== 2) ||
+			typeof round !== "number" ||
+			!Number.isInteger(round) ||
+			round < 1 ||
 			typeof transactionCount !== "number" ||
 			typeof processedToPostgres !== "number" ||
 			typeof acceptedPushes !== "number" ||
@@ -120,10 +122,10 @@ export class StressRoundThroughputResult {
 		) {
 			return null;
 		}
-		const parsedRtt = LatencyStatsMs.parse(pushClientRttMs);
-		const parsedPhases = StressPhaseTimingsMs.parse(phaseTimingsMs);
-		const parsedErrors = StressApiErrors.parse(apiErrors);
-		const parsedCache = StressCacheStats.parse(cache);
+		const parsedRtt = LatencyStatsMs.parse(pushClientRttMs ?? null);
+		const parsedPhases = StressPhaseTimingsMs.parse(phaseTimingsMs ?? null);
+		const parsedErrors = StressApiErrors.parse(apiErrors ?? null);
+		const parsedCache = StressCacheStats.parse(cache ?? null);
 		if (!parsedRtt || !parsedPhases || !parsedErrors || !parsedCache) {
 			return null;
 		}
@@ -152,19 +154,17 @@ export class StressRoundThroughputResult {
  */
 export class StressThroughputResult {
 	readonly transactionCount: number;
+	/**
+	 * Legacy overlap percent between rounds. Cold-only runs write `0`; kept so
+	 * older result files still parse.
+	 */
 	readonly addressOverlapPercent: number;
-	readonly rounds: readonly [
-		StressRoundThroughputResult,
-		StressRoundThroughputResult,
-	];
+	readonly rounds: readonly StressRoundThroughputResult[];
 
 	constructor(init: {
 		transactionCount: number;
 		addressOverlapPercent: number;
-		rounds: readonly [
-			StressRoundThroughputResult,
-			StressRoundThroughputResult,
-		];
+		rounds: readonly StressRoundThroughputResult[];
 	}) {
 		this.transactionCount = init.transactionCount;
 		this.addressOverlapPercent = init.addressOverlapPercent;
@@ -172,7 +172,7 @@ export class StressThroughputResult {
 	}
 
 	static parse(
-		data: StressThroughputResult | null | undefined,
+		data: StressThroughputResult | null,
 	): StressThroughputResult | null {
 		if (!isStructuredObject(data)) {
 			return null;
@@ -182,19 +182,22 @@ export class StressThroughputResult {
 			typeof transactionCount !== "number" ||
 			typeof addressOverlapPercent !== "number" ||
 			!Array.isArray(rounds) ||
-			rounds.length < 2
+			rounds.length < 1
 		) {
 			return null;
 		}
-		const round1 = StressRoundThroughputResult.parse(rounds[0]);
-		const round2 = StressRoundThroughputResult.parse(rounds[1]);
-		if (!round1 || !round2) {
-			return null;
+		const parsedRounds: StressRoundThroughputResult[] = [];
+		for (const round of rounds) {
+			const parsed = StressRoundThroughputResult.parse(round ?? null);
+			if (!parsed) {
+				return null;
+			}
+			parsedRounds.push(parsed);
 		}
 		return new StressThroughputResult({
 			transactionCount,
 			addressOverlapPercent,
-			rounds: [round1, round2],
+			rounds: parsedRounds,
 		});
 	}
 
