@@ -79,7 +79,19 @@ export const GetTransactionsRequest = t.Object({
 
 export const GetFeeRequest = t.Object({});
 
+export const StartProfilerSessionRequest = t.Object({
+	session_id: t.String({ minLength: 1 }),
+	apis: t.Array(t.String({ minLength: 1 }), { minItems: 1 }),
+});
+
+export const StopProfilerSessionRequest = t.Object({
+	session_id: t.String({ minLength: 1 }),
+});
+
 export type PushTransactionRequest = typeof PushTransactionRequest.static;
+export type StartProfilerSessionRequest =
+	typeof StartProfilerSessionRequest.static;
+export type StopProfilerSessionRequest = typeof StopProfilerSessionRequest.static;
 export type GetDepositAddressRequest = typeof GetDepositAddressRequest.static;
 export type DepositsConfirmed = typeof DepositsConfirmed.static;
 export type DepositConfirmedRequest = typeof DepositConfirmedRequest.static;

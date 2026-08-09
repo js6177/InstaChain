@@ -3,7 +3,7 @@ WORKDIR /app
 
 FROM base AS pruner
 COPY . .
-RUN bunx turbo@2.8.14 prune @openl2/layer2ledger @openl2/api-layer2ledger --docker
+RUN bunx turbo@2.8.14 prune @openl2/layer2ledger @openl2/api-layer2ledger @openl2/stress-results --docker
 
 FROM base AS installer
 COPY --from=pruner /app/out/json/ .

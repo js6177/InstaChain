@@ -1,6 +1,10 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { DockerService, type DockerServiceName } from "@openl2/config-loader";
+import {
+	StressThroughputResult,
+	VerifyTimingResult,
+} from "@openl2/stress-results";
 import { log } from "./src/logger";
 
 /** Container path where dated host output is mounted. */
@@ -12,48 +16,17 @@ export const STRESS_THROUGHPUT_FILENAME = "test-layer2ledger-stress.throughput.j
 /** Written by layer2ledger verify-timing.test.ts; summarized at end of run-tests. */
 export const VERIFY_TIMING_FILENAME = "test-layer2ledger.verify-timing.json";
 
-export interface StressLatencyStatsMs {
-	average: number;
-	shortest: number;
-	longest: number;
-	bottomQuartile: number;
-	upperQuartile: number;
-}
-
-export interface StressPhaseTimingsMs {
-	prepareMs: number;
-	signMs: number;
-	seedMs: number;
-	pushMs: number;
-	settleMs: number;
-	totalMs: number;
-}
-
-export interface StressApiErrorCounts {
-	total: number;
-	byReason: Record<string, number>;
-}
-
-export interface StressApiErrors {
-	push: StressApiErrorCounts;
-	settle: StressApiErrorCounts;
-	seed: StressApiErrorCounts;
-}
-
-export interface StressThroughputResult {
-	transactionCount: number;
-	processedToPostgres: number;
-	acceptedPushes?: number;
-	/** Push-wave wall clock only (basis for txs/sec). */
-	elapsedMs: number;
-	txsPerSecond: number;
-	/** Client HTTP RTT under stress concurrency (not handler-only time). */
-	pushClientRttMs?: StressLatencyStatsMs;
-	/** @deprecated Prefer pushClientRttMs; kept for older result files. */
-	pushLatencyMs?: StressLatencyStatsMs;
-	phaseTimingsMs?: StressPhaseTimingsMs;
-	apiErrors?: StressApiErrors;
-}
+export {
+	LatencyStatsMs,
+	StressApiErrorCounts,
+	StressApiErrors,
+	StressCacheStats,
+	StressPhaseTimingsMs,
+	StressProfilerSessionSummary,
+	StressRoundThroughputResult,
+	StressThroughputResult,
+	VerifyTimingResult,
+} from "@openl2/stress-results";
 
 export interface ServiceTestCounts {
 	service: DockerServiceName;
@@ -129,15 +102,11 @@ export function getServiceTestCommand(
 				],
 			};
 		case DockerService.TEST_LAYER2LEDGER_STRESS:
+			// Plain `bun` (not `bun test`): stress.test.ts raises
+			// BUN_CONFIG_MAX_HTTP_REQUESTS via re-exec. Exit code → synthetic JUnit.
 			return {
-				kind: TestRunnerKind.BUN,
-				command: [
-					"bun",
-					"test",
-					"test/stress.test.ts",
-					"--reporter=junit",
-					`--reporter-outfile=${outfile}`,
-				],
+				kind: TestRunnerKind.SYNTHETIC,
+				command: ["bun", "test/stress.test.ts"],
 			};
 		case DockerService.TEST_BITCOIN_CORE_RPC:
 			// Entrypoint writes JUnit when TEST_RESULT_FILE is set.
@@ -210,7 +179,9 @@ export function ensureServiceResultFile(
 	const caseName =
 		service === DockerService.TEST_LAYER2LEDGER_OAUTH_MANAGER
 			? "health"
-			: "seed";
+			: service === DockerService.TEST_LAYER2LEDGER_STRESS
+				? "stress"
+				: "seed";
 	writeSyntheticJunit(filePath, service, containerPassed, caseName);
 }
 
@@ -366,127 +337,10 @@ export function readStressThroughputResult(
 	}
 
 	try {
-		const parsed = JSON.parse(readFileSync(filePath, "utf8")) as unknown;
-		if (!parsed || typeof parsed !== "object") {
-			return null;
-		}
-		const record = parsed as Record<string, unknown>;
-		const transactionCount = record.transactionCount;
-		const processedToPostgres = record.processedToPostgres;
-		const elapsedMs = record.elapsedMs;
-		const txsPerSecond = record.txsPerSecond;
-		if (
-			typeof transactionCount !== "number" ||
-			typeof processedToPostgres !== "number" ||
-			typeof elapsedMs !== "number" ||
-			typeof txsPerSecond !== "number"
-		) {
-			return null;
-		}
-
-		return {
-			transactionCount,
-			processedToPostgres,
-			acceptedPushes:
-				typeof record.acceptedPushes === "number"
-					? record.acceptedPushes
-					: undefined,
-			elapsedMs,
-			txsPerSecond,
-			pushClientRttMs:
-				parseLatencyStats(record.pushClientRttMs) ??
-				parseLatencyStats(record.pushLatencyMs),
-			phaseTimingsMs: parsePhaseTimings(record.phaseTimingsMs),
-			apiErrors: parseApiErrors(record.apiErrors),
-		};
+		return StressThroughputResult.fromJsonText(readFileSync(filePath, "utf8"));
 	} catch {
 		return null;
 	}
-}
-
-function parseApiErrorCounts(value: unknown): StressApiErrorCounts | undefined {
-	if (!value || typeof value !== "object") {
-		return undefined;
-	}
-	const record = value as Record<string, unknown>;
-	if (typeof record.total !== "number" || typeof record.byReason !== "object") {
-		return undefined;
-	}
-	const byReason: Record<string, number> = {};
-	for (const [key, count] of Object.entries(
-		record.byReason as Record<string, unknown>,
-	)) {
-		if (typeof count === "number") {
-			byReason[key] = count;
-		}
-	}
-	return { total: record.total, byReason };
-}
-
-function parseApiErrors(value: unknown): StressApiErrors | undefined {
-	if (!value || typeof value !== "object") {
-		return undefined;
-	}
-	const record = value as Record<string, unknown>;
-	const push = parseApiErrorCounts(record.push);
-	const settle = parseApiErrorCounts(record.settle);
-	const seed = parseApiErrorCounts(record.seed);
-	if (!push || !settle || !seed) {
-		return undefined;
-	}
-	return { push, settle, seed };
-}
-
-function parseLatencyStats(value: unknown): StressLatencyStatsMs | undefined {
-	if (!value || typeof value !== "object") {
-		return undefined;
-	}
-	const latency = value as Record<string, unknown>;
-	const average = latency.average;
-	const shortest = latency.shortest;
-	const longest = latency.longest;
-	const bottomQuartile = latency.bottomQuartile;
-	const upperQuartile = latency.upperQuartile;
-	if (
-		typeof average !== "number" ||
-		typeof shortest !== "number" ||
-		typeof longest !== "number" ||
-		typeof bottomQuartile !== "number" ||
-		typeof upperQuartile !== "number"
-	) {
-		return undefined;
-	}
-	return {
-		average,
-		shortest,
-		longest,
-		bottomQuartile,
-		upperQuartile,
-	};
-}
-
-function parsePhaseTimings(value: unknown): StressPhaseTimingsMs | undefined {
-	if (!value || typeof value !== "object") {
-		return undefined;
-	}
-	const phases = value as Record<string, unknown>;
-	const prepareMs = phases.prepareMs;
-	const signMs = phases.signMs;
-	const seedMs = phases.seedMs;
-	const pushMs = phases.pushMs;
-	const settleMs = phases.settleMs;
-	const totalMs = phases.totalMs;
-	if (
-		typeof prepareMs !== "number" ||
-		typeof signMs !== "number" ||
-		typeof seedMs !== "number" ||
-		typeof pushMs !== "number" ||
-		typeof settleMs !== "number" ||
-		typeof totalMs !== "number"
-	) {
-		return undefined;
-	}
-	return { prepareMs, signMs, seedMs, pushMs, settleMs, totalMs };
 }
 
 export function printStressThroughputSummary(outputDir: string): void {
@@ -495,34 +349,29 @@ export function printStressThroughputSummary(outputDir: string): void {
 		return;
 	}
 
-	const apiErrorTotal = result.apiErrors
-		? result.apiErrors.push.total +
-			result.apiErrors.settle.total +
-			result.apiErrors.seed.total
-		: 0;
-	const processed = `${result.processedToPostgres}/${result.transactionCount}`;
-	log.info(
-		`pushTransaction stress throughput: ${result.txsPerSecond} txs/s ` +
-			`(processed ${processed}, accepted_pushes=${result.acceptedPushes ?? "n/a"}, ` +
-			`elapsed_ms=${result.elapsedMs}, api_errors=${apiErrorTotal})`,
-		{
-			processed,
-			accepted_pushes: result.acceptedPushes ?? null,
-			elapsed_ms: result.elapsedMs,
-			txs_per_second: result.txsPerSecond,
-			phase_timings_ms: result.phaseTimingsMs ?? null,
-			push_client_rtt_ms: result.pushClientRttMs ?? null,
-			api_errors: result.apiErrors ?? null,
-			api_error_total: apiErrorTotal,
-		},
-	);
-}
-
-export interface VerifyTimingResult {
-	messageCount: number;
-	signLatencyMs: StressLatencyStatsMs;
-	verifyLatencyMs: StressLatencyStatsMs;
-	verifiesPerSecond: number;
+	for (const round of result.rounds) {
+		const phases = round.phaseTimingsMs;
+		log.info(
+			`pushTransaction stress round=${round.round} ` +
+				`push_txs_per_sec=${round.pushTxsPerSecond} ` +
+				`settled_txs_per_sec=${round.settledTxsPerSecond} ` +
+				`(accepted ${round.acceptedPushes}/${round.transactionCount}, ` +
+				`settled ${round.processedToPostgres}/${round.transactionCount}, ` +
+				`push_ms=${phases.pushMs}, ` +
+				`push_to_settle_ms=${phases.pushToSettleMs})`,
+			{
+				round: round.round,
+				push_txs_per_second: round.pushTxsPerSecond,
+				settled_txs_per_second: round.settledTxsPerSecond,
+				accepted_pushes: round.acceptedPushes,
+				processed_to_postgres: round.processedToPostgres,
+				phase_timings_ms: phases,
+				cache: round.cache,
+				reused_source_count: round.reusedSourceCount,
+				profiler_session_id: round.profilerSessionId,
+			},
+		);
+	}
 }
 
 export function readVerifyTimingResult(
@@ -534,29 +383,7 @@ export function readVerifyTimingResult(
 	}
 
 	try {
-		const parsed = JSON.parse(readFileSync(filePath, "utf8")) as unknown;
-		if (!parsed || typeof parsed !== "object") {
-			return null;
-		}
-		const record = parsed as Record<string, unknown>;
-		const messageCount = record.messageCount;
-		const verifiesPerSecond = record.verifiesPerSecond;
-		const signLatencyMs = parseLatencyStats(record.signLatencyMs);
-		const verifyLatencyMs = parseLatencyStats(record.verifyLatencyMs);
-		if (
-			typeof messageCount !== "number" ||
-			typeof verifiesPerSecond !== "number" ||
-			!signLatencyMs ||
-			!verifyLatencyMs
-		) {
-			return null;
-		}
-		return {
-			messageCount,
-			signLatencyMs,
-			verifyLatencyMs,
-			verifiesPerSecond,
-		};
+		return VerifyTimingResult.fromJsonText(readFileSync(filePath, "utf8"));
 	} catch {
 		return null;
 	}

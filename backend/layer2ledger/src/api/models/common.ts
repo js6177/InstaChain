@@ -21,6 +21,9 @@ export const ErrorCodes = {
 	INVALID_SOURCE_ADDRESS: 35,
 	INVALID_DESTINATION_ADDRESS: 36,
 	INVALID_AMOUNT: 37,
+	PROFILER_SESSION_ALREADY_ACTIVE: 40,
+	PROFILER_SESSION_NOT_FOUND: 41,
+	INVALID_PROFILER_SESSION: 42,
 } as const;
 
 const errorMessages: Record<number, string> = {
@@ -39,6 +42,10 @@ const errorMessages: Record<number, string> = {
 	[ErrorCodes.INVALID_SOURCE_ADDRESS]: "Invalid source address",
 	[ErrorCodes.INVALID_DESTINATION_ADDRESS]: "Invalid destination address",
 	[ErrorCodes.INVALID_AMOUNT]: "Invalid amount",
+	[ErrorCodes.PROFILER_SESSION_ALREADY_ACTIVE]:
+		"A profiler session is already active",
+	[ErrorCodes.PROFILER_SESSION_NOT_FOUND]: "Profiler session not found",
+	[ErrorCodes.INVALID_PROFILER_SESSION]: "Invalid profiler session request",
 };
 
 export function getErrorMessage(errorCode: number): string {

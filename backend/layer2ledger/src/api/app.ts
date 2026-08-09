@@ -14,10 +14,12 @@ import {
 	GET_NODE_INFO_ROUTE,
 	GET_TRANSACTION_ROUTE,
 	GET_WITHDRAWAL_REQUESTS_ROUTE,
-	HEALTH_ROUTE,
+	HEALTH_ROUTER_PREFIX,
 	INFO_ROUTER_PREFIX,
 	PUSH_TRANSACTION_ROUTE,
 	REQUEST_WITHDRAWAL_ROUTE,
+	START_PROFILER_SESSION_ROUTE,
+	STOP_PROFILER_SESSION_ROUTE,
 	TRANSFER_ROUTER_PREFIX,
 	WITHDRAWAL_BROADCASTED_ROUTE,
 	WITHDRAWAL_CONFIRMED_ROUTE,
@@ -35,6 +37,8 @@ import {
 	GetWithdrawalRequestsRequest,
 	PushTransactionRequest,
 	RequestWithdrawalRequest,
+	StartProfilerSessionRequest,
+	StopProfilerSessionRequest,
 	WithdrawalBroadcastedRequest,
 	WithdrawalConfirmedRequest,
 } from "./models/requests";
@@ -47,6 +51,8 @@ import {
 	GetTransactionResponse,
 	GetTransactionsResponse,
 	GetWithdrawalRequestsResponse,
+	StartProfilerSessionResponse,
+	StopProfilerSessionResponse,
 	WithdrawalBroadcastedResponse,
 	WithdrawalConfirmedResponse,
 } from "./models/responses";
@@ -60,7 +66,26 @@ export function createLayer2LedgerApp(handlers: Layer2LedgerRouteHandlers) {
 			}),
 		)
 		.get("/", () => handlers.health())
-		.get(HEALTH_ROUTE, () => handlers.health())
+		.group(HEALTH_ROUTER_PREFIX, (app) =>
+			app
+				.get("", () => handlers.health())
+				.post(
+					START_PROFILER_SESSION_ROUTE,
+					({ body }) => handlers.startProfilerSession(body),
+					{
+						body: StartProfilerSessionRequest,
+						response: StartProfilerSessionResponse,
+					},
+				)
+				.post(
+					STOP_PROFILER_SESSION_ROUTE,
+					({ body }) => handlers.stopProfilerSession(body),
+					{
+						body: StopProfilerSessionRequest,
+						response: StopProfilerSessionResponse,
+					},
+				),
+		)
 		.group(TRANSFER_ROUTER_PREFIX, (app) =>
 			app.post(
 				PUSH_TRANSACTION_ROUTE,

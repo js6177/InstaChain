@@ -35,3 +35,51 @@ Backend services preload `@openl2/openl2-logger/instrumentation` (OpenTelemetry 
 | `openl2-otel-agent` | Docker logs + redis/postgres/mongo metrics → collector |
 
 Needs ~4GB RAM for Docker.
+
+## pushTransaction concurrency profiler
+
+`Profiler` in `backend/layer2ledger` logs start/end events with a cross-replica Redis in-flight counter:
+
+- Bodies: `pushTransaction profile start` / `pushTransaction profile end`
+- Attribute: `concurrent` (number) — in-flight count after INCR/DECR
+- End also includes `elapsed_ms`
+
+**SigNoz Logs explorer**
+
+1. Filter: `body CONTAINS 'pushTransaction profile'`
+2. Chart attribute `concurrent` over time with aggregation **Max** (and optionally **Avg**)
+3. Prefer start events (or Max) so end-of-wave zeros do not flatten the series
+4. Cumulative finishes: filter `body = 'pushTransaction profile end'`, chart log **count** over time with a cumulative / running-sum transform
+5. Optional: chart `elapsed_ms` on end events for handler latency vs concurrency
+
+Stress clears `Layer2Profiler:pushTransaction:in_flight` before each push wave. Default stress size is 50k txs/round.
+
+The stress entrypoint runs `bun test/stress.test.ts` (not `bun test`) and re-execs with `BUN_CONFIG_MAX_HTTP_REQUESTS=4096` so client concurrency is not stuck at Bun’s default 256.
+
+Apihandler structured logs include `replica_id` (Docker Compose `HOSTNAME`, e.g. `…-layer2ledgerapihandler-3`). In SigNoz, group or filter performance logs by `replica_id` to compare throughput/latency across replicas. Override with `OPENL2_REPLICA_ID` if needed.
+
+## Nginx hit logging
+
+Each proxied request is logged as:
+
+```text
+event=nginx_hit time=... method=... uri=... status=... ...
+```
+
+to `/var/log/nginx/throughput.log` and **stdout** (scraped into SigNoz via the Docker log agent).
+
+**SigNoz — cumulative push hits at nginx**
+
+1. Filter: `body CONTAINS 'event=nginx_hit' AND body CONTAINS 'uri=/transfer/push_transaction'`
+2. Chart log **count** over time with a cumulative / running-sum transform
+
+**Stress stub_status samples** (concurrent connections at nginx)
+
+During each push wave the stress test polls `/nginx-status` every `STRESS_NGINX_SAMPLE_MS` (default 250ms) and logs:
+
+```text
+nginx profile sample active=... writing=... waiting=... requests_since_wave=... ...
+```
+
+Filter: `body CONTAINS 'nginx profile sample'`. Parse `active=` / `writing=` from the body (also written to `.test-output/stress/nginx-samples-*.json`).
+Note: `requests_since_wave` includes the status polls themselves; prefer access-log push counts for exact cumulative push volume.

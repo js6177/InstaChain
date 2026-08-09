@@ -155,6 +155,52 @@ export const GetNodeInfoResponse = t.Composite([
 	}),
 ]);
 
+export const ProfilerApiStatsResponse = t.Object({
+	api: t.String(),
+	count: t.Number(),
+	throughput_per_sec: t.Number(),
+	peak_concurrent: t.Number(),
+	avg_latency_ms: t.Number(),
+	mean_latency_ms: t.Number(),
+	min_latency_ms: t.Number(),
+	max_latency_ms: t.Number(),
+	first_start_unix_ms: t.Nullable(t.Number()),
+	last_end_unix_ms: t.Nullable(t.Number()),
+});
+
+export const ProfilerDbwriterStatsResponse = t.Object({
+	writes_total: t.Number(),
+	batches: t.Number(),
+	queue_empty_at_unix_ms: t.Nullable(t.Number()),
+	throughput_per_sec: t.Nullable(t.Number()),
+});
+
+export const ProfilerSessionReportResponse = t.Object({
+	session_id: t.String(),
+	apis: t.Array(t.String()),
+	started_at_unix_ms: t.Number(),
+	ended_at_unix_ms: t.Number(),
+	api_stats: t.Array(ProfilerApiStatsResponse),
+	dbwriter: t.Nullable(ProfilerDbwriterStatsResponse),
+	output_file: t.Nullable(t.String()),
+});
+
+export const StartProfilerSessionResponse = t.Composite([
+	CommonResponse,
+	t.Object({
+		session_id: t.Optional(t.String()),
+		apis: t.Optional(t.Array(t.String())),
+		started_at_unix_ms: t.Optional(t.Number()),
+	}),
+]);
+
+export const StopProfilerSessionResponse = t.Composite([
+	CommonResponse,
+	t.Object({
+		session: t.Optional(ProfilerSessionReportResponse),
+	}),
+]);
+
 export type GetDepositAddressResponse = typeof GetDepositAddressResponse.static;
 export type Layer1TransactionIdStatus = typeof Layer1TransactionIdStatus.static;
 export type DepositConfirmedResponse = typeof DepositConfirmedResponse.static;
@@ -179,3 +225,12 @@ export type GetTransactionResponse = typeof GetTransactionResponse.static;
 export type GetFeeResponse = typeof GetFeeResponse.static;
 export type NodeInfo = typeof NodeInfo.static;
 export type GetNodeInfoResponse = typeof GetNodeInfoResponse.static;
+export type ProfilerApiStatsResponse = typeof ProfilerApiStatsResponse.static;
+export type ProfilerDbwriterStatsResponse =
+	typeof ProfilerDbwriterStatsResponse.static;
+export type ProfilerSessionReportResponse =
+	typeof ProfilerSessionReportResponse.static;
+export type StartProfilerSessionResponse =
+	typeof StartProfilerSessionResponse.static;
+export type StopProfilerSessionResponse =
+	typeof StopProfilerSessionResponse.static;

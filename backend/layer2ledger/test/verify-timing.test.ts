@@ -5,7 +5,11 @@ import {
 	NODE_ASSET_ID_HEX,
 	verifyTransferMessage,
 } from "@openl2/openl2-messaging";
-import { computeLatencyStats, newLayer2Address } from "./common";
+import {
+	computeLatencyStats,
+	newLayer2Address,
+	VerifyTimingResult,
+} from "./common";
 
 const log = createOpenL2Logger({
 	serviceName: "openl2-messaging-verify-bench",
@@ -99,18 +103,15 @@ describe("openl2 message verification timing", () => {
 
 			const verifyResultFile = process.env.VERIFY_RESULT_FILE;
 			if (verifyResultFile) {
+				const result = new VerifyTimingResult({
+					messageCount,
+					signLatencyMs,
+					verifyLatencyMs,
+					verifiesPerSecond,
+				});
 				await Bun.write(
 					verifyResultFile,
-					`${JSON.stringify(
-						{
-							messageCount,
-							signLatencyMs,
-							verifyLatencyMs,
-							verifiesPerSecond,
-						},
-						null,
-						2,
-					)}\n`,
+					`${JSON.stringify(result, null, 2)}\n`,
 				);
 			}
 		},

@@ -19,8 +19,15 @@ import {
 	PENDING_TRANSACTIONS_LIST_KEY,
 	PENDING_WITHDRAWALS_LIST_KEY,
 } from "../redis/distributed-lock";
+import { setProfilerSessionId } from "@openl2/openl2-logger";
 import { log } from "../logger";
 import { redisTransactionToInsert, redisWithdrawalRequestToInsert } from "../redis/models";
+import {
+	getActiveProfilerSession,
+	ProfilerApiName,
+	recordProfilerDbwriterBatch,
+	recordProfilerDbwriterQueueEmpty,
+} from "../redis/profiler-session";
 import {
 	addTransactionIdsToBloomFilter,
 	persistBloomFilterSnapshot,
@@ -89,6 +96,7 @@ export async function processPendingBatch(
 		transactionsToProcess.length === 0 &&
 		withdrawalsToProcess.length === 0
 	) {
+		await maybeRecordProfilerQueueEmpty(redis);
 		return currentBatchHeight;
 	}
 
@@ -214,9 +222,56 @@ export async function processPendingBatch(
 				elapsed_ms: elapsedMs,
 			},
 		);
+		await maybeRecordProfilerDbWrites(redis, totalProcessed);
+	}
+
+	const pendingRemaining = await redis.llen(PENDING_TRANSACTIONS_LIST_KEY);
+	const pendingWithdrawalsRemaining = await redis.llen(
+		PENDING_WITHDRAWALS_LIST_KEY,
+	);
+	if (pendingRemaining === 0 && pendingWithdrawalsRemaining === 0) {
+		await maybeRecordProfilerQueueEmpty(redis);
 	}
 
 	return nextBatchHeight;
+}
+
+async function maybeRecordProfilerDbWrites(
+	redis: Redis,
+	writes: number,
+): Promise<void> {
+	try {
+		const session = await getActiveProfilerSession(redis);
+		if (!session?.apis.includes(ProfilerApiName.Dbwriter)) {
+			return;
+		}
+		setProfilerSessionId(session.session_id);
+		await recordProfilerDbwriterBatch(redis, session.session_id, writes);
+		log.performance("profiler dbwriter batch", {
+			session_id: session.session_id,
+			writes,
+			event: "dbwriter_batch",
+		});
+	} catch {
+		// Best-effort; never fail the writer loop.
+	}
+}
+
+async function maybeRecordProfilerQueueEmpty(redis: Redis): Promise<void> {
+	try {
+		const session = await getActiveProfilerSession(redis);
+		if (!session?.apis.includes(ProfilerApiName.Dbwriter)) {
+			return;
+		}
+		setProfilerSessionId(session.session_id);
+		await recordProfilerDbwriterQueueEmpty(redis, session.session_id);
+		log.performance("profiler dbwriter queue empty", {
+			session_id: session.session_id,
+			event: "dbwriter_queue_empty",
+		});
+	} catch {
+		// Best-effort; never fail the writer loop.
+	}
 }
 
 export async function getCurrentBatchHeight(

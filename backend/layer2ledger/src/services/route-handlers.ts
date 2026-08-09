@@ -1,5 +1,5 @@
 import type { Layer2LedgerAPIHandlerConfig } from "@openl2/config-loader";
-import { logPerformance } from "@openl2/openl2-logger";
+import { logPerformance, setProfilerSessionId } from "@openl2/openl2-logger";
 import {
 	type MessagingContext,
 	NODE_ASSET_ID_HEX,
@@ -41,6 +41,10 @@ import {
 	type Layer2LedgerRouteHandlers,
 	type PushTransactionRequest,
 	type RequestWithdrawalRequest,
+	type StartProfilerSessionRequest,
+	type StartProfilerSessionResponse,
+	type StopProfilerSessionRequest,
+	type StopProfilerSessionResponse,
 	type TransactionGroup,
 	type WithdrawalBroadcastedRequest,
 	type WithdrawalBroadcastedResponse,
@@ -83,6 +87,15 @@ import {
 	buildLayer1TransactionId,
 	buildLayer2WithdrawalId,
 } from "../utils/keybuilders";
+import {
+	buildProfilerSessionReport,
+	clearProfilerSession,
+	getActiveProfilerSession,
+	profilerSessionOutputPath,
+	type StartProfilerSession,
+	startProfilerSessionInRedis,
+} from "../redis/profiler-session";
+import { Profiler } from "../utils/profiler";
 
 export interface RouteHandlerContext {
 	db: Layer2LedgerDbClient;
@@ -152,88 +165,187 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 		return buildCommonResponse(ErrorCodes.SUCCESS);
 	}
 
+	async startProfilerSession(
+		body: StartProfilerSessionRequest,
+	): Promise<StartProfilerSessionResponse> {
+		const sessionId = body.session_id.trim();
+		const apis = body.apis.map((api) => api.trim()).filter(Boolean);
+		if (!sessionId || apis.length === 0) {
+			return {
+				...buildCommonResponse(ErrorCodes.INVALID_PROFILER_SESSION),
+			};
+		}
+		const active = await getActiveProfilerSession(this.ctx.redis);
+		if (active && active.session_id !== sessionId) {
+			await clearProfilerSession(this.ctx.redis, active.session_id);
+			log.warning("replaced active profiler session", {
+				previous_session_id: active.session_id,
+				session_id: sessionId,
+			});
+		}
+		const session: StartProfilerSession = {
+			session_id: sessionId,
+			apis,
+			started_at_unix_ms: Date.now(),
+		};
+		await startProfilerSessionInRedis(this.ctx.redis, session);
+		setProfilerSessionId(sessionId);
+		log.info("profiler session started", {
+			session_id: sessionId,
+			apis,
+			started_at_unix_ms: session.started_at_unix_ms,
+		});
+		return {
+			...buildCommonResponse(ErrorCodes.SUCCESS),
+			session_id: sessionId,
+			apis,
+			started_at_unix_ms: session.started_at_unix_ms,
+		};
+	}
+
+	async stopProfilerSession(
+		body: StopProfilerSessionRequest,
+	): Promise<StopProfilerSessionResponse> {
+		const sessionId = body.session_id.trim();
+		if (!sessionId) {
+			return {
+				...buildCommonResponse(ErrorCodes.INVALID_PROFILER_SESSION),
+			};
+		}
+		const endedAtUnixMs = Date.now();
+		const report = await buildProfilerSessionReport(
+			this.ctx.redis,
+			sessionId,
+			endedAtUnixMs,
+		);
+		if (!report) {
+			return {
+				...buildCommonResponse(ErrorCodes.PROFILER_SESSION_NOT_FOUND),
+			};
+		}
+
+		const outputFile = profilerSessionOutputPath(sessionId);
+		let writtenOutputFile: string | null = null;
+		try {
+			const reportForFile = { ...report, output_file: outputFile };
+			await Bun.write(
+				outputFile,
+				`${JSON.stringify(reportForFile, null, 2)}\n`,
+			);
+			writtenOutputFile = outputFile;
+			log.info("profiler session report written", {
+				session_id: sessionId,
+				output_file: outputFile,
+			});
+		} catch (error) {
+			log.warning("failed to write profiler session report file", {
+				session_id: sessionId,
+				output_file: outputFile,
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+
+		await clearProfilerSession(this.ctx.redis, sessionId);
+		setProfilerSessionId(undefined);
+		const sessionReport = { ...report, output_file: writtenOutputFile };
+		log.info("profiler session stopped", {
+			session_id: sessionId,
+			api_stats: sessionReport.api_stats,
+			dbwriter: sessionReport.dbwriter,
+		});
+		return {
+			...buildCommonResponse(ErrorCodes.SUCCESS),
+			session: sessionReport,
+		};
+	}
+
 	@logPerformance(log)
 	async pushTransaction(
 		body: PushTransactionRequest,
 	): Promise<CommonResponse> {
 		const { db, redis, lockManager, messaging } = this.ctx;
-		if (!isPubkeyValidChars(body.source_address_public_key)) {
-			return buildCommonResponse(ErrorCodes.INVALID_SOURCE_ADDRESS);
-		}
-		if (!isPubkeyValidChars(body.destination_address_public_key)) {
-			return buildCommonResponse(ErrorCodes.INVALID_DESTINATION_ADDRESS);
-		}
-		if (body.amount <= 0) {
-			return buildCommonResponse(ErrorCodes.INVALID_AMOUNT);
-		}
-
-		const validSignature = await verifyTransferMessage(
-			messaging,
-			body.source_address_public_key,
-			body.destination_address_public_key,
-			body.amount,
-			body.fee,
-			body.transaction_id,
-			body.signature,
-		);
-		if (!validSignature) {
-			return buildCommonResponse(ErrorCodes.INVALID_SIGNATURE);
-		}
-
-		const addressesToLock = [
-			body.source_address_public_key,
-			body.destination_address_public_key,
-		].sort();
-		const lockToken = await lockManager.acquireMultiLock(addressesToLock);
-		if (!lockToken) {
-			return buildCommonResponse(ErrorCodes.ADDRESS_LOCKED);
-		}
-
+		const profile = await new Profiler("pushTransaction", redis).begin();
 		try {
-			if (
-				await isDuplicateLayer2TransactionId(db, redis, body.transaction_id)
-			) {
-				await lockManager.releaseMultiLock(addressesToLock, lockToken);
-				return buildCommonResponse(ErrorCodes.CANNOT_DUPLICATE_TRANSACTION);
+			if (!isPubkeyValidChars(body.source_address_public_key)) {
+				return buildCommonResponse(ErrorCodes.INVALID_SOURCE_ADDRESS);
+			}
+			if (!isPubkeyValidChars(body.destination_address_public_key)) {
+				return buildCommonResponse(ErrorCodes.INVALID_DESTINATION_ADDRESS);
+			}
+			if (body.amount <= 0) {
+				return buildCommonResponse(ErrorCodes.INVALID_AMOUNT);
 			}
 
-			const balance = await getAddressBalance(
-				db,
-				redis,
+			const validSignature = await verifyTransferMessage(
+				messaging,
 				body.source_address_public_key,
-				this.ctx.balanceCache,
+				body.destination_address_public_key,
+				body.amount,
+				body.fee,
+				body.transaction_id,
+				body.signature,
 			);
-			if (balance === undefined || balance < body.amount) {
-				await lockManager.releaseMultiLock(addressesToLock, lockToken);
-				return buildCommonResponse(ErrorCodes.INSUFFICIENT_FUNDS);
+			if (!validSignature) {
+				return buildCommonResponse(ErrorCodes.INVALID_SIGNATURE);
 			}
 
-			const pending: PendingTransaction = {
-				transaction: createRedisTransaction(
-					body.amount,
-					body.fee,
-					body.source_address_public_key,
-					body.destination_address_public_key,
-					TransactionType.TRX_TRANSFER,
-					body.transaction_id,
-					body.signature,
-				),
-				lock_token: lockToken,
-				addresses_locked: addressesToLock,
-			};
-			await redis.rpush(
-				PENDING_TRANSACTIONS_LIST_KEY,
-				JSON.stringify(pending),
-			);
-		} catch (error) {
-			await lockManager.releaseMultiLock(addressesToLock, lockToken);
-			return buildCommonResponse(ErrorCodes.UNKNOWN, String(error));
-		}
+			const addressesToLock = [
+				body.source_address_public_key,
+				body.destination_address_public_key,
+			].sort();
+			const lockToken = await lockManager.acquireMultiLock(addressesToLock);
+			if (!lockToken) {
+				return buildCommonResponse(ErrorCodes.ADDRESS_LOCKED);
+			}
 
-		return buildCommonResponse(
-			ErrorCodes.SUCCESS,
-			"Confirmed, pending insertion into db",
-		);
+			try {
+				if (
+					await isDuplicateLayer2TransactionId(db, redis, body.transaction_id)
+				) {
+					await lockManager.releaseMultiLock(addressesToLock, lockToken);
+					return buildCommonResponse(ErrorCodes.CANNOT_DUPLICATE_TRANSACTION);
+				}
+
+				const balance = await getAddressBalance(
+					db,
+					redis,
+					body.source_address_public_key,
+					this.ctx.balanceCache,
+				);
+				if (balance === undefined || balance < body.amount) {
+					await lockManager.releaseMultiLock(addressesToLock, lockToken);
+					return buildCommonResponse(ErrorCodes.INSUFFICIENT_FUNDS);
+				}
+
+				const pending: PendingTransaction = {
+					transaction: createRedisTransaction(
+						body.amount,
+						body.fee,
+						body.source_address_public_key,
+						body.destination_address_public_key,
+						TransactionType.TRX_TRANSFER,
+						body.transaction_id,
+						body.signature,
+					),
+					lock_token: lockToken,
+					addresses_locked: addressesToLock,
+				};
+				await redis.rpush(
+					PENDING_TRANSACTIONS_LIST_KEY,
+					JSON.stringify(pending),
+				);
+			} catch (error) {
+				await lockManager.releaseMultiLock(addressesToLock, lockToken);
+				return buildCommonResponse(ErrorCodes.UNKNOWN, String(error));
+			}
+
+			return buildCommonResponse(
+				ErrorCodes.SUCCESS,
+				"Confirmed, pending insertion into db",
+			);
+		} finally {
+			await profile.end();
+		}
 	}
 
 	async getDepositAddress(

@@ -9,6 +9,8 @@ import type {
 	GetWithdrawalRequestsRequest,
 	PushTransactionRequest,
 	RequestWithdrawalRequest,
+	StartProfilerSessionRequest,
+	StopProfilerSessionRequest,
 	WithdrawalBroadcastedRequest,
 	WithdrawalConfirmedRequest,
 } from "./models/requests";
@@ -21,12 +23,20 @@ import type {
 	GetTransactionResponse,
 	GetTransactionsResponse,
 	GetWithdrawalRequestsResponse,
+	StartProfilerSessionResponse,
+	StopProfilerSessionResponse,
 	WithdrawalBroadcastedResponse,
 	WithdrawalConfirmedResponse,
 } from "./models/responses";
 
 export interface Layer2LedgerRouteHandlers {
 	health(): CommonResponse;
+	startProfilerSession(
+		body: StartProfilerSessionRequest,
+	): Promise<StartProfilerSessionResponse>;
+	stopProfilerSession(
+		body: StopProfilerSessionRequest,
+	): Promise<StopProfilerSessionResponse>;
 	pushTransaction(body: PushTransactionRequest): Promise<CommonResponse>;
 	getDepositAddress(
 		body: GetDepositAddressRequest,

@@ -2,8 +2,13 @@ export { REQUEST_ID_HEADER } from "./constants";
 export {
 	enterLogContext,
 	getLogContext,
+	getProfilerSessionId,
+	getReplicaId,
 	getRequestId,
+	resolveReplicaId,
 	runWithLogContext,
+	setProfilerSessionId,
+	setReplicaId,
 	type LogContext,
 } from "./context";
 export { logPerformance } from "./decorators";

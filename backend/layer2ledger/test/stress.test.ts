@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { expect } from "bun:test";
 import {
 	createLayer2LedgerClient,
 	createLayer2TestHelperClient,
@@ -23,22 +23,64 @@ import {
 	setCachedAddressBalances,
 } from "../src/redis/address-balance-cache";
 import {
+	ProfilerApiName,
+	profilerSessionOutputPath,
+	type ProfilerSessionReport,
+} from "../src/redis/profiler-session";
+import { profilerInFlightKey } from "../src/utils/profiler";
+import {
 	computeLatencyStats,
 	emptyApiErrorCounts,
 	emptyApiErrors,
+	HealthStressResult,
 	mapPool,
 	newLayer2Address,
 	recordApiError,
 	sleep,
-	type LatencyStatsMs,
+	StressCacheStats,
+	StressPhaseTimingsMs,
+	StressProfilerSessionSummary,
+	StressRoundThroughputResult,
+	StressRunResult,
+	StressThroughputResult,
 	type StressApiErrorCounts,
-	type StressRoundThroughputResult,
-	type StressRunResult,
-	type StressThroughputResult,
 } from "./common";
+
+/**
+ * Bun's default in-flight `fetch` cap is 256. `bun test` does not honor raising
+ * `BUN_CONFIG_MAX_HTTP_REQUESTS`, so this file re-execs itself under plain `bun`
+ * with the limit applied before any stress HTTP starts.
+ */
+export const STRESS_BUN_MAX_HTTP_REQUESTS = 4096;
+const STRESS_BUN_HTTP_LIMIT_READY = "STRESS_BUN_HTTP_LIMIT_READY";
 
 const runHttpStress = process.env.RUN_LEDGER_HTTP_STRESS === "1";
 const runHealthStress = process.env.RUN_LEDGER_HEALTH_STRESS === "1";
+const isStressRun = runHttpStress || runHealthStress;
+
+function ensureBunFetchConcurrencyLimit(): void {
+	if (process.env[STRESS_BUN_HTTP_LIMIT_READY] === "1") {
+		return;
+	}
+	const result = Bun.spawnSync({
+		cmd: [process.execPath, import.meta.path],
+		env: {
+			...process.env,
+			BUN_CONFIG_MAX_HTTP_REQUESTS: String(STRESS_BUN_MAX_HTTP_REQUESTS),
+			[STRESS_BUN_HTTP_LIMIT_READY]: "1",
+		},
+		stdout: "inherit",
+		stderr: "inherit",
+		stdin: "inherit",
+	});
+	process.exit(result.exitCode ?? 1);
+}
+
+// Only re-exec / raise Bun's fetch cap for intentional stress runs. Unit
+// `bun test` may discover this file; without stress flags we must not take over.
+if (isStressRun) {
+	ensureBunFetchConcurrencyLimit();
+}
 
 const log = createOpenL2Logger({
 	serviceName: "layer2ledger-stress",
@@ -51,17 +93,6 @@ const testhelperUrl =
 
 /** Default is the ledger health API (proxied through nginx → apihandler). */
 const healthPath = process.env.STRESS_HEALTH_PATH ?? "/health";
-
-interface HealthStressResult {
-	path: string;
-	requestCount: number;
-	concurrency: number;
-	accepted: number;
-	elapsedMs: number;
-	requestsPerSecond: number;
-	clientRttMs: LatencyStatsMs;
-	apiErrors: StressApiErrorCounts;
-}
 
 function parseAddressOverlapPercent(): number {
 	const raw = process.env.STRESS_ADDRESS_OVERLAP_PERCENT ?? "50";
@@ -328,9 +359,23 @@ async function runPushTransactionStress(
 	}
 
 	await resetAddressBalanceCacheStats(redis);
+	await redis.del(profilerInFlightKey("pushTransaction"));
 	const pushLatenciesMs: number[] = [];
 	const acceptedTransactionIds: string[] = [];
-	const pushStartedAt = performance.now();
+	const profilerSessionId = crypto.randomUUID();
+
+	const startSession = unwrapLayer2LedgerResponse(
+		await ledger.health.start_profiler_session.post({
+			session_id: profilerSessionId,
+			apis: [ProfilerApiName.PushTransaction, ProfilerApiName.Dbwriter],
+		}),
+	);
+	expect(startSession.error_code).toBe(ErrorCodes.SUCCESS);
+
+	log.info("push wave starting", {
+		profiler_session_id: profilerSessionId,
+		started_at_unix_ms: startSession.started_at_unix_ms,
+	});
 	await mapPool(
 		prepared,
 		concurrency,
@@ -354,15 +399,12 @@ async function runPushTransactionStress(
 			}
 		},
 	);
-	const pushMs = Math.round(performance.now() - pushStartedAt);
 	log.info("pushed transactions");
 	const acceptedPushes = acceptedTransactionIds.length;
 	const cache = await getAddressBalanceCacheStats(redis);
 
 	const pendingIds = new Set(acceptedTransactionIds);
 	const deadline = Date.now() + settleTimeoutMs;
-
-	const settleStartedAt = performance.now();
 	while (pendingIds.size > 0 && Date.now() < deadline) {
 		const stillPending = [...pendingIds];
 		await mapPool(stillPending, settleConcurrency, async (transactionId) => {
@@ -386,25 +428,91 @@ async function runPushTransactionStress(
 			await sleep(500);
 		}
 	}
-	const settleMs = Math.round(performance.now() - settleStartedAt);
 	log.info("settled transactions");
 
+	const stopSession = unwrapLayer2LedgerResponse(
+		await ledger.health.stop_profiler_session.post({
+			session_id: profilerSessionId,
+		}),
+	);
+	expect(stopSession.error_code).toBe(ErrorCodes.SUCCESS);
+	expect(stopSession.session).toBeDefined();
+	if (!stopSession.session) {
+		throw new Error("stop_profiler_session returned no session report");
+	}
+	const profilerSession = await persistProfilerSessionReport(
+		stopSession.session,
+	);
+
 	return {
-		processedToPostgres: acceptedPushes - pendingIds.size,
-		acceptedPushes,
-		pushClientRttMs: computeLatencyStats(pushLatenciesMs),
-		phaseTimingsMs: {
-			prepareMs,
-			signMs,
-			seedMs,
-			pushMs,
-			settleMs,
-			totalMs: prepareMs + signMs + seedMs + pushMs + settleMs,
-		},
-		apiErrors,
-		cache,
+		...new StressRunResult({
+			processedToPostgres: acceptedPushes - pendingIds.size,
+			acceptedPushes,
+			pushClientRttMs: computeLatencyStats(pushLatenciesMs),
+			phaseTimingsMs: new StressPhaseTimingsMs({
+				prepareMs,
+				signMs,
+				seedMs,
+				pushMs: profilerSession.pushMs,
+				settleMs: profilerSession.settleMs,
+				pushToSettleMs: profilerSession.pushToSettleMs,
+				totalMs: prepareMs + signMs + seedMs + profilerSession.pushToSettleMs,
+			}),
+			apiErrors,
+			cache: new StressCacheStats(cache),
+			profilerSession,
+		}),
 		sources: prepared.map((item) => item.source),
 	};
+}
+
+function summarizeProfilerSession(
+	report: ProfilerSessionReport,
+	outputFile: string | null,
+): StressProfilerSessionSummary {
+	const pushStats = report.api_stats.find(
+		(stats) => stats.api === ProfilerApiName.PushTransaction,
+	);
+	const pushMs =
+		pushStats?.first_start_unix_ms != null &&
+		pushStats.last_end_unix_ms != null
+			? Math.max(pushStats.last_end_unix_ms - pushStats.first_start_unix_ms, 0)
+			: 0;
+	const pushToSettleMs =
+		report.dbwriter?.queue_empty_at_unix_ms != null
+			? Math.max(
+					report.dbwriter.queue_empty_at_unix_ms - report.started_at_unix_ms,
+					0,
+				)
+			: pushMs;
+	return new StressProfilerSessionSummary({
+		sessionId: report.session_id,
+		outputFile,
+		pushTxsPerSecond: pushStats?.throughput_per_sec ?? 0,
+		settledTxsPerSecond: report.dbwriter?.throughput_per_sec ?? 0,
+		pushPeakConcurrent: pushStats?.peak_concurrent ?? 0,
+		pushAvgLatencyMs: pushStats?.avg_latency_ms ?? 0,
+		pushCount: pushStats?.count ?? 0,
+		dbwriterWritesTotal: report.dbwriter?.writes_total ?? 0,
+		pushMs,
+		pushToSettleMs,
+		settleMs: Math.max(pushToSettleMs - pushMs, 0),
+	});
+}
+
+async function persistProfilerSessionReport(
+	report: ProfilerSessionReport,
+): Promise<StressProfilerSessionSummary> {
+	const outputDir =
+		process.env.PROFILER_SESSION_OUTPUT_DIR ??
+		(process.env.STRESS_RESULT_FILE
+			? process.env.STRESS_RESULT_FILE.replace(/\/[^/]+$/, "")
+			: "/tmp");
+	const outputFile = profilerSessionOutputPath(report.session_id, outputDir);
+	const reportForFile = { ...report, output_file: outputFile };
+	await Bun.write(outputFile, `${JSON.stringify(reportForFile, null, 2)}\n`);
+	console.log(`profiler session report written path=${outputFile}`);
+	return summarizeProfilerSession(reportForFile, outputFile);
 }
 
 function toRoundResult(
@@ -413,67 +521,60 @@ function toRoundResult(
 	run: StressRunResult,
 	reusedSourceCount: number,
 ): StressRoundThroughputResult {
-	const txsPerSecond = Number(
-		((run.acceptedPushes / Math.max(run.phaseTimingsMs.pushMs, 1)) * 1000).toFixed(
-			2,
-		),
-	);
-	return {
+	return new StressRoundThroughputResult({
 		round,
 		transactionCount,
 		processedToPostgres: run.processedToPostgres,
 		acceptedPushes: run.acceptedPushes,
-		elapsedMs: run.phaseTimingsMs.pushMs,
-		txsPerSecond,
+		elapsedMs: run.profilerSession.pushMs,
+		pushTxsPerSecond: run.profilerSession.pushTxsPerSecond,
+		settledTxsPerSecond: run.profilerSession.settledTxsPerSecond,
+		txsPerSecond: run.profilerSession.pushTxsPerSecond,
+		profilerSessionId: run.profilerSession.sessionId,
 		pushClientRttMs: run.pushClientRttMs,
 		phaseTimingsMs: run.phaseTimingsMs,
 		apiErrors: run.apiErrors,
 		cache: run.cache,
 		reusedSourceCount,
-	};
+	});
 }
 
 function printRoundSummary(round: StressRoundThroughputResult): void {
 	const line =
-		`round=${round.round} push_ms=${round.phaseTimingsMs.pushMs} ` +
-		`settle_ms=${round.phaseTimingsMs.settleMs} total_ms=${round.phaseTimingsMs.totalMs} ` +
-		`txs_per_sec=${round.txsPerSecond} ` +
+		`round=${round.round} profiler_session=${round.profilerSessionId} ` +
+		`push_ms=${round.phaseTimingsMs.pushMs} ` +
+		`settle_ms=${round.phaseTimingsMs.settleMs} ` +
+		`push_to_settle_ms=${round.phaseTimingsMs.pushToSettleMs} ` +
+		`total_ms=${round.phaseTimingsMs.totalMs} ` +
+		`push_txs_per_sec=${round.pushTxsPerSecond} ` +
+		`settled_txs_per_sec=${round.settledTxsPerSecond} ` +
 		`cache_hits=${round.cache.hits} cache_misses=${round.cache.misses} ` +
 		`reused_sources=${round.reusedSourceCount}`;
-	// Prefer console so the summary is easy to spot; structured fields go to the logger.
 	console.log(line);
 	log.info("stress round summary", {
 		round: round.round,
+		profiler_session_id: round.profilerSessionId,
 		phase_timings_ms: round.phaseTimingsMs,
+		push_txs_per_second: round.pushTxsPerSecond,
+		settled_txs_per_second: round.settledTxsPerSecond,
 		txs_per_second: round.txsPerSecond,
 		cache: round.cache,
 		reused_source_count: round.reusedSourceCount,
 	});
 }
 
-function isNginxLocalHealthPath(path: string): boolean {
-	return path === "/nginx-health";
-}
-
-async function responseIsHealthy(response: Response): Promise<boolean> {
-	if (!response.ok) {
-		return false;
-	}
-	if (isNginxLocalHealthPath(healthPath)) {
-		const text = await response.text();
-		return text.includes("ok");
-	}
-	const body = (await response.json()) as { error_code?: number };
-	return body.error_code === ErrorCodes.SUCCESS;
-}
-
 async function waitForHealthEndpoint(timeoutMs: number): Promise<void> {
-	const url = `${ledgerApiUrl.replace(/\/$/, "")}${healthPath}`;
+	if (healthPath === "/nginx-health") {
+		throw new Error(
+			"STRESS_HEALTH_PATH=/nginx-health is not supported; use Eden via /health",
+		);
+	}
+	const ledger = createLayer2LedgerClient(ledgerApiUrl);
 	const deadline = Date.now() + timeoutMs;
 	while (Date.now() < deadline) {
 		try {
-			const response = await fetch(url);
-			if (await responseIsHealthy(response)) {
+			const response = unwrapLayer2LedgerResponse(await ledger.health.get());
+			if (response.error_code === ErrorCodes.SUCCESS) {
 				return;
 			}
 		} catch {
@@ -481,200 +582,198 @@ async function waitForHealthEndpoint(timeoutMs: number): Promise<void> {
 		}
 		await sleep(250);
 	}
-	throw new Error(`Timed out waiting for health at ${url}`);
+	throw new Error(`Timed out waiting for health at ${ledgerApiUrl}/health`);
 }
 
-describe.skipIf(!runHealthStress)("health HTTP stress", () => {
-	it(
-		"measures nginx+apihandler throughput for the lightweight health API",
-		async () => {
-			const requestCount = Number(
-				process.env.STRESS_REQUEST_COUNT ??
-					process.env.STRESS_TX_COUNT ??
-					"10000",
-			);
-			const concurrency = Number(process.env.STRESS_CONCURRENCY ?? "2000");
-			expect(Number.isFinite(requestCount) && requestCount > 0).toBe(true);
-			expect(Number.isFinite(concurrency) && concurrency > 0).toBe(true);
-
-			const url = `${ledgerApiUrl.replace(/\/$/, "")}${healthPath}`;
-			await waitForHealthEndpoint(60_000);
-			log.info(`health stress starting path=${healthPath} url=${url}`);
-
-			const apiErrors = emptyApiErrorCounts();
-			const latenciesMs: number[] = [];
-			let accepted = 0;
-
-			const startedAt = performance.now();
-			await mapPool(
-				Array.from({ length: requestCount }, (_, index) => index),
-				concurrency,
-				async () => {
-					const reqStarted = performance.now();
-					try {
-						const response = await fetch(url);
-						if (!response.ok) {
-							recordApiError(apiErrors, `http_${response.status}`);
-							return;
-						}
-						if (isNginxLocalHealthPath(healthPath)) {
-							const text = await response.text();
-							if (!text.includes("ok")) {
-								recordApiError(apiErrors, "nginx_health_unexpected_body");
-								return;
-							}
-						} else {
-							const body = (await response.json()) as {
-								error_code?: number;
-								error_message?: string;
-							};
-							if (body.error_code !== ErrorCodes.SUCCESS) {
-								recordApiError(
-									apiErrors,
-									`error_code_${body.error_code}:${body.error_message ?? ""}`,
-								);
-								return;
-							}
-						}
-						accepted += 1;
-						latenciesMs.push(performance.now() - reqStarted);
-					} catch (error) {
-						recordApiError(apiErrors, apiErrorReason(error));
-					}
-				},
-			);
-			const elapsedMs = Math.round(performance.now() - startedAt);
-			const requestsPerSecond = Number(
-				((accepted / Math.max(elapsedMs, 1)) * 1000).toFixed(2),
-			);
-			const clientRttMs = computeLatencyStats(latenciesMs);
-
-			const result: HealthStressResult = {
-				path: healthPath,
-				requestCount,
-				concurrency,
-				accepted,
-				elapsedMs,
-				requestsPerSecond,
-				clientRttMs,
-				apiErrors,
-			};
-
-			const summary =
-				`health_stress path=${healthPath} requests=${requestCount} ` +
-				`concurrency=${concurrency} accepted=${accepted} ` +
-				`elapsed_ms=${elapsedMs} reqs_per_sec=${requestsPerSecond} ` +
-				`rtt_avg_ms=${clientRttMs.average} rtt_p25=${clientRttMs.bottomQuartile} ` +
-				`rtt_p75=${clientRttMs.upperQuartile} errors=${apiErrors.total}`;
-			console.log(summary);
-			log.info("health stress complete", {
-				path: healthPath,
-				request_count: requestCount,
-				concurrency,
-				accepted,
-				elapsed_ms: elapsedMs,
-				requests_per_second: requestsPerSecond,
-				client_rtt_ms: clientRttMs,
-				api_errors: apiErrors,
-			});
-
-			const resultFile =
-				process.env.STRESS_HEALTH_RESULT_FILE ??
-				process.env.STRESS_RESULT_FILE;
-			if (resultFile) {
-				await Bun.write(resultFile, `${JSON.stringify(result, null, 2)}\n`);
-			}
-
-			expect(accepted).toBe(requestCount);
-			expect(apiErrors.total).toBe(0);
-		},
-		{ timeout: 300_000 },
+async function runHealthHttpStress(): Promise<void> {
+	const requestCount = Number(
+		process.env.STRESS_REQUEST_COUNT ??
+			process.env.STRESS_TX_COUNT ??
+			"10000",
 	);
-});
+	const concurrency = Number(process.env.STRESS_CONCURRENCY ?? "2000");
+	expect(Number.isFinite(requestCount) && requestCount > 0).toBe(true);
+	expect(Number.isFinite(concurrency) && concurrency > 0).toBe(true);
 
-describe.skipIf(!runHttpStress)("pushTransaction HTTP stress", () => {
-	it(
-		"measures end-to-end throughput for a cold round then a warm overlap round",
+	const ledger = createLayer2LedgerClient(ledgerApiUrl);
+	await waitForHealthEndpoint(60_000);
+	log.info(`health stress starting path=/health url=${ledgerApiUrl}/health`);
+
+	const apiErrors = emptyApiErrorCounts();
+	const latenciesMs: number[] = [];
+	let accepted = 0;
+
+	const startedAt = performance.now();
+	await mapPool(
+		Array.from({ length: requestCount }, (_, index) => index),
+		concurrency,
 		async () => {
-			const transactionCount = Number(process.env.STRESS_TX_COUNT ?? "100");
-			expect(Number.isFinite(transactionCount) && transactionCount > 0).toBe(
-				true,
-			);
-			const addressOverlapPercent = parseAddressOverlapPercent();
-			const reuseCount = Math.round(
-				(transactionCount * addressOverlapPercent) / 100,
-			);
-
-			const commonConfig = loadLayer2LedgerCommonConfig(
-				process.env.ENVIRONMENT ?? "test",
-			);
-			const redis = new Redis({
-				host: commonConfig.redis.host,
-				port: commonConfig.redis.port,
-				maxRetriesPerRequest: null,
-			});
-
+			const reqStarted = performance.now();
 			try {
-				const round1Run = await runPushTransactionStress({
-					transactionCount,
-					clearBalanceCacheBeforePush: true,
-					redis,
-				});
-				const round1 = toRoundResult(1, transactionCount, round1Run, 0);
-
-				await sleep(10000);
-				log.info("waited 5 seconds");
-
-				const reuseSources = round1Run.sources.slice(0, reuseCount);
-				const round2Run = await runPushTransactionStress({
-					transactionCount,
-					reuseSources,
-					warmOnlyReuseSources: true,
-					redis,
-				});
-				const round2 = toRoundResult(
-					2,
-					transactionCount,
-					round2Run,
-					reuseSources.length,
-				);
-
-				const throughput: StressThroughputResult = {
-					transactionCount,
-					addressOverlapPercent,
-					rounds: [round1, round2],
-				};
-
-				console.log(
-					`stress two-round summary overlap_percent=${addressOverlapPercent} ` +
-						`tx_count=${transactionCount} reused_sources=${reuseSources.length}`,
-				);
-				printRoundSummary(round1);
-				printRoundSummary(round2);
-
-				log.info("pushTransaction two-round stress complete", {
-					address_overlap_percent: addressOverlapPercent,
-					transaction_count: transactionCount,
-					rounds: throughput.rounds,
-				});
-
-				const stressResultFile = process.env.STRESS_RESULT_FILE;
-				if (stressResultFile) {
-					await Bun.write(
-						stressResultFile,
-						`${JSON.stringify(throughput, null, 2)}\n`,
+				const body = unwrapLayer2LedgerResponse(await ledger.health.get());
+				if (body.error_code !== ErrorCodes.SUCCESS) {
+					recordApiError(
+						apiErrors,
+						`error_code_${body.error_code}:${body.error_message ?? ""}`,
 					);
+					return;
 				}
-
-				expect(round1.processedToPostgres).toBe(round1.acceptedPushes);
-				expect(round1.acceptedPushes).toBe(transactionCount);
-				expect(round2.processedToPostgres).toBe(round2.acceptedPushes);
-				expect(round2.acceptedPushes).toBe(transactionCount);
-				expect(round2.reusedSourceCount).toBe(reuseCount);
-			} finally {
-				await redis.quit();
+				accepted += 1;
+				latenciesMs.push(performance.now() - reqStarted);
+			} catch (error) {
+				recordApiError(apiErrors, apiErrorReason(error));
 			}
 		},
-		{ timeout: 600_000 },
 	);
-});
+	const elapsedMs = Math.round(performance.now() - startedAt);
+	const requestsPerSecond = Number(
+		((accepted / Math.max(elapsedMs, 1)) * 1000).toFixed(2),
+	);
+	const clientRttMs = computeLatencyStats(latenciesMs);
+
+	const result = new HealthStressResult({
+		path: "/health",
+		requestCount,
+		concurrency,
+		accepted,
+		elapsedMs,
+		requestsPerSecond,
+		clientRttMs,
+		apiErrors,
+	});
+
+	const summary =
+		`health_stress path=/health requests=${requestCount} ` +
+		`concurrency=${concurrency} accepted=${accepted} ` +
+		`elapsed_ms=${elapsedMs} reqs_per_sec=${requestsPerSecond} ` +
+		`rtt_avg_ms=${clientRttMs.average} rtt_p25=${clientRttMs.bottomQuartile} ` +
+		`rtt_p75=${clientRttMs.upperQuartile} errors=${apiErrors.total}`;
+	console.log(summary);
+	log.info("health stress complete", {
+		path: "/health",
+		request_count: requestCount,
+		concurrency,
+		accepted,
+		elapsed_ms: elapsedMs,
+		requests_per_second: requestsPerSecond,
+		client_rtt_ms: clientRttMs,
+		api_errors: apiErrors,
+	});
+
+	const resultFile =
+		process.env.STRESS_HEALTH_RESULT_FILE ?? process.env.STRESS_RESULT_FILE;
+	if (resultFile) {
+		await Bun.write(resultFile, `${JSON.stringify(result, null, 2)}\n`);
+	}
+
+	expect(accepted).toBe(requestCount);
+	expect(apiErrors.total).toBe(0);
+}
+
+async function runPushTransactionHttpStress(): Promise<void> {
+	const transactionCount = Number(process.env.STRESS_TX_COUNT ?? "50000");
+	expect(Number.isFinite(transactionCount) && transactionCount > 0).toBe(true);
+	const addressOverlapPercent = parseAddressOverlapPercent();
+	const reuseCount = Math.round(
+		(transactionCount * addressOverlapPercent) / 100,
+	);
+
+	const commonConfig = loadLayer2LedgerCommonConfig(
+		process.env.ENVIRONMENT ?? "test",
+	);
+	const redis = new Redis({
+		host: commonConfig.redis.host,
+		port: commonConfig.redis.port,
+		maxRetriesPerRequest: null,
+	});
+
+	try {
+		const round1Run = await runPushTransactionStress({
+			transactionCount,
+			clearBalanceCacheBeforePush: true,
+			redis,
+		});
+		const round1 = toRoundResult(1, transactionCount, round1Run, 0);
+
+		await sleep(10000);
+		log.info("waited 5 seconds");
+
+		const reuseSources = round1Run.sources.slice(0, reuseCount);
+		const round2Run = await runPushTransactionStress({
+			transactionCount,
+			reuseSources,
+			warmOnlyReuseSources: true,
+			redis,
+		});
+		const round2 = toRoundResult(
+			2,
+			transactionCount,
+			round2Run,
+			reuseSources.length,
+		);
+
+		const throughput = new StressThroughputResult({
+			transactionCount,
+			addressOverlapPercent,
+			rounds: [round1, round2],
+		});
+
+		console.log(
+			`stress two-round summary overlap_percent=${addressOverlapPercent} ` +
+				`tx_count=${transactionCount} reused_sources=${reuseSources.length}`,
+		);
+		printRoundSummary(round1);
+		printRoundSummary(round2);
+
+		log.info("pushTransaction two-round stress complete", {
+			address_overlap_percent: addressOverlapPercent,
+			transaction_count: transactionCount,
+			rounds: throughput.rounds,
+		});
+
+		const stressResultFile = process.env.STRESS_RESULT_FILE;
+		if (stressResultFile) {
+			await Bun.write(
+				stressResultFile,
+				`${JSON.stringify(throughput, null, 2)}\n`,
+			);
+		}
+
+		expect(round1.processedToPostgres).toBe(round1.acceptedPushes);
+		expect(round1.acceptedPushes).toBe(transactionCount);
+		expect(round2.processedToPostgres).toBe(round2.acceptedPushes);
+		expect(round2.acceptedPushes).toBe(transactionCount);
+		expect(round2.reusedSourceCount).toBe(reuseCount);
+	} finally {
+		await redis.quit();
+	}
+}
+
+async function main(): Promise<void> {
+	console.log(
+		`stress runner BUN_CONFIG_MAX_HTTP_REQUESTS=${process.env.BUN_CONFIG_MAX_HTTP_REQUESTS} ` +
+			`(target ${STRESS_BUN_MAX_HTTP_REQUESTS})`,
+	);
+	if (!isStressRun) {
+		throw new Error(
+			"No stress selected. Set RUN_LEDGER_HTTP_STRESS=1 and/or RUN_LEDGER_HEALTH_STRESS=1",
+		);
+	}
+	if (runHealthStress) {
+		await runHealthHttpStress();
+	}
+	if (runHttpStress) {
+		await runPushTransactionHttpStress();
+	}
+}
+
+if (import.meta.main) {
+	if (!isStressRun) {
+		// Discovered by `bun test` without stress flags — do not fail the suite.
+		console.log(
+			"stress.test.ts: skipping (set RUN_LEDGER_HTTP_STRESS=1 and/or RUN_LEDGER_HEALTH_STRESS=1)",
+		);
+	} else {
+		await main();
+	}
+}

@@ -5,8 +5,17 @@ export const EXPLORER_ROUTER_PREFIX = "/explorer";
 export const INFO_ROUTER_PREFIX = "/info";
 export const AUDIT_ROUTER_PREFIX = "/audit";
 
+/** Health router prefix (liveness + profiler session control). */
+export const HEALTH_ROUTER_PREFIX = "/health";
+
 /** Lightweight liveness probe (same payload as GET /). */
 export const HEALTH_ROUTE = "/health";
+
+/** Start a cross-service profiler session (relative to {@link HEALTH_ROUTER_PREFIX}). */
+export const START_PROFILER_SESSION_ROUTE = "/start_profiler_session";
+
+/** Stop a profiler session (relative to {@link HEALTH_ROUTER_PREFIX}). */
+export const STOP_PROFILER_SESSION_ROUTE = "/stop_profiler_session";
 
 export const GET_DEPOSIT_ADDRESS_ROUTE = "/get_deposit_address";
 export const DEPOSIT_CONFIRMED_ROUTE = "/deposit_confirmed";

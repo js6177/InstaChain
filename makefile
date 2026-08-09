@@ -74,7 +74,7 @@ backend-test:
 # Ensures apihandler, dbwriter, and testhelper are up, then `compose run --build`.
 # Examples:
 #   make stress-test
-#   STRESS_TX_COUNT=51000 STRESS_CONCURRENCY=20 make stress-test
+#   STRESS_TX_COUNT=50000 STRESS_CONCURRENCY=2000 make stress-test
 #   STRESS_ADDRESS_OVERLAP_PERCENT=75 make stress-test
 # Note: plain `docker compose run` does NOT rebuild the image unless you pass --build.
 # Runs two rounds: cold (cache cleared after seed) then warm with overlapping sources.
@@ -95,11 +95,12 @@ stress-test:
 	ENVIRONMENT=test docker compose -f docker-compose.yml -f docker-compose.test.yml --profile test \
 		run --rm --build \
 		-v "$(CURDIR)/.test-output/stress:/test-output" \
-		-e "STRESS_TX_COUNT=$${STRESS_TX_COUNT:-100}" \
+		-e "STRESS_TX_COUNT=$${STRESS_TX_COUNT:-50000}" \
 		-e "STRESS_CONCURRENCY=$${STRESS_CONCURRENCY:-10}" \
-		-e "STRESS_SETTLE_TIMEOUT_MS=$${STRESS_SETTLE_TIMEOUT_MS:-120000}" \
+		-e "STRESS_SETTLE_TIMEOUT_MS=$${STRESS_SETTLE_TIMEOUT_MS:-600000}" \
 		-e "STRESS_SETTLE_CONCURRENCY=$${STRESS_SETTLE_CONCURRENCY:-}" \
 		-e "STRESS_ADDRESS_OVERLAP_PERCENT=$${STRESS_ADDRESS_OVERLAP_PERCENT:-50}" \
+		-e "STRESS_NGINX_SAMPLE_MS=$${STRESS_NGINX_SAMPLE_MS:-250}" \
 		test-layer2ledger-stress
 
 # Lightweight GET /health stress through nginx (no seed/sign/settle/db path).

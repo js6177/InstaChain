@@ -24,6 +24,7 @@
 		"@openl2/openl2-logger": "workspace:*",
 		"@openl2/openl2-messaging": "workspace:*",
 		"@openl2/pubkey-utils": "workspace:*",
+		"@openl2/stress-results": "workspace:*",
 		"@sinclair/typebox": "^0.34.49",
 		"bs58": "^6.0.0",
 		"drizzle-orm": "^0.45.2",

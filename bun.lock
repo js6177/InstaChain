@@ -45,6 +45,7 @@
         "@openl2/openl2-logger": "workspace:*",
         "@openl2/openl2-messaging": "workspace:*",
         "@openl2/pubkey-utils": "workspace:*",
+        "@openl2/stress-results": "workspace:*",
         "@sinclair/typebox": "^0.34.49",
         "bs58": "^6.0.0",
         "drizzle-orm": "^0.45.2",
@@ -113,6 +114,7 @@
         "@openl2/config-loader": "workspace:*",
         "@openl2/openl2-logger": "workspace:*",
         "@openl2/pubkey-utils": "workspace:*",
+        "@openl2/stress-results": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -271,6 +273,15 @@
         "bs58": "^6.0.0",
         "tiny-secp256k1": "^2.2.4",
       },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
+      },
+    },
+    "shared/stress-results": {
+      "name": "@openl2/stress-results",
       "devDependencies": {
         "@types/bun": "latest",
       },
@@ -569,6 +580,8 @@
     "@openl2/pubkey-utils": ["@openl2/pubkey-utils@workspace:shared/pubkey-utils"],
 
     "@openl2/setup-scripts": ["@openl2/setup-scripts@workspace:backend/setup_scripts"],
+
+    "@openl2/stress-results": ["@openl2/stress-results@workspace:shared/stress-results"],
 
     "@openl2/wallet-shared": ["@openl2/wallet-shared@workspace:frontend/wallet/packages/shared"],
 
@@ -2244,6 +2257,8 @@
 
     "@openl2/setup-scripts/@types/bun": ["@types/bun@1.3.14", "", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
 
+    "@openl2/stress-results/@types/bun": ["@types/bun@1.3.14", "", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+
     "@radix-ui/react-alert-dialog/@radix-ui/react-slot": ["@radix-ui/react-slot@1.2.3", "", { "dependencies": { "@radix-ui/react-compose-refs": "1.1.2" }, "peerDependencies": { "@types/react": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha512-aeNmHnBxbi2St0au6VBVC7JXFlhLlOnvIIlePNniyUNAClzmtAUEY8/pBiK3iHjufOlwA+c20/8jngo7xcrg8A=="],
 
     "@radix-ui/react-collection/@radix-ui/react-slot": ["@radix-ui/react-slot@1.2.3", "", { "dependencies": { "@radix-ui/react-compose-refs": "1.1.2" }, "peerDependencies": { "@types/react": "*", "react": "^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha512-aeNmHnBxbi2St0au6VBVC7JXFlhLlOnvIIlePNniyUNAClzmtAUEY8/pBiK3iHjufOlwA+c20/8jngo7xcrg8A=="],
@@ -2439,6 +2454,8 @@
     "@openl2/pubkey-utils/@types/bun/bun-types": ["bun-types@1.3.14", "", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
 
     "@openl2/setup-scripts/@types/bun/bun-types": ["bun-types@1.3.14", "", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+
+    "@openl2/stress-results/@types/bun/bun-types": ["bun-types@1.3.14", "", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
 
     "@scalar/themes/@scalar/types/@scalar/openapi-types": ["@scalar/openapi-types@0.2.0", "", { "dependencies": { "zod": "^3.23.8" } }, "sha512-waiKk12cRCqyUCWTOX0K1WEVX46+hVUK+zRPzAahDJ7G0TApvbNkuy5wx7aoUyEk++HHde0XuQnshXnt8jsddA=="],
 

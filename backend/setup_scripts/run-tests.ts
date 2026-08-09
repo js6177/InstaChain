@@ -388,6 +388,8 @@ class DockerComposeTestRunner {
 				composeArgs.push(
 					"-e",
 					`STRESS_RESULT_FILE=${TEST_OUTPUT_MOUNT}/${STRESS_THROUGHPUT_FILENAME}`,
+					"-e",
+					"RUN_LEDGER_HTTP_STRESS=1",
 				);
 			}
 			composeArgs.push(testService, ...command);

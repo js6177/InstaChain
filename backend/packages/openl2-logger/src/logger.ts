@@ -1,7 +1,12 @@
 import { createWriteStream, type WriteStream } from "node:fs";
 import { Writable } from "node:stream";
 import pino, { multistream, type Logger as PinoLogger } from "pino";
-import { getLogContext } from "./context";
+import {
+	getLogContext,
+	getProfilerSessionId,
+	getReplicaId,
+	resolveReplicaId,
+} from "./context";
 import { createSessionId } from "./ids";
 import { createOtelLogsDestination } from "./otel-logs";
 import {
@@ -19,6 +24,11 @@ export interface CreateOpenL2LoggerOptions {
 	level?: LogSeverity | LogSeverityLevel;
 	/** Override the process session id (mainly for tests). */
 	sessionId?: string;
+	/**
+	 * Docker / process replica identity included on every log as `replica_id`.
+	 * Defaults to `OPENL2_REPLICA_ID` or `HOSTNAME` (compose container name).
+	 */
+	replicaId?: string;
 	/** Extra static fields merged into every structured log entry. */
 	base?: Record<string, unknown>;
 	/**
@@ -167,6 +177,7 @@ export function createOpenL2Logger(
 	const sessionId = options.sessionId ?? createSessionId();
 	const serviceName = options.serviceName;
 	const level = options.level ?? LogSeverity.Info;
+	const replicaId = resolveReplicaId(options.replicaId);
 
 	const streams: Parameters<typeof multistream>[0] = [
 		{ level, stream: createConsoleMessageDestination() },
@@ -186,6 +197,7 @@ export function createOpenL2Logger(
 			base: {
 				service: serviceName,
 				session_id: sessionId,
+				...(replicaId ? { replica_id: replicaId } : {}),
 				...options.base,
 			},
 			customLevels: LOG_SEVERITY_LEVELS,
@@ -197,8 +209,21 @@ export function createOpenL2Logger(
 				},
 			},
 			mixin() {
+				const fields: Record<string, string> = {};
 				const requestId = getLogContext()?.request_id;
-				return requestId ? { request_id: requestId } : {};
+				if (requestId) {
+					fields.request_id = requestId;
+				}
+				const profilerSessionId = getProfilerSessionId();
+				if (profilerSessionId) {
+					fields.profiler_session_id = profilerSessionId;
+				}
+				// Prefer request-scoped override; otherwise base already has replica_id.
+				const contextReplicaId = getReplicaId();
+				if (contextReplicaId && contextReplicaId !== replicaId) {
+					fields.replica_id = contextReplicaId;
+				}
+				return fields;
 			},
 		},
 		multistream(streams, {
