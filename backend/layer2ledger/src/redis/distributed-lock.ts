@@ -91,6 +91,39 @@ export class DistributedLock {
 
 		return released === lockKeys.length;
 	}
+
+	/**
+	 * Pipeline many unlock scripts in one Redis round-trip (dbwriter batch path).
+	 */
+	async releaseMultiLocks(
+		locks: ReadonlyArray<{ userIds: string[]; lockToken: string }>,
+	): Promise<void> {
+		if (locks.length === 0) {
+			return;
+		}
+
+		this.ensureScriptsLoaded();
+
+		const pipeline = this.redis.pipeline();
+		let queued = 0;
+		for (const { userIds, lockToken } of locks) {
+			if (userIds.length === 0) {
+				continue;
+			}
+			const lockKeys = this.getLockKeys(userIds);
+			pipeline.evalsha(
+				this.releaseSha,
+				lockKeys.length,
+				...lockKeys,
+				lockToken,
+			);
+			queued += 1;
+		}
+		if (queued === 0) {
+			return;
+		}
+		await pipeline.exec();
+	}
 }
 
 export async function getPendingTransactions(

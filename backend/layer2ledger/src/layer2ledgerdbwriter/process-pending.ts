@@ -39,7 +39,7 @@ import {
 export const MAXIMUM_BATCH_INSERT_COUNT = 3999;
 
 /** Max idle sleep between dbwriter loops when the pending queue is empty. */
-export const PENDING_BATCH_IDLE_SLEEP_MS = 1000;
+export const PENDING_BATCH_IDLE_SLEEP_MS = 10;
 
 export interface ProcessPendingBatchContext {
 	db: Layer2LedgerDbClient;
@@ -52,7 +52,7 @@ export interface ProcessPendingBatchContext {
  * Sleep after a dbwriter loop based on remaining Redis pending depth:
  * - pending > 2 * batch size → 0 (keep draining)
  * - 0 < pending < batch size → proportional to remaining capacity
- *   (e.g. 500 pending ≈ 0.5 * idle sleep)
+ *   (e.g. 500 pending ≈ 0.125 * idle sleep)
  * - pending === 0 → full idle sleep
  * - otherwise (full batch waiting) → 0
  */
@@ -186,33 +186,34 @@ export async function processPendingBatch(
 			);
 		}
 
-		// Update the committed-tx bloom filter and persist a snapshot before unlocks.
+		// Unlock ASAP so apihandler is not blocked on bloom/cache housekeeping.
+		const locksToRelease: Array<{ userIds: string[]; lockToken: string }> = [];
+		for (const pendingTx of transactionsToProcess) {
+			if (pendingTx.lock_token) {
+				locksToRelease.push({
+					userIds: pendingTx.addresses_locked,
+					lockToken: pendingTx.lock_token,
+				});
+			}
+		}
+		for (const pendingWithdrawal of withdrawalsToProcess) {
+			if (pendingWithdrawal.lock_token) {
+				locksToRelease.push({
+					userIds: pendingWithdrawal.addresses_locked,
+					lockToken: pendingWithdrawal.lock_token,
+				});
+			}
+		}
+		await lockManager.releaseMultiLocks(locksToRelease);
+
 		const committedTransactionIds = newTransactions.map(
 			(tx) => tx.layer2TransactionId,
 		);
 		await addTransactionIdsToBloomFilter(redis, committedTransactionIds);
 		await persistBloomFilterSnapshot(db, redis, nextBatchHeight);
 
-		// Refresh Redis balance cache from the upsert RETURNING values before unlocks.
 		if (absoluteBalances.length > 0) {
 			await setCachedAddressBalances(redis, absoluteBalances, balanceCache);
-		}
-
-		for (const pendingTx of transactionsToProcess) {
-			if (pendingTx.lock_token) {
-				await lockManager.releaseMultiLock(
-					pendingTx.addresses_locked,
-					pendingTx.lock_token,
-				);
-			}
-		}
-		for (const pendingWithdrawal of withdrawalsToProcess) {
-			if (pendingWithdrawal.lock_token) {
-				await lockManager.releaseMultiLock(
-					pendingWithdrawal.addresses_locked,
-					pendingWithdrawal.lock_token,
-				);
-			}
 		}
 	} finally {
 		await recordRedisActive(redis, false);
