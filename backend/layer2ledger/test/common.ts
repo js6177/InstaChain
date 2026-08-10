@@ -57,3 +57,54 @@ export async function mapPool<T, R>(
 	await Promise.all(Array.from({ length: workerCount }, () => worker()));
 	return results;
 }
+
+/**
+ * Keep up to `maxInFlight` calls running, starting another as soon as any
+ * finishes. Unlike a fixed worker pool that only starts `concurrency` tasks
+ * up front, the initial pump fills every free slot before yielding, and each
+ * completion immediately refills — so the client stays saturated.
+ */
+export async function greedyPool<T>(
+	items: readonly T[],
+	maxInFlight: number,
+	fn: (item: T, index: number) => Promise<void>,
+): Promise<void> {
+	if (items.length === 0) {
+		return;
+	}
+	const limit = Math.max(1, Math.min(maxInFlight, items.length));
+	let nextIndex = 0;
+	let active = 0;
+	let settled = 0;
+
+	await new Promise<void>((resolve, reject) => {
+		let failed = false;
+
+		const pump = (): void => {
+			while (active < limit && nextIndex < items.length && !failed) {
+				const index = nextIndex;
+				nextIndex += 1;
+				active += 1;
+				fn(items[index] as T, index).then(
+					() => {
+						active -= 1;
+						settled += 1;
+						if (settled === items.length) {
+							resolve();
+							return;
+						}
+						pump();
+					},
+					(error) => {
+						if (!failed) {
+							failed = true;
+							reject(error);
+						}
+					},
+				);
+			}
+		};
+
+		pump();
+	});
+}

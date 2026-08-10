@@ -62,6 +62,7 @@ export const LABELS = {
 	TEXT_LOADING_PROFILER_SESSION: "Loading profiler session...",
 	TEXT_PROFILER_SESSION_NOT_FOUND: "Profiler session not found.",
 	TEXT_PROFILER_SESSION_ID: "Session id",
+	TEXT_PROFILER_SESSION_DESCRIPTION: "Description",
 	TEXT_PROFILER_CHART_CONCURRENCY_TITLE: "Concurrency",
 	TEXT_PROFILER_CHART_CUMULATIVE_TITLE: "Cumulative counts",
 	TEXT_PROFILER_CHART_QUEUE_TITLE: "Redis pending queue",

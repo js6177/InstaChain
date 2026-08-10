@@ -441,6 +441,16 @@ function StatsSessionView(): React.JSX.Element | null {
 						</span>
 						{sessionId}
 					</CardDescription>
+					{session?.description ? (
+						<CardDescription className="mt-3">
+							<span className="block text-xs text-muted-foreground mb-1">
+								{LABELS.TEXT_PROFILER_SESSION_DESCRIPTION}
+							</span>
+							<pre className="whitespace-pre-wrap break-words font-mono text-xs text-foreground">
+								{session.description}
+							</pre>
+						</CardDescription>
+					) : null}
 				</CardHeader>
 				<CardContent className="space-y-4">
 					<form
@@ -639,5 +649,3 @@ export function ExplorerPage(): React.JSX.Element {
 		</div>
 	);
 }
-
-export default ExplorerPage;

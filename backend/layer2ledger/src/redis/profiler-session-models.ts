@@ -30,12 +30,14 @@ export type ProfilerApiName =
 export class StartProfilerSession {
 	readonly session_id: string;
 	readonly title: string;
+	readonly description: string;
 	readonly apis: string[];
 	readonly started_at_unix_ms: number;
 
 	constructor(init: StartProfilerSession) {
 		this.session_id = init.session_id;
 		this.title = init.title;
+		this.description = init.description;
 		this.apis = init.apis;
 		this.started_at_unix_ms = init.started_at_unix_ms;
 	}
@@ -53,9 +55,13 @@ export class StartProfilerSession {
 		if (typeof typed.title !== "string" || typed.title.trim().length === 0) {
 			return null;
 		}
+		if (typeof typed.description !== "string") {
+			return null;
+		}
 		return new StartProfilerSession({
 			session_id: typed.session_id,
 			title: typed.title.trim(),
+			description: typed.description,
 			apis: typed.apis,
 			started_at_unix_ms: typed.started_at_unix_ms,
 		});
@@ -908,6 +914,7 @@ export class ProfilerDbwriterRedisHash {
 export class ProfilerSessionReport {
 	readonly session_id: string;
 	readonly title: string;
+	readonly description: string;
 	readonly apis: string[];
 	readonly started_at_unix_ms: number;
 	readonly ended_at_unix_ms: number;
@@ -919,6 +926,7 @@ export class ProfilerSessionReport {
 	constructor(init: ProfilerSessionReport) {
 		this.session_id = init.session_id;
 		this.title = init.title;
+		this.description = init.description;
 		this.apis = init.apis;
 		this.started_at_unix_ms = init.started_at_unix_ms;
 		this.ended_at_unix_ms = init.ended_at_unix_ms;
@@ -941,6 +949,9 @@ export class ProfilerSessionReport {
 		if (typeof typed.title !== "string" || typed.title.trim().length === 0) {
 			return null;
 		}
+		// Older on-disk/Redis reports predate description; treat missing as "".
+		const description =
+			typeof typed.description === "string" ? typed.description : "";
 		const parsedStats: ProfilerApiStats[] = [];
 		for (const stats of typed.api_stats) {
 			const parsed = ProfilerApiStats.parse(stats ?? null);
@@ -969,6 +980,7 @@ export class ProfilerSessionReport {
 		return new ProfilerSessionReport({
 			session_id: typed.session_id,
 			title: typed.title.trim(),
+			description,
 			apis: typed.apis,
 			started_at_unix_ms: typed.started_at_unix_ms,
 			ended_at_unix_ms: typed.ended_at_unix_ms,
@@ -993,6 +1005,7 @@ export class ProfilerSessionReport {
 		return new ProfilerSessionReport({
 			session_id: this.session_id,
 			title: this.title,
+			description: this.description,
 			apis: this.apis,
 			started_at_unix_ms: this.started_at_unix_ms,
 			ended_at_unix_ms: this.ended_at_unix_ms,

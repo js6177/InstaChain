@@ -210,6 +210,7 @@ export const ProfilerSessionTimeseriesResponse = t.Object({
 export const ProfilerSessionReportResponse = t.Object({
 	session_id: t.String(),
 	title: t.String(),
+	description: t.String(),
 	apis: t.Array(t.String()),
 	started_at_unix_ms: t.Number(),
 	ended_at_unix_ms: t.Number(),
@@ -224,6 +225,7 @@ export const StartProfilerSessionResponse = t.Composite([
 	t.Object({
 		session_id: t.Optional(t.String()),
 		title: t.Optional(t.String()),
+		description: t.Optional(t.String()),
 		apis: t.Optional(t.Array(t.String())),
 		started_at_unix_ms: t.Optional(t.Number()),
 	}),

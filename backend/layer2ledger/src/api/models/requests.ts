@@ -84,6 +84,8 @@ export const StartProfilerSessionRequest = t.Object({
 	apis: t.Array(t.String({ minLength: 1 }), { minItems: 1 }),
 	/** Display name shown in explorer profiler visualization. */
 	title: t.String({ minLength: 1 }),
+	/** Free-form details shown with the visualization (e.g. stress env vars). */
+	description: t.String(),
 });
 
 export const StopProfilerSessionRequest = t.Object({
