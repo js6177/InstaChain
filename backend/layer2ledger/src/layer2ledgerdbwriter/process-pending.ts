@@ -41,11 +41,51 @@ export const MAXIMUM_BATCH_INSERT_COUNT = 3999;
 /** Max idle sleep between dbwriter loops when the pending queue is empty. */
 export const PENDING_BATCH_IDLE_SLEEP_MS = 10;
 
+/**
+ * Persist a RedisBloom Postgres snapshot every N successful batch writes.
+ * BF.MADD stays on the commit path (before unlock) so apihandler duplicate
+ * checks cannot false-negative; only the expensive BF.SCANDUMP is deferred.
+ */
+export const BLOOM_FILTER_SNAPSHOT_EVERY_N_BATCHES = 3;
+
+/** Caller-owned deferred bloom snapshot counters (must outlive a single batch). */
+export interface DeferredBloomSnapshotState {
+	batchHeight: number;
+	batchesSince: number;
+}
+
+export function createDeferredBloomSnapshotState(): DeferredBloomSnapshotState {
+	return { batchHeight: 0, batchesSince: 0 };
+}
+
 export interface ProcessPendingBatchContext {
 	db: Layer2LedgerDbClient;
 	redis: Redis;
 	lockManager: DistributedLock;
 	balanceCache: AddressBalanceCacheOptions;
+	deferredBloomSnapshot: DeferredBloomSnapshotState;
+}
+
+/** Drop queued bloom snapshot work (test / stress DB resets). */
+export function clearDeferredBloomFilterUpdates(
+	state: DeferredBloomSnapshotState,
+): void {
+	state.batchHeight = 0;
+	state.batchesSince = 0;
+}
+
+/** Persist the current RedisBloom to Postgres at the latest deferred batch height. */
+export async function flushDeferredBloomFilterUpdates(
+	db: Layer2LedgerDbClient,
+	redis: Redis,
+	state: DeferredBloomSnapshotState,
+): Promise<void> {
+	if (state.batchesSince === 0 || state.batchHeight <= 0) {
+		return;
+	}
+	const batchHeight = state.batchHeight;
+	await persistBloomFilterSnapshot(db, redis, batchHeight);
+	clearDeferredBloomFilterUpdates(state);
 }
 
 /**
@@ -82,7 +122,8 @@ export async function processPendingBatch(
 	currentBatchHeight: number,
 ): Promise<number> {
 	const startedAt = performance.now();
-	const { db, redis, lockManager, balanceCache } = context;
+	const { db, redis, lockManager, balanceCache, deferredBloomSnapshot } =
+		context;
 	const transactionsToProcess = await getPendingTransactions(
 		redis,
 		0,
@@ -186,7 +227,13 @@ export async function processPendingBatch(
 			);
 		}
 
-		// Unlock ASAP so apihandler is not blocked on bloom/cache housekeeping.
+		// Keep RedisBloom in sync with Postgres before unlocks.
+		const committedTransactionIds = newTransactions.map(
+			(tx) => tx.layer2TransactionId,
+		);
+		await addTransactionIdsToBloomFilter(redis, committedTransactionIds);
+
+		// Unlock ASAP; defer only the expensive BF.SCANDUMP snapshot.
 		const locksToRelease: Array<{ userIds: string[]; lockToken: string }> = [];
 		for (const pendingTx of transactionsToProcess) {
 			if (pendingTx.lock_token) {
@@ -206,11 +253,13 @@ export async function processPendingBatch(
 		}
 		await lockManager.releaseMultiLocks(locksToRelease);
 
-		const committedTransactionIds = newTransactions.map(
-			(tx) => tx.layer2TransactionId,
-		);
-		await addTransactionIdsToBloomFilter(redis, committedTransactionIds);
-		await persistBloomFilterSnapshot(db, redis, nextBatchHeight);
+		deferredBloomSnapshot.batchHeight = nextBatchHeight;
+		deferredBloomSnapshot.batchesSince += 1;
+		if (
+			deferredBloomSnapshot.batchesSince >= BLOOM_FILTER_SNAPSHOT_EVERY_N_BATCHES
+		) {
+			await flushDeferredBloomFilterUpdates(db, redis, deferredBloomSnapshot);
+		}
 
 		if (absoluteBalances.length > 0) {
 			await setCachedAddressBalances(redis, absoluteBalances, balanceCache);

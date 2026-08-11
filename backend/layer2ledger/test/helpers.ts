@@ -11,6 +11,8 @@ import type { Layer2LedgerRouteHandlers } from "../src/api/handlers";
 import { createDatabase, migrateDatabase } from "../src/db/client";
 import { schema } from "../src/db/schema";
 import {
+	clearDeferredBloomFilterUpdates,
+	createDeferredBloomSnapshotState,
 	getCurrentBatchHeight,
 	processPendingBatch,
 } from "../src/layer2ledgerdbwriter/process-pending";
@@ -55,6 +57,7 @@ export const redis = new Redis({
 
 export const lockManager = new DistributedLock(redis);
 export const balanceCache = resolveAddressBalanceCacheOptions(commonConfig.redis);
+const deferredBloomSnapshot = createDeferredBloomSnapshotState();
 
 export function createHandlers(): Layer2LedgerRouteHandlers {
 	return createRouteHandlers({
@@ -98,6 +101,7 @@ export async function setupLedgerTests(): Promise<void> {
 		TRANSACTION_ID_BLOOM_KEY,
 	);
 	await clearAddressBalanceCache(redis);
+	clearDeferredBloomFilterUpdates(deferredBloomSnapshot);
 	// Fresh empty bloom for this process; skip replaying historical Postgres rows.
 	process.env.SKIP_BLOOM_PG_REBUILD = "1";
 	await ensureTransactionIdBloomFilter(db, redis);
@@ -115,7 +119,7 @@ export async function clearPendingQueues(): Promise<void> {
 export async function drainPendingQueues(): Promise<void> {
 	const batchHeight = await getCurrentBatchHeight(db);
 	await processPendingBatch(
-		{ db, redis, lockManager, balanceCache },
+		{ db, redis, lockManager, balanceCache, deferredBloomSnapshot },
 		batchHeight,
 	);
 }

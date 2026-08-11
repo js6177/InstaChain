@@ -18,6 +18,8 @@ import {
 } from "../redis/profiler-session";
 import { ensureTransactionIdBloomFilter } from "../redis/transaction-id-bloom";
 import {
+	createDeferredBloomSnapshotState,
+	flushDeferredBloomFilterUpdates,
 	getCurrentBatchHeight,
 	pendingQueueSleepMs,
 	processPendingBatch,
@@ -55,7 +57,14 @@ const balanceCache = resolveAddressBalanceCacheOptions(commonConfig.redis);
 
 log.info("Starting layer2ledgerdbwriter...");
 
+const deferredBloomSnapshot = createDeferredBloomSnapshotState();
+
 registerProcessShutdown(async () => {
+	try {
+		await flushDeferredBloomFilterUpdates(db, redis, deferredBloomSnapshot);
+	} catch (error) {
+		log.exception("Failed to flush deferred bloom filter updates", error);
+	}
 	await redis.quit();
 	await postgresSql.end({ timeout: 2 });
 });
@@ -65,7 +74,7 @@ let currentBatchHeight = await getCurrentBatchHeight(db);
 while (true) {
 	try {
 		const nextHeight = await processPendingBatch(
-			{ db, redis, lockManager, balanceCache },
+			{ db, redis, lockManager, balanceCache, deferredBloomSnapshot },
 			currentBatchHeight,
 		);
 		if (nextHeight !== currentBatchHeight) {
