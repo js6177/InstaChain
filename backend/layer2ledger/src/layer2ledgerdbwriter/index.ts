@@ -71,7 +71,7 @@ registerProcessShutdown(async () => {
 
 let currentBatchHeight = await getCurrentBatchHeight(db);
 
-while (true) {
+while (true) { 
 	try {
 		const nextHeight = await processPendingBatch(
 			{ db, redis, lockManager, balanceCache, deferredBloomSnapshot },

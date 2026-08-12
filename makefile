@@ -82,18 +82,14 @@ backend-test:
 		up -d --force-recreate --no-deps layer2ledgerapihandler-nginx
 
 # Throughput stress (not part of `make test` / test:docker).
-# Quiet image builds; examples:
+# Builds images only when docker-relevant source changes (FORCE_COMPOSE_BUILD=1 to force).
+# Examples:
 #   make stress-test
 #   STRESS_TX_COUNT=50000 STRESS_CONCURRENCY=2000 make stress-test
 stress-test:
 	mkdir -p .test-output/stress
-	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
-		build -q \
-		layer2ledger-postgres \
-		layer2ledger-pgbouncer \
-		layer2ledger-redis \
+	ENVIRONMENT=test bun run --filter @openl2/setup-scripts ensure-compose-build -- \
 		layer2ledgerapihandler \
-		layer2ledgerapihandler-nginx \
 		layer2ledgerdbwriter \
 		layer2ledger-testhelper \
 		test-layer2ledger-stress
@@ -122,19 +118,15 @@ stress-test:
 		test-layer2ledger-stress
 
 # Lightweight GET /health stress through nginx (no seed/sign/settle/db path).
+# Builds images only when docker-relevant source changes (FORCE_COMPOSE_BUILD=1 to force).
 # Examples:
 #   make stress-test-health
 #   STRESS_REQUEST_COUNT=50000 STRESS_CONCURRENCY=2000 make stress-test-health
 #   STRESS_HEALTH_PATH=/nginx-health make stress-test-health   # nginx-only (no upstream)
 stress-test-health:
 	mkdir -p .test-output/stress
-	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
-		build -q \
-		layer2ledger-postgres \
-		layer2ledger-pgbouncer \
-		layer2ledger-redis \
+	ENVIRONMENT=test bun run --filter @openl2/setup-scripts ensure-compose-build -- \
 		layer2ledgerapihandler \
-		layer2ledgerapihandler-nginx \
 		test-layer2ledger-stress
 	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
 		up -d --quiet-pull \

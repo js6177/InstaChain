@@ -10,6 +10,7 @@
 		"import-keys": "bun run src/main.ts -import-keys-to-bitcoin-core",
 		"setup:first-time": "bun run run-setup.ts",
 		"test:docker": "bun run run-tests.ts",
+		"ensure-compose-build": "bun run ensure-compose-build.ts",
 		"uninstall": "bun run run-uninstall.ts"
 	},
 	"dependencies": {

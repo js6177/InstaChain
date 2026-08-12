@@ -17,9 +17,12 @@ export {
 	writeBitcoinConf,
 } from "./src/bitcoin-conf";
 export {
+	applyContainerRuntimeEnv,
+	assertContainerRuntimeReady,
 	ContainerCli,
 	type ContainerCliName,
 	isPodmanCli,
+	podmanDockerHost,
 	podmanSocketPath,
 	resolveComposeCommand,
 	resolveContainerCli,
@@ -28,6 +31,7 @@ export {
 	BITCOIN_CORE_DATA_VOLUME,
 	composeFilesForEnvironment,
 	DOCKER_APP_SERVICES,
+	DOCKER_DEFAULT_TEST_BUILD_SERVICES,
 	DOCKER_INFRA_SERVICES,
 	DOCKER_INTEGRATION_TEST_SERVICES,
 	DOCKER_STRESS_TEST_SERVICES,

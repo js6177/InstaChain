@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import {
+	applyContainerRuntimeEnv,
 	ContainerCli,
+	podmanDockerHost,
 	podmanSocketPath,
 	resolveComposeCommand,
 	resolveContainerCli,
@@ -31,5 +33,36 @@ describe("resolveContainerCli", () => {
 		expect(podmanSocketPath({ XDG_RUNTIME_DIR: "/run/user/1000" })).toBe(
 			"/run/user/1000/podman/podman.sock",
 		);
+		expect(podmanDockerHost({ XDG_RUNTIME_DIR: "/run/user/1000" })).toBe(
+			"unix:///run/user/1000/podman/podman.sock",
+		);
+	});
+
+	it("sets DOCKER_HOST for rootless podman when unset", () => {
+		const env = applyContainerRuntimeEnv({
+			CONTAINER_CLI: "podman",
+			XDG_RUNTIME_DIR: "/run/user/1000",
+			PATH: "/usr/bin",
+		});
+		expect(env.DOCKER_HOST).toBe("unix:///run/user/1000/podman/podman.sock");
+		expect(env.CONTAINER_HOST).toBe(env.DOCKER_HOST);
+	});
+
+	it("preserves an explicit DOCKER_HOST", () => {
+		const env = applyContainerRuntimeEnv({
+			CONTAINER_CLI: "podman",
+			DOCKER_HOST: "unix:///custom.sock",
+			XDG_RUNTIME_DIR: "/run/user/1000",
+		});
+		expect(env.DOCKER_HOST).toBe("unix:///custom.sock");
+		expect(env.CONTAINER_HOST).toBeUndefined();
+	});
+
+	it("does not set DOCKER_HOST for docker CLI", () => {
+		const env = applyContainerRuntimeEnv({
+			CONTAINER_CLI: "docker",
+			PATH: "/usr/bin",
+		});
+		expect(env.DOCKER_HOST).toBeUndefined();
 	});
 });

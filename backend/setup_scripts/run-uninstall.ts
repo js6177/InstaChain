@@ -7,6 +7,8 @@
  */
 
 import {
+	applyContainerRuntimeEnv,
+	assertContainerRuntimeReady,
 	DockerComposeFile,
 	DockerComposeProfile,
 	getProjectRoot,
@@ -72,8 +74,10 @@ async function main(): Promise<void> {
 		}
 	}
 
-	const containerCli = resolveContainerCli();
-	const compose = [...resolveComposeCommand(), "--progress", "quiet"];
+	const env = applyContainerRuntimeEnv(process.env);
+	assertContainerRuntimeReady(env);
+	const containerCli = resolveContainerCli(env);
+	const compose = [...resolveComposeCommand(env), "--progress", "quiet"];
 	for (const composeFile of UNINSTALL_COMPOSE_FILES) {
 		compose.push("-f", composeFile);
 	}
@@ -92,6 +96,7 @@ async function main(): Promise<void> {
 	);
 	const proc = Bun.spawn(command, {
 		cwd: ROOT,
+		env,
 		stdout: "inherit",
 		stderr: "inherit",
 	});

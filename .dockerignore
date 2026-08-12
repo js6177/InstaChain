@@ -6,4 +6,16 @@
 **/.pm2
 .git
 .config
+.test-output
+**/coverage
+**/.vitest
+**/*.tsbuildinfo
+agent-transcripts
+.cursor
+.vscode
+.idea
 *.md
+**/.DS_Store
+**/tmp
+**/temp
+**/*.log

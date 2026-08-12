@@ -13,6 +13,8 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { BitcoinRPCClient } from "@openl2/bitcoin-core-rpc";
 import {
+	applyContainerRuntimeEnv,
+	assertContainerRuntimeReady,
 	BITCOIN_CORE_DATA_VOLUME,
 	BitcoinChain,
 	bitcoinWalletDataSubdir,
@@ -98,14 +100,15 @@ class FirstTimeSetupRunner {
 		private readonly overwriteWallet: boolean,
 	) {
 		this.bunPath = requireBun();
-		this.env = {
+		this.env = applyContainerRuntimeEnv({
 			...process.env,
 			ENVIRONMENT: environment,
 			OPENL2_CONFIG_PATH: join(root, ".config"),
-		} as Record<string, string>;
-		this.containerCli = resolveContainerCli();
+		});
+		assertContainerRuntimeReady(this.env);
+		this.containerCli = resolveContainerCli(this.env);
 		this.compose = [
-			...resolveComposeCommand(),
+			...resolveComposeCommand(this.env),
 			"--progress",
 			"quiet",
 		];

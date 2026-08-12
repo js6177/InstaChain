@@ -107,6 +107,20 @@ export const DOCKER_TEST_PROFILE_BACKGROUND_SERVICES = [
 	DockerService.LAYER2LEDGER_TESTHELPER,
 ] as const satisfies readonly DockerServiceName[];
 
+/**
+ * Default buildable images for `ensure-compose-build` (test + stress stacks).
+ * Pull-only services (postgres/redis/nginx/…) are omitted.
+ */
+export const DOCKER_DEFAULT_TEST_BUILD_SERVICES = [
+	DockerService.LAYER2LEDGER_APIHANDLER,
+	DockerService.LAYER2LEDGER_DBWRITER,
+	DockerService.LAYER2LEDGER_OAUTH_MANAGER,
+	DockerService.LAYER2BRIDGE,
+	...DOCKER_TEST_PROFILE_BACKGROUND_SERVICES,
+	...DOCKER_TEST_SERVICES,
+	...DOCKER_STRESS_TEST_SERVICES,
+] as const satisfies readonly DockerServiceName[];
+
 /** Compose files used when running the full docker test suite. */
 export const DOCKER_TEST_COMPOSE_FILES = [
 	DockerComposeFile.BASE,

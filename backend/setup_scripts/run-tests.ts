@@ -6,13 +6,15 @@
  * - Runs layer2ledger unit tests before apihandler/dbwriter (avoids DB/Redis lock contention)
  * - Starts application services, then runs integration test containers (including wallet vitest)
  * - Leaves a running healthy bitcoin-core container untouched
- * - Builds images quietly (`compose build -q`); stress throughput is not included
- *   (use `make stress-test` / `make stress-test-health`)
+ * - Builds images quietly only when docker-relevant source changes
+ *   (FORCE_COMPOSE_BUILD=1 to force). Stress: `make stress-test`.
  */
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+	applyContainerRuntimeEnv,
+	assertContainerRuntimeReady,
 	type ContainerCliName,
 	DOCKER_APP_SERVICES,
 	DOCKER_INFRA_SERVICES,
@@ -30,6 +32,12 @@ import {
 	resolveComposeCommand,
 	resolveContainerCli,
 } from "@openl2/config-loader";
+import {
+	filterBuildableServices,
+	fingerprintLogPath,
+	resolveServicesToBuild,
+	writeStoredServiceFingerprints,
+} from "./compose-build-cache";
 import { log } from "./src/logger";
 import {
 	containerResultPath,
@@ -81,13 +89,14 @@ class DockerComposeTestRunner {
 
 	constructor(private readonly root: string) {
 		this.bunPath = requireBun();
-		this.env = { ...process.env, ENVIRONMENT: Environment.TEST } as Record<
-			string,
-			string
-		>;
-		this.containerCli = resolveContainerCli();
+		this.env = applyContainerRuntimeEnv({
+			...process.env,
+			ENVIRONMENT: Environment.TEST,
+		});
+		assertContainerRuntimeReady(this.env);
+		this.containerCli = resolveContainerCli(this.env);
 		this.compose = [
-			...resolveComposeCommand(),
+			...resolveComposeCommand(this.env),
 			"--progress",
 			"quiet",
 		];
@@ -130,26 +139,53 @@ class DockerComposeTestRunner {
 	}
 
 	/**
-	 * Build images with compose `build -q` so BuildKit/layer logs stay off the
-	 * console; failures still dump captured output.
+	 * Build images needed for the docker test suite when each service's
+	 * inputs changed or its image is missing.
+	 * Set FORCE_COMPOSE_BUILD=1 to force a full rebuild of the suite.
 	 */
-	private async buildQuiet(
-		services: readonly string[],
-		options?: { profile?: string },
-	): Promise<void> {
-		if (services.length === 0) {
+	private async ensureTestImagesBuilt(): Promise<void> {
+		const services = filterBuildableServices([
+			...DOCKER_APP_SERVICES,
+			DockerService.LAYER2LEDGER_TESTHELPER,
+			DockerService.BITCOIN_CORE,
+			...DOCKER_TEST_SERVICES,
+		]);
+		const { toBuild, fingerprints, logLines } = await resolveServicesToBuild({
+			root: this.root,
+			services,
+			containerCli: this.containerCli,
+			composePrefix: this.compose,
+			env: this.env,
+			profile: DockerComposeProfile.TEST,
+		});
+		for (const line of logLines) {
+			log.info(line);
+		}
+		if (toBuild.length === 0) {
 			return;
 		}
-		log.info(`Building images (quiet): ${services.join(", ")}`);
-		const args = [
-			...(options?.profile
-				? ["--profile", options.profile]
-				: []),
-			"build",
-			"-q",
-			...services,
-		];
-		await this.run(args, { check: true, captureOutput: true });
+
+		await this.run(
+			[
+				"--profile",
+				DockerComposeProfile.TEST,
+				"build",
+				"-q",
+				...toBuild,
+			],
+			{ check: true, captureOutput: true },
+		);
+		const builtFingerprints: Record<string, string> = {};
+		for (const service of toBuild) {
+			const fingerprint = fingerprints[service];
+			if (fingerprint) {
+				builtFingerprints[service] = fingerprint;
+			}
+		}
+		writeStoredServiceFingerprints(this.root, builtFingerprints);
+		log.info(
+			`Compose build complete; fingerprints saved to ${fingerprintLogPath(this.root)}`,
+		);
 	}
 
 	private async runQuiet(args: string[]): Promise<boolean> {
@@ -338,15 +374,8 @@ class DockerComposeTestRunner {
 
 	private async startInfraServices(): Promise<void> {
 		log.info("Starting infrastructure for test (ENVIRONMENT=test)...");
-		await this.buildQuiet(DOCKER_INFRA_SERVICES);
 		await this.run(
-			[
-				"up",
-				"-d",
-				"--quiet-pull",
-				"--force-recreate",
-				...DOCKER_INFRA_SERVICES,
-			],
+			["up", "-d", "--quiet-pull", ...DOCKER_INFRA_SERVICES],
 			{ check: true },
 		);
 		for (const service of DOCKER_INFRA_SERVICES) {
@@ -366,31 +395,40 @@ class DockerComposeTestRunner {
 		log.info("Starting backend application services for test (ENVIRONMENT=test)...");
 		const apihandlerReplicas =
 			process.env.LAYER2LEDGER_APIHANDLER_REPLICAS ?? "2";
-		await this.buildQuiet(DOCKER_APP_SERVICES);
+		const appWithoutNginx = DOCKER_APP_SERVICES.filter(
+			(service) => service !== DockerService.LAYER2LEDGER_APIHANDLER_NGINX,
+		);
+		await this.run(
+			[
+				"up",
+				"-d",
+				"--quiet-pull",
+				"--scale",
+				`${DockerService.LAYER2LEDGER_APIHANDLER}=${apihandlerReplicas}`,
+				...appWithoutNginx,
+			],
+			{ check: true },
+		);
+		for (const service of appWithoutNginx) {
+			await this.waitForHealthy(service);
+		}
+		// Recreate nginx after apihandler so it never keeps stale replica IPs.
 		await this.run(
 			[
 				"up",
 				"-d",
 				"--quiet-pull",
 				"--force-recreate",
-				"--scale",
-				`${DockerService.LAYER2LEDGER_APIHANDLER}=${apihandlerReplicas}`,
-				...DOCKER_APP_SERVICES,
+				"--no-deps",
+				DockerService.LAYER2LEDGER_APIHANDLER_NGINX,
 			],
 			{ check: true },
 		);
-		for (const service of DOCKER_APP_SERVICES) {
-			await this.waitForHealthy(service);
-		}
+		await this.waitForHealthy(DockerService.LAYER2LEDGER_APIHANDLER_NGINX);
 	}
 
 	private async ensureTesthelper(): Promise<void> {
-		log.info(
-			`Building and starting ${DockerService.LAYER2LEDGER_TESTHELPER} (force-recreate)...`,
-		);
-		await this.buildQuiet([DockerService.LAYER2LEDGER_TESTHELPER], {
-			profile: DockerComposeProfile.TEST,
-		});
+		log.info(`Starting ${DockerService.LAYER2LEDGER_TESTHELPER}...`);
 		await this.run(
 			[
 				"--profile",
@@ -398,7 +436,6 @@ class DockerComposeTestRunner {
 				"up",
 				"-d",
 				"--quiet-pull",
-				"--force-recreate",
 				DockerService.LAYER2LEDGER_TESTHELPER,
 			],
 			{ check: true },
@@ -414,9 +451,6 @@ class DockerComposeTestRunner {
 		let failed = false;
 		for (const testService of services) {
 			log.info(`Running ${testService}...`);
-			await this.buildQuiet([testService], {
-				profile: DockerComposeProfile.TEST,
-			});
 			const { kind, command } = getServiceTestCommand(testService);
 			const composeArgs = [
 				"--profile",
@@ -493,6 +527,7 @@ class DockerComposeTestRunner {
 
 	async main(): Promise<number> {
 		await this.ensureTestConfig();
+		await this.ensureTestImagesBuilt();
 		await this.ensureBitcoinCore();
 		await this.startInfraServices();
 		await this.stopAppServices();
