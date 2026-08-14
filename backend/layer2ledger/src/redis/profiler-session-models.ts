@@ -16,6 +16,7 @@ function isStructuredObject(value: object | null): value is object {
 /** Well-known API names that can be listed in a profiler session. */
 export const ProfilerApiName = {
 	PushTransaction: "pushTransaction",
+	GetBalance: "getBalance",
 	Dbwriter: "dbwriter",
 } as const;
 
@@ -524,6 +525,104 @@ export class ProfilerPushTransactionSectionAvgTimeseries {
 }
 
 /**
+ * getBalance span-derived timeseries (x = ms since profiler start).
+ * Built from handler entry/exit timestamps recorded as {@link ProfilerSessionSpan}.
+ */
+export class GetBalanceProfilerTimeseries {
+	readonly avg_latency_ms: ProfilerTimeseriesPoint[];
+	readonly throughput_per_sec: ProfilerTimeseriesPoint[];
+
+	constructor(init: GetBalanceProfilerTimeseries) {
+		this.avg_latency_ms = init.avg_latency_ms;
+		this.throughput_per_sec = init.throughput_per_sec;
+	}
+
+	static empty(): GetBalanceProfilerTimeseries {
+		const zero = [new ProfilerTimeseriesPoint({ t_ms: 0, value: 0 })];
+		return new GetBalanceProfilerTimeseries({
+			avg_latency_ms: zero,
+			throughput_per_sec: [...zero],
+		});
+	}
+
+	static parse(
+		data: GetBalanceProfilerTimeseries | null,
+	): GetBalanceProfilerTimeseries | null {
+		if (data === null || data === undefined) {
+			return GetBalanceProfilerTimeseries.empty();
+		}
+		if (!isStructuredObject(data)) {
+			return null;
+		}
+		const avg = parseTimeseriesPoints(data.avg_latency_ms ?? null);
+		const throughput = parseTimeseriesPoints(data.throughput_per_sec ?? null);
+		if (!avg || !throughput) {
+			return null;
+		}
+		return new GetBalanceProfilerTimeseries({
+			avg_latency_ms: avg,
+			throughput_per_sec: throughput,
+		});
+	}
+
+	/**
+	 * Running average latency and cumulative throughput from getBalance spans.
+	 */
+	static fromSpans(
+		sessionStartedAtUnixMs: number,
+		spans: readonly ProfilerSessionSpan[],
+	): GetBalanceProfilerTimeseries {
+		const apiSpans = spans
+			.filter((span) => span.api === ProfilerApiName.GetBalance)
+			.sort((a, b) => a.ended_at_unix_ms - b.ended_at_unix_ms);
+
+		if (apiSpans.length === 0) {
+			return GetBalanceProfilerTimeseries.empty();
+		}
+
+		const avgLatency: ProfilerTimeseriesPoint[] = [
+			new ProfilerTimeseriesPoint({ t_ms: 0, value: 0 }),
+		];
+		const throughput: ProfilerTimeseriesPoint[] = [
+			new ProfilerTimeseriesPoint({ t_ms: 0, value: 0 }),
+		];
+
+		let latencySum = 0;
+		let completed = 0;
+		const firstStartUnixMs = Math.min(
+			...apiSpans.map((span) => span.started_at_unix_ms),
+		);
+
+		for (const span of apiSpans) {
+			completed += 1;
+			latencySum += span.elapsed_ms;
+			const tMs = Math.max(span.ended_at_unix_ms - sessionStartedAtUnixMs, 0);
+			avgLatency.push(
+				new ProfilerTimeseriesPoint({
+					t_ms: tMs,
+					value: Number((latencySum / completed).toFixed(3)),
+				}),
+			);
+			const elapsedSec = Math.max(
+				(span.ended_at_unix_ms - firstStartUnixMs) / 1000,
+				0.001,
+			);
+			throughput.push(
+				new ProfilerTimeseriesPoint({
+					t_ms: tMs,
+					value: Number((completed / elapsedSec).toFixed(2)),
+				}),
+			);
+		}
+
+		return new GetBalanceProfilerTimeseries({
+			avg_latency_ms: avgLatency,
+			throughput_per_sec: throughput,
+		});
+	}
+}
+
+/**
  * Session timeseries for charting: x = ms since profiler start.
  * - average in-flight concurrency across apihandler replicas
  * - cumulative pushTransaction entries / exits
@@ -533,6 +632,7 @@ export class ProfilerPushTransactionSectionAvgTimeseries {
  * - dbwriter sleep/inactive wait (0/1 square wave)
  * - dbwriter Redis housekeeping (0/1 square wave)
  * - pushTransaction section rolling-average latency (ms)
+ * - getBalance average latency + throughput (from entry/exit spans)
  */
 export class ProfilerSessionTimeseries {
 	readonly avg_replica_concurrent: ProfilerTimeseriesPoint[];
@@ -544,6 +644,7 @@ export class ProfilerSessionTimeseries {
 	readonly dbwriter_sleep_active: ProfilerTimeseriesPoint[];
 	readonly dbwriter_redis_active: ProfilerTimeseriesPoint[];
 	readonly push_transaction_section_avg_ms: ProfilerPushTransactionSectionAvgTimeseries;
+	readonly get_balance: GetBalanceProfilerTimeseries;
 
 	constructor(init: ProfilerSessionTimeseries) {
 		this.avg_replica_concurrent = init.avg_replica_concurrent;
@@ -558,6 +659,7 @@ export class ProfilerSessionTimeseries {
 		this.dbwriter_redis_active = init.dbwriter_redis_active;
 		this.push_transaction_section_avg_ms =
 			init.push_transaction_section_avg_ms;
+		this.get_balance = init.get_balance;
 	}
 
 	static parse(
@@ -618,6 +720,9 @@ export class ProfilerSessionTimeseries {
 		const parsedSectionAvg = ProfilerPushTransactionSectionAvgTimeseries.parse(
 			data.push_transaction_section_avg_ms ?? null,
 		);
+		const parsedGetBalance = GetBalanceProfilerTimeseries.parse(
+			data.get_balance ?? null,
+		);
 		if (
 			!parsedEntries ||
 			!parsedExits ||
@@ -625,7 +730,8 @@ export class ProfilerSessionTimeseries {
 			parsedWriteActive === null ||
 			parsedSleepActive === null ||
 			parsedRedisActive === null ||
-			!parsedSectionAvg
+			!parsedSectionAvg ||
+			!parsedGetBalance
 		) {
 			return null;
 		}
@@ -640,6 +746,7 @@ export class ProfilerSessionTimeseries {
 			dbwriter_sleep_active: parsedSleepActive,
 			dbwriter_redis_active: parsedRedisActive,
 			push_transaction_section_avg_ms: parsedSectionAvg,
+			get_balance: parsedGetBalance,
 		});
 	}
 }

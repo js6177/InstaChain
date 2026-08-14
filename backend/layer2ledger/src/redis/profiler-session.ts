@@ -2,6 +2,7 @@ import type Redis from "ioredis";
 import {
 	averageReplicaConcurrentPoints,
 	PUSH_TRANSACTION_SECTION_KEYS,
+	GetBalanceProfilerTimeseries,
 	ProfilerApiName,
 	ProfilerApiStats,
 	ProfilerDbwriterBatchEvent,
@@ -25,6 +26,7 @@ import {
 
 export {
 	averageReplicaConcurrentPoints,
+	GetBalanceProfilerTimeseries,
 	PUSH_TRANSACTION_SECTION_KEYS,
 	ProfilerApiName,
 	ProfilerApiStats,
@@ -749,6 +751,10 @@ export function buildProfilerSessionTimeseries(
 		push_transaction_section_avg_ms: buildPushTransactionSectionAvgTimeseries(
 			startedAtUnixMs,
 			sectionAvgSamples,
+		),
+		get_balance: GetBalanceProfilerTimeseries.fromSpans(
+			startedAtUnixMs,
+			spans,
 		),
 	});
 }

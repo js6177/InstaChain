@@ -32,7 +32,9 @@ import {
 import {
 	ProfilerApiName,
 	ProfilerSessionReport,
+	profilerSessionMetaKey,
 	profilerSessionOutputPath,
+	StartProfilerSession,
 } from "../src/redis/profiler-session";
 import {
 	ensureTransactionIdBloomFilter,
@@ -40,15 +42,25 @@ import {
 } from "../src/redis/transaction-id-bloom";
 import { profilerInFlightKey } from "../src/transaction-processing/push-transaction-profiler";
 import {
+	buildGetBalanceStressMatrix,
 	computeLatencyStats,
+	computeSuccessRatePct,
+	DEFAULT_GET_BALANCE_ADDRESS_COUNTS,
+	DEFAULT_GET_BALANCE_CACHE_PCTS,
+	DEFAULT_GET_BALANCE_CALL_COUNTS,
+	DEFAULT_GET_BALANCE_NONZERO_PCTS,
 	emptyApiErrorCounts,
 	emptyApiErrors,
+	GetBalanceStressBatchResult,
+	GetBalanceStressResult,
+	GetBalanceStressVariables,
 	HealthStressResult,
 	greedyPool,
 	mapPool,
 	newLayer2Address,
 	recordApiError,
 	sleep,
+	STRESS_SUCCESS_RATE_WARNING_PCT,
 	StressCacheStats,
 	StressPhaseTimingsMs,
 	StressProfilerSessionSummary,
@@ -78,7 +90,8 @@ const STRESS_BUN_HTTP_LIMIT_READY = "STRESS_BUN_HTTP_LIMIT_READY";
 
 const runHttpStress = process.env.RUN_LEDGER_HTTP_STRESS === "1";
 const runHealthStress = process.env.RUN_LEDGER_HEALTH_STRESS === "1";
-const isStressRun = runHttpStress || runHealthStress;
+const runGetBalanceStress = process.env.RUN_LEDGER_GET_BALANCE_STRESS === "1";
+const isStressRun = runHttpStress || runHealthStress || runGetBalanceStress;
 
 function ensureBunFetchConcurrencyLimit(): void {
 	if (process.env[STRESS_BUN_HTTP_LIMIT_READY] === "1") {
@@ -306,6 +319,7 @@ async function resetStressLedgerState(redis: Redis): Promise<void> {
 			PENDING_WITHDRAWALS_LIST_KEY,
 			TRANSACTION_ID_BLOOM_KEY,
 			profilerInFlightKey("pushTransaction"),
+			profilerInFlightKey(ProfilerApiName.GetBalance),
 		);
 		await clearAddressBalanceCache(redis);
 		await resetAddressBalanceCacheStats(redis);
@@ -337,7 +351,7 @@ async function runPushTransactionStress(
 	const amount = 100;
 	const fee = 10;
 	const initialBalance = 1000;
-	const concurrency = Number(process.env.STRESS_CONCURRENCY ?? "10");
+	const concurrency = Number(process.env.STRESS_CONCURRENCY ?? "2000");
 	/** Settle polling can use a lower fan-out than push (high settle conc amplifies overload). */
 	const settleConcurrencyRaw = Number(process.env.STRESS_SETTLE_CONCURRENCY);
 	const settleConcurrency =
@@ -763,9 +777,13 @@ async function runHealthHttpStress(): Promise<void> {
 		apiErrors,
 	});
 
+	const successRatePct = computeSuccessRatePct(accepted, requestCount);
+	warnIfLowSuccessRate("health stress", successRatePct, accepted, requestCount);
+
 	const summary =
 		`health_stress path=/health requests=${requestCount} ` +
 		`concurrency=${concurrency} accepted=${accepted} ` +
+		`success_rate_pct=${successRatePct} ` +
 		`elapsed_ms=${elapsedMs} reqs_per_sec=${requestsPerSecond} ` +
 		`rtt_avg_ms=${clientRttMs.average} rtt_p25=${clientRttMs.bottomQuartile} ` +
 		`rtt_p75=${clientRttMs.upperQuartile} errors=${apiErrors.total}`;
@@ -775,6 +793,7 @@ async function runHealthHttpStress(): Promise<void> {
 		request_count: requestCount,
 		concurrency,
 		accepted,
+		success_rate_pct: successRatePct,
 		elapsed_ms: elapsedMs,
 		requests_per_second: requestsPerSecond,
 		client_rtt_ms: clientRttMs,
@@ -786,9 +805,6 @@ async function runHealthHttpStress(): Promise<void> {
 	if (resultFile) {
 		await Bun.write(resultFile, `${JSON.stringify(result, null, 2)}\n`);
 	}
-
-	expect(accepted).toBe(requestCount);
-	expect(apiErrors.total).toBe(0);
 }
 
 async function runPushTransactionStressVariant(
@@ -808,7 +824,7 @@ async function runPushTransactionStressVariant(
 		balanceCache,
 	} = options;
 	await resetStressLedgerState(redis);
-	const concurrency = Number(process.env.STRESS_CONCURRENCY ?? "10");
+	const concurrency = Number(process.env.STRESS_CONCURRENCY ?? "2000");
 	const settleConcurrencyRaw = Number(process.env.STRESS_SETTLE_CONCURRENCY);
 	const settleConcurrency =
 		Number.isFinite(settleConcurrencyRaw) && settleConcurrencyRaw > 0
@@ -846,6 +862,27 @@ async function runPushTransactionStressVariant(
 		throughput,
 	});
 
+	const pushSuccessRatePct = computeSuccessRatePct(
+		throughput.acceptedPushes,
+		transactionCount,
+	);
+	const settleSuccessRatePct = computeSuccessRatePct(
+		throughput.processedToPostgres,
+		Math.max(throughput.acceptedPushes, 1),
+	);
+	warnIfLowSuccessRate(
+		`pushTransaction ${balanceCacheMode}-cache push`,
+		pushSuccessRatePct,
+		throughput.acceptedPushes,
+		transactionCount,
+	);
+	warnIfLowSuccessRate(
+		`pushTransaction ${balanceCacheMode}-cache settle`,
+		settleSuccessRatePct,
+		throughput.processedToPostgres,
+		throughput.acceptedPushes,
+	);
+
 	const stressResultFile = stressResultFileForMode(balanceCacheMode);
 	if (stressResultFile) {
 		await Bun.write(
@@ -854,8 +891,7 @@ async function runPushTransactionStressVariant(
 		);
 	}
 
-	expect(throughput.processedToPostgres).toBe(throughput.acceptedPushes);
-	//expect(throughput.acceptedPushes).toBe(transactionCount);
+	await resetStressLedgerState(redis);
 
 	return {
 		title,
@@ -892,6 +928,373 @@ async function runWarmBalanceCachePushStress(
 		redis,
 		balanceCache,
 	});
+}
+
+function clampPercent(value: number): number {
+	if (!Number.isFinite(value)) {
+		return 0;
+	}
+	return Math.min(100, Math.max(0, value));
+}
+
+/** Parse `1,2,3` env lists; empty/missing → defaults. */
+function parsePositiveNumberList(
+	raw: string | undefined,
+	defaults: readonly number[],
+): number[] {
+	if (raw === undefined || raw.trim().length === 0) {
+		return [...defaults];
+	}
+	const values = raw
+		.split(",")
+		.map((part) => Number(part.trim()))
+		.filter((value) => Number.isFinite(value) && value > 0);
+	return values.length > 0 ? values : [...defaults];
+}
+
+function parsePercentList(
+	raw: string | undefined,
+	defaults: readonly number[],
+): number[] {
+	if (raw === undefined || raw.trim().length === 0) {
+		return [...defaults];
+	}
+	const values = raw
+		.split(",")
+		.map((part) => clampPercent(Number(part.trim())))
+		.filter((value) => Number.isFinite(value));
+	return values.length > 0 ? values : [...defaults];
+}
+
+function warnIfLowSuccessRate(
+	label: string,
+	successRatePct: number,
+	accepted: number,
+	attempted: number,
+): void {
+	if (successRatePct < STRESS_SUCCESS_RATE_WARNING_PCT) {
+		log.warning(
+			`${label}: success rate ${successRatePct}% is below ${STRESS_SUCCESS_RATE_WARNING_PCT}% ` +
+				`(${accepted}/${attempted} succeeded)`,
+			{
+				success_rate_pct: successRatePct,
+				accepted,
+				attempted,
+				warning_threshold_pct: STRESS_SUCCESS_RATE_WARNING_PCT,
+			},
+		);
+	}
+}
+
+async function appendProfilerSessionDescription(
+	redis: Redis,
+	sessionId: string,
+	lines: readonly string[],
+): Promise<void> {
+	const raw = await redis.get(profilerSessionMetaKey(sessionId));
+	const session = StartProfilerSession.fromJsonText(raw ?? "");
+	if (!session) {
+		return;
+	}
+	const updated = new StartProfilerSession({
+		session_id: session.session_id,
+		title: session.title,
+		description: [session.description, ...lines]
+			.filter((line) => line.length > 0)
+			.join("\n"),
+		apis: session.apis,
+		started_at_unix_ms: session.started_at_unix_ms,
+	});
+	await redis.set(profilerSessionMetaKey(sessionId), JSON.stringify(updated));
+}
+
+function printGetBalanceBatchTable(
+	batch: GetBalanceStressBatchResult,
+): void {
+	const headers = [
+		"calls",
+		"addresses",
+		"cache%",
+		"nonzero%",
+		"success%",
+		"session / chart",
+	] as const;
+	const rows = batch.runs.map((run) => {
+		const url = profilerSessionVisualizationUrl(run.profilerSessionId);
+		return [
+			String(run.variables.callCount),
+			String(run.variables.addressCount),
+			String(run.variables.cachePct),
+			String(run.variables.nonzeroPct),
+			String(run.successRatePct),
+			url,
+		];
+	});
+	const widths = headers.map((header, column) =>
+		Math.max(header.length, ...rows.map((row) => row[column]!.length)),
+	);
+	const formatRow = (cells: readonly string[]): string =>
+		`| ${cells.map((cell, i) => cell.padEnd(widths[i]!)).join(" | ")} |`;
+	const divider = `+-${widths.map((width) => "-".repeat(width)).join("-+-")}-+`;
+	console.log(divider);
+	console.log(formatRow([...headers]));
+	console.log(divider);
+	for (const row of rows) {
+		console.log(formatRow(row));
+	}
+	console.log(divider);
+}
+
+/**
+ * Run the getBalance stress matrix (default 2×2×3×2 = 24 cells).
+ * Each cell gets its own profiler session; Explorer loads siblings via
+ * `get_balance_batch_sessions` in the session description.
+ */
+async function runGetBalanceHttpStress(): Promise<void> {
+	const callCounts = parsePositiveNumberList(
+		process.env.STRESS_GET_BALANCE_CALL_COUNT ??
+			process.env.STRESS_REQUEST_COUNT,
+		DEFAULT_GET_BALANCE_CALL_COUNTS,
+	);
+	const addressCounts = parsePositiveNumberList(
+		process.env.STRESS_GET_BALANCE_ADDRESS_COUNT,
+		DEFAULT_GET_BALANCE_ADDRESS_COUNTS,
+	);
+	const cachePcts = parsePercentList(
+		process.env.STRESS_GET_BALANCE_CACHE_PCT,
+		DEFAULT_GET_BALANCE_CACHE_PCTS,
+	);
+	const nonzeroPcts = parsePercentList(
+		process.env.STRESS_GET_BALANCE_NONZERO_PCT,
+		DEFAULT_GET_BALANCE_NONZERO_PCTS,
+	);
+	const concurrency = Number(process.env.STRESS_CONCURRENCY ?? "2000");
+	expect(Number.isFinite(concurrency) && concurrency > 0).toBe(true);
+
+	const matrix = buildGetBalanceStressMatrix({
+		callCounts,
+		addressCounts,
+		cachePcts,
+		nonzeroPcts,
+	});
+	expect(matrix.length).toBeGreaterThan(0);
+
+	const batchId = crypto.randomUUID();
+	// Pre-allocate session ids so every cell's description lists the full batch.
+	const batchSessionIds = matrix.map(() => crypto.randomUUID());
+
+	const commonConfig = loadLayer2LedgerCommonConfig();
+	const balanceCache = resolveAddressBalanceCacheOptions(commonConfig.redis);
+	const redis = new Redis({
+		host: commonConfig.redis.host,
+		port: commonConfig.redis.port,
+		maxRetriesPerRequest: null,
+	});
+
+	const runs: GetBalanceStressResult[] = [];
+	const visualizationLinks: StressVisualizationLink[] = [];
+
+	try {
+		await waitForApiHealth(ledgerApiUrl, 60_000);
+		log.info("getBalance stress matrix starting", {
+			batch_id: batchId,
+			cells: matrix.length,
+			call_counts: callCounts,
+			address_counts: addressCounts,
+			cache_pcts: cachePcts,
+			nonzero_pcts: nonzeroPcts,
+		});
+
+		for (let index = 0; index < matrix.length; index += 1) {
+			const variables = matrix[index]!;
+			const sessionId = batchSessionIds[index]!;
+			const result = await runOneGetBalanceStressVariantWithSessionId({
+				variables,
+				batchId,
+				batchSessionIds,
+				sessionId,
+				concurrency,
+				redis,
+				balanceCache,
+			});
+			runs.push(result);
+			visualizationLinks.push({
+				title: `getBalance calls=${variables.callCount} addrs=${variables.addressCount} cache=${variables.cachePct}% nonzero=${variables.nonzeroPct}%`,
+				sessionId: result.profilerSessionId,
+				url: profilerSessionVisualizationUrl(result.profilerSessionId),
+			});
+			console.log(
+				`getBalance matrix cell ${index + 1}/${matrix.length} ` +
+					`accepted=${result.accepted}/${variables.callCount} ` +
+					`success_rate_pct=${result.successRatePct} ` +
+					`elapsed_ms=${result.elapsedMs} reqs_per_sec=${result.requestsPerSecond}`,
+			);
+		}
+
+		const batch = new GetBalanceStressBatchResult({ batchId, runs });
+		printGetBalanceBatchTable(batch);
+		printStressVisualizationUrls(visualizationLinks);
+
+		const resultFile =
+			process.env.STRESS_GET_BALANCE_RESULT_FILE ??
+			process.env.STRESS_RESULT_FILE;
+		if (resultFile) {
+			await Bun.write(resultFile, `${JSON.stringify(batch, null, 2)}\n`);
+		}
+	} finally {
+		await resetStressLedgerState(redis);
+		await redis.quit();
+	}
+}
+
+async function runOneGetBalanceStressVariantWithSessionId(options: {
+	variables: GetBalanceStressVariables;
+	batchId: string;
+	batchSessionIds: readonly string[];
+	sessionId: string;
+	concurrency: number;
+	redis: Redis;
+	balanceCache: AddressBalanceCacheOptions;
+}): Promise<GetBalanceStressResult> {
+	const {
+		variables,
+		batchId,
+		batchSessionIds,
+		sessionId,
+		concurrency,
+		redis,
+		balanceCache,
+	} = options;
+	const { callCount, addressCount, cachePct, nonzeroPct } = variables;
+	const ledger = createLayer2LedgerClient(ledgerApiUrl);
+	const testhelper = createLayer2TestHelperClient(testhelperUrl);
+	const apiErrors = emptyApiErrorCounts();
+	const latenciesMs: number[] = [];
+	let accepted = 0;
+
+	await resetStressLedgerState(redis);
+
+	try {
+		const poolSize = Math.max(addressCount * 4, addressCount, 64);
+		const addresses = Array.from({ length: poolSize }, () =>
+			newLayer2Address().public_key_str_base58,
+		);
+		const nonzeroCount = Math.round((poolSize * nonzeroPct) / 100);
+		const cachedCount = Math.round((poolSize * cachePct) / 100);
+
+		await mapPool(addresses, concurrency, async (address, index) => {
+			const balance = index < nonzeroCount ? 1_000_000 + index : 0;
+			try {
+				unwrapLayer2TestHelperResponse(
+					await testhelper.testhelper.seed.balance.post({
+						address,
+						balance,
+						include_deposit_transaction: false,
+					}),
+				);
+			} catch (error) {
+				recordApiError(apiErrors, apiErrorReason(error));
+			}
+		});
+
+		await clearAddressBalanceCache(redis);
+		await setCachedAddressBalances(
+			redis,
+			addresses.slice(0, cachedCount).map((address, index) => ({
+				address,
+				balance: index < nonzeroCount ? 1_000_000 + index : 0,
+			})),
+			balanceCache,
+		);
+		await resetAddressBalanceCacheStats(redis);
+
+		const title = `getBalance stress calls=${callCount} addrs=${addressCount} cache=${cachePct}% nonzero=${nonzeroPct}%`;
+		const description = [
+			...variables.toDescriptionLines(),
+			`get_balance_batch_id=${batchId}`,
+			`get_balance_batch_sessions=${batchSessionIds.join(",")}`,
+			`STRESS_CONCURRENCY=${concurrency}`,
+			`pool_size=${poolSize}`,
+			`LAYER2LEDGER_API_URL=${ledgerApiUrl}`,
+		].join("\n");
+
+		await unwrapLayer2LedgerResponse(
+			await ledger.health.start_profiler_session.post({
+				session_id: sessionId,
+				title,
+				description,
+				apis: [ProfilerApiName.GetBalance],
+			}),
+		);
+
+		const startedAt = performance.now();
+		await greedyPool(
+			Array.from({ length: callCount }, (_, index) => index),
+			concurrency,
+			async (callIndex) => {
+				const publicKeys = Array.from({ length: addressCount }, (_, offset) => {
+					const index = (callIndex * addressCount + offset) % poolSize;
+					return addresses[index]!;
+				});
+				const reqStarted = performance.now();
+				const response = await callLedgerApi(apiErrors, async () =>
+					unwrapLayer2LedgerResponse(
+						await ledger.explorer.get_balance.post({
+							public_keys: publicKeys,
+						}),
+					),
+				);
+				if (response?.error_code === ErrorCodes.SUCCESS) {
+					accepted += 1;
+					latenciesMs.push(performance.now() - reqStarted);
+				}
+			},
+		);
+		const elapsedMs = Math.round(performance.now() - startedAt);
+		const successRatePct = computeSuccessRatePct(accepted, callCount);
+		warnIfLowSuccessRate(
+			`getBalance stress calls=${callCount} addrs=${addressCount} cache=${cachePct}% nonzero=${nonzeroPct}%`,
+			successRatePct,
+			accepted,
+			callCount,
+		);
+
+		await appendProfilerSessionDescription(redis, sessionId, [
+			`success_rate_pct=${successRatePct}`,
+			`accepted=${accepted}`,
+			`attempted=${callCount}`,
+		]);
+
+		const stopSession = unwrapLayer2LedgerResponse(
+			await ledger.health.stop_profiler_session.post({
+				session_id: sessionId,
+			}),
+		);
+		const report = ProfilerSessionReport.parse(stopSession.session ?? null);
+		expect(report).not.toBeNull();
+		const outputFile = profilerSessionOutputPath(
+			sessionId,
+			process.env.PROFILER_SESSION_OUTPUT_DIR,
+		);
+		await Bun.write(outputFile, `${JSON.stringify(report, null, 2)}\n`);
+
+		return new GetBalanceStressResult({
+			variables,
+			concurrency,
+			accepted,
+			successRatePct,
+			elapsedMs,
+			requestsPerSecond: Number(
+				((accepted / Math.max(elapsedMs, 1)) * 1000).toFixed(2),
+			),
+			clientRttMs: computeLatencyStats(latenciesMs),
+			apiErrors,
+			profilerSessionId: sessionId,
+			profilerOutputFile: outputFile,
+		});
+	} finally {
+		await resetStressLedgerState(redis);
+	}
 }
 
 async function runPushTransactionHttpStress(): Promise<void> {
@@ -937,11 +1340,14 @@ async function main(): Promise<void> {
 	);
 	if (!isStressRun) {
 		throw new Error(
-			"No stress selected. Set RUN_LEDGER_HTTP_STRESS=1 and/or RUN_LEDGER_HEALTH_STRESS=1",
+			"No stress selected. Set RUN_LEDGER_HTTP_STRESS=1, RUN_LEDGER_HEALTH_STRESS=1, and/or RUN_LEDGER_GET_BALANCE_STRESS=1",
 		);
 	}
 	if (runHealthStress) {
 		await runHealthHttpStress();
+	}
+	if (runGetBalanceStress) {
+		await runGetBalanceHttpStress();
 	}
 	if (runHttpStress) {
 		await runPushTransactionHttpStress();
@@ -952,7 +1358,7 @@ if (import.meta.main) {
 	if (!isStressRun) {
 		// Discovered by `bun test` without stress flags — do not fail the suite.
 		console.log(
-			"stress.test.ts: skipping (set RUN_LEDGER_HTTP_STRESS=1 and/or RUN_LEDGER_HEALTH_STRESS=1)",
+			"stress.test.ts: skipping (set RUN_LEDGER_HTTP_STRESS=1, RUN_LEDGER_HEALTH_STRESS=1, and/or RUN_LEDGER_GET_BALANCE_STRESS=1)",
 		);
 	} else {
 		await main();

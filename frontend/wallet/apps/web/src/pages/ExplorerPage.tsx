@@ -32,9 +32,14 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { OAuthUserCard } from "../components/OAuthUserCard";
+import {
+	GetBalanceProfilerChart,
+	type GetBalanceProfilerTableRow,
+} from "../components/GetBalanceProfilerChart";
 import { ProfilerSessionChart } from "../components/ProfilerSessionChart";
 import {
 	collectProfilerXValues,
+	parseGetBalanceStressVariables,
 	recalculateTotalTxsPerSec,
 } from "../components/profiler-session-chart-utils";
 import { TransactionItem } from "../components/TransactionItem";
@@ -42,6 +47,7 @@ import { useFindOAuthUserById } from "../hooks/useLayer2LedgerOauthManagerQuerie
 import {
 	useAddressBalance,
 	useProfilerSession,
+	useProfilerSessions,
 	useTransaction,
 	useTransactions,
 } from "../hooks/useLayer2Queries";
@@ -381,6 +387,65 @@ function StatsSessionView(): React.JSX.Element | null {
 	const initializedSessionIdRef = useRef<string | null>(null);
 
 	const session = data?.session;
+	const isGetBalanceSession = Boolean(
+		session?.apis.includes("getBalance") &&
+			!session.apis.includes("pushTransaction"),
+	);
+	const getBalanceVariables = useMemo(() => {
+		if (!session?.description || !isGetBalanceSession) {
+			return null;
+		}
+		return parseGetBalanceStressVariables(session.description);
+	}, [session, isGetBalanceSession]);
+	const batchSessionIds = useMemo(() => {
+		const fromDescription = getBalanceVariables?.batchSessionIds ?? [];
+		if (fromDescription.length > 0) {
+			return fromDescription;
+		}
+		return sessionId ? [sessionId] : [];
+	}, [getBalanceVariables, sessionId]);
+	const batchQueries = useProfilerSessions(
+		isGetBalanceSession ? batchSessionIds : [],
+	);
+	const getBalanceTableRows = useMemo((): GetBalanceProfilerTableRow[] => {
+		if (!isGetBalanceSession) {
+			return [];
+		}
+		const rows: GetBalanceProfilerTableRow[] = [];
+		for (const [index, id] of batchSessionIds.entries()) {
+			if (!id) {
+				continue;
+			}
+			const batchSession = batchQueries[index]?.data?.session;
+			const vars = batchSession?.description
+				? parseGetBalanceStressVariables(batchSession.description)
+				: id === sessionId
+					? getBalanceVariables
+					: null;
+			const stats = batchSession?.api_stats.find(
+				(entry) => entry.api === "getBalance",
+			);
+			rows.push({
+				sessionId: id,
+				callCount: vars?.callCount ?? "—",
+				addressCount: vars?.addressCount ?? "—",
+				cachePct: vars?.cachePct ?? "—",
+				nonzeroPct: vars?.nonzeroPct ?? "—",
+				successRatePct: vars?.successRatePct ?? null,
+				timeseries: batchSession?.timeseries.get_balance ?? null,
+				throughputPerSec: stats?.throughput_per_sec ?? null,
+				avgLatencyMs: stats?.avg_latency_ms ?? null,
+				peakConcurrent: stats?.peak_concurrent ?? null,
+			});
+		}
+		return rows;
+	}, [
+		isGetBalanceSession,
+		batchSessionIds,
+		batchQueries,
+		sessionId,
+		getBalanceVariables,
+	]);
 
 	const dataMaxMs = useMemo(() => {
 		if (!session) {
@@ -486,7 +551,13 @@ function StatsSessionView(): React.JSX.Element | null {
 							{LABELS.TEXT_PROFILER_SESSION_NOT_FOUND}
 						</p>
 					)}
-					{session && (
+					{session && isGetBalanceSession && (
+						<GetBalanceProfilerChart
+							rows={getBalanceTableRows}
+							activeSessionId={sessionId}
+						/>
+					)}
+					{session && !isGetBalanceSession && (
 						<>
 							<div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
 								<div>

@@ -2,7 +2,7 @@ import {
 	createLayer2LedgerClient,
 	unwrapLayer2LedgerResponse,
 } from "@openl2/api-layer2ledger";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
 import { LAYER2_LEDGER_API_URL } from "../config";
 
 const ledgerApi = createLayer2LedgerClient(LAYER2_LEDGER_API_URL);
@@ -111,5 +111,22 @@ export const useProfilerSession = (sessionId: string) => {
 			);
 		},
 		enabled: !!sessionId,
+	});
+};
+
+/** Load many profiler sessions (e.g. a getBalance stress matrix batch). */
+export const useProfilerSessions = (sessionIds: readonly string[]) => {
+	return useQueries({
+		queries: sessionIds.map((sessionId) => ({
+			queryKey: ["ProfilerSession", sessionId],
+			queryFn: async () => {
+				return unwrapLayer2LedgerResponse(
+					await ledgerApi.health.GetProfilerSession.post({
+						session_id: sessionId,
+					}),
+				);
+			},
+			enabled: sessionId.length > 0,
+		})),
 	});
 };

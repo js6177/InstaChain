@@ -45,6 +45,11 @@ export default defineConfig({
 	resolve: {
 		alias: {
 			"@": path.resolve(__dirname, "./src"),
+			// Keep workspace package resolution inside the Vite graph (avoids brittle @fs export *).
+			"@openl2/wallet-shared": path.resolve(
+				__dirname,
+				"../../packages/shared/index.ts",
+			),
 		},
 	},
 	optimizeDeps: {

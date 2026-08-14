@@ -12,6 +12,11 @@ export interface ProfilerPushTransactionSectionAvgView {
 	enqueue: ProfilerTimeseriesPoint[];
 }
 
+export interface GetBalanceProfilerTimeseriesView {
+	avg_latency_ms: ProfilerTimeseriesPoint[];
+	throughput_per_sec: ProfilerTimeseriesPoint[];
+}
+
 export interface ProfilerSessionTimeseriesView {
 	avg_replica_concurrent: ProfilerTimeseriesPoint[];
 	push_transaction_entries_cumulative: ProfilerTimeseriesPoint[];
@@ -22,6 +27,7 @@ export interface ProfilerSessionTimeseriesView {
 	dbwriter_sleep_active: ProfilerTimeseriesPoint[];
 	dbwriter_redis_active: ProfilerTimeseriesPoint[];
 	push_transaction_section_avg_ms?: ProfilerPushTransactionSectionAvgView;
+	get_balance?: GetBalanceProfilerTimeseriesView;
 }
 
 const EMPTY_SECTION_AVG: ProfilerPushTransactionSectionAvgView = {
@@ -65,6 +71,10 @@ export function collectProfilerXValues(
 	add(sectionAvg.duplicate_check);
 	add(sectionAvg.get_balance);
 	add(sectionAvg.enqueue);
+	if (timeseries.get_balance) {
+		add(timeseries.get_balance.avg_latency_ms);
+		add(timeseries.get_balance.throughput_per_sec);
+	}
 	if (throughputStartMs !== null) {
 		xs.add(throughputStartMs);
 	}
@@ -72,6 +82,42 @@ export function collectProfilerXValues(
 		xs.add(throughputEndMs);
 	}
 	return [...xs].sort((a, b) => a - b);
+}
+
+/** Parse getBalance stress knobs / batch metadata from session description. */
+export function parseGetBalanceStressVariables(
+	description: string,
+): {
+	callCount: string | null;
+	addressCount: string | null;
+	cachePct: string | null;
+	nonzeroPct: string | null;
+	successRatePct: string | null;
+	batchId: string | null;
+	batchSessionIds: string[];
+} {
+	const values = new Map<string, string>();
+	for (const line of description.split("\n")) {
+		const separator = line.indexOf("=");
+		if (separator <= 0) {
+			continue;
+		}
+		values.set(line.slice(0, separator).trim(), line.slice(separator + 1).trim());
+	}
+	const batchSessionsRaw = values.get("get_balance_batch_sessions") ?? "";
+	const batchSessionIds = batchSessionsRaw
+		.split(",")
+		.map((part) => part.trim())
+		.filter((part) => part.length > 0);
+	return {
+		callCount: values.get("get_balance_call_count") ?? null,
+		addressCount: values.get("get_balance_address_count") ?? null,
+		cachePct: values.get("get_balance_cache_pct") ?? null,
+		nonzeroPct: values.get("get_balance_nonzero_pct") ?? null,
+		successRatePct: values.get("success_rate_pct") ?? null,
+		batchId: values.get("get_balance_batch_id") ?? null,
+		batchSessionIds,
+	};
 }
 
 export function recalculateTotalTxsPerSec(

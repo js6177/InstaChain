@@ -192,6 +192,13 @@ describe("buildProfilerSessionTimeseries", () => {
 			{ t_ms: 300, value: 2 },
 			{ t_ms: 400, value: 3 },
 		]);
+		// No getBalance spans in this fixture → empty series baseline.
+		expect(series.get_balance.avg_latency_ms).toEqual([
+			{ t_ms: 0, value: 0 },
+		]);
+		expect(series.get_balance.throughput_per_sec).toEqual([
+			{ t_ms: 0, value: 0 },
+		]);
 
 		expect(series.dbwriter_writes_cumulative).toEqual([
 			{ t_ms: 0, value: 0 },

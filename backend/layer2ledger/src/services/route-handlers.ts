@@ -99,6 +99,7 @@ import {
 	StartProfilerSession,
 	startProfilerSessionInRedis,
 } from "../redis/profiler-session";
+import { GetBalanceProfiler } from "../transaction-processing/get-balance-profiler";
 import { PushTransactionProfiler } from "../transaction-processing/push-transaction-profiler";
 import {
 	notePushTransactionSectionSample,
@@ -866,24 +867,29 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 
 	async getBalance(body: GetBalanceRequest): Promise<GetBalanceResponse> {
 		const { db, redis, balanceCache } = this.ctx;
-		const balances: GetBalanceResponseBalance[] = [];
-		for (const publicKey of body.public_keys) {
-			const balance = await getAddressBalance(
-				db,
-				redis,
-				publicKey,
-				balanceCache,
-			);
-			balances.push({
-				public_key: publicKey,
-				balance: balance ?? 0,
-				address_found: balance !== undefined,
-			});
+		const profile = await new GetBalanceProfiler(redis).begin();
+		try {
+			const balances: GetBalanceResponseBalance[] = [];
+			for (const publicKey of body.public_keys) {
+				const balance = await getAddressBalance(
+					db,
+					redis,
+					publicKey,
+					balanceCache,
+				);
+				balances.push({
+					public_key: publicKey,
+					balance: balance ?? 0,
+					address_found: balance !== undefined,
+				});
+			}
+			return {
+				...buildCommonResponse(ErrorCodes.SUCCESS),
+				balance: balances,
+			};
+		} finally {
+			await profile.end();
 		}
-		return {
-			...buildCommonResponse(ErrorCodes.SUCCESS),
-			balance: balances,
-		};
 	}
 
 	async getTransaction(

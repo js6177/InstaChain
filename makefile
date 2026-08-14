@@ -109,7 +109,7 @@ stress-test:
 		run --rm --quiet-pull \
 		-v "$(CURDIR)/.test-output/stress:/test-output" \
 		-e "STRESS_TX_COUNT=$${STRESS_TX_COUNT:-50000}" \
-		-e "STRESS_CONCURRENCY=$${STRESS_CONCURRENCY:-10}" \
+		-e "STRESS_CONCURRENCY=$${STRESS_CONCURRENCY:-2000}" \
 		-e "STRESS_SETTLE_TIMEOUT_MS=$${STRESS_SETTLE_TIMEOUT_MS:-600000}" \
 		-e "STRESS_SETTLE_CONCURRENCY=$${STRESS_SETTLE_CONCURRENCY:-}" \
 		-e "STRESS_NGINX_SAMPLE_MS=$${STRESS_NGINX_SAMPLE_MS:-250}" \
@@ -148,6 +148,44 @@ stress-test-health:
 		-e "STRESS_HEALTH_PATH=$${STRESS_HEALTH_PATH:-/health}" \
 		-e STRESS_HEALTH_RESULT_FILE=/test-output/test-layer2ledger-health-stress.throughput.json \
 		-v "$(CURDIR)/backend/layer2ledger/test:/app/backend/layer2ledger/test:ro" \
+		test-layer2ledger-stress
+
+# getBalance HTTP stress matrix (seeds via testhelper; Explorer table + charts).
+# Default matrix: calls 1000,2000 × addresses 10,100 × cache% 10,50,100 × nonzero% 50,25 (24 cells).
+# Override any dimension with a comma list, e.g. STRESS_GET_BALANCE_CALL_COUNT=1000
+# Examples:
+#   make stress-test-get-balance
+#   STRESS_GET_BALANCE_CALL_COUNT=1000 STRESS_GET_BALANCE_ADDRESS_COUNT=10 \
+#     STRESS_GET_BALANCE_CACHE_PCT=100 STRESS_GET_BALANCE_NONZERO_PCT=50 make stress-test-get-balance
+stress-test-get-balance:
+	mkdir -p .test-output/stress
+	ENVIRONMENT=test bun run --filter @openl2/setup-scripts ensure-compose-build -- \
+		layer2ledgerapihandler \
+		layer2ledger-testhelper \
+		test-layer2ledger-stress
+	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
+		up -d --quiet-pull \
+		--scale layer2ledgerapihandler=$${LAYER2LEDGER_APIHANDLER_REPLICAS:-2} \
+		layer2ledger-postgres \
+		layer2ledger-pgbouncer \
+		layer2ledger-redis \
+		layer2ledgerapihandler \
+		layer2ledger-testhelper
+	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
+		up -d --quiet-pull --force-recreate --no-deps layer2ledgerapihandler-nginx
+	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
+		run --rm --quiet-pull \
+		-v "$(CURDIR)/.test-output/stress:/test-output" \
+		-e RUN_LEDGER_HTTP_STRESS=0 \
+		-e RUN_LEDGER_HEALTH_STRESS=0 \
+		-e RUN_LEDGER_GET_BALANCE_STRESS=1 \
+		-e "STRESS_GET_BALANCE_CALL_COUNT=$${STRESS_GET_BALANCE_CALL_COUNT:-}" \
+		-e "STRESS_GET_BALANCE_ADDRESS_COUNT=$${STRESS_GET_BALANCE_ADDRESS_COUNT:-}" \
+		-e "STRESS_GET_BALANCE_CACHE_PCT=$${STRESS_GET_BALANCE_CACHE_PCT:-}" \
+		-e "STRESS_GET_BALANCE_NONZERO_PCT=$${STRESS_GET_BALANCE_NONZERO_PCT:-}" \
+		-e "STRESS_CONCURRENCY=$${STRESS_CONCURRENCY:-2000}" \
+		-e STRESS_GET_BALANCE_RESULT_FILE=/test-output/test-layer2ledger-get-balance-stress.json \
+		-e PROFILER_SESSION_OUTPUT_DIR=/test-output \
 		test-layer2ledger-stress
 
 # Unit + integration containers only (no stress). Stress: make stress-test

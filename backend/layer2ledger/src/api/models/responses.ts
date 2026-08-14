@@ -193,6 +193,11 @@ export const ProfilerPushTransactionSectionAvgResponse = t.Object({
 	enqueue: t.Array(ProfilerTimeseriesPointResponse),
 });
 
+export const GetBalanceProfilerTimeseriesResponse = t.Object({
+	avg_latency_ms: t.Array(ProfilerTimeseriesPointResponse),
+	throughput_per_sec: t.Array(ProfilerTimeseriesPointResponse),
+});
+
 export const ProfilerSessionTimeseriesResponse = t.Object({
 	avg_replica_concurrent: t.Array(ProfilerTimeseriesPointResponse),
 	push_transaction_entries_cumulative: t.Array(
@@ -205,6 +210,7 @@ export const ProfilerSessionTimeseriesResponse = t.Object({
 	dbwriter_sleep_active: t.Array(ProfilerTimeseriesPointResponse),
 	dbwriter_redis_active: t.Array(ProfilerTimeseriesPointResponse),
 	push_transaction_section_avg_ms: ProfilerPushTransactionSectionAvgResponse,
+	get_balance: GetBalanceProfilerTimeseriesResponse,
 });
 
 export const ProfilerSessionReportResponse = t.Object({
@@ -280,6 +286,8 @@ export type StopProfilerSessionResponse =
 	typeof StopProfilerSessionResponse.static;
 export type ProfilerTimeseriesPointResponse =
 	typeof ProfilerTimeseriesPointResponse.static;
+export type GetBalanceProfilerTimeseriesResponse =
+	typeof GetBalanceProfilerTimeseriesResponse.static;
 export type ProfilerSessionTimeseriesResponse =
 	typeof ProfilerSessionTimeseriesResponse.static;
 export type GetProfilerSessionResponse =
