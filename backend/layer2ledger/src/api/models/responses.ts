@@ -251,6 +251,23 @@ export const GetProfilerSessionResponse = t.Composite([
 	}),
 ]);
 
+export const GetBalanceStressHistoryEntryResponse = t.Object({
+	completed_at_unix_ms: t.Number(),
+	batch_id: t.String(),
+	concurrency: t.Number(),
+	run_count: t.Number(),
+	min_success_rate_pct: t.Number(),
+	avg_requests_per_second: t.Number(),
+	profiler_session_id: t.String(),
+});
+
+export const ListGetBalanceStressHistoryResponse = t.Composite([
+	CommonResponse,
+	t.Object({
+		entries: t.Array(GetBalanceStressHistoryEntryResponse),
+	}),
+]);
+
 export type GetDepositAddressResponse = typeof GetDepositAddressResponse.static;
 export type Layer1TransactionIdStatus = typeof Layer1TransactionIdStatus.static;
 export type DepositConfirmedResponse = typeof DepositConfirmedResponse.static;
@@ -292,3 +309,7 @@ export type ProfilerSessionTimeseriesResponse =
 	typeof ProfilerSessionTimeseriesResponse.static;
 export type GetProfilerSessionResponse =
 	typeof GetProfilerSessionResponse.static;
+export type GetBalanceStressHistoryEntryResponse =
+	typeof GetBalanceStressHistoryEntryResponse.static;
+export type ListGetBalanceStressHistoryResponse =
+	typeof ListGetBalanceStressHistoryResponse.static;

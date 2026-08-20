@@ -19,6 +19,7 @@ import {
 	PUSH_TRANSACTION_ROUTE,
 	REQUEST_WITHDRAWAL_ROUTE,
 	GET_PROFILER_SESSION_ROUTE,
+	LIST_GET_BALANCE_STRESS_HISTORY_ROUTE,
 	START_PROFILER_SESSION_ROUTE,
 	STOP_PROFILER_SESSION_ROUTE,
 	TRANSFER_ROUTER_PREFIX,
@@ -41,6 +42,7 @@ import {
 	GetProfilerSessionRequest,
 	StartProfilerSessionRequest,
 	StopProfilerSessionRequest,
+	ListGetBalanceStressHistoryRequest,
 	WithdrawalBroadcastedRequest,
 	WithdrawalConfirmedRequest,
 } from "./models/requests";
@@ -56,6 +58,7 @@ import {
 	GetProfilerSessionResponse,
 	StartProfilerSessionResponse,
 	StopProfilerSessionResponse,
+	ListGetBalanceStressHistoryResponse,
 	WithdrawalBroadcastedResponse,
 	WithdrawalConfirmedResponse,
 } from "./models/responses";
@@ -94,6 +97,14 @@ export function createLayer2LedgerApp(handlers: Layer2LedgerRouteHandlers) {
 					{
 						body: GetProfilerSessionRequest,
 						response: GetProfilerSessionResponse,
+					},
+				)
+				.post(
+					LIST_GET_BALANCE_STRESS_HISTORY_ROUTE,
+					({ body }) => handlers.listGetBalanceStressHistory(body),
+					{
+						body: ListGetBalanceStressHistoryRequest,
+						response: ListGetBalanceStressHistoryResponse,
 					},
 				),
 		)

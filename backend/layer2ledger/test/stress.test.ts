@@ -40,6 +40,7 @@ import {
 	ensureTransactionIdBloomFilter,
 	TRANSACTION_ID_BLOOM_KEY,
 } from "../src/redis/transaction-id-bloom";
+import { prependGetBalanceStressHistory } from "../src/redis/get-balance-stress-history";
 import { profilerInFlightKey } from "../src/transaction-processing/push-transaction-profiler";
 import {
 	buildGetBalanceStressMatrix,
@@ -51,7 +52,10 @@ import {
 	DEFAULT_GET_BALANCE_NONZERO_PCTS,
 	emptyApiErrorCounts,
 	emptyApiErrors,
+	getBalanceStressHistoryPath,
 	GetBalanceStressBatchResult,
+	GetBalanceStressHistory,
+	GetBalanceStressHistoryEntry,
 	GetBalanceStressResult,
 	GetBalanceStressVariables,
 	HealthStressResult,
@@ -1017,19 +1021,16 @@ function printGetBalanceBatchTable(
 		"cache%",
 		"nonzero%",
 		"success%",
-		"session / chart",
+		"reqs/s",
 	] as const;
-	const rows = batch.runs.map((run) => {
-		const url = profilerSessionVisualizationUrl(run.profilerSessionId);
-		return [
-			String(run.variables.callCount),
-			String(run.variables.addressCount),
-			String(run.variables.cachePct),
-			String(run.variables.nonzeroPct),
-			String(run.successRatePct),
-			url,
-		];
-	});
+	const rows = batch.runs.map((run) => [
+		String(run.variables.callCount),
+		String(run.variables.addressCount),
+		String(run.variables.cachePct),
+		String(run.variables.nonzeroPct),
+		String(run.successRatePct),
+		String(run.requestsPerSecond),
+	]);
 	const widths = headers.map((header, column) =>
 		Math.max(header.length, ...rows.map((row) => row[column]!.length)),
 	);
@@ -1045,8 +1046,86 @@ function printGetBalanceBatchTable(
 	console.log(divider);
 }
 
+function printGetBalanceHistoryTable(
+	history: GetBalanceStressHistory,
+): void {
+	if (history.entries.length === 0) {
+		console.log("getBalance stress history: (empty)");
+		return;
+	}
+	const headers = [
+		"completed_at",
+		"batch_id",
+		"cells",
+		"concurrency",
+		"min_success%",
+		"avg_reqs/s",
+		"url",
+	] as const;
+	const rows = history.entries.map((entry) => [
+		new Date(entry.completedAtUnixMs).toISOString(),
+		entry.batchId,
+		String(entry.runCount),
+		String(entry.concurrency),
+		String(entry.minSuccessRatePct),
+		String(entry.avgRequestsPerSecond),
+		entry.visualizationUrl,
+	]);
+	const widths = headers.map((header, column) =>
+		Math.max(header.length, ...rows.map((row) => row[column]!.length)),
+	);
+	const formatRow = (cells: readonly string[]): string =>
+		`| ${cells.map((cell, i) => cell.padEnd(widths[i]!)).join(" | ")} |`;
+	const divider = `+-${widths.map((width) => "-".repeat(width)).join("-+-")}-+`;
+	console.log("getBalance stress history:");
+	console.log(divider);
+	console.log(formatRow([...headers]));
+	console.log(divider);
+	for (const row of rows) {
+		console.log(formatRow(row));
+	}
+	console.log(divider);
+}
+
+async function loadGetBalanceStressHistory(
+	historyFile: string,
+): Promise<GetBalanceStressHistory> {
+	const existing = Bun.file(historyFile);
+	if (!(await existing.exists())) {
+		return GetBalanceStressHistory.empty();
+	}
+	try {
+		const parsed = GetBalanceStressHistory.fromJsonText(await existing.text());
+		return parsed ?? GetBalanceStressHistory.empty();
+	} catch {
+		return GetBalanceStressHistory.empty();
+	}
+}
+
+async function persistGetBalanceStressHistory(options: {
+	historyFile: string | null;
+	batch: GetBalanceStressBatchResult;
+	visualizationUrl: string;
+	redis: Redis;
+}): Promise<GetBalanceStressHistory> {
+	const { historyFile, batch, visualizationUrl, redis } = options;
+	const entry = GetBalanceStressHistoryEntry.fromBatch({
+		batch,
+		completedAtUnixMs: Date.now(),
+		visualizationUrl,
+	});
+	await prependGetBalanceStressHistory(redis, entry.toSummary());
+	if (!historyFile) {
+		return GetBalanceStressHistory.empty().withEntry(entry);
+	}
+	const previous = await loadGetBalanceStressHistory(historyFile);
+	const next = previous.withEntry(entry);
+	await Bun.write(historyFile, `${JSON.stringify(next, null, 2)}\n`);
+	return next;
+}
+
 /**
- * Run the getBalance stress matrix (default 2×2×3×2 = 24 cells).
+ * Run the getBalance stress matrix (default 2×3×3×2 = 36 cells).
  * Each cell gets its own profiler session; Explorer loads siblings via
  * `get_balance_batch_sessions` in the session description.
  */
@@ -1092,7 +1171,6 @@ async function runGetBalanceHttpStress(): Promise<void> {
 	});
 
 	const runs: GetBalanceStressResult[] = [];
-	const visualizationLinks: StressVisualizationLink[] = [];
 
 	try {
 		await waitForApiHealth(ledgerApiUrl, 60_000);
@@ -1118,11 +1196,6 @@ async function runGetBalanceHttpStress(): Promise<void> {
 				balanceCache,
 			});
 			runs.push(result);
-			visualizationLinks.push({
-				title: `getBalance calls=${variables.callCount} addrs=${variables.addressCount} cache=${variables.cachePct}% nonzero=${variables.nonzeroPct}%`,
-				sessionId: result.profilerSessionId,
-				url: profilerSessionVisualizationUrl(result.profilerSessionId),
-			});
 			console.log(
 				`getBalance matrix cell ${index + 1}/${matrix.length} ` +
 					`accepted=${result.accepted}/${variables.callCount} ` +
@@ -1132,8 +1205,12 @@ async function runGetBalanceHttpStress(): Promise<void> {
 		}
 
 		const batch = new GetBalanceStressBatchResult({ batchId, runs });
+		const visualizationUrl = profilerSessionVisualizationUrl(
+			batch.sessionIds()[0] ?? batchId,
+		);
 		printGetBalanceBatchTable(batch);
-		printStressVisualizationUrls(visualizationLinks);
+		console.log("getBalance stress profiler visualization:");
+		console.log(visualizationUrl);
 
 		const resultFile =
 			process.env.STRESS_GET_BALANCE_RESULT_FILE ??
@@ -1141,6 +1218,17 @@ async function runGetBalanceHttpStress(): Promise<void> {
 		if (resultFile) {
 			await Bun.write(resultFile, `${JSON.stringify(batch, null, 2)}\n`);
 		}
+		const historyFile = resultFile
+			? (process.env.STRESS_GET_BALANCE_HISTORY_FILE ??
+				getBalanceStressHistoryPath(resultFile))
+			: (process.env.STRESS_GET_BALANCE_HISTORY_FILE ?? null);
+		const history = await persistGetBalanceStressHistory({
+			historyFile,
+			batch,
+			visualizationUrl,
+			redis,
+		});
+		printGetBalanceHistoryTable(history);
 	} finally {
 		await resetStressLedgerState(redis);
 		await redis.quit();

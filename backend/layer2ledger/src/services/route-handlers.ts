@@ -30,6 +30,8 @@ import {
 	type GetNodeInfoResponse,
 	type GetProfilerSessionRequest,
 	type GetProfilerSessionResponse,
+	type ListGetBalanceStressHistoryRequest,
+	type ListGetBalanceStressHistoryResponse,
 	type GetTransactionRequest,
 	type GetTransactionResponse,
 	type GetTransactionsRequest,
@@ -99,6 +101,7 @@ import {
 	StartProfilerSession,
 	startProfilerSessionInRedis,
 } from "../redis/profiler-session";
+import { loadGetBalanceStressHistory } from "../redis/get-balance-stress-history";
 import { GetBalanceProfiler } from "../transaction-processing/get-balance-profiler";
 import { PushTransactionProfiler } from "../transaction-processing/push-transaction-profiler";
 import {
@@ -299,6 +302,24 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 		return {
 			...buildCommonResponse(ErrorCodes.SUCCESS),
 			session,
+		};
+	}
+
+	async listGetBalanceStressHistory(
+		_body: ListGetBalanceStressHistoryRequest,
+	): Promise<ListGetBalanceStressHistoryResponse> {
+		const entries = await loadGetBalanceStressHistory(this.ctx.redis);
+		return {
+			...buildCommonResponse(ErrorCodes.SUCCESS),
+			entries: entries.map((entry) => ({
+				completed_at_unix_ms: entry.completedAtUnixMs,
+				batch_id: entry.batchId,
+				concurrency: entry.concurrency,
+				run_count: entry.runCount,
+				min_success_rate_pct: entry.minSuccessRatePct,
+				avg_requests_per_second: entry.avgRequestsPerSecond,
+				profiler_session_id: entry.profilerSessionId,
+			})),
 		};
 	}
 

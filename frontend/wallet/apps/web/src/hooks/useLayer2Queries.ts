@@ -114,6 +114,17 @@ export const useProfilerSession = (sessionId: string) => {
 	});
 };
 
+export const useGetBalanceStressHistory = () => {
+	return useQuery({
+		queryKey: ["GetBalanceStressHistory"],
+		queryFn: async () => {
+			return unwrapLayer2LedgerResponse(
+				await ledgerApi.health.ListGetBalanceStressHistory.post({}),
+			);
+		},
+	});
+};
+
 /** Load many profiler sessions (e.g. a getBalance stress matrix batch). */
 export const useProfilerSessions = (sessionIds: readonly string[]) => {
 	return useQueries({

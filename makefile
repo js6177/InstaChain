@@ -151,7 +151,7 @@ stress-test-health:
 		test-layer2ledger-stress
 
 # getBalance HTTP stress matrix (seeds via testhelper; Explorer table + charts).
-# Default matrix: calls 1000,2000 × addresses 10,100 × cache% 10,50,100 × nonzero% 50,25 (24 cells).
+# Default matrix: calls 1000,2000 × addresses 1,10,100 × cache% 10,50,100 × nonzero% 50,25 (36 cells).
 # Override any dimension with a comma list, e.g. STRESS_GET_BALANCE_CALL_COUNT=1000
 # Examples:
 #   make stress-test-get-balance

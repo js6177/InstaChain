@@ -96,11 +96,16 @@ export const GetProfilerSessionRequest = t.Object({
 	session_id: t.String({ minLength: 1 }),
 });
 
+/** Empty body — lists recent getBalance stress history entries. */
+export const ListGetBalanceStressHistoryRequest = t.Object({});
+
 export type PushTransactionRequest = typeof PushTransactionRequest.static;
 export type StartProfilerSessionRequest =
 	typeof StartProfilerSessionRequest.static;
 export type StopProfilerSessionRequest = typeof StopProfilerSessionRequest.static;
 export type GetProfilerSessionRequest = typeof GetProfilerSessionRequest.static;
+export type ListGetBalanceStressHistoryRequest =
+	typeof ListGetBalanceStressHistoryRequest.static;
 export type GetDepositAddressRequest = typeof GetDepositAddressRequest.static;
 export type DepositsConfirmed = typeof DepositsConfirmed.static;
 export type DepositConfirmedRequest = typeof DepositConfirmedRequest.static;

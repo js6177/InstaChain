@@ -17,6 +17,7 @@ import {
 	Link,
 	Route,
 	Routes,
+	useLocation,
 	useNavigate,
 	useParams,
 	useSearchParams,
@@ -32,6 +33,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { OAuthUserCard } from "../components/OAuthUserCard";
+import { GetBalanceStressHistoryCard } from "../components/GetBalanceStressHistoryCard";
 import {
 	GetBalanceProfilerChart,
 	type GetBalanceProfilerTableRow,
@@ -365,6 +367,7 @@ function StatsFormView(): React.JSX.Element {
 					</form>
 				</CardContent>
 			</Card>
+			<GetBalanceStressHistoryCard />
 		</div>
 	);
 }
@@ -666,11 +669,15 @@ function StatsSessionView(): React.JSX.Element | null {
 					)}
 				</CardContent>
 			</Card>
+			<GetBalanceStressHistoryCard />
 		</div>
 	);
 }
 
 export function ExplorerPage(): React.JSX.Element {
+	const location = useLocation();
+	const showSearchBar = !location.pathname.includes("/stats");
+
 	return (
 		<div className="max-w-5xl mx-auto w-full pt-4 pb-12">
 			<div className="mb-8 text-center">
@@ -690,7 +697,7 @@ export function ExplorerPage(): React.JSX.Element {
 				</p>
 			</div>
 
-			<SearchBar />
+			{showSearchBar ? <SearchBar /> : null}
 
 			<Routes>
 				<Route

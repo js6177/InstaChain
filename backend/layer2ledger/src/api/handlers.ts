@@ -12,6 +12,7 @@ import type {
 	RequestWithdrawalRequest,
 	StartProfilerSessionRequest,
 	StopProfilerSessionRequest,
+	ListGetBalanceStressHistoryRequest,
 	WithdrawalBroadcastedRequest,
 	WithdrawalConfirmedRequest,
 } from "./models/requests";
@@ -25,6 +26,7 @@ import type {
 	GetTransactionResponse,
 	GetTransactionsResponse,
 	GetWithdrawalRequestsResponse,
+	ListGetBalanceStressHistoryResponse,
 	StartProfilerSessionResponse,
 	StopProfilerSessionResponse,
 	WithdrawalBroadcastedResponse,
@@ -42,6 +44,9 @@ export interface Layer2LedgerRouteHandlers {
 	getProfilerSession(
 		body: GetProfilerSessionRequest,
 	): Promise<GetProfilerSessionResponse>;
+	listGetBalanceStressHistory(
+		body: ListGetBalanceStressHistoryRequest,
+	): Promise<ListGetBalanceStressHistoryResponse>;
 	pushTransaction(body: PushTransactionRequest): Promise<CommonResponse>;
 	getDepositAddress(
 		body: GetDepositAddressRequest,

@@ -24,6 +24,7 @@ export type {
 	Layer1TransactionIdStatus,
 	Layer1WithdrawalConfirmedTransaction,
 	Layer1WithdrawalConfirmedTransactionStatus,
+	ListGetBalanceStressHistoryResponse,
 	NodeInfo,
 	ProfilerApiStatsResponse,
 	ProfilerDbwriterStatsResponse,
