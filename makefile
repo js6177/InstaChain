@@ -28,7 +28,7 @@ backend-dev:
 	ENVIRONMENT=dev $(COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml up --build \
 		layer2ledger-postgres \
 		layer2ledger-pgbouncer \
-		layer2ledger-redis \
+		redis-transactions redis-addressbalance \
 		layer2ledger-mongodb \
 		layer2ledgerapihandler \
 		layer2ledgerdbwriter \
@@ -49,7 +49,7 @@ endif
 observability:
 	ENVIRONMENT=$${ENVIRONMENT:-test} $(COMPOSE) $(SIGNOZ_COMPOSE_FILES) --profile observability up -d --build \
 		layer2ledger-postgres \
-		layer2ledger-redis \
+		redis-transactions redis-addressbalance \
 		layer2ledger-mongodb \
 		signoz-zookeeper \
 		signoz-clickhouse \
@@ -70,7 +70,7 @@ backend-test:
 		--scale layer2ledgerapihandler=$${LAYER2LEDGER_APIHANDLER_REPLICAS:-2} \
 		layer2ledger-postgres \
 		layer2ledger-pgbouncer \
-		layer2ledger-redis \
+		redis-transactions redis-addressbalance \
 		layer2ledger-mongodb \
 		layer2ledgerapihandler \
 		layer2ledgerdbwriter \
@@ -86,6 +86,7 @@ backend-test:
 # Examples:
 #   make stress-test
 #   STRESS_TX_COUNT=50000 STRESS_CONCURRENCY=2000 make stress-test
+#   STRESS_PUSH_MAX_IN_FLIGHT=1024 STRESS_BUN_MAX_HTTP_REQUESTS=1024 make stress-test
 stress-test:
 	mkdir -p .test-output/stress
 	ENVIRONMENT=test bun run --filter @openl2/setup-scripts ensure-compose-build -- \
@@ -98,7 +99,7 @@ stress-test:
 		--scale layer2ledgerapihandler=$${LAYER2LEDGER_APIHANDLER_REPLICAS:-2} \
 		layer2ledger-postgres \
 		layer2ledger-pgbouncer \
-		layer2ledger-redis \
+		redis-transactions redis-addressbalance \
 		layer2ledgerapihandler \
 		layer2ledgerdbwriter \
 		layer2ledger-testhelper
@@ -110,6 +111,8 @@ stress-test:
 		-v "$(CURDIR)/.test-output/stress:/test-output" \
 		-e "STRESS_TX_COUNT=$${STRESS_TX_COUNT:-50000}" \
 		-e "STRESS_CONCURRENCY=$${STRESS_CONCURRENCY:-2000}" \
+		-e "STRESS_PUSH_MAX_IN_FLIGHT=$${STRESS_PUSH_MAX_IN_FLIGHT:-1024}" \
+		-e "STRESS_BUN_MAX_HTTP_REQUESTS=$${STRESS_BUN_MAX_HTTP_REQUESTS:-1024}" \
 		-e "STRESS_SETTLE_TIMEOUT_MS=$${STRESS_SETTLE_TIMEOUT_MS:-600000}" \
 		-e "STRESS_SETTLE_CONCURRENCY=$${STRESS_SETTLE_CONCURRENCY:-}" \
 		-e "STRESS_NGINX_SAMPLE_MS=$${STRESS_NGINX_SAMPLE_MS:-250}" \
@@ -133,7 +136,7 @@ stress-test-health:
 		--scale layer2ledgerapihandler=$${LAYER2LEDGER_APIHANDLER_REPLICAS:-2} \
 		layer2ledger-postgres \
 		layer2ledger-pgbouncer \
-		layer2ledger-redis \
+		redis-transactions redis-addressbalance \
 		layer2ledgerapihandler \
 		layer2ledgerapihandler-nginx
 	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
@@ -168,7 +171,7 @@ stress-test-get-balance:
 		--scale layer2ledgerapihandler=$${LAYER2LEDGER_APIHANDLER_REPLICAS:-2} \
 		layer2ledger-postgres \
 		layer2ledger-pgbouncer \
-		layer2ledger-redis \
+		redis-transactions redis-addressbalance \
 		layer2ledgerapihandler \
 		layer2ledger-testhelper
 	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \

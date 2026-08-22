@@ -176,7 +176,8 @@ services:
     depends_on:
       - signoz-otel-collector
       - layer2ledger-postgres
-      - layer2ledger-redis
+      - redis-transactions
+      - redis-addressbalance
       - layer2ledger-mongodb
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
     env_file:

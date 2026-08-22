@@ -28,7 +28,8 @@ export type DockerComposeProfileName =
 export const DockerService = {
 	LAYER2LEDGER_POSTGRES: "layer2ledger-postgres",
 	LAYER2LEDGER_PGBOUNCER: "layer2ledger-pgbouncer",
-	LAYER2LEDGER_REDIS: "layer2ledger-redis",
+	REDIS_TRANSACTIONS: "redis-transactions",
+	REDIS_ADDRESSBALANCE: "redis-addressbalance",
 	LAYER2LEDGER_MONGODB: "layer2ledger-mongodb",
 	LAYER2LEDGER_APIHANDLER: "layer2ledgerapihandler",
 	LAYER2LEDGER_APIHANDLER_NGINX: "layer2ledgerapihandler-nginx",
@@ -54,7 +55,8 @@ export type DockerServiceName =
 export const DOCKER_INFRA_SERVICES = [
 	DockerService.LAYER2LEDGER_POSTGRES,
 	DockerService.LAYER2LEDGER_PGBOUNCER,
-	DockerService.LAYER2LEDGER_REDIS,
+	DockerService.REDIS_TRANSACTIONS,
+	DockerService.REDIS_ADDRESSBALANCE,
 	DockerService.LAYER2LEDGER_MONGODB,
 ] as const satisfies readonly DockerServiceName[];
 

@@ -14,7 +14,7 @@ import {
 } from "../src/redis/transaction-id-bloom";
 import {
 	db,
-	redis,
+	redisTransaction,
 	setupLedgerTests,
 	teardownLedgerTests,
 } from "./helpers";
@@ -42,20 +42,20 @@ describe("transaction id bloom filter", () => {
 	});
 
 	it("skips postgres when bloom says absent, and persists restoreable snapshots", async () => {
-		await redis.del(TRANSACTION_ID_BLOOM_KEY);
-		await ensureTransactionIdBloomFilter(db, redis);
+		await redisTransaction.del(TRANSACTION_ID_BLOOM_KEY);
+		await ensureTransactionIdBloomFilter(db, redisTransaction);
 
 		const unknownId = `bloom-absent-${crypto.randomUUID()}`;
-		expect(await bloomMaybeContainsTransactionId(redis, unknownId)).toBe(
+		expect(await bloomMaybeContainsTransactionId(redisTransaction, unknownId)).toBe(
 			false,
 		);
 
 		const knownId = `bloom-present-${crypto.randomUUID()}`;
-		await addTransactionIdsToBloomFilter(redis, [knownId]);
-		expect(await bloomMaybeContainsTransactionId(redis, knownId)).toBe(true);
+		await addTransactionIdsToBloomFilter(redisTransaction, [knownId]);
+		expect(await bloomMaybeContainsTransactionId(redisTransaction, knownId)).toBe(true);
 
 		const batchHeight = 42_001;
-		await persistBloomFilterSnapshot(db, redis, batchHeight);
+		await persistBloomFilterSnapshot(db, redisTransaction, batchHeight);
 
 		const [stored] = await db
 			.select()
@@ -65,16 +65,16 @@ describe("transaction id bloom filter", () => {
 		expect(stored?.batchHeight).toBe(batchHeight);
 		expect(stored?.bloomFilter.length).toBeGreaterThan(0);
 
-		const dumped = await dumpBloomFilterBytes(redis);
-		await redis.del(TRANSACTION_ID_BLOOM_KEY);
-		await loadBloomFilterBytes(redis, dumped);
-		expect(await bloomMaybeContainsTransactionId(redis, knownId)).toBe(true);
-		expect(await bloomMaybeContainsTransactionId(redis, unknownId)).toBe(
+		const dumped = await dumpBloomFilterBytes(redisTransaction);
+		await redisTransaction.del(TRANSACTION_ID_BLOOM_KEY);
+		await loadBloomFilterBytes(redisTransaction, dumped);
+		expect(await bloomMaybeContainsTransactionId(redisTransaction, knownId)).toBe(true);
+		expect(await bloomMaybeContainsTransactionId(redisTransaction, unknownId)).toBe(
 			false,
 		);
 
-		await redis.del(TRANSACTION_ID_BLOOM_KEY);
-		await ensureTransactionIdBloomFilter(db, redis);
-		expect(await bloomMaybeContainsTransactionId(redis, knownId)).toBe(true);
+		await redisTransaction.del(TRANSACTION_ID_BLOOM_KEY);
+		await ensureTransactionIdBloomFilter(db, redisTransaction);
+		expect(await bloomMaybeContainsTransactionId(redisTransaction, knownId)).toBe(true);
 	});
 });

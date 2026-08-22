@@ -17,8 +17,12 @@ receivers:
     timeout: 20s
     api_version: "1.44"
 
-  redis:
-    endpoint: layer2ledger-redis:6379
+  redis/transactions:
+    endpoint: redis-transactions:6379
+    collection_interval: 15s
+
+  redis/addressbalance:
+    endpoint: redis-addressbalance:6379
     collection_interval: 15s
 
   postgresql:
@@ -67,7 +71,7 @@ service:
       processors: [memory_limiter, resourcedetection, batch]
       exporters: [otlphttp]
     metrics:
-      receivers: [otlp, docker_stats, redis, postgresql, mongodb]
+      receivers: [otlp, docker_stats, redis/transactions, redis/addressbalance, postgresql, mongodb]
       processors: [memory_limiter, resourcedetection, batch]
       exporters: [otlphttp]
     traces:

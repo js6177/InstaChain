@@ -59,19 +59,25 @@ const { db, sql } = createDatabase(poolDbSettings, {
 	prepare: !usesPgBouncer,
 });
 
-const redis = new Redis({
-	host: commonConfig.redis.host,
-	port: commonConfig.redis.port,
+const redisTransaction = new Redis({
+	host: commonConfig.redis_transactions.host,
+	port: commonConfig.redis_transactions.port,
+	maxRetriesPerRequest: null,
+});
+const redisAddressBalance = new Redis({
+	host: commonConfig.redis_addressbalance.host,
+	port: commonConfig.redis_addressbalance.port,
 	maxRetriesPerRequest: null,
 });
 
-const lockManager = new DistributedLock(redis);
+const lockManager = new DistributedLock(redisTransaction);
 await lockManager.setup();
-await ensureTransactionIdBloomFilter(db, redis);
+await ensureTransactionIdBloomFilter(db, redisTransaction);
 
 const handlers = createRouteHandlers({
 	db,
-	redis,
+	redisTransaction,
+	redisAddressBalance,
 	lockManager,
 	settings: apiHandlerConfig,
 	messaging: {
@@ -79,7 +85,9 @@ const handlers = createRouteHandlers({
 		layer2BridgeSigningPublicKey:
 			backendCommonConfig.layer2bridge_signing_public_key,
 	},
-	balanceCache: resolveAddressBalanceCacheOptions(commonConfig.redis),
+	balanceCache: resolveAddressBalanceCacheOptions(
+		commonConfig.redis_addressbalance,
+	),
 });
 
 const host = "0.0.0.0";
@@ -92,7 +100,8 @@ const app = createLayer2LedgerApp(handlers).listen({
 
 registerProcessShutdown(async () => {
 	app.stop();
-	await redis.quit();
+	await redisTransaction.quit();
+	await redisAddressBalance.quit();
 	await sql.end({ timeout: 2 });
 });
 

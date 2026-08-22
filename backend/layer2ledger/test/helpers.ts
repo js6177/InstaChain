@@ -49,20 +49,28 @@ export const { db, sql } = createDatabase({
 	dbName: commonConfig.database.db_name,
 });
 
-export const redis = new Redis({
-	host: commonConfig.redis.host,
-	port: commonConfig.redis.port,
+export const redisTransaction = new Redis({
+	host: commonConfig.redis_transactions.host,
+	port: commonConfig.redis_transactions.port,
+	maxRetriesPerRequest: null,
+});
+export const redisAddressBalance = new Redis({
+	host: commonConfig.redis_addressbalance.host,
+	port: commonConfig.redis_addressbalance.port,
 	maxRetriesPerRequest: null,
 });
 
-export const lockManager = new DistributedLock(redis);
-export const balanceCache = resolveAddressBalanceCacheOptions(commonConfig.redis);
+export const lockManager = new DistributedLock(redisTransaction);
+export const balanceCache = resolveAddressBalanceCacheOptions(
+	commonConfig.redis_addressbalance,
+);
 const deferredBloomSnapshot = createDeferredBloomSnapshotState();
 
 export function createHandlers(): Layer2LedgerRouteHandlers {
 	return createRouteHandlers({
 		db,
-		redis,
+		redisTransaction,
+		redisAddressBalance,
 		lockManager,
 		settings: apiHandlerConfig,
 		messaging: {
@@ -95,16 +103,16 @@ export async function setupLedgerTests(): Promise<void> {
 		`TRUNCATE TABLE ${tableNames.map((name) => `"${name}"`).join(", ")} RESTART IDENTITY CASCADE`,
 	);
 	await lockManager.setup();
-	await redis.del(
+	await redisTransaction.del(
 		PENDING_TRANSACTIONS_LIST_KEY,
 		PENDING_WITHDRAWALS_LIST_KEY,
 		TRANSACTION_ID_BLOOM_KEY,
 	);
-	await clearAddressBalanceCache(redis);
+	await clearAddressBalanceCache(redisAddressBalance);
 	clearDeferredBloomFilterUpdates(deferredBloomSnapshot);
 	// Fresh empty bloom for this process; skip replaying historical Postgres rows.
 	process.env.SKIP_BLOOM_PG_REBUILD = "1";
-	await ensureTransactionIdBloomFilter(db, redis);
+	await ensureTransactionIdBloomFilter(db, redisTransaction);
 }
 
 export async function teardownLedgerTests(): Promise<void> {
@@ -113,13 +121,20 @@ export async function teardownLedgerTests(): Promise<void> {
 
 
 export async function clearPendingQueues(): Promise<void> {
-	await redis.del(PENDING_TRANSACTIONS_LIST_KEY, PENDING_WITHDRAWALS_LIST_KEY);
+	await redisTransaction.del(PENDING_TRANSACTIONS_LIST_KEY, PENDING_WITHDRAWALS_LIST_KEY);
 }
 
 export async function drainPendingQueues(): Promise<void> {
 	const batchHeight = await getCurrentBatchHeight(db);
 	await processPendingBatch(
-		{ db, redis, lockManager, balanceCache, deferredBloomSnapshot },
+		{
+			db,
+			redisTransaction,
+			redisAddressBalance,
+			lockManager,
+			balanceCache,
+			deferredBloomSnapshot,
+		},
 		batchHeight,
 	);
 }

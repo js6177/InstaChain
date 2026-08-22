@@ -196,7 +196,19 @@ function generateKeys(
 	const dbPoolHost = containered
 		? layer2ledgerDockerEnv.pgbouncerHost
 		: "localhost";
-	const redisHost = containered ? layer2ledgerDockerEnv.redisHost : "localhost";
+	const redisTransactionsHost = containered
+		? layer2ledgerDockerEnv.redisTransactionsHost
+		: "localhost";
+	const redisAddressBalanceHost = containered
+		? layer2ledgerDockerEnv.redisAddressBalanceHost
+		: "localhost";
+	// In-container both listen on 6379; on the host, address-balance is published as 6380.
+	const redisTransactionsPort = containered
+		? layer2ledgerDockerEnv.redisTransactionsPort
+		: Number(process.env.REDIS_TRANSACTIONS_PUBLISH_PORT ?? 6379);
+	const redisAddressBalancePort = containered
+		? layer2ledgerDockerEnv.redisAddressBalancePort
+		: Number(process.env.REDIS_ADDRESSBALANCE_PUBLISH_PORT ?? 6380);
 
 	const layer2ledgerCommonSettings: Layer2LedgerCommonConfig = {
 		database: {
@@ -208,9 +220,13 @@ function generateKeys(
 			db_pool_host: dbPoolHost,
 			db_pool_port: String(layer2ledgerDockerEnv.pgbouncerPort),
 		},
-		redis: {
-			host: redisHost,
-			port: layer2ledgerDockerEnv.redisPort,
+		redis_transactions: {
+			host: redisTransactionsHost,
+			port: redisTransactionsPort,
+		},
+		redis_addressbalance: {
+			host: redisAddressBalanceHost,
+			port: redisAddressBalancePort,
 			balance_cache_eviction_policy: BalanceCacheEvictionPolicy.None,
 			balance_cache_ttl_seconds: 3600,
 		},

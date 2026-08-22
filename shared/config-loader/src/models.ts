@@ -53,10 +53,13 @@ export interface Layer2LedgerDockerEnvSettings {
 	/** PgBouncer service host used by apihandler (transaction pooling). */
 	pgbouncerHost: string;
 	pgbouncerPort: number;
-	redisHost: string;
-	redisPort: number;
+	redisTransactionsHost: string;
+	redisTransactionsPort: number;
+	redisAddressBalanceHost: string;
+	redisAddressBalancePort: number;
 	databaseUrl: string;
-	redisUrl: string;
+	redisTransactionsUrl: string;
+	redisAddressBalanceUrl: string;
 	layer2ledgerFastapiPort: number;
 	testhelperPort: number;
 	layer2ledgerApihandlerDebugPort?: number;
@@ -87,9 +90,16 @@ export interface PostgresqlDatabaseSettings {
 	db_pool_port?: string;
 }
 
-export interface RedisSettings {
+export interface RedisConnectionSettings {
 	host: string;
 	port: number;
+}
+
+/** Redis used for locks, pending queues, bloom filters, and profiler. */
+export type RedisTransactionsSettings = RedisConnectionSettings;
+
+/** Redis used only for the address-balance cache. */
+export interface RedisAddressBalanceSettings extends RedisConnectionSettings {
 	/**
 	 * How cached address balances are evicted from Redis.
 	 * @see BalanceCacheEvictionPolicy
@@ -99,9 +109,13 @@ export interface RedisSettings {
 	balance_cache_ttl_seconds?: number;
 }
 
+/** @deprecated Prefer {@link RedisTransactionsSettings} / {@link RedisAddressBalanceSettings}. */
+export type RedisSettings = RedisAddressBalanceSettings;
+
 export interface Layer2LedgerCommonConfig {
 	database: PostgresqlDatabaseSettings;
-	redis: RedisSettings;
+	redis_transactions: RedisTransactionsSettings;
+	redis_addressbalance: RedisAddressBalanceSettings;
 	drop_tables_after_test_completed?: boolean;
 	drop_tables_before_test_completed?: boolean;
 }

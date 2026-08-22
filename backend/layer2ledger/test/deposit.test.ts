@@ -16,7 +16,7 @@ import {
 	createHandlers,
 	db,
 	newLayer2Address,
-	redis,
+	redisTransaction,
 	setupLedgerTests,
 	teardownLedgerTests,
 } from "./helpers";
@@ -117,7 +117,7 @@ describe("deposit route handlers", () => {
 
 		expect(response.error_code).toBe(ErrorCodes.SUCCESS);
 
-		const pending = await getPendingTransactions(redis, 0, -1);
+		const pending = await getPendingTransactions(redisTransaction, 0, -1);
 		expect(pending).toHaveLength(1);
 		expect(pending[0]?.transaction.amount).toBe(amount);
 		expect(pending[0]?.transaction.destination_address_pubkey).toBe(

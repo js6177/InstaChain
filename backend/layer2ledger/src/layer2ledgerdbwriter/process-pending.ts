@@ -60,7 +60,10 @@ export function createDeferredBloomSnapshotState(): DeferredBloomSnapshotState {
 
 export interface ProcessPendingBatchContext {
 	db: Layer2LedgerDbClient;
-	redis: Redis;
+	/** Locks, pending queues, bloom filters, and profiler sessions. */
+	redisTransaction: Redis;
+	/** Address-balance cache only. */
+	redisAddressBalance: Redis;
 	lockManager: DistributedLock;
 	balanceCache: AddressBalanceCacheOptions;
 	deferredBloomSnapshot: DeferredBloomSnapshotState;
@@ -77,14 +80,14 @@ export function clearDeferredBloomFilterUpdates(
 /** Persist the current RedisBloom to Postgres at the latest deferred batch height. */
 export async function flushDeferredBloomFilterUpdates(
 	db: Layer2LedgerDbClient,
-	redis: Redis,
+	redisTransaction: Redis,
 	state: DeferredBloomSnapshotState,
 ): Promise<void> {
 	if (state.batchesSince === 0 || state.batchHeight <= 0) {
 		return;
 	}
 	const batchHeight = state.batchHeight;
-	await persistBloomFilterSnapshot(db, redis, batchHeight);
+	await persistBloomFilterSnapshot(db, redisTransaction, batchHeight);
 	clearDeferredBloomFilterUpdates(state);
 }
 
@@ -122,15 +125,21 @@ export async function processPendingBatch(
 	currentBatchHeight: number,
 ): Promise<number> {
 	const startedAt = performance.now();
-	const { db, redis, lockManager, balanceCache, deferredBloomSnapshot } =
-		context;
+	const {
+		db,
+		redisTransaction,
+		redisAddressBalance,
+		lockManager,
+		balanceCache,
+		deferredBloomSnapshot,
+	} = context;
 	const transactionsToProcess = await getPendingTransactions(
-		redis,
+		redisTransaction,
 		0,
 		MAXIMUM_BATCH_INSERT_COUNT,
 	);
 	const withdrawalsToProcess = await getPendingWithdrawals(
-		redis,
+		redisTransaction,
 		0,
 		MAXIMUM_BATCH_INSERT_COUNT,
 	);
@@ -139,7 +148,7 @@ export async function processPendingBatch(
 		transactionsToProcess.length === 0 &&
 		withdrawalsToProcess.length === 0
 	) {
-		await recordQueueEmpty(redis);
+		await recordQueueEmpty(redisTransaction);
 		return currentBatchHeight;
 	}
 
@@ -180,7 +189,7 @@ export async function processPendingBatch(
 	);
 
 	let absoluteBalances: Array<{ address: string; balance: number }> = [];
-	await recordWriteActive(redis, true);
+	await recordWriteActive(redisTransaction, true);
 	try {
 		await db.transaction(async (tx) => {
 			if (newTransactions.length > 0) {
@@ -207,20 +216,20 @@ export async function processPendingBatch(
 			}
 		});
 	} finally {
-		await recordWriteActive(redis, false);
+		await recordWriteActive(redisTransaction, false);
 	}
 
-	await recordRedisActive(redis, true);
+	await recordRedisActive(redisTransaction, true);
 	try {
 		if (transactionsToProcess.length > 0) {
-			await redis.ltrim(
+			await redisTransaction.ltrim(
 				PENDING_TRANSACTIONS_LIST_KEY,
 				transactionsToProcess.length,
 				-1,
 			);
 		}
 		if (withdrawalsToProcess.length > 0) {
-			await redis.ltrim(
+			await redisTransaction.ltrim(
 				PENDING_WITHDRAWALS_LIST_KEY,
 				withdrawalsToProcess.length,
 				-1,
@@ -231,7 +240,7 @@ export async function processPendingBatch(
 		const committedTransactionIds = newTransactions.map(
 			(tx) => tx.layer2TransactionId,
 		);
-		await addTransactionIdsToBloomFilter(redis, committedTransactionIds);
+		await addTransactionIdsToBloomFilter(redisTransaction, committedTransactionIds);
 
 		// Unlock ASAP; defer only the expensive BF.SCANDUMP snapshot.
 		const locksToRelease: Array<{ userIds: string[]; lockToken: string }> = [];
@@ -258,14 +267,18 @@ export async function processPendingBatch(
 		if (
 			deferredBloomSnapshot.batchesSince >= BLOOM_FILTER_SNAPSHOT_EVERY_N_BATCHES
 		) {
-			await flushDeferredBloomFilterUpdates(db, redis, deferredBloomSnapshot);
+			await flushDeferredBloomFilterUpdates(db, redisTransaction, deferredBloomSnapshot);
 		}
 
 		if (absoluteBalances.length > 0) {
-			await setCachedAddressBalances(redis, absoluteBalances, balanceCache);
+			await setCachedAddressBalances(
+				redisAddressBalance,
+				absoluteBalances,
+				balanceCache,
+			);
 		}
 	} finally {
-		await recordRedisActive(redis, false);
+		await recordRedisActive(redisTransaction, false);
 	}
 
 	const totalProcessed =
@@ -284,11 +297,11 @@ export async function processPendingBatch(
 				elapsed_ms: elapsedMs,
 			},
 		);
-		await recordDbWrites(redis, totalProcessed);
+		await recordDbWrites(redisTransaction, totalProcessed);
 	}
 
-	const pendingRemaining = await redis.llen(PENDING_TRANSACTIONS_LIST_KEY);
-	const pendingWithdrawalsRemaining = await redis.llen(
+	const pendingRemaining = await redisTransaction.llen(PENDING_TRANSACTIONS_LIST_KEY);
+	const pendingWithdrawalsRemaining = await redisTransaction.llen(
 		PENDING_WITHDRAWALS_LIST_KEY,
 	);
 	// Only stamp empty after a drain that cleared the queues (not every idle loop),
@@ -298,24 +311,24 @@ export async function processPendingBatch(
 		pendingRemaining === 0 &&
 		pendingWithdrawalsRemaining === 0
 	) {
-		await recordQueueEmpty(redis);
+		await recordQueueEmpty(redisTransaction);
 	}
 
 	return nextBatchHeight;
 }
 
 async function recordWriteActive(
-	redis: Redis,
+	redisTransaction: Redis,
 	writing: boolean,
 ): Promise<void> {
 	try {
-		const session = await getActiveProfilerSession(redis);
+		const session = await getActiveProfilerSession(redisTransaction);
 		if (!session?.apis.includes(ProfilerApiName.Dbwriter)) {
 			return;
 		}
 		setProfilerSessionId(session.session_id);
 		await recordPushTransactionProfilerDbwriterWriteActive(
-			redis,
+			redisTransaction,
 			session.session_id,
 			writing,
 		);
@@ -330,17 +343,17 @@ async function recordWriteActive(
 }
 
 async function recordRedisActive(
-	redis: Redis,
+	redisTransaction: Redis,
 	redisActive: boolean,
 ): Promise<void> {
 	try {
-		const session = await getActiveProfilerSession(redis);
+		const session = await getActiveProfilerSession(redisTransaction);
 		if (!session?.apis.includes(ProfilerApiName.Dbwriter)) {
 			return;
 		}
 		setProfilerSessionId(session.session_id);
 		await recordPushTransactionProfilerDbwriterRedisActive(
-			redis,
+			redisTransaction,
 			session.session_id,
 			redisActive,
 		);
@@ -355,17 +368,17 @@ async function recordRedisActive(
 }
 
 async function recordDbWrites(
-	redis: Redis,
+	redisTransaction: Redis,
 	writes: number,
 ): Promise<void> {
 	try {
-		const session = await getActiveProfilerSession(redis);
+		const session = await getActiveProfilerSession(redisTransaction);
 		if (!session?.apis.includes(ProfilerApiName.Dbwriter)) {
 			return;
 		}
 		setProfilerSessionId(session.session_id);
 		await recordPushTransactionProfilerDbwriterBatch(
-			redis,
+			redisTransaction,
 			session.session_id,
 			writes,
 		);
@@ -379,15 +392,15 @@ async function recordDbWrites(
 	}
 }
 
-async function recordQueueEmpty(redis: Redis): Promise<void> {
+async function recordQueueEmpty(redisTransaction: Redis): Promise<void> {
 	try {
-		const session = await getActiveProfilerSession(redis);
+		const session = await getActiveProfilerSession(redisTransaction);
 		if (!session?.apis.includes(ProfilerApiName.Dbwriter)) {
 			return;
 		}
 		setProfilerSessionId(session.session_id);
 		await recordPushTransactionProfilerDbwriterQueueEmpty(
-			redis,
+			redisTransaction,
 			session.session_id,
 		);
 		log.performance("profiler dbwriter queue empty", {

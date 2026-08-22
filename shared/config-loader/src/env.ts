@@ -110,10 +110,22 @@ export function loadLayer2LedgerDockerEnvSettings(
 		postgresPort: requireEnvNumber(values, "POSTGRES_PORT"),
 		pgbouncerHost: requireEnvValue(values, "PGBOUNCER_HOST"),
 		pgbouncerPort: requireEnvNumber(values, "PGBOUNCER_PORT"),
-		redisHost: requireEnvValue(values, "REDIS_HOST"),
-		redisPort: requireEnvNumber(values, "REDIS_PORT"),
+		redisTransactionsHost: requireEnvValue(values, "REDIS_TRANSACTIONS_HOST"),
+		redisTransactionsPort: requireEnvNumber(values, "REDIS_TRANSACTIONS_PORT"),
+		redisAddressBalanceHost: requireEnvValue(
+			values,
+			"REDIS_ADDRESSBALANCE_HOST",
+		),
+		redisAddressBalancePort: requireEnvNumber(
+			values,
+			"REDIS_ADDRESSBALANCE_PORT",
+		),
 		databaseUrl: requireEnvValue(values, "DATABASE_URL"),
-		redisUrl: requireEnvValue(values, "REDIS_URL"),
+		redisTransactionsUrl: requireEnvValue(values, "REDIS_TRANSACTIONS_URL"),
+		redisAddressBalanceUrl: requireEnvValue(
+			values,
+			"REDIS_ADDRESSBALANCE_URL",
+		),
 		layer2ledgerFastapiPort: requireEnvNumber(
 			values,
 			"LAYER2LEDGER_FASTAPI_PORT",

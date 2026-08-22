@@ -88,8 +88,20 @@ interface StressVisualizationLink {
  * Bun's default in-flight `fetch` cap is 256. `bun test` does not honor raising
  * `BUN_CONFIG_MAX_HTTP_REQUESTS`, so this file re-execs itself under plain `bun`
  * with the limit applied before any stress HTTP starts.
+ *
+ * Override with STRESS_BUN_MAX_HTTP_REQUESTS (default 1024, max 65535). Push
+ * in-flight is capped to this value so the stress client does not oversubscribe
+ * Bun's queue.
  */
-export const STRESS_BUN_MAX_HTTP_REQUESTS = 4096;
+function resolveStressBunMaxHttpRequests(): number {
+	const raw = Number(process.env.STRESS_BUN_MAX_HTTP_REQUESTS ?? "1024");
+	if (!Number.isFinite(raw) || raw < 1) {
+		return 1024;
+	}
+	return Math.min(65_535, Math.floor(raw));
+}
+
+export const STRESS_BUN_MAX_HTTP_REQUESTS = resolveStressBunMaxHttpRequests();
 const STRESS_BUN_HTTP_LIMIT_READY = "STRESS_BUN_HTTP_LIMIT_READY";
 
 const runHttpStress = process.env.RUN_LEDGER_HTTP_STRESS === "1";
@@ -113,6 +125,16 @@ function ensureBunFetchConcurrencyLimit(): void {
 		stdin: "inherit",
 	});
 	process.exit(result.exitCode ?? 1);
+}
+
+/** Cap greedy push fan-out to Bun's HTTP limit (default / override via STRESS_PUSH_MAX_IN_FLIGHT). */
+function resolvePushMaxInFlight(transactionCount: number): number {
+	const bunCap = STRESS_BUN_MAX_HTTP_REQUESTS;
+	const raw = Number(process.env.STRESS_PUSH_MAX_IN_FLIGHT ?? "1024");
+	if (Number.isFinite(raw) && raw > 0) {
+		return Math.max(1, Math.min(transactionCount, Math.floor(raw), bunCap));
+	}
+	return Math.max(1, Math.min(transactionCount, bunCap));
 }
 
 // Only re-exec / raise Bun's fetch cap for intentional stress runs. Unit
@@ -251,7 +273,8 @@ interface RunPushStressOptions {
 	title: string;
 	/** Free-form details stored on the profiler session (e.g. stress env). */
 	description: string;
-	redis: Redis;
+	redisTransaction: Redis;
+	redisAddressBalance: Redis;
 	balanceCache: AddressBalanceCacheOptions;
 }
 
@@ -259,17 +282,20 @@ function buildStressProfilerDescription(options: {
 	balanceCacheMode: BalanceCacheMode;
 	transactionCount: number;
 	concurrency: number;
+	pushMaxInFlight: number;
 	settleConcurrency: number;
 	settleTimeoutMs: number;
 }): string {
 	const lines = [
 		`balance_cache_mode=${options.balanceCacheMode}`,
 		`push_dispatch=greedy`,
-		`push_max_in_flight=${options.transactionCount}`,
+		`push_max_in_flight=${options.pushMaxInFlight}`,
 		`STRESS_TX_COUNT=${options.transactionCount}`,
 		`STRESS_CONCURRENCY=${options.concurrency}`,
+		`STRESS_PUSH_MAX_IN_FLIGHT=${process.env.STRESS_PUSH_MAX_IN_FLIGHT ?? ""}`,
 		`STRESS_SETTLE_CONCURRENCY=${options.settleConcurrency}`,
 		`STRESS_SETTLE_TIMEOUT_MS=${options.settleTimeoutMs}`,
+		`STRESS_BUN_MAX_HTTP_REQUESTS=${STRESS_BUN_MAX_HTTP_REQUESTS}`,
 		`BUN_CONFIG_MAX_HTTP_REQUESTS=${process.env.BUN_CONFIG_MAX_HTTP_REQUESTS ?? ""}`,
 		`ENVIRONMENT=${process.env.ENVIRONMENT ?? ""}`,
 		`LAYER2LEDGER_API_URL=${ledgerApiUrl}`,
@@ -278,12 +304,12 @@ function buildStressProfilerDescription(options: {
 }
 
 async function deleteRedisKeysByPattern(
-	redis: Redis,
+	redisTransaction: Redis,
 	pattern: string,
 ): Promise<void> {
 	let cursor = "0";
 	do {
-		const [nextCursor, keys] = await redis.scan(
+		const [nextCursor, keys] = await redisTransaction.scan(
 			cursor,
 			"MATCH",
 			pattern,
@@ -292,7 +318,7 @@ async function deleteRedisKeysByPattern(
 		);
 		cursor = nextCursor;
 		if (keys.length > 0) {
-			await redis.del(...keys);
+			await redisTransaction.del(...keys);
 		}
 	} while (cursor !== "0");
 }
@@ -302,7 +328,10 @@ async function deleteRedisKeysByPattern(
  * from the same empty ledger state (bloom, balances, pending queues, locks).
  * Unit tests intentionally skip this between cases for speed.
  */
-async function resetStressLedgerState(redis: Redis): Promise<void> {
+async function resetStressLedgerState(
+	redisTransaction: Redis,
+	redisAddressBalance: Redis,
+): Promise<void> {
 	const commonConfig = loadLayer2LedgerCommonConfig();
 	const { db, sql } = createDatabase({
 		dbUser: commonConfig.database.db_user,
@@ -318,19 +347,19 @@ async function resetStressLedgerState(redis: Redis): Promise<void> {
 		await sql.unsafe(
 			`TRUNCATE TABLE ${tableNames.map((name) => `"${name}"`).join(", ")} RESTART IDENTITY CASCADE`,
 		);
-		await redis.del(
+		await redisTransaction.del(
 			PENDING_TRANSACTIONS_LIST_KEY,
 			PENDING_WITHDRAWALS_LIST_KEY,
 			TRANSACTION_ID_BLOOM_KEY,
 			profilerInFlightKey("pushTransaction"),
 			profilerInFlightKey(ProfilerApiName.GetBalance),
 		);
-		await clearAddressBalanceCache(redis);
-		await resetAddressBalanceCacheStats(redis);
-		await deleteRedisKeysByPattern(redis, "lock:*");
+		await clearAddressBalanceCache(redisAddressBalance);
+		await resetAddressBalanceCacheStats(redisAddressBalance);
+		await deleteRedisKeysByPattern(redisTransaction, "lock:*");
 		// Fresh empty bloom; do not replay truncated (empty) Postgres rows.
 		process.env.SKIP_BLOOM_PG_REBUILD = "1";
-		await ensureTransactionIdBloomFilter(db, redis);
+		await ensureTransactionIdBloomFilter(db, redisTransaction);
 		log.info("reset stress ledger state (postgres + redis)");
 	} finally {
 		await sql.end({ timeout: 5 });
@@ -349,7 +378,8 @@ async function runPushTransactionStress(
 		balanceCacheMode,
 		title,
 		description,
-		redis,
+		redisTransaction,
+		redisAddressBalance,
 		balanceCache,
 	} = options;
 	const amount = 100;
@@ -433,7 +463,7 @@ async function runPushTransactionStress(
 	log.info("seeded balances");
 
 	if (balanceCacheMode === BalanceCacheMode.Cold) {
-		await clearAddressBalanceCache(redis);
+		await clearAddressBalanceCache(redisAddressBalance);
 		log.info("cleared balance cache before push (cold cache)");
 	} else {
 		const cacheEntries = prepared.map(({ source }) => ({
@@ -443,7 +473,7 @@ async function runPushTransactionStress(
 		const cacheChunkSize = 1000;
 		for (let i = 0; i < cacheEntries.length; i += cacheChunkSize) {
 			await setCachedAddressBalances(
-				redis,
+				redisAddressBalance,
 				cacheEntries.slice(i, i + cacheChunkSize),
 				balanceCache,
 			);
@@ -453,8 +483,8 @@ async function runPushTransactionStress(
 		});
 	}
 
-	await resetAddressBalanceCacheStats(redis);
-	await redis.del(profilerInFlightKey("pushTransaction"));
+	await resetAddressBalanceCacheStats(redisAddressBalance);
+	await redisTransaction.del(profilerInFlightKey("pushTransaction"));
 	const pushLatenciesMs: number[] = [];
 	const acceptedTransactionIds: string[] = [];
 	const profilerSessionId = crypto.randomUUID();
@@ -469,14 +499,15 @@ async function runPushTransactionStress(
 	);
 	expect(startSession.error_code).toBe(ErrorCodes.SUCCESS);
 
-	// Launch every push ASAP (capped only by Bun's HTTP in-flight limit),
-	// refilling immediately on completion — not a concurrency-sized wave pool.
-	const pushMaxInFlight = prepared.length;
+	// Keep push fan-out at/under Bun's HTTP in-flight cap so the client does
+	// not oversubscribe the fetch queue (default 1024).
+	const pushMaxInFlight = resolvePushMaxInFlight(prepared.length);
 	log.info("greedy push starting", {
 		title,
 		description,
 		profiler_session_id: profilerSessionId,
 		max_in_flight: pushMaxInFlight,
+		bun_max_http_requests: STRESS_BUN_MAX_HTTP_REQUESTS,
 		transaction_count: prepared.length,
 		started_at_unix_ms: startSession.started_at_unix_ms,
 	});
@@ -505,7 +536,7 @@ async function runPushTransactionStress(
 	);
 	log.info("pushed transactions");
 	const acceptedPushes = acceptedTransactionIds.length;
-	const cache = await getAddressBalanceCacheStats(redis);
+	const cache = await getAddressBalanceCacheStats(redisAddressBalance);
 
 	const pendingIds = new Set(acceptedTransactionIds);
 	const deadline = Date.now() + settleTimeoutMs;
@@ -816,7 +847,8 @@ async function runPushTransactionStressVariant(
 		transactionCount: number;
 		balanceCacheMode: BalanceCacheMode;
 		title: string;
-		redis: Redis;
+		redisTransaction: Redis;
+		redisAddressBalance: Redis;
 		balanceCache: AddressBalanceCacheOptions;
 	},
 ): Promise<StressVisualizationLink> {
@@ -824,10 +856,11 @@ async function runPushTransactionStressVariant(
 		transactionCount,
 		balanceCacheMode,
 		title,
-		redis,
+		redisTransaction,
+		redisAddressBalance,
 		balanceCache,
 	} = options;
-	await resetStressLedgerState(redis);
+	await resetStressLedgerState(redisTransaction, redisAddressBalance);
 	const concurrency = Number(process.env.STRESS_CONCURRENCY ?? "2000");
 	const settleConcurrencyRaw = Number(process.env.STRESS_SETTLE_CONCURRENCY);
 	const settleConcurrency =
@@ -837,25 +870,28 @@ async function runPushTransactionStressVariant(
 	const settleTimeoutMs = Number(
 		process.env.STRESS_SETTLE_TIMEOUT_MS ?? "120000",
 	);
+	const pushMaxInFlight = resolvePushMaxInFlight(transactionCount);
 	const description = buildStressProfilerDescription({
 		balanceCacheMode,
 		transactionCount,
 		concurrency,
+		pushMaxInFlight,
 		settleConcurrency,
 		settleTimeoutMs,
 	});
 	const run = await runPushTransactionStress({
 		transactionCount,
 		balanceCacheMode,
-		title,
+		title: `${title} (in_flight=${pushMaxInFlight})`,
 		description,
-		redis,
+		redisTransaction,
+		redisAddressBalance,
 		balanceCache,
 	});
 	const throughput = toThroughputResult(transactionCount, run);
 
 	console.log(
-		`stress ${balanceCacheMode}-cache summary title=${title} tx_count=${transactionCount}`,
+		`stress ${balanceCacheMode}-cache summary title=${title} tx_count=${transactionCount} push_max_in_flight=${pushMaxInFlight}`,
 	);
 	printThroughputSummary(title, throughput);
 
@@ -895,7 +931,7 @@ async function runPushTransactionStressVariant(
 		);
 	}
 
-	await resetStressLedgerState(redis);
+	await resetStressLedgerState(redisTransaction, redisAddressBalance);
 
 	return {
 		title,
@@ -907,14 +943,16 @@ async function runPushTransactionStressVariant(
 /** Cold Redis balance cache: push reads miss and load balances from Postgres. */
 async function runColdBalanceCachePushStress(
 	transactionCount: number,
-	redis: Redis,
+	redisTransaction: Redis,
+	redisAddressBalance: Redis,
 	balanceCache: AddressBalanceCacheOptions,
 ): Promise<StressVisualizationLink> {
 	return runPushTransactionStressVariant({
 		transactionCount,
 		balanceCacheMode: BalanceCacheMode.Cold,
 		title: "pushTransaction cold balance cache",
-		redis,
+		redisTransaction,
+		redisAddressBalance,
 		balanceCache,
 	});
 }
@@ -922,14 +960,16 @@ async function runColdBalanceCachePushStress(
 /** Warm Redis balance cache: source balances are prefilled before push. */
 async function runWarmBalanceCachePushStress(
 	transactionCount: number,
-	redis: Redis,
+	redisTransaction: Redis,
+	redisAddressBalance: Redis,
 	balanceCache: AddressBalanceCacheOptions,
 ): Promise<StressVisualizationLink> {
 	return runPushTransactionStressVariant({
 		transactionCount,
 		balanceCacheMode: BalanceCacheMode.Warm,
 		title: "pushTransaction warm balance cache",
-		redis,
+		redisTransaction,
+		redisAddressBalance,
 		balanceCache,
 	});
 }
@@ -991,11 +1031,11 @@ function warnIfLowSuccessRate(
 }
 
 async function appendProfilerSessionDescription(
-	redis: Redis,
+	redisTransaction: Redis,
 	sessionId: string,
 	lines: readonly string[],
 ): Promise<void> {
-	const raw = await redis.get(profilerSessionMetaKey(sessionId));
+	const raw = await redisTransaction.get(profilerSessionMetaKey(sessionId));
 	const session = StartProfilerSession.fromJsonText(raw ?? "");
 	if (!session) {
 		return;
@@ -1009,7 +1049,7 @@ async function appendProfilerSessionDescription(
 		apis: session.apis,
 		started_at_unix_ms: session.started_at_unix_ms,
 	});
-	await redis.set(profilerSessionMetaKey(sessionId), JSON.stringify(updated));
+	await redisTransaction.set(profilerSessionMetaKey(sessionId), JSON.stringify(updated));
 }
 
 function printGetBalanceBatchTable(
@@ -1106,15 +1146,15 @@ async function persistGetBalanceStressHistory(options: {
 	historyFile: string | null;
 	batch: GetBalanceStressBatchResult;
 	visualizationUrl: string;
-	redis: Redis;
+	redisTransaction: Redis;
 }): Promise<GetBalanceStressHistory> {
-	const { historyFile, batch, visualizationUrl, redis } = options;
+	const { historyFile, batch, visualizationUrl, redisTransaction } = options;
 	const entry = GetBalanceStressHistoryEntry.fromBatch({
 		batch,
 		completedAtUnixMs: Date.now(),
 		visualizationUrl,
 	});
-	await prependGetBalanceStressHistory(redis, entry.toSummary());
+	await prependGetBalanceStressHistory(redisTransaction, entry.toSummary());
 	if (!historyFile) {
 		return GetBalanceStressHistory.empty().withEntry(entry);
 	}
@@ -1163,10 +1203,17 @@ async function runGetBalanceHttpStress(): Promise<void> {
 	const batchSessionIds = matrix.map(() => crypto.randomUUID());
 
 	const commonConfig = loadLayer2LedgerCommonConfig();
-	const balanceCache = resolveAddressBalanceCacheOptions(commonConfig.redis);
-	const redis = new Redis({
-		host: commonConfig.redis.host,
-		port: commonConfig.redis.port,
+	const balanceCache = resolveAddressBalanceCacheOptions(
+		commonConfig.redis_addressbalance,
+	);
+	const redisTransaction = new Redis({
+		host: commonConfig.redis_transactions.host,
+		port: commonConfig.redis_transactions.port,
+		maxRetriesPerRequest: null,
+	});
+	const redisAddressBalance = new Redis({
+		host: commonConfig.redis_addressbalance.host,
+		port: commonConfig.redis_addressbalance.port,
 		maxRetriesPerRequest: null,
 	});
 
@@ -1192,7 +1239,8 @@ async function runGetBalanceHttpStress(): Promise<void> {
 				batchSessionIds,
 				sessionId,
 				concurrency,
-				redis,
+				redisTransaction,
+				redisAddressBalance,
 				balanceCache,
 			});
 			runs.push(result);
@@ -1226,12 +1274,13 @@ async function runGetBalanceHttpStress(): Promise<void> {
 			historyFile,
 			batch,
 			visualizationUrl,
-			redis,
+			redisTransaction,
 		});
 		printGetBalanceHistoryTable(history);
 	} finally {
-		await resetStressLedgerState(redis);
-		await redis.quit();
+		await resetStressLedgerState(redisTransaction, redisAddressBalance);
+		await redisTransaction.quit();
+		await redisAddressBalance.quit();
 	}
 }
 
@@ -1241,7 +1290,8 @@ async function runOneGetBalanceStressVariantWithSessionId(options: {
 	batchSessionIds: readonly string[];
 	sessionId: string;
 	concurrency: number;
-	redis: Redis;
+	redisTransaction: Redis;
+	redisAddressBalance: Redis;
 	balanceCache: AddressBalanceCacheOptions;
 }): Promise<GetBalanceStressResult> {
 	const {
@@ -1250,7 +1300,8 @@ async function runOneGetBalanceStressVariantWithSessionId(options: {
 		batchSessionIds,
 		sessionId,
 		concurrency,
-		redis,
+		redisTransaction,
+		redisAddressBalance,
 		balanceCache,
 	} = options;
 	const { callCount, addressCount, cachePct, nonzeroPct } = variables;
@@ -1260,7 +1311,7 @@ async function runOneGetBalanceStressVariantWithSessionId(options: {
 	const latenciesMs: number[] = [];
 	let accepted = 0;
 
-	await resetStressLedgerState(redis);
+	await resetStressLedgerState(redisTransaction, redisAddressBalance);
 
 	try {
 		const poolSize = Math.max(addressCount * 4, addressCount, 64);
@@ -1285,16 +1336,16 @@ async function runOneGetBalanceStressVariantWithSessionId(options: {
 			}
 		});
 
-		await clearAddressBalanceCache(redis);
+		await clearAddressBalanceCache(redisAddressBalance);
 		await setCachedAddressBalances(
-			redis,
+			redisAddressBalance,
 			addresses.slice(0, cachedCount).map((address, index) => ({
 				address,
 				balance: index < nonzeroCount ? 1_000_000 + index : 0,
 			})),
 			balanceCache,
 		);
-		await resetAddressBalanceCacheStats(redis);
+		await resetAddressBalanceCacheStats(redisAddressBalance);
 
 		const title = `getBalance stress calls=${callCount} addrs=${addressCount} cache=${cachePct}% nonzero=${nonzeroPct}%`;
 		const description = [
@@ -1347,7 +1398,7 @@ async function runOneGetBalanceStressVariantWithSessionId(options: {
 			callCount,
 		);
 
-		await appendProfilerSessionDescription(redis, sessionId, [
+		await appendProfilerSessionDescription(redisTransaction, sessionId, [
 			`success_rate_pct=${successRatePct}`,
 			`accepted=${accepted}`,
 			`attempted=${callCount}`,
@@ -1381,7 +1432,7 @@ async function runOneGetBalanceStressVariantWithSessionId(options: {
 			profilerOutputFile: outputFile,
 		});
 	} finally {
-		await resetStressLedgerState(redis);
+		await resetStressLedgerState(redisTransaction, redisAddressBalance);
 	}
 }
 
@@ -1390,10 +1441,17 @@ async function runPushTransactionHttpStress(): Promise<void> {
 	expect(Number.isFinite(transactionCount) && transactionCount > 0).toBe(true);
 
 	const commonConfig = loadLayer2LedgerCommonConfig();
-	const balanceCache = resolveAddressBalanceCacheOptions(commonConfig.redis);
-	const redis = new Redis({
-		host: commonConfig.redis.host,
-		port: commonConfig.redis.port,
+	const balanceCache = resolveAddressBalanceCacheOptions(
+		commonConfig.redis_addressbalance,
+	);
+	const redisTransaction = new Redis({
+		host: commonConfig.redis_transactions.host,
+		port: commonConfig.redis_transactions.port,
+		maxRetriesPerRequest: null,
+	});
+	const redisAddressBalance = new Redis({
+		host: commonConfig.redis_addressbalance.host,
+		port: commonConfig.redis_addressbalance.port,
 		maxRetriesPerRequest: null,
 	});
 
@@ -1402,14 +1460,16 @@ async function runPushTransactionHttpStress(): Promise<void> {
 		visualizationLinks.push(
 			await runColdBalanceCachePushStress(
 				transactionCount,
-				redis,
+				redisTransaction,
+				redisAddressBalance,
 				balanceCache,
 			),
 		);
 		visualizationLinks.push(
 			await runWarmBalanceCachePushStress(
 				transactionCount,
-				redis,
+				redisTransaction,
+				redisAddressBalance,
 				balanceCache,
 			),
 		);
@@ -1417,7 +1477,8 @@ async function runPushTransactionHttpStress(): Promise<void> {
 		if (visualizationLinks.length > 0) {
 			printStressVisualizationUrls(visualizationLinks);
 		}
-		await redis.quit();
+		await redisTransaction.quit();
+		await redisAddressBalance.quit();
 	}
 }
 

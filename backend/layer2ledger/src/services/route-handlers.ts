@@ -113,7 +113,10 @@ import {
 
 export interface RouteHandlerContext {
 	db: Layer2LedgerDbClient;
-	redis: Redis;
+	/** Locks, pending queues, bloom filters, and profiler sessions. */
+	redisTransaction: Redis;
+	/** Address-balance cache only (`redis-addressbalance` service). */
+	redisAddressBalance: Redis;
 	lockManager: DistributedLock;
 	settings: Layer2LedgerAPIHandlerConfig;
 	messaging: MessagingContext;
@@ -126,11 +129,11 @@ export interface RouteHandlerContext {
  */
 async function isDuplicateLayer2TransactionId(
 	db: Layer2LedgerDbClient,
-	redis: Redis,
+	redisTransaction: Redis,
 	layer2TransactionId: string,
 ): Promise<boolean> {
 	const maybePresent = await bloomMaybeContainsTransactionId(
-		redis,
+		redisTransaction,
 		layer2TransactionId,
 	);
 	if (!maybePresent) {
@@ -150,16 +153,16 @@ async function isDuplicateLayer2TransactionId(
  */
 async function getAddressBalance(
 	db: Layer2LedgerDbClient,
-	redis: Redis,
+	redisAddressBalance: Redis,
 	address: string,
 	balanceCache: AddressBalanceCacheOptions,
 ): Promise<number | undefined> {
-	const cached = await getCachedAddressBalance(redis, address);
+	const cached = await getCachedAddressBalance(redisAddressBalance, address);
 	if (cached !== null) {
-		await recordAddressBalanceCacheHit(redis);
+		await recordAddressBalanceCacheHit(redisAddressBalance);
 		return cached;
 	}
-	await recordAddressBalanceCacheMiss(redis);
+	await recordAddressBalanceCacheMiss(redisAddressBalance);
 	const balanceRows = await db
 		.select({ balance: layer2AddressBalance.balance })
 		.from(layer2AddressBalance)
@@ -167,7 +170,12 @@ async function getAddressBalance(
 		.limit(1);
 	const balance = balanceRows[0]?.balance;
 	if (balance !== undefined) {
-		await setCachedAddressBalance(redis, address, balance, balanceCache);
+		await setCachedAddressBalance(
+			redisAddressBalance,
+			address,
+			balance,
+			balanceCache,
+		);
 	}
 	return balance;
 }
@@ -191,9 +199,9 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 				...buildCommonResponse(ErrorCodes.INVALID_PROFILER_SESSION),
 			};
 		}
-		const active = await getActiveProfilerSession(this.ctx.redis);
+		const active = await getActiveProfilerSession(this.ctx.redisTransaction);
 		if (active && active.session_id !== sessionId) {
-			await clearProfilerSession(this.ctx.redis, active.session_id);
+			await clearProfilerSession(this.ctx.redisTransaction, active.session_id);
 			log.warning("replaced active profiler session", {
 				previous_session_id: active.session_id,
 				session_id: sessionId,
@@ -206,7 +214,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 			apis,
 			started_at_unix_ms: Date.now(),
 		});
-		await startProfilerSessionInRedis(this.ctx.redis, session);
+		await startProfilerSessionInRedis(this.ctx.redisTransaction, session);
 		setProfilerSessionId(sessionId);
 		log.info("profiler session started", {
 			session_id: sessionId,
@@ -236,7 +244,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 		}
 		const endedAtUnixMs = Date.now();
 		const report = await buildProfilerSessionReport(
-			this.ctx.redis,
+			this.ctx.redisTransaction,
 			sessionId,
 			endedAtUnixMs,
 		);
@@ -268,8 +276,8 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 		}
 
 		const sessionReport = report.withOutputFile(writtenOutputFile);
-		await saveProfilerSessionReport(this.ctx.redis, sessionReport);
-		await clearProfilerSession(this.ctx.redis, sessionId);
+		await saveProfilerSessionReport(this.ctx.redisTransaction, sessionReport);
+		await clearProfilerSession(this.ctx.redisTransaction, sessionId);
 		setProfilerSessionId(undefined);
 		log.info("profiler session stopped", {
 			session_id: sessionId,
@@ -293,7 +301,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 				...buildCommonResponse(ErrorCodes.INVALID_PROFILER_SESSION),
 			};
 		}
-		const session = await loadProfilerSessionReport(this.ctx.redis, sessionId);
+		const session = await loadProfilerSessionReport(this.ctx.redisTransaction, sessionId);
 		if (!session) {
 			return {
 				...buildCommonResponse(ErrorCodes.PROFILER_SESSION_NOT_FOUND),
@@ -308,7 +316,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 	async listGetBalanceStressHistory(
 		_body: ListGetBalanceStressHistoryRequest,
 	): Promise<ListGetBalanceStressHistoryResponse> {
-		const entries = await loadGetBalanceStressHistory(this.ctx.redis);
+		const entries = await loadGetBalanceStressHistory(this.ctx.redisTransaction);
 		return {
 			...buildCommonResponse(ErrorCodes.SUCCESS),
 			entries: entries.map((entry) => ({
@@ -327,10 +335,10 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 	async pushTransaction(
 		body: PushTransactionRequest,
 	): Promise<CommonResponse> {
-		const { db, redis, lockManager, messaging } = this.ctx;
+		const { db, redisTransaction, lockManager, messaging } = this.ctx;
 		const profile = await new PushTransactionProfiler(
 			"pushTransaction",
-			redis,
+			redisTransaction,
 		).begin();
 		try {
 			const validationError = timePushTransactionSectionSync(
@@ -385,7 +393,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 				const isDuplicate = await timePushTransactionSection(
 					PushTransactionSection.DuplicateCheck,
 					() =>
-						isDuplicateLayer2TransactionId(db, redis, body.transaction_id),
+						isDuplicateLayer2TransactionId(db, redisTransaction, body.transaction_id),
 				);
 				if (isDuplicate) {
 					await lockManager.releaseMultiLock(addressesToLock, lockToken);
@@ -397,7 +405,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 					() =>
 						getAddressBalance(
 							db,
-							redis,
+							this.ctx.redisAddressBalance,
 							body.source_address_public_key,
 							this.ctx.balanceCache,
 						),
@@ -423,7 +431,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 							lock_token: lockToken,
 							addresses_locked: addressesToLock,
 						};
-						await redis.rpush(
+						await redisTransaction.rpush(
 							PENDING_TRANSACTIONS_LIST_KEY,
 							JSON.stringify(pending),
 						);
@@ -439,7 +447,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 				"Confirmed, pending insertion into db",
 			);
 		} finally {
-			notePushTransactionSectionSample(redis, profile.sessionId);
+			notePushTransactionSectionSample(redisTransaction, profile.sessionId);
 			await profile.end();
 		}
 	}
@@ -522,7 +530,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 	async depositConfirmed(
 		body: DepositConfirmedRequest,
 	): Promise<DepositConfirmedResponse> {
-		const { db, redis, messaging, settings } = this.ctx;
+		const { db, redisTransaction, messaging, settings } = this.ctx;
 		const results: Layer1TransactionIdStatus[] = [];
 		for (const deposit of body.transactions) {
 			const validSignature = await verifyDeposit(
@@ -544,7 +552,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 				continue;
 			}
 
-			if (await isDuplicateLayer2TransactionId(db, redis, deposit.nonce)) {
+			if (await isDuplicateLayer2TransactionId(db, redisTransaction, deposit.nonce)) {
 				results.push({
 					layer1_transaction_id: deposit.layer1_transaction_id,
 					layer1_transaction_vout: deposit.layer1_transaction_vout,
@@ -591,7 +599,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 				lock_token: null,
 				addresses_locked: [],
 			};
-			await redis.rpush(
+			await redisTransaction.rpush(
 				PENDING_TRANSACTIONS_LIST_KEY,
 				JSON.stringify(pending),
 			);
@@ -612,7 +620,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 	async requestWithdrawal(
 		body: RequestWithdrawalRequest,
 	): Promise<CommonResponse> {
-		const { db, redis, lockManager, messaging } = this.ctx;
+		const { db, redisTransaction, lockManager, messaging } = this.ctx;
 		if (!isPubkeyValidChars(body.source_address_public_key)) {
 			return buildCommonResponse(ErrorCodes.INVALID_SOURCE_ADDRESS);
 		}
@@ -645,7 +653,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 			if (
 				await isDuplicateLayer2TransactionId(
 					db,
-					redis,
+					redisTransaction,
 					body.layer2_transaction_id,
 				)
 			) {
@@ -655,7 +663,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 
 			const balance = await getAddressBalance(
 				db,
-				redis,
+				this.ctx.redisAddressBalance,
 				body.source_address_public_key,
 				this.ctx.balanceCache,
 			);
@@ -696,7 +704,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 				lock_token: lockToken,
 				addresses_locked: addressesToLock,
 			};
-			await redis.rpush(
+			await redisTransaction.rpush(
 				PENDING_WITHDRAWALS_LIST_KEY,
 				JSON.stringify(pending),
 			);
@@ -887,14 +895,14 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 	}
 
 	async getBalance(body: GetBalanceRequest): Promise<GetBalanceResponse> {
-		const { db, redis, balanceCache } = this.ctx;
-		const profile = await new GetBalanceProfiler(redis).begin();
+		const { db, redisTransaction, redisAddressBalance, balanceCache } = this.ctx;
+		const profile = await new GetBalanceProfiler(redisTransaction).begin();
 		try {
 			const balances: GetBalanceResponseBalance[] = [];
 			for (const publicKey of body.public_keys) {
 				const balance = await getAddressBalance(
 					db,
-					redis,
+					redisAddressBalance,
 					publicKey,
 					balanceCache,
 				);

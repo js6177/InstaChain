@@ -80,7 +80,10 @@ export type {
 	MongoDbConfig,
 	OAuth2ServiceParams,
 	PostgresqlDatabaseSettings,
+	RedisAddressBalanceSettings,
+	RedisConnectionSettings,
 	RedisSettings,
+	RedisTransactionsSettings,
 	SettingsLayer2Address,
 } from "./src/models";
 export {

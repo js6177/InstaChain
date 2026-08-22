@@ -8,7 +8,7 @@ export interface Layer2LedgerAppDependencies {
 	 * specific database/redis client implementation.
 	 */
 	sql: unknown;
-	redis: unknown;
+	redisTransaction: unknown;
 	lockManager: {
 		acquireMultiLock(userIds: string[]): Promise<string | null>;
 		releaseMultiLock(userIds: string[], lockToken: string): Promise<boolean>;

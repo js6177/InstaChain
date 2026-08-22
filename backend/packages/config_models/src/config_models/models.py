@@ -13,11 +13,14 @@ class Layer2LedgerDockerEnvSettings(BaseSettings):
     postgres_host: str
     postgres_port: int
 
-    redis_host: str
-    redis_port: int
+    redis_transactions_host: str
+    redis_transactions_port: int
+    redis_addressbalance_host: str
+    redis_addressbalance_port: int
 
     database_url: str
-    redis_url: str
+    redis_transactions_url: str
+    redis_addressbalance_url: str
 
     layer2ledger_fastapi_port: int
 
@@ -46,10 +49,11 @@ class Layer2LedgerDockerEnvSettings(BaseSettings):
         return self
     
     @model_validator(mode='after')
-    def interpolate_redis_url(self) -> 'Layer2LedgerDockerEnvSettings':
-        # This replaces ${VAR} with the actual values in the model
-        template = string.Template(self.database_url.replace("${", "$"))
-        self.redis_url = template.safe_substitute(self.model_dump())
+    def interpolate_redis_urls(self) -> 'Layer2LedgerDockerEnvSettings':
+        values = self.model_dump()
+        for field in ('redis_transactions_url', 'redis_addressbalance_url'):
+            template = string.Template(getattr(self, field).replace("${", "$"))
+            setattr(self, field, template.safe_substitute(values))
         return self
 
 
@@ -138,17 +142,25 @@ class PostgresqlDatabaseSettings(BaseModel):
     def database_url(self) -> str:
         return f"postgresql+asyncpg://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
     
-class RedisSettings(BaseModel):
+class RedisConnectionSettings(BaseModel):
     host: str
     port: int
+
+
+class RedisAddressBalanceSettings(RedisConnectionSettings):
     # Application-level balance cache eviction: "none" | "ttl"
     balance_cache_eviction_policy: Optional[str] = "none"
     balance_cache_ttl_seconds: Optional[int] = 3600
 
+
+# Back-compat alias used by older imports.
+RedisSettings = RedisAddressBalanceSettings
+
 # Layer2Ledger settings that are shared between layer2ledgerapihandler and layer2ledgerdbwriter
 class Layer2LedgerCommonSettings(BaseModel):
     database: PostgresqlDatabaseSettings
-    redis: RedisSettings
+    redis_transactions: RedisConnectionSettings
+    redis_addressbalance: RedisAddressBalanceSettings
     drop_tables_after_test_completed: Optional[bool] = True
     drop_tables_before_test_completed: Optional[bool] = True
 

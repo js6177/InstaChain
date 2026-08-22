@@ -36,13 +36,26 @@ services:
       start_period: 5s
     restart: unless-stopped
 
-  layer2ledger-redis:
+  redis-transactions:
     # Prod: Redis Stack server (includes RedisBloom). Dev/test overlays use redis/redis-stack.
     image: redis/redis-stack-server:7.4.0-v3
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "${REDIS_TRANSACTIONS_PUBLISH_PORT:-6379}:6379"
     volumes:
-      - redis_data:/data
+      - redis_transactions_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis-addressbalance:
+    # Address-balance cache only (no RedisBloom required).
+    image: redis:7.4-alpine
+    ports:
+      - "${REDIS_ADDRESSBALANCE_PUBLISH_PORT:-6380}:6379"
+    volumes:
+      - redis_addressbalance_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -82,7 +95,9 @@ services:
     depends_on:
       layer2ledger-pgbouncer:
         condition: service_healthy
-      layer2ledger-redis:
+      redis-transactions:
+        condition: service_healthy
+      redis-addressbalance:
         condition: service_healthy
     healthcheck:
       test:
@@ -155,7 +170,9 @@ services:
     depends_on:
       layer2ledger-postgres:
         condition: service_healthy
-      layer2ledger-redis:
+      redis-transactions:
+        condition: service_healthy
+      redis-addressbalance:
         condition: service_healthy
     restart: unless-stopped
 
@@ -245,7 +262,8 @@ services:
 
 volumes:
   postgres_data:
-  redis_data:
+  redis_transactions_data:
+  redis_addressbalance_data:
   mongodb_data:
   bitcoin_core_data:
     name: openl2-bitcoin-core-data

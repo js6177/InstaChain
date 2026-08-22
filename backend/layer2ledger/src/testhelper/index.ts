@@ -32,12 +32,14 @@ const { db, sql: postgresSql } = createDatabase({
 	dbPort: commonConfig.database.db_port,
 	dbName: commonConfig.database.db_name,
 });
-const redis = new Redis({
-	host: commonConfig.redis.host,
-	port: commonConfig.redis.port,
+const redisAddressBalance = new Redis({
+	host: commonConfig.redis_addressbalance.host,
+	port: commonConfig.redis_addressbalance.port,
 	maxRetriesPerRequest: null,
 });
-const balanceCache = resolveAddressBalanceCacheOptions(commonConfig.redis);
+const balanceCache = resolveAddressBalanceCacheOptions(
+	commonConfig.redis_addressbalance,
+);
 
 // Schema reset is handled by layer2ledgerapihandler on test startup. The testhelper
 // only seeds data and must not drop tables — compose run would recreate this container
@@ -52,7 +54,12 @@ async function upsertBalance(address: string, balance: number): Promise<void> {
 			target: layer2AddressBalance.address,
 			set: { balance },
 		});
-	await setCachedAddressBalance(redis, address, balance, balanceCache);
+	await setCachedAddressBalance(
+		redisAddressBalance,
+		address,
+		balance,
+		balanceCache,
+	);
 }
 
 async function maybeInsertDepositTransaction(
@@ -128,7 +135,7 @@ const app = createTestHelperApp(handlers).listen({
 
 registerProcessShutdown(async () => {
 	app.stop();
-	await redis.quit();
+	await redisAddressBalance.quit();
 	await postgresSql.end({ timeout: 2 });
 });
 

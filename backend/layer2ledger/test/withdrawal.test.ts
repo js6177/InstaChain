@@ -21,7 +21,7 @@ import {
 	db,
 	drainPendingQueues,
 	newLayer2Address,
-	redis,
+	redisTransaction,
 	setupLedgerTests,
 	teardownLedgerTests,
 } from "./helpers";
@@ -68,7 +68,7 @@ describe("withdrawal route handlers", () => {
 		});
 		expect(requestResponse.error_code).toBe(ErrorCodes.SUCCESS);
 
-		const pending = await getPendingWithdrawals(redis, 0, -1);
+		const pending = await getPendingWithdrawals(redisTransaction, 0, -1);
 		expect(pending).toHaveLength(1);
 		const layer2WithdrawalId =
 			pending[0]!.withdrawal_request.layer2_withdrawal_id;
@@ -205,7 +205,7 @@ describe("withdrawal route handlers", () => {
 				source_address_public_key: source.public_key_str_base58,
 			});
 			expect(response.error_code).toBe(ErrorCodes.SUCCESS);
-			const pending = await getPendingWithdrawals(redis, 0, -1);
+			const pending = await getPendingWithdrawals(redisTransaction, 0, -1);
 			expect(pending).toHaveLength(1);
 			layer2WithdrawalIds.push(
 				pending[0]!.withdrawal_request.layer2_withdrawal_id,
@@ -342,7 +342,7 @@ describe("withdrawal route handlers", () => {
 				source_address_public_key: source.public_key_str_base58,
 			});
 			expect(response.error_code).toBe(ErrorCodes.SUCCESS);
-			const pending = await getPendingWithdrawals(redis, 0, -1);
+			const pending = await getPendingWithdrawals(redisTransaction, 0, -1);
 			expect(pending).toHaveLength(1);
 			layer2WithdrawalIds.push(
 				pending[0]!.withdrawal_request.layer2_withdrawal_id,

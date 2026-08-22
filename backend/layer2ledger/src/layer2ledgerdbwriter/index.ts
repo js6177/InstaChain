@@ -44,16 +44,23 @@ const { db, sql: postgresSql } = createDatabase(
 
 await migrateDatabase(postgresSql);
 
-const redis = new Redis({
-	host: commonConfig.redis.host,
-	port: commonConfig.redis.port,
+const redisTransaction = new Redis({
+	host: commonConfig.redis_transactions.host,
+	port: commonConfig.redis_transactions.port,
+	maxRetriesPerRequest: null,
+});
+const redisAddressBalance = new Redis({
+	host: commonConfig.redis_addressbalance.host,
+	port: commonConfig.redis_addressbalance.port,
 	maxRetriesPerRequest: null,
 });
 
-const lockManager = new DistributedLock(redis);
+const lockManager = new DistributedLock(redisTransaction);
 await lockManager.setup();
-await ensureTransactionIdBloomFilter(db, redis);
-const balanceCache = resolveAddressBalanceCacheOptions(commonConfig.redis);
+await ensureTransactionIdBloomFilter(db, redisTransaction);
+const balanceCache = resolveAddressBalanceCacheOptions(
+	commonConfig.redis_addressbalance,
+);
 
 log.info("Starting layer2ledgerdbwriter...");
 
@@ -61,11 +68,12 @@ const deferredBloomSnapshot = createDeferredBloomSnapshotState();
 
 registerProcessShutdown(async () => {
 	try {
-		await flushDeferredBloomFilterUpdates(db, redis, deferredBloomSnapshot);
+		await flushDeferredBloomFilterUpdates(db, redisTransaction, deferredBloomSnapshot);
 	} catch (error) {
 		log.exception("Failed to flush deferred bloom filter updates", error);
 	}
-	await redis.quit();
+	await redisTransaction.quit();
+	await redisAddressBalance.quit();
 	await postgresSql.end({ timeout: 2 });
 });
 
@@ -74,18 +82,25 @@ let currentBatchHeight = await getCurrentBatchHeight(db);
 while (true) { 
 	try {
 		const nextHeight = await processPendingBatch(
-			{ db, redis, lockManager, balanceCache, deferredBloomSnapshot },
+			{
+				db,
+				redisTransaction,
+				redisAddressBalance,
+				lockManager,
+				balanceCache,
+				deferredBloomSnapshot,
+			},
 			currentBatchHeight,
 		);
 		if (nextHeight !== currentBatchHeight) {
 			currentBatchHeight = nextHeight;
 		}
 
-		const pendingCount = await redis.llen(PENDING_TRANSACTIONS_LIST_KEY);
-		await recordQueueDepth(redis, pendingCount);
+		const pendingCount = await redisTransaction.llen(PENDING_TRANSACTIONS_LIST_KEY);
+		await recordQueueDepth(redisTransaction, pendingCount);
 		const sleepMs = pendingQueueSleepMs(pendingCount);
 		if (sleepMs > 0) {
-			await sleepWithProfiler(redis, sleepMs);
+			await sleepWithProfiler(redisTransaction, sleepMs);
 		}
 		if (pendingCount > 0) {
 			log.info(
@@ -98,31 +113,31 @@ while (true) {
 		}
 	} catch (error) {
 		log.exception("Error processing transactions", error);
-		await sleepWithProfiler(redis, 5000);
+		await sleepWithProfiler(redisTransaction, 5000);
 	}
 }
 
-async function sleepWithProfiler(redis: Redis, sleepMs: number): Promise<void> {
-	await recordSleepActive(redis, true);
+async function sleepWithProfiler(redisTransaction: Redis, sleepMs: number): Promise<void> {
+	await recordSleepActive(redisTransaction, true);
 	try {
 		await Bun.sleep(sleepMs);
 	} finally {
-		await recordSleepActive(redis, false);
+		await recordSleepActive(redisTransaction, false);
 	}
 }
 
 async function recordSleepActive(
-	redis: Redis,
+	redisTransaction: Redis,
 	sleeping: boolean,
 ): Promise<void> {
 	try {
-		const session = await getActiveProfilerSession(redis);
+		const session = await getActiveProfilerSession(redisTransaction);
 		if (!session?.apis.includes(ProfilerApiName.Dbwriter)) {
 			return;
 		}
 		setProfilerSessionId(session.session_id);
 		await recordPushTransactionProfilerDbwriterSleepActive(
-			redis,
+			redisTransaction,
 			session.session_id,
 			sleeping,
 		);
@@ -137,16 +152,16 @@ async function recordSleepActive(
 }
 
 async function recordQueueDepth(
-	redis: Redis,
+	redisTransaction: Redis,
 	queueDepth: number,
 ): Promise<void> {
 	try {
-		const session = await getActiveProfilerSession(redis);
+		const session = await getActiveProfilerSession(redisTransaction);
 		if (!session?.apis.includes(ProfilerApiName.Dbwriter)) {
 			return;
 		}
 		await recordPushTransactionProfilerDbwriterQueueDepth(
-			redis,
+			redisTransaction,
 			session.session_id,
 			queueDepth,
 		);

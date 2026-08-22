@@ -19,7 +19,7 @@ import {
 	db,
 	drainPendingQueues,
 	newLayer2Address,
-	redis,
+	redisAddressBalance,
 	setupLedgerTests,
 	teardownLedgerTests,
 } from "./helpers";
@@ -46,7 +46,7 @@ describe("address balance redis cache", () => {
 			balance: initialBalance,
 		});
 		await setCachedAddressBalance(
-			redis,
+			redisAddressBalance,
 			source.public_key_str_base58,
 			initialBalance,
 			balanceCache,
@@ -72,7 +72,10 @@ describe("address balance redis cache", () => {
 		});
 		expect(response.error_code).toBe(ErrorCodes.SUCCESS);
 		expect(
-			await getCachedAddressBalance(redis, source.public_key_str_base58),
+			await getCachedAddressBalance(
+				redisAddressBalance,
+				source.public_key_str_base58,
+			),
 		).toBe(initialBalance);
 	});
 
@@ -112,10 +115,16 @@ describe("address balance redis cache", () => {
 		await drainPendingQueues();
 
 		expect(
-			await getCachedAddressBalance(redis, source.public_key_str_base58),
+			await getCachedAddressBalance(
+				redisAddressBalance,
+				source.public_key_str_base58,
+			),
 		).toBe(initialBalance - amount);
 		expect(
-			await getCachedAddressBalance(redis, dest.public_key_str_base58),
+			await getCachedAddressBalance(
+				redisAddressBalance,
+				dest.public_key_str_base58,
+			),
 		).toBe(amount);
 
 		const sourceRow = await db
@@ -128,12 +137,14 @@ describe("address balance redis cache", () => {
 
 	it("applies TTL eviction policy when configured", async () => {
 		const address = newLayer2Address().public_key_str_base58;
-		await setCachedAddressBalance(redis, address, 42, {
+		await setCachedAddressBalance(redisAddressBalance, address, 42, {
 			evictionPolicy: BalanceCacheEvictionPolicy.Ttl,
 			ttlSeconds: 2,
 		});
-		expect(await getCachedAddressBalance(redis, address)).toBe(42);
-		const ttl = await redis.ttl(balanceCacheKey(address));
+		expect(await getCachedAddressBalance(redisAddressBalance, address)).toBe(
+			42,
+		);
+		const ttl = await redisAddressBalance.ttl(balanceCacheKey(address));
 		expect(ttl).toBeGreaterThan(0);
 		expect(ttl).toBeLessThanOrEqual(2);
 	});
