@@ -434,6 +434,7 @@ function StatsSessionView(): React.JSX.Element | null {
 				addressCount: vars?.addressCount ?? "—",
 				cachePct: vars?.cachePct ?? "—",
 				nonzeroPct: vars?.nonzeroPct ?? "—",
+				addressMode: vars?.addressMode ?? "—",
 				successRatePct: vars?.successRatePct ?? null,
 				timeseries: batchSession?.timeseries.get_balance ?? null,
 				throughputPerSec: stats?.throughput_per_sec ?? null,

@@ -17,6 +17,7 @@ export interface GetBalanceProfilerTableRow {
 	addressCount: string;
 	cachePct: string;
 	nonzeroPct: string;
+	addressMode: string;
 	successRatePct: string | null;
 	timeseries: GetBalanceProfilerTimeseriesView | null;
 	/** Summary stats shown in the result column. */
@@ -35,7 +36,8 @@ type SortColumn =
 	| "callCount"
 	| "addressCount"
 	| "cachePct"
-	| "nonzeroPct";
+	| "nonzeroPct"
+	| "addressMode";
 
 type SortDirection = "asc" | "desc";
 
@@ -151,6 +153,10 @@ function compareRows(
 	column: SortColumn,
 	direction: SortDirection,
 ): number {
+	if (column === "addressMode") {
+		const delta = a.addressMode.localeCompare(b.addressMode);
+		return direction === "asc" ? delta : -delta;
+	}
 	const aValue = parseSortValue(a[column]);
 	const bValue = parseSortValue(b[column]);
 	const aMissing = Number.isNaN(aValue);
@@ -325,6 +331,15 @@ export function GetBalanceProfilerChart({
 							/>
 						</th>
 						<th className="px-3 py-2 font-medium">
+							<SortHeaderButton
+								column="addressMode"
+								label={LABELS.TEXT_PROFILER_GET_BALANCE_VAR_ADDRESS_MODE}
+								sortColumn={sortColumn}
+								sortDirection={sortDirection}
+								onSort={onSort}
+							/>
+						</th>
+						<th className="px-3 py-2 font-medium">
 							{LABELS.TEXT_PROFILER_GET_BALANCE_CHART_ROW}
 						</th>
 					</tr>
@@ -339,6 +354,7 @@ export function GetBalanceProfilerChart({
 									<td className="px-3 py-2 font-mono">{row.addressCount}</td>
 									<td className="px-3 py-2 font-mono">{row.cachePct}%</td>
 									<td className="px-3 py-2 font-mono">{row.nonzeroPct}%</td>
+									<td className="px-3 py-2 font-mono">{row.addressMode}</td>
 									<td className="px-3 py-2">
 										<div className="flex items-center justify-start gap-3">
 											<Button
@@ -363,7 +379,7 @@ export function GetBalanceProfilerChart({
 								</tr>
 								{expanded && row.timeseries ? (
 									<tr className="border-b bg-muted/20">
-										<td colSpan={5} className="px-3">
+										<td colSpan={6} className="px-3">
 											<ExpandedCharts timeseries={row.timeseries} />
 										</td>
 									</tr>

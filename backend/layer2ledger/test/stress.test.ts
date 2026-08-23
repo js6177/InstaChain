@@ -47,7 +47,9 @@ import {
 	DEFAULT_GET_BALANCE_CALL_COUNTS,
 	DEFAULT_GET_BALANCE_NONZERO_PCTS,
 	emptyApiErrorCounts,
+	GET_BALANCE_MISSING_ADDRESS_WORST_CASE_CALL_COUNT,
 	getBalanceStressHistoryPath,
+	GetBalanceAddressMode,
 	GetBalanceStressBatchResult,
 	GetBalanceStressHistory,
 	GetBalanceStressHistoryEntry,
@@ -465,6 +467,7 @@ function printGetBalanceBatchTable(
 		"addresses",
 		"cache%",
 		"nonzero%",
+		"mode",
 		"success%",
 		"reqs/s",
 	] as const;
@@ -473,6 +476,7 @@ function printGetBalanceBatchTable(
 		String(run.variables.addressCount),
 		String(run.variables.cachePct),
 		String(run.variables.nonzeroPct),
+		run.variables.addressMode,
 		String(run.successRatePct),
 		String(run.requestsPerSecond),
 	]);
@@ -570,7 +574,8 @@ async function persistGetBalanceStressHistory(options: {
 }
 
 /**
- * Run the getBalance stress matrix (default 2×3×3×2 = 36 cells).
+ * Run the getBalance stress matrix (default 2×3×3×2 = 36 seeded cells +
+ * missing-address worst case).
  * Each cell gets its own profiler session; Explorer loads siblings via
  * `get_balance_batch_sessions` in the session description.
  */
@@ -593,14 +598,28 @@ async function runGetBalanceHttpStress(): Promise<void> {
 		process.env.STRESS_GET_BALANCE_NONZERO_PCT ?? null,
 		DEFAULT_GET_BALANCE_NONZERO_PCTS,
 	);
+	const includeMissingAddressWorstCase =
+		process.env.STRESS_GET_BALANCE_INCLUDE_MISSING_ADDRESS_WORST_CASE !== "0";
+	const missingAddressCallCountRaw =
+		process.env.STRESS_GET_BALANCE_MISSING_ADDRESS_CALL_COUNT?.trim() ?? "";
+	const missingAddressWorstCaseCallCount =
+		missingAddressCallCountRaw.length > 0
+			? Number(missingAddressCallCountRaw)
+			: GET_BALANCE_MISSING_ADDRESS_WORST_CASE_CALL_COUNT;
 	const concurrency = Number(process.env.STRESS_CONCURRENCY ?? "2000");
 	expect(Number.isFinite(concurrency) && concurrency > 0).toBe(true);
+	expect(
+		Number.isFinite(missingAddressWorstCaseCallCount) &&
+			missingAddressWorstCaseCallCount > 0,
+	).toBe(true);
 
 	const matrix = buildGetBalanceStressMatrix({
 		callCounts,
 		addressCounts,
 		cachePcts,
 		nonzeroPcts,
+		includeMissingAddressWorstCase,
+		missingAddressWorstCaseCallCount,
 	});
 	expect(matrix.length).toBeGreaterThan(0);
 
@@ -636,6 +655,8 @@ async function runGetBalanceHttpStress(): Promise<void> {
 			address_counts: addressCounts,
 			cache_pcts: cachePcts,
 			nonzero_pcts: nonzeroPcts,
+			include_missing_address_worst_case: includeMissingAddressWorstCase,
+			missing_address_worst_case_call_count: missingAddressWorstCaseCallCount,
 		});
 
 		for (let index = 0; index < matrix.length; index += 1) {
@@ -655,6 +676,7 @@ async function runGetBalanceHttpStress(): Promise<void> {
 			runs.push(result);
 			console.log(
 				`getBalance matrix cell ${index + 1}/${matrix.length} ` +
+					`mode=${variables.addressMode} ` +
 					`accepted=${result.accepted}/${variables.callCount} ` +
 					`success_rate_pct=${result.successRatePct} ` +
 					`elapsed_ms=${result.elapsedMs} reqs_per_sec=${result.requestsPerSecond}`,
@@ -722,7 +744,8 @@ async function runOneGetBalanceStressVariantWithSessionId(options: {
 		redisDiagnostics,
 		balanceCache,
 	} = options;
-	const { callCount, addressCount, cachePct, nonzeroPct } = variables;
+	const { callCount, addressCount, cachePct, nonzeroPct, addressMode } =
+		variables;
 	const ledger = createLayer2LedgerClient(ledgerApiUrl);
 	const testhelper = createLayer2TestHelperClient(testhelperUrl);
 	const apiErrors = emptyApiErrorCounts();
@@ -736,40 +759,74 @@ async function runOneGetBalanceStressVariantWithSessionId(options: {
 	);
 
 	try {
-		const poolSize = Math.max(addressCount * 4, addressCount, 64);
-		const addresses = Array.from({ length: poolSize }, () =>
-			newLayer2Address().public_key_str_base58,
-		);
-		const nonzeroCount = Math.round((poolSize * nonzeroPct) / 100);
-		const cachedCount = Math.round((poolSize * cachePct) / 100);
+		const isMissingRandom =
+			addressMode === GetBalanceAddressMode.MissingRandom;
 
-		await mapPool(addresses, concurrency, async (address, index) => {
-			const balance = index < nonzeroCount ? 1_000_000 + index : 0;
-			try {
-				unwrapLayer2TestHelperResponse(
-					await testhelper.testhelper.seed.balance.post({
-						address,
-						balance,
-						include_deposit_transaction: false,
-					}),
+		/** Per-call address lists; missing-random uses unique never-seeded keys. */
+		let resolvePublicKeys: (callIndex: number) => string[];
+		let poolSize = 0;
+
+		if (isMissingRandom) {
+			const totalKeys = callCount * addressCount;
+			const addresses = Array.from({ length: totalKeys }, () =>
+				newLayer2Address().public_key_str_base58,
+			);
+			poolSize = addresses.length;
+			await clearAddressBalanceCache(redisAddressBalance);
+			await resetAddressBalanceCacheStats(redisAddressBalance);
+			resolvePublicKeys = (callIndex: number): string[] =>
+				addresses.slice(
+					callIndex * addressCount,
+					callIndex * addressCount + addressCount,
 				);
-			} catch (error) {
-				recordApiError(apiErrors, apiErrorReason(error));
-			}
-		});
+		} else {
+			poolSize = Math.max(addressCount * 4, addressCount, 64);
+			const addresses = Array.from({ length: poolSize }, () =>
+				newLayer2Address().public_key_str_base58,
+			);
+			const nonzeroCount = Math.round((poolSize * nonzeroPct) / 100);
+			const cachedCount = Math.round((poolSize * cachePct) / 100);
 
-		await clearAddressBalanceCache(redisAddressBalance);
-		await setCachedAddressBalances(
-			redisAddressBalance,
-			addresses.slice(0, cachedCount).map((address, index) => ({
-				address,
-				balance: index < nonzeroCount ? 1_000_000 + index : 0,
-			})),
-			balanceCache,
-		);
-		await resetAddressBalanceCacheStats(redisAddressBalance);
+			await mapPool(addresses, concurrency, async (address, index) => {
+				const balance = index < nonzeroCount ? 1_000_000 + index : 0;
+				try {
+					unwrapLayer2TestHelperResponse(
+						await testhelper.testhelper.seed.balance.post({
+							address,
+							balance,
+							include_deposit_transaction: false,
+						}),
+					);
+				} catch (error) {
+					recordApiError(apiErrors, apiErrorReason(error));
+				}
+			});
 
-		const title = `getBalance stress calls=${callCount} addrs=${addressCount} cache=${cachePct}% nonzero=${nonzeroPct}%`;
+			await clearAddressBalanceCache(redisAddressBalance);
+			await setCachedAddressBalances(
+				redisAddressBalance,
+				addresses.slice(0, cachedCount).map((address, index) => ({
+					address,
+					balance: index < nonzeroCount ? 1_000_000 + index : 0,
+				})),
+				balanceCache,
+			);
+			await resetAddressBalanceCacheStats(redisAddressBalance);
+
+			resolvePublicKeys = (callIndex: number): string[] =>
+				Array.from({ length: addressCount }, (_, offset) => {
+					const index = (callIndex * addressCount + offset) % poolSize;
+					const address = addresses[index];
+					if (address === undefined) {
+						throw new Error("address pool index out of range");
+					}
+					return address;
+				});
+		}
+
+		const title = isMissingRandom
+			? `getBalance stress missing-address worst-case calls=${callCount} addrs_per_call=${addressCount}`
+			: `getBalance stress calls=${callCount} addrs=${addressCount} cache=${cachePct}% nonzero=${nonzeroPct}%`;
 		const description = [
 			...variables.toDescriptionLines(),
 			`get_balance_batch_id=${batchId}`,
@@ -793,10 +850,7 @@ async function runOneGetBalanceStressVariantWithSessionId(options: {
 			Array.from({ length: callCount }, (_, index) => index),
 			concurrency,
 			async (callIndex) => {
-				const publicKeys = Array.from({ length: addressCount }, (_, offset) => {
-					const index = (callIndex * addressCount + offset) % poolSize;
-					return addresses[index]!;
-				});
+				const publicKeys = resolvePublicKeys(callIndex);
 				const reqStarted = performance.now();
 				const response = await callLedgerApi(apiErrors, async () => {
 					const body = unwrapLayer2LedgerResponse(
@@ -818,7 +872,7 @@ async function runOneGetBalanceStressVariantWithSessionId(options: {
 		const elapsedMs = Math.round(performance.now() - startedAt);
 		const successRatePct = computeSuccessRatePct(accepted, callCount);
 		warnIfLowSuccessRate(
-			`getBalance stress calls=${callCount} addrs=${addressCount} cache=${cachePct}% nonzero=${nonzeroPct}%`,
+			title,
 			successRatePct,
 			accepted,
 			callCount,

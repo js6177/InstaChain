@@ -154,12 +154,14 @@ stress-test-health:
 		test-layer2ledger-stress
 
 # getBalance HTTP stress matrix (seeds via testhelper; Explorer table + charts).
-# Default matrix: calls 1000,2000 × addresses 1,10,100 × cache% 10,50,100 × nonzero% 50,25 (36 cells).
+# Default matrix: calls 1000,2000 × addresses 1,10,100 × cache% 10,50,100 × nonzero% 50,25
+# (36 seeded cells) + missing-address worst case (1000 calls × 1 unique never-seeded addr).
 # Override any dimension with a comma list, e.g. STRESS_GET_BALANCE_CALL_COUNT=1000
 # Examples:
 #   make stress-test-get-balance
 #   STRESS_GET_BALANCE_CALL_COUNT=1000 STRESS_GET_BALANCE_ADDRESS_COUNT=10 \
 #     STRESS_GET_BALANCE_CACHE_PCT=100 STRESS_GET_BALANCE_NONZERO_PCT=50 make stress-test-get-balance
+#   STRESS_GET_BALANCE_INCLUDE_MISSING_ADDRESS_WORST_CASE=0 make stress-test-get-balance
 stress-test-get-balance:
 	mkdir -p .test-output/stress
 	ENVIRONMENT=test bun run --filter @openl2/setup-scripts ensure-compose-build -- \
@@ -186,6 +188,8 @@ stress-test-get-balance:
 		-e "STRESS_GET_BALANCE_ADDRESS_COUNT=$${STRESS_GET_BALANCE_ADDRESS_COUNT:-}" \
 		-e "STRESS_GET_BALANCE_CACHE_PCT=$${STRESS_GET_BALANCE_CACHE_PCT:-}" \
 		-e "STRESS_GET_BALANCE_NONZERO_PCT=$${STRESS_GET_BALANCE_NONZERO_PCT:-}" \
+		-e "STRESS_GET_BALANCE_INCLUDE_MISSING_ADDRESS_WORST_CASE=$${STRESS_GET_BALANCE_INCLUDE_MISSING_ADDRESS_WORST_CASE:-}" \
+		-e "STRESS_GET_BALANCE_MISSING_ADDRESS_CALL_COUNT=$${STRESS_GET_BALANCE_MISSING_ADDRESS_CALL_COUNT:-}" \
 		-e "STRESS_CONCURRENCY=$${STRESS_CONCURRENCY:-2000}" \
 		-e STRESS_GET_BALANCE_RESULT_FILE=/test-output/test-layer2ledger-get-balance-stress.json \
 		-e PROFILER_SESSION_OUTPUT_DIR=/test-output \
