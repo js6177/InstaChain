@@ -7,7 +7,7 @@
  *   - scripts/redis-latency-probe.ts — redis-cli --latency baseline
  *   - cli monitor-redis — 1Hz PING + CLIENT LIST during k6
  */
-import type { RedisDiagPhase } from "@openl2/stress-results";
+import type { ProcessDiagnosticsSample, RedisDiagPhase } from "@openl2/stress-results";
 import {
 	RedisClientSummary,
 	RedisCommandStat,
@@ -681,6 +681,7 @@ export async function buildRedisStressDiagnostics(options: {
 	after: RedisInstanceSnapshot[];
 	duringSamples?: RedisDuringSample[];
 	dockerStatsSamples?: RedisDockerStatsSample[];
+	processSamples?: ProcessDiagnosticsSample[];
 }): Promise<RedisStressDiagnostics> {
 	const pipelining = layer2RedisPipeliningAnalysis();
 	const duringSamples =
@@ -688,6 +689,7 @@ export async function buildRedisStressDiagnostics(options: {
 	const dockerStatsSamples =
 		options.dockerStatsSamples ??
 		(await loadDockerStatsSamples(options.mode));
+	const processSamples = options.processSamples ?? [];
 	const commandstatDeltas = diffCommandstats(
 		options.baseline,
 		options.after,
@@ -713,6 +715,17 @@ export async function buildRedisStressDiagnostics(options: {
 				"`docker stats` during k6.",
 		);
 	}
+	if (processSamples.length > 0) {
+		interpretation.push(
+			`Process diagnostics: ${processSamples.length} samples ` +
+				`(500ms ioredis commandQueue.length + event-loop delay mean/max/p99).`,
+		);
+	} else {
+		interpretation.push(
+			"No process diagnostics samples found; apihandler/dbwriter should sample " +
+				"when redis-diagnostics is configured.",
+		);
+	}
 	if (redisCliLatencyNotes.length > 0) {
 		interpretation.push(
 			`redis-cli latency probe output (same compose network path): ` +
@@ -731,6 +744,7 @@ export async function buildRedisStressDiagnostics(options: {
 		after: options.after,
 		duringSamples,
 		dockerStatsSamples,
+		processSamples,
 		commandstatDeltas,
 		redisCliLatencyNotes,
 		interpretation,

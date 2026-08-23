@@ -158,8 +158,23 @@ export const LABELS = {
 	TEXT_PROFILER_REDIS_CHART_MEMORY_TITLE:
 		"Redis container memory (docker stats)",
 	TEXT_PROFILER_REDIS_CHART_MEMORY_AXIS: "Memory",
+	TEXT_PROFILER_REDIS_PROCESS_SECTION_TITLE:
+		"Process: Redis command queue & event-loop delay",
+	TEXT_PROFILER_REDIS_CHART_COMMAND_QUEUE_TITLE:
+		"ioredis commandQueue.length (500ms)",
+	TEXT_PROFILER_REDIS_CHART_COMMAND_QUEUE_AXIS: "Queued commands",
+	TEXT_PROFILER_REDIS_CHART_EVENT_LOOP_TITLE:
+		"Bun event-loop delay (mean / max / p99)",
+	TEXT_PROFILER_REDIS_CHART_EVENT_LOOP_AXIS: "Delay (ms)",
 	TEXT_PROFILER_REDIS_ROLE_TRANSACTIONS: "transactions",
 	TEXT_PROFILER_REDIS_ROLE_ADDRESSBALANCE: "addressbalance",
+	TEXT_PROFILER_REDIS_EVENT_LOOP_MEAN: "mean",
+	TEXT_PROFILER_REDIS_EVENT_LOOP_MAX: "max",
+	TEXT_PROFILER_REDIS_EVENT_LOOP_P99: "p99",
+	TEXT_PROFILER_REDIS_PROCESS_APIHANDLER_TX: "apihandler · transactions",
+	TEXT_PROFILER_REDIS_PROCESS_APIHANDLER_AB: "apihandler · addressbalance",
+	TEXT_PROFILER_REDIS_PROCESS_DBWRITER_TX: "dbwriter · transactions",
+	TEXT_PROFILER_REDIS_PROCESS_DBWRITER_AB: "dbwriter · addressbalance",
 } as const;
 
 export const TEST_IDS = {

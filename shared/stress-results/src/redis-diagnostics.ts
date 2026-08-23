@@ -265,6 +265,78 @@ export class RedisDuringSample {
 	}
 }
 
+/** Which Bun process emitted a process-diagnostics sample. */
+export enum ProcessDiagnosticsService {
+	Apihandler = "apihandler",
+	Dbwriter = "dbwriter",
+}
+
+/**
+ * One 500ms sample of ioredis client queue depth + Bun event-loop delay
+ * from an apihandler/dbwriter replica.
+ */
+export class ProcessDiagnosticsSample {
+	readonly service: ProcessDiagnosticsService;
+	readonly replicaId: string;
+	readonly capturedAtUnixMs: number;
+	/** `redis.commandQueue.length` for the transactions Redis client. */
+	readonly transactionsCommandQueueLength: number;
+	/** `redis.commandQueue.length` for the address-balance Redis client. */
+	readonly addressBalanceCommandQueueLength: number;
+	/** Event-loop delay histogram mean for the sample window (ms). */
+	readonly eventLoopDelayMeanMs: number;
+	/** Event-loop delay histogram max for the sample window (ms). */
+	readonly eventLoopDelayMaxMs: number;
+	/** Event-loop delay histogram p99 for the sample window (ms). */
+	readonly eventLoopDelayP99Ms: number;
+
+	constructor(init: ProcessDiagnosticsSample) {
+		this.service = init.service;
+		this.replicaId = init.replicaId;
+		this.capturedAtUnixMs = init.capturedAtUnixMs;
+		this.transactionsCommandQueueLength = init.transactionsCommandQueueLength;
+		this.addressBalanceCommandQueueLength =
+			init.addressBalanceCommandQueueLength;
+		this.eventLoopDelayMeanMs = init.eventLoopDelayMeanMs;
+		this.eventLoopDelayMaxMs = init.eventLoopDelayMaxMs;
+		this.eventLoopDelayP99Ms = init.eventLoopDelayP99Ms;
+	}
+
+	static parse(
+		data: ProcessDiagnosticsSample | null,
+	): ProcessDiagnosticsSample | null {
+		if (!isStructuredObject(data)) {
+			return null;
+		}
+		const typed = data as ProcessDiagnosticsSample;
+		if (
+			typeof typed.capturedAtUnixMs !== "number" ||
+			typeof typed.transactionsCommandQueueLength !== "number" ||
+			typeof typed.addressBalanceCommandQueueLength !== "number" ||
+			typeof typed.eventLoopDelayMeanMs !== "number" ||
+			typeof typed.eventLoopDelayMaxMs !== "number" ||
+			typeof typed.eventLoopDelayP99Ms !== "number"
+		) {
+			return null;
+		}
+		const service =
+			typed.service === ProcessDiagnosticsService.Dbwriter
+				? ProcessDiagnosticsService.Dbwriter
+				: ProcessDiagnosticsService.Apihandler;
+		return new ProcessDiagnosticsSample({
+			service,
+			replicaId: String(typed.replicaId ?? ""),
+			capturedAtUnixMs: typed.capturedAtUnixMs,
+			transactionsCommandQueueLength: typed.transactionsCommandQueueLength,
+			addressBalanceCommandQueueLength:
+				typed.addressBalanceCommandQueueLength,
+			eventLoopDelayMeanMs: typed.eventLoopDelayMeanMs,
+			eventLoopDelayMaxMs: typed.eventLoopDelayMaxMs,
+			eventLoopDelayP99Ms: typed.eventLoopDelayP99Ms,
+		});
+	}
+}
+
 /**
  * One 1Hz host `docker stats` / `podman stats` sample for a Redis container
  * during the stress wave.
@@ -424,6 +496,7 @@ export class RedisStressDiagnostics {
 	readonly after: RedisInstanceSnapshot[];
 	readonly duringSamples: RedisDuringSample[];
 	readonly dockerStatsSamples: RedisDockerStatsSample[];
+	readonly processSamples: ProcessDiagnosticsSample[];
 	readonly commandstatDeltas: RedisCommandStat[];
 	readonly redisCliLatencyNotes: string[];
 	readonly interpretation: string[];
@@ -435,6 +508,7 @@ export class RedisStressDiagnostics {
 		this.after = init.after;
 		this.duringSamples = init.duringSamples;
 		this.dockerStatsSamples = init.dockerStatsSamples;
+		this.processSamples = init.processSamples;
 		this.commandstatDeltas = init.commandstatDeltas;
 		this.redisCliLatencyNotes = init.redisCliLatencyNotes;
 		this.interpretation = init.interpretation;
@@ -475,6 +549,13 @@ export class RedisStressDiagnostics {
 						(row): row is RedisDockerStatsSample => row !== null,
 					)
 			: [];
+		const processSamples = Array.isArray(typed.processSamples)
+			? typed.processSamples
+					.map((row) => ProcessDiagnosticsSample.parse(row ?? null))
+					.filter(
+						(row): row is ProcessDiagnosticsSample => row !== null,
+					)
+			: [];
 		const commandstatDeltas = Array.isArray(typed.commandstatDeltas)
 			? typed.commandstatDeltas
 					.map((row) => RedisCommandStat.parse(row ?? null))
@@ -493,6 +574,7 @@ export class RedisStressDiagnostics {
 			after,
 			duringSamples,
 			dockerStatsSamples,
+			processSamples,
 			commandstatDeltas,
 			redisCliLatencyNotes,
 			interpretation,

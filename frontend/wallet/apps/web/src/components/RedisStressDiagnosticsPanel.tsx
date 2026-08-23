@@ -60,10 +60,22 @@ interface RedisDockerStatsSampleView {
 	memoryPercent: number;
 }
 
+interface ProcessDiagnosticsSampleView {
+	service: string;
+	replicaId: string;
+	capturedAtUnixMs: number;
+	transactionsCommandQueueLength: number;
+	addressBalanceCommandQueueLength: number;
+	eventLoopDelayMeanMs: number;
+	eventLoopDelayMaxMs: number;
+	eventLoopDelayP99Ms: number;
+}
+
 export interface RedisStressDiagnosticsView {
 	mode: string;
 	duringSamples: RedisDuringSampleView[];
 	dockerStatsSamples?: RedisDockerStatsSampleView[];
+	processSamples?: ProcessDiagnosticsSampleView[];
 	after: RedisInstanceSnapshotView[];
 	commandstatDeltas: RedisCommandStatView[];
 }
@@ -99,6 +111,44 @@ function seriesForRole(
 					: Number(raw.toFixed(3));
 			return [Math.max(sample.capturedAtUnixMs - originUnixMs, 0), value];
 		});
+}
+
+const PROCESS_SAMPLE_BUCKET_MS = 500;
+
+/**
+ * Collapse multi-replica samples into 500ms buckets (worst-case / max).
+ * Keeps charts readable when many apihandler replicas sample concurrently.
+ */
+function seriesForProcessSamplesMax(
+	samples: readonly ProcessDiagnosticsSampleView[],
+	filter: (sample: ProcessDiagnosticsSampleView) => boolean,
+	pick: (sample: ProcessDiagnosticsSampleView) => number,
+	originUnixMs: number,
+	valueKind: YAxisValueKindValue,
+): Array<[number, number]> {
+	const buckets = new Map<number, number>();
+	for (const sample of samples) {
+		if (!filter(sample)) {
+			continue;
+		}
+		const relativeMs = Math.max(sample.capturedAtUnixMs - originUnixMs, 0);
+		const bucket =
+			Math.floor(relativeMs / PROCESS_SAMPLE_BUCKET_MS) *
+			PROCESS_SAMPLE_BUCKET_MS;
+		const raw = pick(sample);
+		const value =
+			valueKind === YAxisValueKind.Integer
+				? Math.round(raw)
+				: Number(raw.toFixed(3));
+		const previous = buckets.get(bucket);
+		buckets.set(
+			bucket,
+			previous === undefined ? value : Math.max(previous, value),
+		);
+	}
+	return [...buckets.entries()]
+		.sort((a, b) => a[0] - b[0])
+		.map(([t, value]) => [t, value]);
 }
 
 function formatDurationUs(durationUs: number): string {
@@ -596,21 +646,38 @@ export function RedisStressDiagnosticsPanel({
 	const dockerStatsSamples = Array.isArray(redis.dockerStatsSamples)
 		? redis.dockerStatsSamples
 		: [];
+	const processSamples = Array.isArray(redis.processSamples)
+		? redis.processSamples
+		: [];
 	const after = Array.isArray(redis.after) ? redis.after : [];
 	const topDeltas = Array.isArray(redis.commandstatDeltas)
 		? redis.commandstatDeltas.slice(0, 12)
 		: [];
 
 	const originUnixMs = useMemo(() => {
-		const timestamps: number[] = [sessionStartedAtUnixMs];
+		// Align to the stress wave (during Redis / docker stats), not profiler
+		// session start — prepare can take tens of seconds before k6 begins.
+		const waveTimestamps: number[] = [];
 		for (const sample of duringSamples) {
-			timestamps.push(sample.capturedAtUnixMs);
+			waveTimestamps.push(sample.capturedAtUnixMs);
 		}
 		for (const sample of dockerStatsSamples) {
-			timestamps.push(sample.capturedAtUnixMs);
+			waveTimestamps.push(sample.capturedAtUnixMs);
 		}
-		return Math.min(...timestamps);
-	}, [duringSamples, dockerStatsSamples, sessionStartedAtUnixMs]);
+		if (waveTimestamps.length > 0) {
+			return Math.min(...waveTimestamps);
+		}
+		const fallback: number[] = [sessionStartedAtUnixMs];
+		for (const sample of processSamples) {
+			fallback.push(sample.capturedAtUnixMs);
+		}
+		return Math.min(...fallback);
+	}, [
+		duringSamples,
+		dockerStatsSamples,
+		processSamples,
+		sessionStartedAtUnixMs,
+	]);
 
 	const pingOption = useMemo(
 		() =>
@@ -759,6 +826,98 @@ export function RedisStressDiagnosticsPanel({
 		[dockerStatsSamples, originUnixMs],
 	);
 
+	const commandQueueOption = useMemo(
+		() =>
+			chartOption(
+				LABELS.TEXT_PROFILER_REDIS_CHART_COMMAND_QUEUE_AXIS,
+				[
+					{
+						name: LABELS.TEXT_PROFILER_REDIS_PROCESS_APIHANDLER_TX,
+						data: seriesForProcessSamplesMax(
+							processSamples,
+							(s) => s.service === "apihandler",
+							(s) => s.transactionsCommandQueueLength,
+							originUnixMs,
+							YAxisValueKind.Integer,
+						),
+					},
+					{
+						name: LABELS.TEXT_PROFILER_REDIS_PROCESS_APIHANDLER_AB,
+						data: seriesForProcessSamplesMax(
+							processSamples,
+							(s) => s.service === "apihandler",
+							(s) => s.addressBalanceCommandQueueLength,
+							originUnixMs,
+							YAxisValueKind.Integer,
+						),
+					},
+					{
+						name: LABELS.TEXT_PROFILER_REDIS_PROCESS_DBWRITER_TX,
+						data: seriesForProcessSamplesMax(
+							processSamples,
+							(s) => s.service === "dbwriter",
+							(s) => s.transactionsCommandQueueLength,
+							originUnixMs,
+							YAxisValueKind.Integer,
+						),
+					},
+					{
+						name: LABELS.TEXT_PROFILER_REDIS_PROCESS_DBWRITER_AB,
+						data: seriesForProcessSamplesMax(
+							processSamples,
+							(s) => s.service === "dbwriter",
+							(s) => s.addressBalanceCommandQueueLength,
+							originUnixMs,
+							YAxisValueKind.Integer,
+						),
+					},
+				],
+				YAxisValueKind.Integer,
+			),
+		[originUnixMs, processSamples],
+	);
+
+	const eventLoopOption = useMemo(
+		() =>
+			chartOption(
+				LABELS.TEXT_PROFILER_REDIS_CHART_EVENT_LOOP_AXIS,
+				[
+					{
+						name: LABELS.TEXT_PROFILER_REDIS_EVENT_LOOP_MEAN,
+						data: seriesForProcessSamplesMax(
+							processSamples,
+							(s) => s.service === "apihandler",
+							(s) => s.eventLoopDelayMeanMs,
+							originUnixMs,
+							YAxisValueKind.Decimal,
+						),
+					},
+					{
+						name: LABELS.TEXT_PROFILER_REDIS_EVENT_LOOP_MAX,
+						data: seriesForProcessSamplesMax(
+							processSamples,
+							(s) => s.service === "apihandler",
+							(s) => s.eventLoopDelayMaxMs,
+							originUnixMs,
+							YAxisValueKind.Decimal,
+						),
+					},
+					{
+						name: LABELS.TEXT_PROFILER_REDIS_EVENT_LOOP_P99,
+						data: seriesForProcessSamplesMax(
+							processSamples,
+							(s) => s.service === "apihandler",
+							(s) => s.eventLoopDelayP99Ms,
+							originUnixMs,
+							YAxisValueKind.Decimal,
+						),
+					},
+				],
+				YAxisValueKind.Decimal,
+			),
+		[originUnixMs, processSamples],
+	);
+
 	return (
 		<div className="space-y-4 border-t pt-4">
 			<h3 className="text-base font-semibold">
@@ -867,6 +1026,34 @@ export function RedisStressDiagnosticsPanel({
 						/>
 					</section>
 				</div>
+			)}
+
+			{processSamples.length > 0 && (
+				<section className="space-y-6">
+					<h4 className="text-sm font-medium text-foreground">
+						{LABELS.TEXT_PROFILER_REDIS_PROCESS_SECTION_TITLE}
+					</h4>
+					<div className="space-y-2">
+						<div className="text-xs text-muted-foreground">
+							{LABELS.TEXT_PROFILER_REDIS_CHART_COMMAND_QUEUE_TITLE}
+						</div>
+						<ReactECharts
+							option={commandQueueOption}
+							style={{ height: 260, width: "100%" }}
+							notMerge
+						/>
+					</div>
+					<div className="space-y-2">
+						<div className="text-xs text-muted-foreground">
+							{LABELS.TEXT_PROFILER_REDIS_CHART_EVENT_LOOP_TITLE}
+						</div>
+						<ReactECharts
+							option={eventLoopOption}
+							style={{ height: 260, width: "100%" }}
+							notMerge
+						/>
+					</div>
+				</section>
 			)}
 
 			{topDeltas.length > 0 && (

@@ -2,6 +2,7 @@ import type { OpenL2Logger } from "@openl2/openl2-logger";
 import { getReplicaId, setProfilerSessionId } from "@openl2/openl2-logger";
 import type Redis from "ioredis";
 import { log as defaultLog } from "../logger";
+import { noteProcessDiagnosticsHotPathSample } from "../redis/process-diagnostics-sampler";
 import {
 	getActiveProfilerSession,
 	ProfilerSessionSpan,
@@ -40,6 +41,8 @@ export class PushTransactionProfiler {
 	async begin(): Promise<PushTransactionProfilerSpan> {
 		const startedAtPerf = performance.now();
 		const startedAtUnixMs = Date.now();
+		// Observe ioredis queue depth while requests are still entering the event loop.
+		noteProcessDiagnosticsHotPathSample();
 		const activeSession = await getActiveProfilerSession(this.redis).catch(
 			() => null,
 		);

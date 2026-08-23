@@ -29,6 +29,8 @@ export { computeLatencyStats, LatencyStatsMs } from "./latency-stats";
 export { StressPhaseTimingsMs } from "./phase-timings";
 export { StressProfilerSessionSummary } from "./profiler-session-summary";
 export {
+	ProcessDiagnosticsSample,
+	ProcessDiagnosticsService,
 	RedisClientSummary,
 	RedisCommandStat,
 	RedisConnectionPoolAnalysis,

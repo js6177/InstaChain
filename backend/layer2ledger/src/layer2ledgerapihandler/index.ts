@@ -5,6 +5,7 @@ import {
 	loadLayer2LedgerCommonConfig,
 	registerProcessShutdown,
 } from "@openl2/config-loader";
+import { ProcessDiagnosticsService } from "@openl2/stress-results";
 import Redis from "ioredis";
 import { createLayer2LedgerApp } from "../api/app";
 import { createDatabase, migrateDatabase } from "../db/client";
@@ -12,6 +13,7 @@ import { log } from "../logger";
 import { resolveAddressBalanceCacheOptions } from "../redis/address-balance-cache";
 import { createRedisDiagnosticsClient } from "../redis/diagnostics-client";
 import { DistributedLock } from "../redis/distributed-lock";
+import { startProcessDiagnosticsSampler } from "../redis/process-diagnostics-sampler";
 import { ensureTransactionIdBloomFilter } from "../redis/transaction-id-bloom";
 import { createRouteHandlers } from "../services/route-handlers";
 
@@ -102,7 +104,18 @@ const app = createLayer2LedgerApp(handlers).listen({
 	port,
 });
 
+const stopProcessDiagnostics =
+	commonConfig.redis_diagnostics !== null
+		? startProcessDiagnosticsSampler({
+				service: ProcessDiagnosticsService.Apihandler,
+				redisTransaction,
+				redisAddressBalance,
+				redisDiagnostics,
+			})
+		: null;
+
 registerProcessShutdown(async () => {
+	stopProcessDiagnostics?.();
 	app.stop();
 	await redisTransaction.quit();
 	await redisAddressBalance.quit();

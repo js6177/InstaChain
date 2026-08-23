@@ -15,6 +15,7 @@ import {
 	clearAddressBalanceCache,
 	createDatabase,
 	createRedisDiagnosticsClient,
+	clearProcessDiagnosticsSamples,
 	ensureTransactionIdBloomFilter,
 	PENDING_TRANSACTIONS_LIST_KEY,
 	PENDING_WITHDRAWALS_LIST_KEY,
@@ -216,6 +217,7 @@ export async function resetStressLedgerState(
 			profilerInFlightKey("pushTransaction"),
 			profilerInFlightKey(ProfilerApiName.GetBalance),
 		);
+		await clearProcessDiagnosticsSamples(redisDiagnostics);
 		await clearAddressBalanceCache(redisAddressBalance);
 		await resetAddressBalanceCacheStats(redisAddressBalance);
 		await deleteRedisKeysByPattern(redisTransaction, "lock:*");

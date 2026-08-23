@@ -18,6 +18,11 @@ export {
 	PENDING_WITHDRAWALS_LIST_KEY,
 } from "./redis/distributed-lock";
 export {
+	clearProcessDiagnosticsSamples,
+	loadProcessDiagnosticsSamples,
+	PROCESS_DIAGNOSTICS_SAMPLES_KEY,
+} from "./redis/process-diagnostics-sampler";
+export {
 	ProfilerApiName,
 	ProfilerSessionReport,
 	profilerSessionOutputPath,

@@ -6,6 +6,7 @@ import {
 import { createOpenL2Logger } from "@openl2/openl2-logger";
 import {
 	getAddressBalanceCacheStats,
+	loadProcessDiagnosticsSamples,
 	ProfilerApiName,
 	ProfilerSessionReport,
 	profilerSessionOutputPath,
@@ -417,10 +418,12 @@ export async function finalizePushStress(
 		const settledCount = meta.transaction_ids.length - pendingIds.size;
 
 		const baseline = await loadBaselineSnapshots(mode);
+		const processSamples = await loadProcessDiagnosticsSamples(redisDiagnostics);
 		const redisReport = await buildRedisStressDiagnostics({
 			mode,
 			baseline,
 			after: afterLoad,
+			processSamples,
 		});
 		const redisReportPath = redisDiagnosticsPath(mode);
 		await Bun.write(

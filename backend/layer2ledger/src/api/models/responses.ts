@@ -282,6 +282,17 @@ const RedisDockerStatsSampleResponse = t.Object({
 	memoryPercent: t.Number(),
 });
 
+const ProcessDiagnosticsSampleResponse = t.Object({
+	service: t.String(),
+	replicaId: t.String(),
+	capturedAtUnixMs: t.Number(),
+	transactionsCommandQueueLength: t.Number(),
+	addressBalanceCommandQueueLength: t.Number(),
+	eventLoopDelayMeanMs: t.Number(),
+	eventLoopDelayMaxMs: t.Number(),
+	eventLoopDelayP99Ms: t.Number(),
+});
+
 const RedisInstanceSnapshotResponse = t.Object({
 	role: t.String(),
 	host: t.String(),
@@ -308,6 +319,7 @@ export const RedisStressDiagnosticsResponse = t.Object({
 	after: t.Array(RedisInstanceSnapshotResponse),
 	duringSamples: t.Array(RedisDuringSampleResponse),
 	dockerStatsSamples: t.Array(RedisDockerStatsSampleResponse),
+	processSamples: t.Optional(t.Array(ProcessDiagnosticsSampleResponse)),
 	commandstatDeltas: t.Array(RedisCommandStatResponse),
 	redisCliLatencyNotes: t.Array(t.String()),
 	interpretation: t.Array(t.String()),

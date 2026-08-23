@@ -3,6 +3,7 @@ import {
 	registerProcessShutdown,
 } from "@openl2/config-loader";
 import { createOpenL2Logger, setProfilerSessionId } from "@openl2/openl2-logger";
+import { ProcessDiagnosticsService } from "@openl2/stress-results";
 import Redis from "ioredis";
 import { createDatabase, migrateDatabase } from "../db/client";
 import { resolveAddressBalanceCacheOptions } from "../redis/address-balance-cache";
@@ -11,6 +12,7 @@ import {
 	DistributedLock,
 	PENDING_TRANSACTIONS_LIST_KEY,
 } from "../redis/distributed-lock";
+import { startProcessDiagnosticsSampler } from "../redis/process-diagnostics-sampler";
 import {
 	getActiveProfilerSession,
 	ProfilerApiName,
@@ -69,7 +71,18 @@ log.info("Starting layer2ledgerdbwriter...");
 
 const deferredBloomSnapshot = createDeferredBloomSnapshotState();
 
+const stopProcessDiagnostics =
+	commonConfig.redis_diagnostics !== null
+		? startProcessDiagnosticsSampler({
+				service: ProcessDiagnosticsService.Dbwriter,
+				redisTransaction,
+				redisAddressBalance,
+				redisDiagnostics,
+			})
+		: null;
+
 registerProcessShutdown(async () => {
+	stopProcessDiagnostics?.();
 	try {
 		await flushDeferredBloomFilterUpdates(db, redisTransaction, deferredBloomSnapshot);
 	} catch (error) {

@@ -21,6 +21,14 @@ Profiler session keys and related diagnostic app data are stored on a dedicated
 with `redis-transactions` / `redis-addressbalance`. Observational probes below still
 target the hot-path Redis services.
 
+When `redis-diagnostics` is configured, apihandler/dbwriter also sample every 500ms:
+- ioredis `commandQueue.length` (transactions + address-balance clients)
+- Bun `monitorEventLoopDelay` mean / max / p99
+
+Samples are also noted on the request hot path (so queue depth is visible while work
+is in flight). Timer catch-up after a blocked event loop is backdated by histogram
+max so spikes plot inside the load window, not after it.
+
 Automatic during `make stress-test`:
 
 - **prepare:** ioredis PING RTT baseline, INFO commandstats, CLIENT LIST, SLOWLOG RESET
