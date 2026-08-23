@@ -30,6 +30,8 @@ export const DockerService = {
 	LAYER2LEDGER_PGBOUNCER: "layer2ledger-pgbouncer",
 	REDIS_TRANSACTIONS: "redis-transactions",
 	REDIS_ADDRESSBALANCE: "redis-addressbalance",
+	/** Profiler/diagnostic Redis — defined only in test/dev compose overlays. */
+	REDIS_DIAGNOSTICS: "redis-diagnostics",
 	LAYER2LEDGER_MONGODB: "layer2ledger-mongodb",
 	LAYER2LEDGER_APIHANDLER: "layer2ledgerapihandler",
 	LAYER2LEDGER_APIHANDLER_NGINX: "layer2ledgerapihandler-nginx",
@@ -60,6 +62,15 @@ export const DOCKER_INFRA_SERVICES = [
 	DockerService.REDIS_TRANSACTIONS,
 	DockerService.REDIS_ADDRESSBALANCE,
 	DockerService.LAYER2LEDGER_MONGODB,
+] as const satisfies readonly DockerServiceName[];
+
+/**
+ * Test/dev infra including {@link DockerService.REDIS_DIAGNOSTICS}
+ * (not present in prod base compose).
+ */
+export const DOCKER_TEST_INFRA_SERVICES = [
+	...DOCKER_INFRA_SERVICES,
+	DockerService.REDIS_DIAGNOSTICS,
 ] as const satisfies readonly DockerServiceName[];
 
 /** Long-running application services (excluding wallet-web / bitcoin-core). */

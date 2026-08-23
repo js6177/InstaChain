@@ -113,10 +113,12 @@ import {
 
 export interface RouteHandlerContext {
 	db: Layer2LedgerDbClient;
-	/** Locks, pending queues, bloom filters, and profiler sessions. */
+	/** Locks, pending queues, and bloom filters. */
 	redisTransaction: Redis;
 	/** Address-balance cache only (`redis-addressbalance` service). */
 	redisAddressBalance: Redis;
+	/** Profiler sessions and related diagnostic keys (`redis-diagnostics` when configured). */
+	redisDiagnostics: Redis;
 	lockManager: DistributedLock;
 	settings: Layer2LedgerAPIHandlerConfig;
 	messaging: MessagingContext;
@@ -199,9 +201,9 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 				...buildCommonResponse(ErrorCodes.INVALID_PROFILER_SESSION),
 			};
 		}
-		const active = await getActiveProfilerSession(this.ctx.redisTransaction);
+		const active = await getActiveProfilerSession(this.ctx.redisDiagnostics);
 		if (active && active.session_id !== sessionId) {
-			await clearProfilerSession(this.ctx.redisTransaction, active.session_id);
+			await clearProfilerSession(this.ctx.redisDiagnostics, active.session_id);
 			log.warning("replaced active profiler session", {
 				previous_session_id: active.session_id,
 				session_id: sessionId,
@@ -214,7 +216,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 			apis,
 			started_at_unix_ms: Date.now(),
 		});
-		await startProfilerSessionInRedis(this.ctx.redisTransaction, session);
+		await startProfilerSessionInRedis(this.ctx.redisDiagnostics, session);
 		setProfilerSessionId(sessionId);
 		log.info("profiler session started", {
 			session_id: sessionId,
@@ -244,7 +246,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 		}
 		const endedAtUnixMs = Date.now();
 		const report = await buildProfilerSessionReport(
-			this.ctx.redisTransaction,
+			this.ctx.redisDiagnostics,
 			sessionId,
 			endedAtUnixMs,
 		);
@@ -276,8 +278,8 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 		}
 
 		const sessionReport = report.withOutputFile(writtenOutputFile);
-		await saveProfilerSessionReport(this.ctx.redisTransaction, sessionReport);
-		await clearProfilerSession(this.ctx.redisTransaction, sessionId);
+		await saveProfilerSessionReport(this.ctx.redisDiagnostics, sessionReport);
+		await clearProfilerSession(this.ctx.redisDiagnostics, sessionId);
 		setProfilerSessionId(undefined);
 		log.info("profiler session stopped", {
 			session_id: sessionId,
@@ -301,7 +303,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 				...buildCommonResponse(ErrorCodes.INVALID_PROFILER_SESSION),
 			};
 		}
-		const session = await loadProfilerSessionReport(this.ctx.redisTransaction, sessionId);
+		const session = await loadProfilerSessionReport(this.ctx.redisDiagnostics, sessionId);
 		if (!session) {
 			return {
 				...buildCommonResponse(ErrorCodes.PROFILER_SESSION_NOT_FOUND),
@@ -316,7 +318,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 	async listGetBalanceStressHistory(
 		_body: ListGetBalanceStressHistoryRequest,
 	): Promise<ListGetBalanceStressHistoryResponse> {
-		const entries = await loadGetBalanceStressHistory(this.ctx.redisTransaction);
+		const entries = await loadGetBalanceStressHistory(this.ctx.redisDiagnostics);
 		return {
 			...buildCommonResponse(ErrorCodes.SUCCESS),
 			entries: entries.map((entry) => ({
@@ -335,10 +337,10 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 	async pushTransaction(
 		body: PushTransactionRequest,
 	): Promise<CommonResponse> {
-		const { db, redisTransaction, lockManager, messaging } = this.ctx;
+		const { db, redisTransaction, redisDiagnostics, lockManager, messaging } = this.ctx;
 		const profile = await new PushTransactionProfiler(
 			"pushTransaction",
-			redisTransaction,
+			redisDiagnostics,
 		).begin();
 		try {
 			const validationError = timePushTransactionSectionSync(
@@ -447,7 +449,7 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 				"Confirmed, pending insertion into db",
 			);
 		} finally {
-			notePushTransactionSectionSample(redisTransaction, profile.sessionId);
+			notePushTransactionSectionSample(redisDiagnostics, profile.sessionId);
 			await profile.end();
 		}
 	}
@@ -895,8 +897,8 @@ class Layer2LedgerRouteHandlersImpl implements Layer2LedgerRouteHandlers {
 	}
 
 	async getBalance(body: GetBalanceRequest): Promise<GetBalanceResponse> {
-		const { db, redisTransaction, redisAddressBalance, balanceCache } = this.ctx;
-		const profile = await new GetBalanceProfiler(redisTransaction).begin();
+		const { db, redisAddressBalance, redisDiagnostics, balanceCache } = this.ctx;
+		const profile = await new GetBalanceProfiler(redisDiagnostics).begin();
 		try {
 			const balances: GetBalanceResponseBalance[] = [];
 			for (const publicKey of body.public_keys) {

@@ -28,7 +28,7 @@ backend-dev:
 	ENVIRONMENT=dev $(COMPOSE) -f docker-compose.yml -f docker-compose.dev.yml up --build \
 		layer2ledger-postgres \
 		layer2ledger-pgbouncer \
-		redis-transactions redis-addressbalance \
+		redis-transactions redis-addressbalance redis-diagnostics \
 		layer2ledger-mongodb \
 		layer2ledgerapihandler \
 		layer2ledgerdbwriter \
@@ -70,7 +70,7 @@ backend-test:
 		--scale layer2ledgerapihandler=$${LAYER2LEDGER_APIHANDLER_REPLICAS:-2} \
 		layer2ledger-postgres \
 		layer2ledger-pgbouncer \
-		redis-transactions redis-addressbalance \
+		redis-transactions redis-addressbalance redis-diagnostics \
 		layer2ledger-mongodb \
 		layer2ledgerapihandler \
 		layer2ledgerdbwriter \
@@ -101,7 +101,7 @@ stress-test:
 		--scale layer2ledgerapihandler=$${LAYER2LEDGER_APIHANDLER_REPLICAS:-8} \
 		layer2ledger-postgres \
 		layer2ledger-pgbouncer \
-		redis-transactions redis-addressbalance \
+		redis-transactions redis-addressbalance redis-diagnostics \
 		layer2ledgerapihandler \
 		layer2ledgerdbwriter \
 		layer2ledger-testhelper
@@ -136,7 +136,7 @@ stress-test-health:
 		--scale layer2ledgerapihandler=$${LAYER2LEDGER_APIHANDLER_REPLICAS:-2} \
 		layer2ledger-postgres \
 		layer2ledger-pgbouncer \
-		redis-transactions redis-addressbalance \
+		redis-transactions redis-addressbalance redis-diagnostics \
 		layer2ledgerapihandler \
 		layer2ledgerapihandler-nginx
 	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
@@ -171,7 +171,7 @@ stress-test-get-balance:
 		--scale layer2ledgerapihandler=$${LAYER2LEDGER_APIHANDLER_REPLICAS:-2} \
 		layer2ledger-postgres \
 		layer2ledger-pgbouncer \
-		redis-transactions redis-addressbalance \
+		redis-transactions redis-addressbalance redis-diagnostics \
 		layer2ledgerapihandler \
 		layer2ledger-testhelper
 	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \

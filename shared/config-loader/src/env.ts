@@ -81,6 +81,17 @@ function optionalEnvNumber(
 	return parsed;
 }
 
+function optionalEnvValue(
+	values: Record<string, string>,
+	key: string,
+): string | undefined {
+	const value = values[key];
+	if (!value) {
+		return undefined;
+	}
+	return value;
+}
+
 export function loadOAuthManagerDockerEnvSettings(
 	envPath: string,
 ): Layer2LedgerOAuthManagerDockerEnvSettings {
@@ -120,12 +131,15 @@ export function loadLayer2LedgerDockerEnvSettings(
 			values,
 			"REDIS_ADDRESSBALANCE_PORT",
 		),
+		redisDiagnosticsHost: optionalEnvValue(values, "REDIS_DIAGNOSTICS_HOST"),
+		redisDiagnosticsPort: optionalEnvNumber(values, "REDIS_DIAGNOSTICS_PORT"),
 		databaseUrl: requireEnvValue(values, "DATABASE_URL"),
 		redisTransactionsUrl: requireEnvValue(values, "REDIS_TRANSACTIONS_URL"),
 		redisAddressBalanceUrl: requireEnvValue(
 			values,
 			"REDIS_ADDRESSBALANCE_URL",
 		),
+		redisDiagnosticsUrl: optionalEnvValue(values, "REDIS_DIAGNOSTICS_URL"),
 		layer2ledgerFastapiPort: requireEnvNumber(
 			values,
 			"LAYER2LEDGER_FASTAPI_PORT",

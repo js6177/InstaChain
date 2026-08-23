@@ -16,6 +16,11 @@ Starts ledger deps, then `bun scripts/run-layer2ledger-push.ts` (cold + warm).
 
 ## Redis diagnostics
 
+Profiler session keys and related diagnostic app data are stored on a dedicated
+`redis-diagnostics` instance (test/dev only), so profiler traffic does not contend
+with `redis-transactions` / `redis-addressbalance`. Observational probes below still
+target the hot-path Redis services.
+
 Automatic during `make stress-test`:
 
 - **prepare:** ioredis PING RTT baseline, INFO commandstats, CLIENT LIST, SLOWLOG RESET

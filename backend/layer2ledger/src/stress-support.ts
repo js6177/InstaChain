@@ -12,6 +12,7 @@ export {
 	resolveAddressBalanceCacheOptions,
 	setCachedAddressBalances,
 } from "./redis/address-balance-cache";
+export { createRedisDiagnosticsClient } from "./redis/diagnostics-client";
 export {
 	PENDING_TRANSACTIONS_LIST_KEY,
 	PENDING_WITHDRAWALS_LIST_KEY,

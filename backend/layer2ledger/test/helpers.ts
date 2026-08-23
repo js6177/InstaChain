@@ -20,6 +20,7 @@ import {
 	clearAddressBalanceCache,
 	resolveAddressBalanceCacheOptions,
 } from "../src/redis/address-balance-cache";
+import { createRedisDiagnosticsClient } from "../src/redis/diagnostics-client";
 import {
 	DistributedLock,
 	PENDING_TRANSACTIONS_LIST_KEY,
@@ -59,6 +60,11 @@ export const redisAddressBalance = new Redis({
 	port: commonConfig.redis_addressbalance.port,
 	maxRetriesPerRequest: null,
 });
+const { redisDiagnostics: redisDiagnosticsClient } = createRedisDiagnosticsClient(
+	commonConfig,
+	redisTransaction,
+);
+export const redisDiagnostics = redisDiagnosticsClient;
 
 export const lockManager = new DistributedLock(redisTransaction);
 export const balanceCache = resolveAddressBalanceCacheOptions(
@@ -71,6 +77,7 @@ export function createHandlers(): Layer2LedgerRouteHandlers {
 		db,
 		redisTransaction,
 		redisAddressBalance,
+		redisDiagnostics,
 		lockManager,
 		settings: apiHandlerConfig,
 		messaging: {
@@ -131,6 +138,7 @@ export async function drainPendingQueues(): Promise<void> {
 			db,
 			redisTransaction,
 			redisAddressBalance,
+			redisDiagnostics,
 			lockManager,
 			balanceCache,
 			deferredBloomSnapshot,

@@ -17,7 +17,7 @@ import {
 	assertContainerRuntimeReady,
 	type ContainerCliName,
 	DOCKER_APP_SERVICES,
-	DOCKER_INFRA_SERVICES,
+	DOCKER_TEST_INFRA_SERVICES,
 	DOCKER_INTEGRATION_TEST_SERVICES,
 	DOCKER_TEST_COMPOSE_FILES,
 	DOCKER_TEST_PROFILE_BACKGROUND_SERVICES,
@@ -375,10 +375,10 @@ class DockerComposeTestRunner {
 	private async startInfraServices(): Promise<void> {
 		log.info("Starting infrastructure for test (ENVIRONMENT=test)...");
 		await this.run(
-			["up", "-d", "--quiet-pull", ...DOCKER_INFRA_SERVICES],
+			["up", "-d", "--quiet-pull", ...DOCKER_TEST_INFRA_SERVICES],
 			{ check: true },
 		);
-		for (const service of DOCKER_INFRA_SERVICES) {
+		for (const service of DOCKER_TEST_INFRA_SERVICES) {
 			await this.waitForHealthy(service);
 		}
 		await this.ensureTestPostgresDatabase();

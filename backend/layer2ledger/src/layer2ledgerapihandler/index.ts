@@ -10,6 +10,7 @@ import { createLayer2LedgerApp } from "../api/app";
 import { createDatabase, migrateDatabase } from "../db/client";
 import { log } from "../logger";
 import { resolveAddressBalanceCacheOptions } from "../redis/address-balance-cache";
+import { createRedisDiagnosticsClient } from "../redis/diagnostics-client";
 import { DistributedLock } from "../redis/distributed-lock";
 import { ensureTransactionIdBloomFilter } from "../redis/transaction-id-bloom";
 import { createRouteHandlers } from "../services/route-handlers";
@@ -69,6 +70,8 @@ const redisAddressBalance = new Redis({
 	port: commonConfig.redis_addressbalance.port,
 	maxRetriesPerRequest: null,
 });
+const { redisDiagnostics, ownsConnection: ownsRedisDiagnostics } =
+	createRedisDiagnosticsClient(commonConfig, redisTransaction);
 
 const lockManager = new DistributedLock(redisTransaction);
 await lockManager.setup();
@@ -78,6 +81,7 @@ const handlers = createRouteHandlers({
 	db,
 	redisTransaction,
 	redisAddressBalance,
+	redisDiagnostics,
 	lockManager,
 	settings: apiHandlerConfig,
 	messaging: {
@@ -102,6 +106,9 @@ registerProcessShutdown(async () => {
 	app.stop();
 	await redisTransaction.quit();
 	await redisAddressBalance.quit();
+	if (ownsRedisDiagnostics) {
+		await redisDiagnostics.quit();
+	}
 	await sql.end({ timeout: 2 });
 });
 

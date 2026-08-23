@@ -202,6 +202,12 @@ function generateKeys(
 	const redisAddressBalanceHost = containered
 		? layer2ledgerDockerEnv.redisAddressBalanceHost
 		: "localhost";
+	const redisDiagnosticsHost =
+		layer2ledgerDockerEnv.redisDiagnosticsHost !== undefined
+			? containered
+				? layer2ledgerDockerEnv.redisDiagnosticsHost
+				: "localhost"
+			: null;
 	// In-container both listen on 6379; on the host, address-balance is published as 6380.
 	const redisTransactionsPort = containered
 		? layer2ledgerDockerEnv.redisTransactionsPort
@@ -209,6 +215,12 @@ function generateKeys(
 	const redisAddressBalancePort = containered
 		? layer2ledgerDockerEnv.redisAddressBalancePort
 		: Number(process.env.REDIS_ADDRESSBALANCE_PUBLISH_PORT ?? 6380);
+	const redisDiagnosticsPort =
+		redisDiagnosticsHost !== null
+			? containered
+				? (layer2ledgerDockerEnv.redisDiagnosticsPort ?? 6379)
+				: Number(process.env.REDIS_DIAGNOSTICS_PUBLISH_PORT ?? 6381)
+			: null;
 
 	const layer2ledgerCommonSettings: Layer2LedgerCommonConfig = {
 		database: {
@@ -230,6 +242,13 @@ function generateKeys(
 			balance_cache_eviction_policy: BalanceCacheEvictionPolicy.None,
 			balance_cache_ttl_seconds: 3600,
 		},
+		redis_diagnostics:
+			redisDiagnosticsHost !== null && redisDiagnosticsPort !== null
+				? {
+						host: redisDiagnosticsHost,
+						port: redisDiagnosticsPort,
+					}
+				: null,
 	};
 
 	const layer2bridgeSigningAddress = new Layer2Address(

@@ -6,6 +6,7 @@ import { createOpenL2Logger, setProfilerSessionId } from "@openl2/openl2-logger"
 import Redis from "ioredis";
 import { createDatabase, migrateDatabase } from "../db/client";
 import { resolveAddressBalanceCacheOptions } from "../redis/address-balance-cache";
+import { createRedisDiagnosticsClient } from "../redis/diagnostics-client";
 import {
 	DistributedLock,
 	PENDING_TRANSACTIONS_LIST_KEY,
@@ -54,6 +55,8 @@ const redisAddressBalance = new Redis({
 	port: commonConfig.redis_addressbalance.port,
 	maxRetriesPerRequest: null,
 });
+const { redisDiagnostics, ownsConnection: ownsRedisDiagnostics } =
+	createRedisDiagnosticsClient(commonConfig, redisTransaction);
 
 const lockManager = new DistributedLock(redisTransaction);
 await lockManager.setup();
@@ -74,18 +77,22 @@ registerProcessShutdown(async () => {
 	}
 	await redisTransaction.quit();
 	await redisAddressBalance.quit();
+	if (ownsRedisDiagnostics) {
+		await redisDiagnostics.quit();
+	}
 	await postgresSql.end({ timeout: 2 });
 });
 
 let currentBatchHeight = await getCurrentBatchHeight(db);
 
-while (true) { 
+while (true) {
 	try {
 		const nextHeight = await processPendingBatch(
 			{
 				db,
 				redisTransaction,
 				redisAddressBalance,
+				redisDiagnostics,
 				lockManager,
 				balanceCache,
 				deferredBloomSnapshot,
@@ -97,10 +104,10 @@ while (true) {
 		}
 
 		const pendingCount = await redisTransaction.llen(PENDING_TRANSACTIONS_LIST_KEY);
-		await recordQueueDepth(redisTransaction, pendingCount);
+		await recordQueueDepth(redisDiagnostics, pendingCount);
 		const sleepMs = pendingQueueSleepMs(pendingCount);
 		if (sleepMs > 0) {
-			await sleepWithProfiler(redisTransaction, sleepMs);
+			await sleepWithProfiler(redisDiagnostics, sleepMs);
 		}
 		if (pendingCount > 0) {
 			log.info(
@@ -113,31 +120,31 @@ while (true) {
 		}
 	} catch (error) {
 		log.exception("Error processing transactions", error);
-		await sleepWithProfiler(redisTransaction, 5000);
+		await sleepWithProfiler(redisDiagnostics, 5000);
 	}
 }
 
-async function sleepWithProfiler(redisTransaction: Redis, sleepMs: number): Promise<void> {
-	await recordSleepActive(redisTransaction, true);
+async function sleepWithProfiler(redisDiagnostics: Redis, sleepMs: number): Promise<void> {
+	await recordSleepActive(redisDiagnostics, true);
 	try {
 		await Bun.sleep(sleepMs);
 	} finally {
-		await recordSleepActive(redisTransaction, false);
+		await recordSleepActive(redisDiagnostics, false);
 	}
 }
 
 async function recordSleepActive(
-	redisTransaction: Redis,
+	redisDiagnostics: Redis,
 	sleeping: boolean,
 ): Promise<void> {
 	try {
-		const session = await getActiveProfilerSession(redisTransaction);
+		const session = await getActiveProfilerSession(redisDiagnostics);
 		if (!session?.apis.includes(ProfilerApiName.Dbwriter)) {
 			return;
 		}
 		setProfilerSessionId(session.session_id);
 		await recordPushTransactionProfilerDbwriterSleepActive(
-			redisTransaction,
+			redisDiagnostics,
 			session.session_id,
 			sleeping,
 		);
@@ -152,16 +159,16 @@ async function recordSleepActive(
 }
 
 async function recordQueueDepth(
-	redisTransaction: Redis,
+	redisDiagnostics: Redis,
 	queueDepth: number,
 ): Promise<void> {
 	try {
-		const session = await getActiveProfilerSession(redisTransaction);
+		const session = await getActiveProfilerSession(redisDiagnostics);
 		if (!session?.apis.includes(ProfilerApiName.Dbwriter)) {
 			return;
 		}
 		await recordPushTransactionProfilerDbwriterQueueDepth(
-			redisTransaction,
+			redisDiagnostics,
 			session.session_id,
 			queueDepth,
 		);

@@ -57,9 +57,13 @@ export interface Layer2LedgerDockerEnvSettings {
 	redisTransactionsPort: number;
 	redisAddressBalanceHost: string;
 	redisAddressBalancePort: number;
+	/** Present only in debug/test when `redis-diagnostics` is configured. */
+	redisDiagnosticsHost?: string;
+	redisDiagnosticsPort?: number;
 	databaseUrl: string;
 	redisTransactionsUrl: string;
 	redisAddressBalanceUrl: string;
+	redisDiagnosticsUrl?: string;
 	layer2ledgerFastapiPort: number;
 	testhelperPort: number;
 	layer2ledgerApihandlerDebugPort?: number;
@@ -95,7 +99,7 @@ export interface RedisConnectionSettings {
 	port: number;
 }
 
-/** Redis used for locks, pending queues, bloom filters, and profiler. */
+/** Redis used for locks, pending queues, and bloom filters. */
 export type RedisTransactionsSettings = RedisConnectionSettings;
 
 /** Redis used only for the address-balance cache. */
@@ -109,6 +113,12 @@ export interface RedisAddressBalanceSettings extends RedisConnectionSettings {
 	balance_cache_ttl_seconds?: number;
 }
 
+/**
+ * Redis used for profiler sessions and related diagnostic app data.
+ * Optional: only configured in debug/test when `redis-diagnostics` is running.
+ */
+export type RedisDiagnosticsSettings = RedisConnectionSettings;
+
 /** @deprecated Prefer {@link RedisTransactionsSettings} / {@link RedisAddressBalanceSettings}. */
 export type RedisSettings = RedisAddressBalanceSettings;
 
@@ -116,6 +126,11 @@ export interface Layer2LedgerCommonConfig {
 	database: PostgresqlDatabaseSettings;
 	redis_transactions: RedisTransactionsSettings;
 	redis_addressbalance: RedisAddressBalanceSettings;
+	/**
+	 * Profiler / diagnostic storage (`redis-diagnostics`).
+	 * `null` in prod (no dedicated instance); callers fall back to {@link redis_transactions}.
+	 */
+	redis_diagnostics: RedisDiagnosticsSettings | null;
 	drop_tables_after_test_completed?: boolean;
 	drop_tables_before_test_completed?: boolean;
 }

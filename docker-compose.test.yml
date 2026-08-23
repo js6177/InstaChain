@@ -29,6 +29,21 @@ services:
     environment:
       ENVIRONMENT: test
 
+  # Profiler / diagnostic app data only (isolates profiler traffic from hot-path Redis).
+  redis-diagnostics:
+    image: redis:7.4-alpine
+    ports:
+      - "${REDIS_DIAGNOSTICS_PUBLISH_PORT:-6381}:6379"
+    volumes:
+      - redis_diagnostics_data:/data
+    environment:
+      ENVIRONMENT: test
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   layer2ledger-mongodb:
     environment:
       ENVIRONMENT: test
@@ -43,6 +58,9 @@ services:
     volumes:
       - ./.config:/app/.config:ro
       - ./.test-output/stress:/test-output
+    depends_on:
+      redis-diagnostics:
+        condition: service_healthy
 
   layer2ledgerapihandler-nginx:
     environment:
@@ -54,6 +72,9 @@ services:
     environment:
       ENVIRONMENT: test
       OPENL2_CONFIG_PATH: /app/.config
+    depends_on:
+      redis-diagnostics:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -139,6 +160,8 @@ services:
         condition: service_healthy
       redis-addressbalance:
         condition: service_healthy
+      redis-diagnostics:
+        condition: service_healthy
     restart: "no"
 
   # Bun prepare/finalize for k6-driven layer2ledger push stress (@openl2/stress-testing).
@@ -171,6 +194,8 @@ services:
       redis-transactions:
         condition: service_healthy
       redis-addressbalance:
+        condition: service_healthy
+      redis-diagnostics:
         condition: service_healthy
       layer2ledgerapihandler:
         condition: service_healthy
@@ -243,6 +268,8 @@ services:
         condition: service_healthy
       redis-addressbalance:
         condition: service_healthy
+      redis-diagnostics:
+        condition: service_healthy
       layer2ledgerapihandler:
         condition: service_healthy
       layer2ledgerapihandler-nginx:
@@ -268,6 +295,8 @@ services:
       redis-transactions:
         condition: service_healthy
       redis-addressbalance:
+        condition: service_healthy
+      redis-diagnostics:
         condition: service_healthy
       layer2ledgerapihandler:
         condition: service_healthy
@@ -353,6 +382,8 @@ services:
         condition: service_healthy
       redis-addressbalance:
         condition: service_healthy
+      redis-diagnostics:
+        condition: service_healthy
       layer2ledger-mongodb:
         condition: service_healthy
       layer2ledgerapihandler:
@@ -371,3 +402,6 @@ services:
       bitcoin-core:
         condition: service_healthy
     restart: "no"
+
+volumes:
+  redis_diagnostics_data:

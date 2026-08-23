@@ -347,7 +347,12 @@ export async function finalizePushStress(
 			StressApiErrorCounts.parse(meta.seed_errors) ?? emptyApiErrorCounts(),
 	});
 
-	const { redisTransaction, redisAddressBalance } = await createRedisClients();
+	const {
+		redisTransaction,
+		redisAddressBalance,
+		redisDiagnostics,
+		ownsRedisDiagnostics,
+	} = await createRedisClients();
 	try {
 		const redisEndpoints = loadLayer2LedgerCommonConfig();
 		// Capture immediately after k6 so CLIENT LIST / ops/sec still reflect load.
@@ -427,7 +432,7 @@ export async function finalizePushStress(
 		const reportWithRedis = parsed
 			.withOutputFile(profilerSession.outputFile)
 			.withRedis(redisReport);
-		await saveProfilerSessionReport(redisTransaction, reportWithRedis);
+		await saveProfilerSessionReport(redisDiagnostics, reportWithRedis);
 		if (profilerSession.outputFile !== null) {
 			await Bun.write(
 				profilerSession.outputFile,
@@ -497,7 +502,11 @@ export async function finalizePushStress(
 			);
 		}
 
-		await resetStressLedgerState(redisTransaction, redisAddressBalance);
+		await resetStressLedgerState(
+			redisTransaction,
+			redisAddressBalance,
+			redisDiagnostics,
+		);
 
 		return {
 			title: meta.title,
@@ -507,5 +516,8 @@ export async function finalizePushStress(
 	} finally {
 		await redisTransaction.quit();
 		await redisAddressBalance.quit();
+		if (ownsRedisDiagnostics) {
+			await redisDiagnostics.quit();
+		}
 	}
 }

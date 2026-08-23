@@ -44,7 +44,8 @@ export async function runRedisDuringMonitor(options: {
 	await Bun.write(txHistoryPath, "");
 	await Bun.write(abHistoryPath, "");
 
-	const { redisTransaction, redisAddressBalance } = await createRedisClients();
+	const { redisTransaction, redisAddressBalance, redisDiagnostics, ownsRedisDiagnostics } =
+		await createRedisClients();
 	console.log(
 		`redis during-monitor started mode=${options.mode} interval_ms=${intervalMs} ` +
 			`jsonl=${jsonlPath}`,
@@ -103,6 +104,9 @@ export async function runRedisDuringMonitor(options: {
 	} finally {
 		await redisTransaction.quit();
 		await redisAddressBalance.quit();
+		if (ownsRedisDiagnostics) {
+			await redisDiagnostics.quit();
+		}
 		console.log(`redis during-monitor stopped mode=${options.mode}`);
 	}
 }

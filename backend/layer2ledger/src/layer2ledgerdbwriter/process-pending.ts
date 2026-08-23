@@ -60,10 +60,12 @@ export function createDeferredBloomSnapshotState(): DeferredBloomSnapshotState {
 
 export interface ProcessPendingBatchContext {
 	db: Layer2LedgerDbClient;
-	/** Locks, pending queues, bloom filters, and profiler sessions. */
+	/** Locks, pending queues, and bloom filters. */
 	redisTransaction: Redis;
 	/** Address-balance cache only. */
 	redisAddressBalance: Redis;
+	/** Profiler sessions and related diagnostic keys. */
+	redisDiagnostics: Redis;
 	lockManager: DistributedLock;
 	balanceCache: AddressBalanceCacheOptions;
 	deferredBloomSnapshot: DeferredBloomSnapshotState;
@@ -129,6 +131,7 @@ export async function processPendingBatch(
 		db,
 		redisTransaction,
 		redisAddressBalance,
+		redisDiagnostics,
 		lockManager,
 		balanceCache,
 		deferredBloomSnapshot,
@@ -148,7 +151,7 @@ export async function processPendingBatch(
 		transactionsToProcess.length === 0 &&
 		withdrawalsToProcess.length === 0
 	) {
-		await recordQueueEmpty(redisTransaction);
+		await recordQueueEmpty(redisDiagnostics);
 		return currentBatchHeight;
 	}
 
@@ -189,7 +192,7 @@ export async function processPendingBatch(
 	);
 
 	let absoluteBalances: Array<{ address: string; balance: number }> = [];
-	await recordWriteActive(redisTransaction, true);
+	await recordWriteActive(redisDiagnostics, true);
 	try {
 		await db.transaction(async (tx) => {
 			if (newTransactions.length > 0) {
@@ -216,10 +219,10 @@ export async function processPendingBatch(
 			}
 		});
 	} finally {
-		await recordWriteActive(redisTransaction, false);
+		await recordWriteActive(redisDiagnostics, false);
 	}
 
-	await recordRedisActive(redisTransaction, true);
+	await recordRedisActive(redisDiagnostics, true);
 	try {
 		if (transactionsToProcess.length > 0) {
 			await redisTransaction.ltrim(
@@ -278,7 +281,7 @@ export async function processPendingBatch(
 			);
 		}
 	} finally {
-		await recordRedisActive(redisTransaction, false);
+		await recordRedisActive(redisDiagnostics, false);
 	}
 
 	const totalProcessed =
@@ -297,7 +300,7 @@ export async function processPendingBatch(
 				elapsed_ms: elapsedMs,
 			},
 		);
-		await recordDbWrites(redisTransaction, totalProcessed);
+		await recordDbWrites(redisDiagnostics, totalProcessed);
 	}
 
 	const pendingRemaining = await redisTransaction.llen(PENDING_TRANSACTIONS_LIST_KEY);
@@ -311,7 +314,7 @@ export async function processPendingBatch(
 		pendingRemaining === 0 &&
 		pendingWithdrawalsRemaining === 0
 	) {
-		await recordQueueEmpty(redisTransaction);
+		await recordQueueEmpty(redisDiagnostics);
 	}
 
 	return nextBatchHeight;

@@ -20,10 +20,12 @@ import {
 	resolveAddressBalanceCacheOptions,
 	setCachedAddressBalances,
 } from "../src/redis/address-balance-cache";
+import { createRedisDiagnosticsClient } from "../src/redis/diagnostics-client";
 import {
 	PENDING_TRANSACTIONS_LIST_KEY,
 	PENDING_WITHDRAWALS_LIST_KEY,
 } from "../src/redis/distributed-lock";
+import { prependGetBalanceStressHistory } from "../src/redis/get-balance-stress-history";
 import {
 	ProfilerApiName,
 	ProfilerSessionReport,
@@ -35,7 +37,6 @@ import {
 	ensureTransactionIdBloomFilter,
 	TRANSACTION_ID_BLOOM_KEY,
 } from "../src/redis/transaction-id-bloom";
-import { prependGetBalanceStressHistory } from "../src/redis/get-balance-stress-history";
 import { profilerInFlightKey } from "../src/transaction-processing/push-transaction-profiler";
 import {
 	buildGetBalanceStressMatrix,
@@ -394,11 +395,11 @@ function warnIfLowSuccessRate(
 }
 
 async function appendProfilerSessionDescription(
-	redisTransaction: Redis,
+	redisDiagnostics: Redis,
 	sessionId: string,
 	lines: readonly string[],
 ): Promise<void> {
-	const raw = await redisTransaction.get(profilerSessionMetaKey(sessionId));
+	const raw = await redisDiagnostics.get(profilerSessionMetaKey(sessionId));
 	const session = StartProfilerSession.fromJsonText(raw ?? "");
 	if (!session) {
 		return;
@@ -412,7 +413,48 @@ async function appendProfilerSessionDescription(
 		apis: session.apis,
 		started_at_unix_ms: session.started_at_unix_ms,
 	});
-	await redisTransaction.set(profilerSessionMetaKey(sessionId), JSON.stringify(updated));
+	await redisDiagnostics.set(
+		profilerSessionMetaKey(sessionId),
+		JSON.stringify(updated),
+	);
+}
+
+async function resetStressLedgerState(
+	redisTransaction: Redis,
+	redisAddressBalance: Redis,
+	redisDiagnostics: Redis,
+): Promise<void> {
+	const commonConfig = loadLayer2LedgerCommonConfig();
+	const { db, sql } = createDatabase({
+		dbUser: commonConfig.database.db_user,
+		dbPassword: commonConfig.database.db_password,
+		dbHost: commonConfig.database.db_host,
+		dbPort: commonConfig.database.db_port,
+		dbName: commonConfig.database.db_name,
+	});
+	try {
+		const tableNames = Object.values(schema).map((table) =>
+			getTableName(table),
+		);
+		await sql.unsafe(
+			`TRUNCATE TABLE ${tableNames.map((name) => `"${name}"`).join(", ")} RESTART IDENTITY CASCADE`,
+		);
+		await redisTransaction.del(
+			PENDING_TRANSACTIONS_LIST_KEY,
+			PENDING_WITHDRAWALS_LIST_KEY,
+			TRANSACTION_ID_BLOOM_KEY,
+		);
+		await redisDiagnostics.del(
+			profilerInFlightKey("pushTransaction"),
+			profilerInFlightKey(ProfilerApiName.GetBalance),
+		);
+		await clearAddressBalanceCache(redisAddressBalance);
+		await resetAddressBalanceCacheStats(redisAddressBalance);
+		process.env.SKIP_BLOOM_PG_REBUILD = "1";
+		await ensureTransactionIdBloomFilter(db, redisTransaction);
+	} finally {
+		await sql.end({ timeout: 5 });
+	}
 }
 
 function printGetBalanceBatchTable(
@@ -509,15 +551,15 @@ async function persistGetBalanceStressHistory(options: {
 	historyFile: string | null;
 	batch: GetBalanceStressBatchResult;
 	visualizationUrl: string;
-	redisTransaction: Redis;
+	redisDiagnostics: Redis;
 }): Promise<GetBalanceStressHistory> {
-	const { historyFile, batch, visualizationUrl, redisTransaction } = options;
+	const { historyFile, batch, visualizationUrl, redisDiagnostics } = options;
 	const entry = GetBalanceStressHistoryEntry.fromBatch({
 		batch,
 		completedAtUnixMs: Date.now(),
 		visualizationUrl,
 	});
-	await prependGetBalanceStressHistory(redisTransaction, entry.toSummary());
+	await prependGetBalanceStressHistory(redisDiagnostics, entry.toSummary());
 	if (!historyFile) {
 		return GetBalanceStressHistory.empty().withEntry(entry);
 	}
@@ -580,6 +622,8 @@ async function runGetBalanceHttpStress(): Promise<void> {
 		port: commonConfig.redis_addressbalance.port,
 		maxRetriesPerRequest: null,
 	});
+	const { redisDiagnostics, ownsConnection: ownsRedisDiagnostics } =
+		createRedisDiagnosticsClient(commonConfig, redisTransaction);
 
 	const runs: GetBalanceStressResult[] = [];
 
@@ -605,6 +649,7 @@ async function runGetBalanceHttpStress(): Promise<void> {
 				concurrency,
 				redisTransaction,
 				redisAddressBalance,
+				redisDiagnostics,
 				balanceCache,
 			});
 			runs.push(result);
@@ -638,13 +683,20 @@ async function runGetBalanceHttpStress(): Promise<void> {
 			historyFile,
 			batch,
 			visualizationUrl,
-			redisTransaction,
+			redisDiagnostics,
 		});
 		printGetBalanceHistoryTable(history);
 	} finally {
-		await resetStressLedgerState(redisTransaction, redisAddressBalance);
+		await resetStressLedgerState(
+			redisTransaction,
+			redisAddressBalance,
+			redisDiagnostics,
+		);
 		await redisTransaction.quit();
 		await redisAddressBalance.quit();
+		if (ownsRedisDiagnostics) {
+			await redisDiagnostics.quit();
+		}
 	}
 }
 
@@ -656,6 +708,7 @@ async function runOneGetBalanceStressVariantWithSessionId(options: {
 	concurrency: number;
 	redisTransaction: Redis;
 	redisAddressBalance: Redis;
+	redisDiagnostics: Redis;
 	balanceCache: AddressBalanceCacheOptions;
 }): Promise<GetBalanceStressResult> {
 	const {
@@ -666,6 +719,7 @@ async function runOneGetBalanceStressVariantWithSessionId(options: {
 		concurrency,
 		redisTransaction,
 		redisAddressBalance,
+		redisDiagnostics,
 		balanceCache,
 	} = options;
 	const { callCount, addressCount, cachePct, nonzeroPct } = variables;
@@ -675,7 +729,11 @@ async function runOneGetBalanceStressVariantWithSessionId(options: {
 	const latenciesMs: number[] = [];
 	let accepted = 0;
 
-	await resetStressLedgerState(redisTransaction, redisAddressBalance);
+	await resetStressLedgerState(
+		redisTransaction,
+		redisAddressBalance,
+		redisDiagnostics,
+	);
 
 	try {
 		const poolSize = Math.max(addressCount * 4, addressCount, 64);
@@ -766,7 +824,7 @@ async function runOneGetBalanceStressVariantWithSessionId(options: {
 			callCount,
 		);
 
-		await appendProfilerSessionDescription(redisTransaction, sessionId, [
+		await appendProfilerSessionDescription(redisDiagnostics, sessionId, [
 			`success_rate_pct=${successRatePct}`,
 			`accepted=${accepted}`,
 			`attempted=${callCount}`,
@@ -800,7 +858,11 @@ async function runOneGetBalanceStressVariantWithSessionId(options: {
 			profilerOutputFile: outputFile,
 		});
 	} finally {
-		await resetStressLedgerState(redisTransaction, redisAddressBalance);
+		await resetStressLedgerState(
+			redisTransaction,
+			redisAddressBalance,
+			redisDiagnostics,
+		);
 	}
 }
 

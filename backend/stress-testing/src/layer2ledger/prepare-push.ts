@@ -14,6 +14,7 @@ import {
 import {
 	clearAddressBalanceCache,
 	createDatabase,
+	createRedisDiagnosticsClient,
 	ensureTransactionIdBloomFilter,
 	PENDING_TRANSACTIONS_LIST_KEY,
 	PENDING_WITHDRAWALS_LIST_KEY,
@@ -157,6 +158,8 @@ async function deleteRedisKeysByPattern(
 export async function createRedisClients(): Promise<{
 	redisTransaction: Redis;
 	redisAddressBalance: Redis;
+	redisDiagnostics: Redis;
+	ownsRedisDiagnostics: boolean;
 	balanceCache: ReturnType<typeof resolveAddressBalanceCacheOptions>;
 }> {
 	const commonConfig = loadLayer2LedgerCommonConfig();
@@ -170,15 +173,24 @@ export async function createRedisClients(): Promise<{
 		port: commonConfig.redis_addressbalance.port,
 		maxRetriesPerRequest: null,
 	});
+	const { redisDiagnostics, ownsConnection: ownsRedisDiagnostics } =
+		createRedisDiagnosticsClient(commonConfig, redisTransaction);
 	const balanceCache = resolveAddressBalanceCacheOptions(
 		commonConfig.redis_addressbalance,
 	);
-	return { redisTransaction, redisAddressBalance, balanceCache };
+	return {
+		redisTransaction,
+		redisAddressBalance,
+		redisDiagnostics,
+		ownsRedisDiagnostics,
+		balanceCache,
+	};
 }
 
 export async function resetStressLedgerState(
 	redisTransaction: Redis,
 	redisAddressBalance: Redis,
+	redisDiagnostics: Redis,
 ): Promise<void> {
 	const commonConfig = loadLayer2LedgerCommonConfig();
 	const { db, sql } = createDatabase({
@@ -199,6 +211,8 @@ export async function resetStressLedgerState(
 			PENDING_TRANSACTIONS_LIST_KEY,
 			PENDING_WITHDRAWALS_LIST_KEY,
 			TRANSACTION_ID_BLOOM_KEY,
+		);
+		await redisDiagnostics.del(
 			profilerInFlightKey("pushTransaction"),
 			profilerInFlightKey(ProfilerApiName.GetBalance),
 		);
@@ -281,10 +295,19 @@ export async function preparePushDataset(
 		throw new Error(`Invalid STRESS_TX_COUNT=${process.env.STRESS_TX_COUNT}`);
 	}
 
-	const { redisTransaction, redisAddressBalance, balanceCache } =
-		await createRedisClients();
+	const {
+		redisTransaction,
+		redisAddressBalance,
+		redisDiagnostics,
+		ownsRedisDiagnostics,
+		balanceCache,
+	} = await createRedisClients();
 	try {
-		await resetStressLedgerState(redisTransaction, redisAddressBalance);
+		await resetStressLedgerState(
+			redisTransaction,
+			redisAddressBalance,
+			redisDiagnostics,
+		);
 		await waitForApiHealth(ledgerApiUrl(), 60_000);
 
 		const ledger = createLayer2LedgerClient(ledgerApiUrl());
@@ -388,7 +411,7 @@ export async function preparePushDataset(
 		}
 
 		await resetAddressBalanceCacheStats(redisAddressBalance);
-		await redisTransaction.del(profilerInFlightKey("pushTransaction"));
+		await redisDiagnostics.del(profilerInFlightKey("pushTransaction"));
 
 		const bodies: PushTransactionBody[] = prepared.map(
 			({ source, dest, transactionId, signature }) => ({
@@ -477,5 +500,8 @@ export async function preparePushDataset(
 	} finally {
 		await redisTransaction.quit();
 		await redisAddressBalance.quit();
+		if (ownsRedisDiagnostics) {
+			await redisDiagnostics.quit();
+		}
 	}
 }

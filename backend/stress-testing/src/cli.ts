@@ -90,7 +90,12 @@ function parseCommand(command: string | null): StressCommand {
 }
 
 async function diagnoseRedisNow(): Promise<void> {
-	const { redisTransaction, redisAddressBalance } = await createRedisClients();
+	const {
+		redisTransaction,
+		redisAddressBalance,
+		redisDiagnostics,
+		ownsRedisDiagnostics,
+	} = await createRedisClients();
 	try {
 		const endpoints = loadLayer2LedgerCommonConfig();
 		const snapshots = await captureBothRedisSnapshots({
@@ -113,6 +118,9 @@ async function diagnoseRedisNow(): Promise<void> {
 	} finally {
 		await redisTransaction.quit();
 		await redisAddressBalance.quit();
+		if (ownsRedisDiagnostics) {
+			await redisDiagnostics.quit();
+		}
 	}
 }
 

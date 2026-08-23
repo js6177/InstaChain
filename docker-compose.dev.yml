@@ -11,6 +11,19 @@ services:
   redis-transactions:
     image: redis/redis-stack:7.4.0-v3
 
+  # Profiler / diagnostic app data only (isolates profiler traffic from hot-path Redis).
+  redis-diagnostics:
+    image: redis:7.4-alpine
+    ports:
+      - "${REDIS_DIAGNOSTICS_PUBLISH_PORT:-6381}:6379"
+    volumes:
+      - redis_diagnostics_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   layer2ledgerapihandler:
     # Single replica under --inspect (host debug port cannot map to multiple tasks).
     deploy:
@@ -31,6 +44,9 @@ services:
       - ./shared/config-loader:/app/shared/config-loader:ro
       - ./shared/openl2-messaging:/app/shared/openl2-messaging:ro
       - ./shared/pubkey-utils:/app/shared/pubkey-utils:ro
+    depends_on:
+      redis-diagnostics:
+        condition: service_healthy
     restart: "no"
 
   layer2ledgerdbwriter:
@@ -49,6 +65,9 @@ services:
       - ./backend/layer2ledger/src:/app/backend/layer2ledger/src:ro
       - ./shared/config-loader:/app/shared/config-loader:ro
       - ./shared/openl2-messaging:/app/shared/openl2-messaging:ro
+    depends_on:
+      redis-diagnostics:
+        condition: service_healthy
     restart: "no"
 
   layer2ledgeroauthmanager:
@@ -108,3 +127,6 @@ services:
       layer2ledgeroauthmanager:
         condition: service_started
     restart: "no"
+
+volumes:
+  redis_diagnostics_data:
