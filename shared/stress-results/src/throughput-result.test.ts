@@ -29,6 +29,7 @@ describe("StressThroughputResult", () => {
 			phaseTimingsMs: phases,
 			apiErrors: StressApiErrors.empty(),
 			cache: new StressCacheStats({ hits: 1, misses: 0 }),
+			redis: null,
 		});
 
 		const parsed = StressThroughputResult.fromJsonText(JSON.stringify(written));

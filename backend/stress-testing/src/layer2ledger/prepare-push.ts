@@ -28,6 +28,7 @@ import {
 import {
 	emptyApiErrorCounts,
 	recordApiError,
+	RedisDiagPhase,
 	type StressApiErrorCounts,
 } from "@openl2/stress-results";
 import { getTableName } from "drizzle-orm";
@@ -39,6 +40,11 @@ import {
 	sleep,
 	stressDataDir,
 } from "../common";
+import {
+	captureBothRedisSnapshots,
+	resetRedisSlowlog,
+	writeBaselineSnapshots,
+} from "./redis-diagnostics";
 
 export enum BalanceCacheMode {
 	Cold = "cold",
@@ -431,9 +437,31 @@ export async function preparePushDataset(
 			fee,
 			initial_balance: initialBalance,
 			dataset_file: datasetFile,
-			started_at_unix_ms: startSession.started_at_unix_ms,
+			started_at_unix_ms: startSession.started_at_unix_ms ?? Date.now(),
 		};
 		await Bun.write(pushMetaPath(), `${JSON.stringify(meta, null, 2)}\n`);
+
+		// Clear slowlog so post-run SLOWLOG GET reflects the stress wave only.
+		await resetRedisSlowlog(redisTransaction);
+		await resetRedisSlowlog(redisAddressBalance);
+		const redisEndpoints = loadLayer2LedgerCommonConfig();
+		const baseline = await captureBothRedisSnapshots({
+			redisTransaction,
+			redisAddressBalance,
+			transactionsHost: redisEndpoints.redis_transactions.host,
+			transactionsPort: redisEndpoints.redis_transactions.port,
+			addressBalanceHost: redisEndpoints.redis_addressbalance.host,
+			addressBalancePort: redisEndpoints.redis_addressbalance.port,
+			phase: RedisDiagPhase.Baseline,
+		});
+		const baselinePath = await writeBaselineSnapshots(mode, baseline);
+		console.log(
+			`redis diagnostics baseline written path=${baselinePath} ` +
+				`tx_clients=${baseline[0]?.connectedClients ?? "?"} ` +
+				`ab_clients=${baseline[1]?.connectedClients ?? "?"} ` +
+				`tx_ping_avg_ms=${baseline[0]?.pingLatencyMs.avgMs.toFixed(3) ?? "?"} ` +
+				`ab_ping_avg_ms=${baseline[1]?.pingLatencyMs.avgMs.toFixed(3) ?? "?"}`,
+		);
 
 		log.info("push dataset ready for k6", {
 			mode,

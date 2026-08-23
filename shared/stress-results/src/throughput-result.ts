@@ -4,6 +4,7 @@ import { isStructuredObject, parseJsonAs } from "./json";
 import { LatencyStatsMs } from "./latency-stats";
 import { StressPhaseTimingsMs } from "./phase-timings";
 import { StressProfilerSessionSummary } from "./profiler-session-summary";
+import { RedisStressDiagnostics } from "./redis-diagnostics";
 
 /** In-memory result of one stress push wave (not the on-disk throughput file). */
 export class StressRunResult {
@@ -35,7 +36,7 @@ export class StressRunResult {
 }
 
 /**
- * On-disk stress throughput file written by `stress.test.ts`
+ * On-disk stress throughput file written by finalize
  * (`STRESS_RESULT_FILE` / `test-layer2ledger-stress.throughput.json`).
  */
 export class StressThroughputResult {
@@ -66,6 +67,11 @@ export class StressThroughputResult {
 	readonly phaseTimingsMs: StressPhaseTimingsMs;
 	readonly apiErrors: StressApiErrors;
 	readonly cache: StressCacheStats;
+	/**
+	 * Redis diagnostics for this wave (baseline / 1Hz during / after).
+	 * Null when diagnostics were skipped or unavailable.
+	 */
+	readonly redis: RedisStressDiagnostics | null;
 
 	constructor(init: StressThroughputResult) {
 		this.transactionCount = init.transactionCount;
@@ -80,6 +86,7 @@ export class StressThroughputResult {
 		this.phaseTimingsMs = init.phaseTimingsMs;
 		this.apiErrors = init.apiErrors;
 		this.cache = init.cache;
+		this.redis = init.redis;
 	}
 
 	static parse(
@@ -98,6 +105,10 @@ export class StressThroughputResult {
 		if (!parsedRtt || !parsedPhases || !parsedErrors || !parsedCache) {
 			return null;
 		}
+		const redis =
+			typed.redis === null || typed.redis === undefined
+				? null
+				: RedisStressDiagnostics.parse(typed.redis);
 		return new StressThroughputResult({
 			transactionCount: typed.transactionCount,
 			processedToPostgres: typed.processedToPostgres,
@@ -111,6 +122,7 @@ export class StressThroughputResult {
 			phaseTimingsMs: parsedPhases,
 			apiErrors: parsedErrors,
 			cache: parsedCache,
+			redis,
 		});
 	}
 

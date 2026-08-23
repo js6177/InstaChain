@@ -56,7 +56,7 @@ export const LABELS = {
 	// Profiler Stats
 	HEADING_PROFILER_STATS: "Profiler Stats",
 	TEXT_PROFILER_STATS_DESC:
-		"Visualize a profiler session: average replica concurrency, pushTransaction entry/exit, dbwriter writes, Redis queue depth, and pushTransaction section timings.",
+		"Visualize a profiler session: average replica concurrency, pushTransaction entry/exit, dbwriter writes, Redis queue depth, pushTransaction section timings, and Redis stress diagnostics when available.",
 	PLACEHOLDER_PROFILER_SESSION_ID: "Profiler session id",
 	BUTTON_LOAD_STATS: "Load",
 	TEXT_LOADING_PROFILER_SESSION: "Loading profiler session...",
@@ -128,6 +128,38 @@ export const LABELS = {
 	TEXT_GET_BALANCE_STRESS_HISTORY_MIN_SUCCESS: "Min success %",
 	TEXT_GET_BALANCE_STRESS_HISTORY_AVG_RPS: "Avg reqs/s",
 	BUTTON_GET_BALANCE_STRESS_HISTORY_OPEN: "Open",
+
+	// Redis diagnostics (profiler stats)
+	HEADING_PROFILER_REDIS_DIAGNOSTICS: "Redis diagnostics",
+	TEXT_PROFILER_REDIS_DIAGNOSTICS_MODE: "Mode",
+	TEXT_PROFILER_REDIS_FINDINGS: "Findings",
+	TEXT_PROFILER_REDIS_CONNECTED_CLIENTS: "Connected clients",
+	TEXT_PROFILER_REDIS_EXPECTED_CLIENTS: "Expected",
+	TEXT_PROFILER_REDIS_PING_AVG: "PING avg",
+	TEXT_PROFILER_REDIS_MEMORY: "Memory",
+	TEXT_PROFILER_REDIS_SLOWLOG: "Slowlog",
+	TEXT_PROFILER_REDIS_SLOWLOG_DURATION: "Duration",
+	TEXT_PROFILER_REDIS_SLOWLOG_TOP_CHART_TITLE: "Top 16 slowlog durations",
+	TEXT_PROFILER_REDIS_SLOWLOG_DURATION_AXIS: "Duration (ms)",
+	TEXT_PROFILER_REDIS_COMMANDSTATS: "Commandstat deltas (top by usec)",
+	TEXT_PROFILER_REDIS_CMD: "Command",
+	TEXT_PROFILER_REDIS_CALLS: "Calls",
+	TEXT_PROFILER_REDIS_USEC: "usec",
+	TEXT_PROFILER_REDIS_USEC_PER_CALL: "µs/call",
+	TEXT_PROFILER_REDIS_PIPELINING: "Pipelining notes",
+	TEXT_PROFILER_REDIS_CHART_PING_TITLE: "Redis PING RTT during stress",
+	TEXT_PROFILER_REDIS_CHART_PING_AXIS: "Avg RTT (ms)",
+	TEXT_PROFILER_REDIS_CHART_CLIENTS_TITLE: "Redis CLIENT LIST size during stress",
+	TEXT_PROFILER_REDIS_CHART_CLIENTS_AXIS: "Connected clients",
+	TEXT_PROFILER_REDIS_CHART_OPS_TITLE: "Redis ops/sec during stress",
+	TEXT_PROFILER_REDIS_CHART_OPS_AXIS: "Ops / sec",
+	TEXT_PROFILER_REDIS_CHART_CPU_TITLE: "Redis container CPU (docker stats)",
+	TEXT_PROFILER_REDIS_CHART_CPU_AXIS: "CPU %",
+	TEXT_PROFILER_REDIS_CHART_MEMORY_TITLE:
+		"Redis container memory (docker stats)",
+	TEXT_PROFILER_REDIS_CHART_MEMORY_AXIS: "Memory",
+	TEXT_PROFILER_REDIS_ROLE_TRANSACTIONS: "transactions",
+	TEXT_PROFILER_REDIS_ROLE_ADDRESSBALANCE: "addressbalance",
 } as const;
 
 export const TEST_IDS = {

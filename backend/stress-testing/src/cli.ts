@@ -4,19 +4,36 @@
  * Usage:
  *   bun src/cli.ts prepare --service layer2ledger --api push --mode cold
  *   bun src/cli.ts finalize --service layer2ledger --api push --mode cold
+ *   bun src/cli.ts diagnose-redis
+ *   bun src/cli.ts monitor-redis --mode cold --interval-ms 1000
  *
- * k6 runs between prepare and finalize (see `scripts/run-layer2ledger-push.sh`).
+ * k6 runs between prepare and finalize (see `scripts/run-layer2ledger-push.ts`).
  */
+import { loadLayer2LedgerCommonConfig } from "@openl2/config-loader";
+import {
+	RedisDiagPhase,
+	RedisDiagnosticsMode,
+} from "@openl2/stress-results";
 import {
 	BalanceCacheMode,
+	createRedisClients,
 	preparePushDataset,
 } from "./layer2ledger/prepare-push";
 import { finalizePushStress } from "./layer2ledger/finalize-push";
+import { runRedisDuringMonitor } from "./layer2ledger/redis-during-monitor";
+import {
+	buildRedisStressDiagnostics,
+	captureBothRedisSnapshots,
+	printRedisDiagnostics,
+	redisDiagnosticsPath,
+} from "./layer2ledger/redis-diagnostics";
 import { parseCliArgs } from "./cli-args";
 
 enum StressCommand {
 	Prepare = "prepare",
 	Finalize = "finalize",
+	DiagnoseRedis = "diagnose-redis",
+	MonitorRedis = "monitor-redis",
 }
 
 enum StressService {
@@ -32,12 +49,14 @@ function usage(): never {
 	console.error(`Usage:
   bun src/cli.ts prepare  --service layer2ledger --api push --mode <cold|warm>
   bun src/cli.ts finalize --service layer2ledger --api push --mode <cold|warm>
+  bun src/cli.ts diagnose-redis
+  bun src/cli.ts monitor-redis --mode <cold|warm> [--interval-ms 1000]
 `);
 	process.exit(2);
 }
 
 function requireStringFlag(
-	values: Record<string, string | boolean | string[]>,
+	values: Record<string, string | boolean | string[] | undefined>,
 	name: string,
 	fallback: string | null,
 ): string {
@@ -59,10 +78,61 @@ function parseMode(mode: string): BalanceCacheMode {
 }
 
 function parseCommand(command: string | null): StressCommand {
-	if (command === StressCommand.Prepare || command === StressCommand.Finalize) {
+	if (
+		command === StressCommand.Prepare ||
+		command === StressCommand.Finalize ||
+		command === StressCommand.DiagnoseRedis ||
+		command === StressCommand.MonitorRedis
+	) {
 		return command;
 	}
 	usage();
+}
+
+async function diagnoseRedisNow(): Promise<void> {
+	const { redisTransaction, redisAddressBalance } = await createRedisClients();
+	try {
+		const endpoints = loadLayer2LedgerCommonConfig();
+		const snapshots = await captureBothRedisSnapshots({
+			redisTransaction,
+			redisAddressBalance,
+			transactionsHost: endpoints.redis_transactions.host,
+			transactionsPort: endpoints.redis_transactions.port,
+			addressBalanceHost: endpoints.redis_addressbalance.host,
+			addressBalancePort: endpoints.redis_addressbalance.port,
+			phase: RedisDiagPhase.After,
+		});
+		const report = await buildRedisStressDiagnostics({
+			mode: RedisDiagnosticsMode.Adhoc,
+			baseline: [],
+			after: snapshots,
+		});
+		const path = redisDiagnosticsPath(RedisDiagnosticsMode.Adhoc);
+		await Bun.write(path, `${JSON.stringify(report, null, 2)}\n`);
+		printRedisDiagnostics(report);
+	} finally {
+		await redisTransaction.quit();
+		await redisAddressBalance.quit();
+	}
+}
+
+async function monitorRedis(mode: BalanceCacheMode, intervalMs: number): Promise<void> {
+	const controller = new AbortController();
+	const onSignal = (): void => {
+		controller.abort();
+	};
+	process.on("SIGTERM", onSignal);
+	process.on("SIGINT", onSignal);
+	try {
+		await runRedisDuringMonitor({
+			mode,
+			intervalMs,
+			signal: controller.signal,
+		});
+	} finally {
+		process.off("SIGTERM", onSignal);
+		process.off("SIGINT", onSignal);
+	}
 }
 
 async function main(): Promise<void> {
@@ -70,9 +140,31 @@ async function main(): Promise<void> {
 		service: { type: "string" },
 		api: { type: "string" },
 		mode: { type: "string" },
+		"interval-ms": { type: "string" },
 	});
 
 	const command = parseCommand(positionals[0] ?? null);
+
+	if (command === StressCommand.DiagnoseRedis) {
+		await diagnoseRedisNow();
+		return;
+	}
+
+	if (command === StressCommand.MonitorRedis) {
+		const mode = parseMode(requireStringFlag(values, "mode", null));
+		const intervalRaw = requireStringFlag(
+			values,
+			"interval-ms",
+			process.env.REDIS_DURING_INTERVAL_MS ?? "1000",
+		);
+		const intervalMs = Number(intervalRaw);
+		if (!Number.isFinite(intervalMs) || intervalMs < 100) {
+			throw new Error(`Invalid --interval-ms=${intervalRaw}`);
+		}
+		await monitorRedis(mode, intervalMs);
+		return;
+	}
+
 	const service = requireStringFlag(
 		values,
 		"service",

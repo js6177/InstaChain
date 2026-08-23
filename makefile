@@ -82,7 +82,7 @@ backend-test:
 		up -d --force-recreate --no-deps layer2ledgerapihandler-nginx
 
 # Throughput stress via k6 (not part of `make test` / test:docker).
-# Starts layer2ledger deps only, then runs backend/stress-testing/scripts/run-layer2ledger-push.sh
+# Starts layer2ledger deps only, then runs backend/stress-testing/scripts/run-layer2ledger-push.ts
 # (prepare → k6 → finalize for cold + warm).
 # Examples:
 #   make stress-test
@@ -115,7 +115,10 @@ stress-test:
 		STRESS_SETTLE_TIMEOUT_MS=$${STRESS_SETTLE_TIMEOUT_MS:-600000} \
 		STRESS_SETTLE_CONCURRENCY=$${STRESS_SETTLE_CONCURRENCY:-} \
 		STRESS_K6_MAX_DURATION=$${STRESS_K6_MAX_DURATION:-15m} \
-		./backend/stress-testing/scripts/run-layer2ledger-push.sh
+		LAYER2LEDGER_APIHANDLER_REPLICAS=$${LAYER2LEDGER_APIHANDLER_REPLICAS:-8} \
+		STRESS_REDIS_LATENCY=$${STRESS_REDIS_LATENCY:-1} \
+		REDIS_DURING_INTERVAL_MS=$${REDIS_DURING_INTERVAL_MS:-1000} \
+		bun ./backend/stress-testing/scripts/run-layer2ledger-push.ts
 
 # Lightweight GET /health stress through nginx (no seed/sign/settle/db path).
 # Builds images only when docker-relevant source changes (FORCE_COMPOSE_BUILD=1 to force).

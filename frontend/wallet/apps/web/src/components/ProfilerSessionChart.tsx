@@ -65,32 +65,40 @@ function baseChartOption(
 				typeof value === "number" ? String(value) : String(value ?? ""),
 		},
 		legend: {
-			type: "plain",
+			type: "scroll",
 			orient: "horizontal",
-			top: 4,
+			top: 2,
 			left: "center",
 			width: "92%",
 			itemGap: 16,
 			itemWidth: 14,
 			itemHeight: 10,
+			pageIconSize: 10,
+			pageTextStyle: {
+				color: "#d4d4d8",
+			},
 			textStyle: {
 				fontSize: 11,
-				overflow: "break",
-				width: 140,
+				color: "#e4e4e7",
 			},
 			data: legendNames,
 		},
 		grid: {
-			left: 56,
-			right: 24,
-			top: 52,
-			bottom: 48,
+			left: 88,
+			right: 28,
+			top: 36,
+			bottom: 52,
+			containLabel: true,
 		},
 		xAxis: {
 			type: "value",
 			name: "ms since profiler start",
 			nameLocation: "middle",
-			nameGap: 28,
+			nameGap: 36,
+			nameTextStyle: {
+				fontSize: 11,
+				color: "#a1a1aa",
+			},
 			min: viewStartMs,
 			max: viewEndMs > viewStartMs ? viewEndMs : viewStartMs + 1,
 			scale: false,
@@ -296,12 +304,15 @@ function buildDraggableMarkerGraphic(args: {
 				style: {
 					text: args.label,
 					fill: args.color,
-					fontSize: 10,
-					textAlign: "left",
-					textVerticalAlign: "top",
+					fontSize: 11,
+					fontWeight: 600,
+					backgroundColor: "rgba(9, 9, 11, 0.85)",
+					padding: [3, 5],
+					textAlign: args.isStart ? "right" : "left",
+					textVerticalAlign: args.isStart ? "top" : "bottom",
 				},
-				x: 4,
-				y: rect.y + 4,
+				x: args.isStart ? -10 : 10,
+				y: args.isStart ? rect.y + 6 : rect.y + rect.height - 6,
 				silent: true,
 			},
 		],
@@ -390,10 +401,14 @@ export function ProfilerSessionChart({
 			yAxis: {
 				type: "value",
 				name: LABELS.TEXT_PROFILER_CHART_CONCURRENCY_AXIS,
+				nameLocation: "middle",
 				min: 0,
 				minInterval: 1,
-				nameGap: 12,
-				nameTextStyle: { fontSize: 11 },
+				nameGap: 70,
+				nameTextStyle: { fontSize: 11, color: "#a1a1aa" },
+				axisLabel: {
+					formatter: (value: number): string => String(Math.round(value)),
+				},
 			},
 			series: [
 				{
@@ -421,10 +436,14 @@ export function ProfilerSessionChart({
 			yAxis: {
 				type: "value",
 				name: LABELS.TEXT_PROFILER_CHART_CUMULATIVE_AXIS,
+				nameLocation: "middle",
 				min: 0,
 				minInterval: 1,
-				nameGap: 12,
-				nameTextStyle: { fontSize: 11 },
+				nameGap: 72,
+				nameTextStyle: { fontSize: 11, color: "#a1a1aa" },
+				axisLabel: {
+					formatter: (value: number): string => String(Math.round(value)),
+				},
 			},
 			series: [
 				{
@@ -464,10 +483,14 @@ export function ProfilerSessionChart({
 			yAxis: {
 				type: "value",
 				name: LABELS.TEXT_PROFILER_CHART_QUEUE_AXIS,
+				nameLocation: "middle",
 				min: 0,
 				minInterval: 1,
-				nameGap: 12,
-				nameTextStyle: { fontSize: 11 },
+				nameGap: 70,
+				nameTextStyle: { fontSize: 11, color: "#a1a1aa" },
+				axisLabel: {
+					formatter: (value: number): string => String(Math.round(value)),
+				},
 			},
 			series: [
 				{
@@ -495,11 +518,15 @@ export function ProfilerSessionChart({
 			yAxis: {
 				type: "value",
 				name: LABELS.TEXT_PROFILER_CHART_WRITE_ACTIVE_AXIS,
+				nameLocation: "middle",
 				min: 0,
 				max: 1,
 				minInterval: 1,
-				nameGap: 12,
-				nameTextStyle: { fontSize: 11 },
+				nameGap: 70,
+				nameTextStyle: { fontSize: 11, color: "#a1a1aa" },
+				axisLabel: {
+					formatter: (value: number): string => String(Math.round(value)),
+				},
 			},
 			series: [
 				{
@@ -546,12 +573,39 @@ export function ProfilerSessionChart({
 				viewEndMs,
 				snapXs,
 			),
+			legend: {
+				type: "plain",
+				orient: "horizontal",
+				top: 2,
+				left: "center",
+				width: "90%",
+				itemGap: 12,
+				itemWidth: 12,
+				itemHeight: 10,
+				textStyle: { fontSize: 11, color: "#e4e4e7" },
+				data: [
+					LABELS.TEXT_PROFILER_CHART_SECTION_VALIDATE,
+					LABELS.TEXT_PROFILER_CHART_SECTION_VERIFY_SIGNATURE,
+					LABELS.TEXT_PROFILER_CHART_SECTION_ACQUIRE_LOCK,
+					LABELS.TEXT_PROFILER_CHART_SECTION_DUPLICATE_CHECK,
+					LABELS.TEXT_PROFILER_CHART_SECTION_GET_BALANCE,
+					LABELS.TEXT_PROFILER_CHART_SECTION_ENQUEUE,
+				],
+			},
+			grid: {
+				left: 88,
+				right: 28,
+				top: 56,
+				bottom: 52,
+				containLabel: true,
+			},
 			yAxis: {
 				type: "value",
 				name: LABELS.TEXT_PROFILER_CHART_SECTION_AVG_AXIS,
+				nameLocation: "middle",
 				min: 0,
-				nameGap: 12,
-				nameTextStyle: { fontSize: 11 },
+				nameGap: 70,
+				nameTextStyle: { fontSize: 11, color: "#a1a1aa" },
 			},
 			series: [
 				{
@@ -797,44 +851,44 @@ export function ProfilerSessionChart({
 				viewEndMs={viewEndMs}
 				onViewRangeChange={onViewRangeChange}
 			/>
-			<div>
-				<h3 className="mb-2 text-sm font-medium text-muted-foreground">
+			<section className="space-y-2">
+				<h3 className="text-sm font-medium text-foreground">
 					{LABELS.TEXT_PROFILER_CHART_CONCURRENCY_TITLE}
 				</h3>
 				<ReactECharts
 					option={concurrencyOption}
-					style={{ height: 320, width: "100%" }}
+					style={{ height: 300, width: "100%" }}
 					notMerge
 					lazyUpdate
 					onChartReady={onChartReady}
 				/>
-			</div>
-			<div>
-				<h3 className="mb-2 text-sm font-medium text-muted-foreground">
+			</section>
+			<section className="space-y-2">
+				<h3 className="text-sm font-medium text-foreground">
 					{LABELS.TEXT_PROFILER_CHART_CUMULATIVE_TITLE}
 				</h3>
 				<ReactECharts
 					option={cumulativeOption}
-					style={{ height: 320, width: "100%" }}
+					style={{ height: 300, width: "100%" }}
 					notMerge
 					lazyUpdate
 					onChartReady={onChartReady}
 				/>
-			</div>
-			<div>
-				<h3 className="mb-2 text-sm font-medium text-muted-foreground">
+			</section>
+			<section className="space-y-2">
+				<h3 className="text-sm font-medium text-foreground">
 					{LABELS.TEXT_PROFILER_CHART_QUEUE_TITLE}
 				</h3>
 				<ReactECharts
 					option={queueOption}
-					style={{ height: 320, width: "100%" }}
+					style={{ height: 300, width: "100%" }}
 					notMerge
 					lazyUpdate
 					onChartReady={onChartReady}
 				/>
-			</div>
-			<div>
-				<h3 className="mb-2 text-sm font-medium text-muted-foreground">
+			</section>
+			<section className="space-y-2">
+				<h3 className="text-sm font-medium text-foreground">
 					{LABELS.TEXT_PROFILER_CHART_WRITE_ACTIVE_TITLE}
 				</h3>
 				<ReactECharts
@@ -844,19 +898,19 @@ export function ProfilerSessionChart({
 					lazyUpdate
 					onChartReady={onChartReady}
 				/>
-			</div>
-			<div>
-				<h3 className="mb-2 text-sm font-medium text-muted-foreground">
+			</section>
+			<section className="space-y-2">
+				<h3 className="text-sm font-medium text-foreground">
 					{LABELS.TEXT_PROFILER_CHART_SECTION_AVG_TITLE}
 				</h3>
 				<ReactECharts
 					option={sectionAvgOption}
-					style={{ height: 320, width: "100%" }}
+					style={{ height: 360, width: "100%" }}
 					notMerge
 					lazyUpdate
 					onChartReady={onChartReady}
 				/>
-			</div>
+			</section>
 		</div>
 	);
 }

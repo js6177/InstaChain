@@ -38,6 +38,7 @@ import {
 	GetBalanceProfilerChart,
 	type GetBalanceProfilerTableRow,
 } from "../components/GetBalanceProfilerChart";
+import { RedisStressDiagnosticsPanel } from "../components/RedisStressDiagnosticsPanel";
 import { ProfilerSessionChart } from "../components/ProfilerSessionChart";
 import {
 	collectProfilerXValues,
@@ -351,7 +352,6 @@ function StatsFormView(): React.JSX.Element {
 					<CardTitle className="text-xl">
 						{LABELS.HEADING_PROFILER_STATS}
 					</CardTitle>
-					<CardDescription>{LABELS.TEXT_PROFILER_STATS_DESC}</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<form onSubmit={handleSubmit} className="flex gap-2">
@@ -498,11 +498,6 @@ function StatsSessionView(): React.JSX.Element | null {
 					<CardTitle className="text-xl">
 						{session?.title ?? LABELS.HEADING_PROFILER_STATS}
 					</CardTitle>
-					{session?.title ? (
-						<CardDescription className="mt-1">
-							{LABELS.HEADING_PROFILER_STATS}
-						</CardDescription>
-					) : null}
 					<CardDescription className="font-mono break-all text-foreground mt-2">
 						<span className="block text-xs text-muted-foreground mb-1">
 							{LABELS.TEXT_PROFILER_SESSION_ID}
@@ -665,6 +660,12 @@ function StatsSessionView(): React.JSX.Element | null {
 									);
 								}}
 							/>
+							{session.redis != null ? (
+								<RedisStressDiagnosticsPanel
+									redis={session.redis}
+									sessionStartedAtUnixMs={session.started_at_unix_ms}
+								/>
+							) : null}
 						</>
 					)}
 				</CardContent>
@@ -676,26 +677,38 @@ function StatsSessionView(): React.JSX.Element | null {
 
 export function ExplorerPage(): React.JSX.Element {
 	const location = useLocation();
-	const showSearchBar = !location.pathname.includes("/stats");
+	const isStatsRoute = location.pathname.includes("/stats");
+	const showSearchBar = !isStatsRoute;
 
 	return (
-		<div className="max-w-5xl mx-auto w-full pt-4 pb-12">
-			<div className="mb-8 text-center">
-				<h1 className="text-4xl font-extrabold tracking-tight mb-2">
-					Block Explorer
-				</h1>
-				<p className="text-muted-foreground">
-					Search and view a Layer2 address or transaction
-				</p>
-				<p className="mt-3 text-sm">
+		<div className="mx-auto w-full max-w-full min-[640px]:w-[75vw] pt-4 pb-12 px-4">
+			{!isStatsRoute ? (
+				<div className="mb-8 text-center">
+					<h1 className="text-4xl font-extrabold tracking-tight mb-2">
+						Block Explorer
+					</h1>
+					<p className="text-muted-foreground">
+						Search and view a Layer2 address or transaction
+					</p>
+					<p className="mt-3 text-sm">
+						<Link
+							to={ROUTES.buildExplorerStats()}
+							className="text-primary underline-offset-4 hover:underline"
+						>
+							{LABELS.HEADING_PROFILER_STATS}
+						</Link>
+					</p>
+				</div>
+			) : (
+				<div className="mb-4 text-sm">
 					<Link
 						to={ROUTES.buildExplorerStats()}
 						className="text-primary underline-offset-4 hover:underline"
 					>
 						{LABELS.HEADING_PROFILER_STATS}
 					</Link>
-				</p>
-			</div>
+				</div>
+			)}
 
 			{showSearchBar ? <SearchBar /> : null}
 

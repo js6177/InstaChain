@@ -9,19 +9,22 @@ import {
 	ProfilerApiName,
 	ProfilerSessionReport,
 	profilerSessionOutputPath,
+	saveProfilerSessionReport,
 } from "@openl2/layer2ledger/stress-support";
 import {
 	computeSuccessRatePct,
 	emptyApiErrorCounts,
-	emptyApiErrors,
 	LatencyStatsMs,
+	RedisDiagPhase,
 	STRESS_SUCCESS_RATE_WARNING_PCT,
 	StressApiErrorCounts,
+	StressApiErrors,
 	StressCacheStats,
 	StressPhaseTimingsMs,
 	StressProfilerSessionSummary,
 	StressThroughputResult,
 } from "@openl2/stress-results";
+import { loadLayer2LedgerCommonConfig } from "@openl2/config-loader";
 import {
 	mapPool,
 	profilerSessionVisualizationUrl,
@@ -36,6 +39,13 @@ import {
 	pushMetaPath,
 	resetStressLedgerState,
 } from "./prepare-push";
+import {
+	buildRedisStressDiagnostics,
+	captureBothRedisSnapshots,
+	loadBaselineSnapshots,
+	printRedisDiagnostics,
+	redisDiagnosticsPath,
+} from "./redis-diagnostics";
 
 const log = createOpenL2Logger({ serviceName: "openl2-stress-finalize" });
 
@@ -177,9 +187,11 @@ async function persistProfilerSessionReport(
 		sessionId: reportForFile.session_id,
 		outputFile,
 		pushTxsPerSecond: pushStats !== null ? pushStats.throughput_per_sec : 0,
-		settledTxsPerSecond: dbwriter !== null ? dbwriter.throughput_per_sec : 0,
+		settledTxsPerSecond:
+			dbwriter !== null ? (dbwriter.throughput_per_sec ?? 0) : 0,
 		pushPeakConcurrent: pushStats !== null ? pushStats.peak_concurrent : 0,
-		pushAvgLatencyMs: pushStats !== null ? pushStats.avg_latency_ms : 0,
+		pushAvgLatencyMs:
+			pushStats !== null ? (pushStats.avg_latency_ms ?? 0) : 0,
 		pushCount: pushStats !== null ? pushStats.count : 0,
 		dbwriterWritesTotal: dbwriter !== null ? dbwriter.writes_total : 0,
 		pushMs,
@@ -274,6 +286,9 @@ function printThroughputSummary(
 			`cache_hits=${result.cache.hits} cache_misses=${result.cache.misses}`,
 	);
 	console.log(visualizationUrl);
+	if (result.redis !== null) {
+		printRedisDiagnostics(result.redis);
+	}
 	log.info("stress throughput summary", {
 		title,
 		profiler_session_id: result.profilerSessionId,
@@ -283,6 +298,7 @@ function printThroughputSummary(
 		push_success_rate_pct: successRatePct,
 		settle_success_rate_pct: settleSuccessRatePct,
 		cache: result.cache,
+		redis_findings: result.redis?.interpretation ?? null,
 	});
 }
 
@@ -325,13 +341,26 @@ export async function finalizePushStress(
 		meta.transaction_count,
 		acceptedPushes,
 	);
-	const apiErrors = emptyApiErrors();
-	apiErrors.push = pushErrors;
-	apiErrors.seed =
-		StressApiErrorCounts.parse(meta.seed_errors) ?? emptyApiErrorCounts();
+	const apiErrors = new StressApiErrors({
+		push: pushErrors,
+		seed:
+			StressApiErrorCounts.parse(meta.seed_errors) ?? emptyApiErrorCounts(),
+	});
 
 	const { redisTransaction, redisAddressBalance } = await createRedisClients();
 	try {
+		const redisEndpoints = loadLayer2LedgerCommonConfig();
+		// Capture immediately after k6 so CLIENT LIST / ops/sec still reflect load.
+		const afterLoad = await captureBothRedisSnapshots({
+			redisTransaction,
+			redisAddressBalance,
+			transactionsHost: redisEndpoints.redis_transactions.host,
+			transactionsPort: redisEndpoints.redis_transactions.port,
+			addressBalanceHost: redisEndpoints.redis_addressbalance.host,
+			addressBalancePort: redisEndpoints.redis_addressbalance.port,
+			phase: RedisDiagPhase.After,
+		});
+
 		const ledger = createLayer2LedgerClient(ledgerApiUrl());
 		const pendingIds = new Set(meta.transaction_ids);
 		const deadline = Date.now() + settleTimeoutMs;
@@ -382,6 +411,30 @@ export async function finalizePushStress(
 
 		const settledCount = meta.transaction_ids.length - pendingIds.size;
 
+		const baseline = await loadBaselineSnapshots(mode);
+		const redisReport = await buildRedisStressDiagnostics({
+			mode,
+			baseline,
+			after: afterLoad,
+		});
+		const redisReportPath = redisDiagnosticsPath(mode);
+		await Bun.write(
+			redisReportPath,
+			`${JSON.stringify(redisReport, null, 2)}\n`,
+		);
+
+		// Attach Redis diagnostics onto the profiler session so /explorer/stats shows them.
+		const reportWithRedis = parsed
+			.withOutputFile(profilerSession.outputFile)
+			.withRedis(redisReport);
+		await saveProfilerSessionReport(redisTransaction, reportWithRedis);
+		if (profilerSession.outputFile !== null) {
+			await Bun.write(
+				profilerSession.outputFile,
+				`${JSON.stringify(reportWithRedis, null, 2)}\n`,
+			);
+		}
+
 		const result = new StressThroughputResult({
 			transactionCount: meta.transaction_count,
 			processedToPostgres: settledCount,
@@ -407,6 +460,7 @@ export async function finalizePushStress(
 			}),
 			apiErrors,
 			cache: new StressCacheStats(cache),
+			redis: redisReport,
 		});
 
 		const pushSuccessRatePct = computeSuccessRatePct(

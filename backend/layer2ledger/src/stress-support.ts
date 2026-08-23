@@ -20,6 +20,7 @@ export {
 	ProfilerApiName,
 	ProfilerSessionReport,
 	profilerSessionOutputPath,
+	saveProfilerSessionReport,
 } from "./redis/profiler-session";
 export {
 	ensureTransactionIdBloomFilter,

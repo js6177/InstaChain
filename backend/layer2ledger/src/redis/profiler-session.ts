@@ -850,6 +850,7 @@ export async function buildProfilerSessionReport(
 			sectionAvgSamples,
 		),
 		output_file: null,
+		redis: null,
 	});
 }
 

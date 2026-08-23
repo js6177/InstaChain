@@ -161,6 +161,7 @@ services:
       TESTHELPER_BASE_URL: http://layer2ledger-testhelper:8001
       STRESS_RESULT_FILE: /stress-data/test-layer2ledger-stress.throughput.json
       WALLET_WEB_ORIGIN: ${WALLET_WEB_ORIGIN:-http://localhost:5173}
+      LAYER2LEDGER_APIHANDLER_REPLICAS: ${LAYER2LEDGER_APIHANDLER_REPLICAS:-8}
     volumes:
       - ./.config:/app/.config:ro
       - ./.test-output/stress:/stress-data
@@ -200,6 +201,15 @@ services:
     depends_on:
       layer2ledgerapihandler-nginx:
         condition: service_healthy
+    restart: "no"
+
+  # redis-cli sidecar on the compose network (same path as apihandler → Redis).
+  # Used by stress-testing/scripts/redis-latency-probe.sh for --latency /
+  # --latency-history baselines (not localhost inside the Redis containers).
+  test-stress-redis-cli:
+    profiles: [test]
+    image: redis:7.4-alpine
+    entrypoint: ["redis-cli"]
     restart: "no"
 
   # Legacy Bun HTTP stress (health / getBalance). Push stress moved to k6 above.

@@ -5,6 +5,8 @@
  * `fromJsonText` so field access stays on typed properties (not string-key maps).
  */
 
+import { RedisStressDiagnostics } from "@openl2/stress-results";
+
 function parseJsonAs<T>(text: string): T {
 	return JSON.parse(text) as T;
 }
@@ -1029,6 +1031,8 @@ export class ProfilerSessionReport {
 	readonly dbwriter: ProfilerDbwriterStats | null;
 	readonly timeseries: ProfilerSessionTimeseries;
 	readonly output_file: string | null;
+	/** Stress Redis diagnostics (attached after finalize); null on older reports. */
+	readonly redis: RedisStressDiagnostics | null;
 
 	constructor(init: ProfilerSessionReport) {
 		this.session_id = init.session_id;
@@ -1041,6 +1045,7 @@ export class ProfilerSessionReport {
 		this.dbwriter = init.dbwriter;
 		this.timeseries = init.timeseries;
 		this.output_file = init.output_file;
+		this.redis = init.redis;
 	}
 
 	static parse(
@@ -1084,6 +1089,11 @@ export class ProfilerSessionReport {
 		if (dbwriterInput !== null && !parsedDbwriter) {
 			return null;
 		}
+		const redisInput = typed.redis ?? null;
+		const parsedRedis =
+			redisInput === null
+				? null
+				: (RedisStressDiagnostics.parse(redisInput) ?? null);
 		return new ProfilerSessionReport({
 			session_id: typed.session_id,
 			title: typed.title.trim(),
@@ -1095,6 +1105,7 @@ export class ProfilerSessionReport {
 			dbwriter: parsedDbwriter,
 			timeseries: parsedTimeseries,
 			output_file: typed.output_file ?? null,
+			redis: parsedRedis,
 		});
 	}
 
@@ -1120,6 +1131,23 @@ export class ProfilerSessionReport {
 			dbwriter: this.dbwriter,
 			timeseries: this.timeseries,
 			output_file: outputFile,
+			redis: this.redis,
+		});
+	}
+
+	withRedis(redis: RedisStressDiagnostics | null): ProfilerSessionReport {
+		return new ProfilerSessionReport({
+			session_id: this.session_id,
+			title: this.title,
+			description: this.description,
+			apis: this.apis,
+			started_at_unix_ms: this.started_at_unix_ms,
+			ended_at_unix_ms: this.ended_at_unix_ms,
+			api_stats: this.api_stats,
+			dbwriter: this.dbwriter,
+			timeseries: this.timeseries,
+			output_file: this.output_file,
+			redis,
 		});
 	}
 }

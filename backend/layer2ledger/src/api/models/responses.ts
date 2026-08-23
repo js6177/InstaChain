@@ -213,6 +213,106 @@ export const ProfilerSessionTimeseriesResponse = t.Object({
 	get_balance: GetBalanceProfilerTimeseriesResponse,
 });
 
+const RedisPingLatencyMsResponse = t.Object({
+	sampleCount: t.Number(),
+	minMs: t.Number(),
+	avgMs: t.Number(),
+	maxMs: t.Number(),
+});
+
+const RedisCommandStatResponse = t.Object({
+	command: t.String(),
+	calls: t.Number(),
+	usec: t.Number(),
+	usecPerCall: t.Number(),
+});
+
+const RedisSlowLogEntryResponse = t.Object({
+	id: t.Number(),
+	timestampUnixSec: t.Number(),
+	durationUs: t.Number(),
+	command: t.Array(t.String()),
+	clientAddr: t.String(),
+	clientName: t.String(),
+});
+
+const RedisClientSummaryResponse = t.Object({
+	id: t.String(),
+	addr: t.String(),
+	name: t.String(),
+	ageSec: t.Number(),
+	idleSec: t.Number(),
+	cmd: t.String(),
+	flags: t.String(),
+});
+
+const RedisConnectionPoolAnalysisResponse = t.Object({
+	connectedClients: t.Number(),
+	expectedMinClients: t.Number(),
+	expectedMaxClients: t.Number(),
+	apihandlerReplicas: t.Number(),
+	connectionsPerProcess: t.Number(),
+	note: t.String(),
+	likelyClientSideQueueing: t.Boolean(),
+});
+
+const RedisPipeliningAnalysisResponse = t.Object({
+	enqueuePipelined: t.Boolean(),
+	fetchPipelined: t.Boolean(),
+	note: t.String(),
+});
+
+const RedisDuringSampleResponse = t.Object({
+	role: t.String(),
+	capturedAtUnixMs: t.Number(),
+	pingLatencyMs: RedisPingLatencyMsResponse,
+	connectedClients: t.Number(),
+	blockedClients: t.Number(),
+	instantaneousOpsPerSec: t.Number(),
+	clients: t.Array(RedisClientSummaryResponse),
+});
+
+const RedisDockerStatsSampleResponse = t.Object({
+	role: t.String(),
+	capturedAtUnixMs: t.Number(),
+	containerName: t.String(),
+	cpuPercent: t.Number(),
+	memoryUsageBytes: t.Number(),
+	memoryLimitBytes: t.Number(),
+	memoryPercent: t.Number(),
+});
+
+const RedisInstanceSnapshotResponse = t.Object({
+	role: t.String(),
+	host: t.String(),
+	port: t.Number(),
+	phase: t.String(),
+	capturedAtUnixMs: t.Number(),
+	pingLatencyMs: RedisPingLatencyMsResponse,
+	connectedClients: t.Number(),
+	blockedClients: t.Number(),
+	usedMemoryHuman: t.String(),
+	instantaneousOpsPerSec: t.Number(),
+	totalCommandsProcessed: t.Number(),
+	slowlogSlowerThanUs: t.Number(),
+	commandstats: t.Array(RedisCommandStatResponse),
+	slowlog: t.Array(RedisSlowLogEntryResponse),
+	clients: t.Array(RedisClientSummaryResponse),
+	pool: RedisConnectionPoolAnalysisResponse,
+});
+
+export const RedisStressDiagnosticsResponse = t.Object({
+	mode: t.String(),
+	pipelining: RedisPipeliningAnalysisResponse,
+	baseline: t.Array(RedisInstanceSnapshotResponse),
+	after: t.Array(RedisInstanceSnapshotResponse),
+	duringSamples: t.Array(RedisDuringSampleResponse),
+	dockerStatsSamples: t.Array(RedisDockerStatsSampleResponse),
+	commandstatDeltas: t.Array(RedisCommandStatResponse),
+	redisCliLatencyNotes: t.Array(t.String()),
+	interpretation: t.Array(t.String()),
+});
+
 export const ProfilerSessionReportResponse = t.Object({
 	session_id: t.String(),
 	title: t.String(),
@@ -224,6 +324,7 @@ export const ProfilerSessionReportResponse = t.Object({
 	dbwriter: t.Nullable(ProfilerDbwriterStatsResponse),
 	timeseries: ProfilerSessionTimeseriesResponse,
 	output_file: t.Nullable(t.String()),
+	redis: t.Optional(t.Nullable(RedisStressDiagnosticsResponse)),
 });
 
 export const StartProfilerSessionResponse = t.Composite([
@@ -297,6 +398,8 @@ export type ProfilerDbwriterStatsResponse =
 	typeof ProfilerDbwriterStatsResponse.static;
 export type ProfilerSessionReportResponse =
 	typeof ProfilerSessionReportResponse.static;
+export type RedisStressDiagnosticsResponse =
+	typeof RedisStressDiagnosticsResponse.static;
 export type StartProfilerSessionResponse =
 	typeof StartProfilerSessionResponse.static;
 export type StopProfilerSessionResponse =

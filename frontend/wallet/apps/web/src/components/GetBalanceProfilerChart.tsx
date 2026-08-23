@@ -46,39 +46,36 @@ function toSeriesData(
 }
 
 function chartOption(
-	title: string,
 	yAxisName: string,
 	seriesName: string,
 	points: ReadonlyArray<ProfilerTimeseriesPoint>,
 ): EChartsOption {
 	const maxT = Math.max(1, ...points.map((point) => point.t_ms));
 	return {
-		title: {
-			text: title,
-			left: "center",
-			textStyle: { fontSize: 13, fontWeight: 600 },
-		},
 		tooltip: {
 			trigger: "axis",
 			axisPointer: { type: "cross" },
 		},
 		legend: {
+			type: "scroll",
 			data: [seriesName],
-			top: 28,
+			top: 2,
 			left: "center",
-			textStyle: { fontSize: 11 },
+			textStyle: { fontSize: 11, color: "#e4e4e7" },
 		},
 		grid: {
-			left: 56,
-			right: 24,
-			top: 64,
-			bottom: 48,
+			left: 88,
+			right: 28,
+			top: 36,
+			bottom: 52,
+			containLabel: true,
 		},
 		xAxis: {
 			type: "value",
 			name: "ms since profiler start",
 			nameLocation: "middle",
-			nameGap: 28,
+			nameGap: 36,
+			nameTextStyle: { fontSize: 11, color: "#a1a1aa" },
 			min: 0,
 			max: maxT,
 		},
@@ -86,7 +83,8 @@ function chartOption(
 			type: "value",
 			name: yAxisName,
 			nameLocation: "middle",
-			nameGap: 40,
+			nameGap: 70,
+			nameTextStyle: { fontSize: 11, color: "#a1a1aa" },
 			scale: true,
 		},
 		series: [
@@ -108,7 +106,6 @@ function ExpandedCharts({
 	const latencyOption = useMemo(
 		() =>
 			chartOption(
-				LABELS.TEXT_PROFILER_CHART_GET_BALANCE_LATENCY_TITLE,
 				LABELS.TEXT_PROFILER_CHART_GET_BALANCE_LATENCY_AXIS,
 				LABELS.TEXT_PROFILER_CHART_GET_BALANCE_AVG_LATENCY,
 				timeseries.avg_latency_ms,
@@ -118,7 +115,6 @@ function ExpandedCharts({
 	const throughputOption = useMemo(
 		() =>
 			chartOption(
-				LABELS.TEXT_PROFILER_CHART_GET_BALANCE_THROUGHPUT_TITLE,
 				LABELS.TEXT_PROFILER_CHART_GET_BALANCE_THROUGHPUT_AXIS,
 				LABELS.TEXT_PROFILER_CHART_GET_BALANCE_THROUGHPUT,
 				timeseries.throughput_per_sec,
@@ -128,8 +124,18 @@ function ExpandedCharts({
 
 	return (
 		<div className="space-y-4 py-3">
-			<ReactECharts option={latencyOption} style={{ height: 280 }} />
-			<ReactECharts option={throughputOption} style={{ height: 280 }} />
+			<section className="space-y-2">
+				<h4 className="text-sm font-medium text-foreground">
+					{LABELS.TEXT_PROFILER_CHART_GET_BALANCE_LATENCY_TITLE}
+				</h4>
+				<ReactECharts option={latencyOption} style={{ height: 260 }} />
+			</section>
+			<section className="space-y-2">
+				<h4 className="text-sm font-medium text-foreground">
+					{LABELS.TEXT_PROFILER_CHART_GET_BALANCE_THROUGHPUT_TITLE}
+				</h4>
+				<ReactECharts option={throughputOption} style={{ height: 260 }} />
+			</section>
 		</div>
 	);
 }
