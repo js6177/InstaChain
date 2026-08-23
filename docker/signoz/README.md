@@ -60,7 +60,9 @@ Needs ~4GB RAM for Docker.
 
 Stress clears `Layer2Profiler:pushTransaction:in_flight` before each push wave. Default stress size is 50k txs/round.
 
-The stress entrypoint runs `bun test/stress.test.ts` (not `bun test`) and re-execs with `BUN_CONFIG_MAX_HTTP_REQUESTS=1024` so client concurrency is not stuck at Bun’s default 256.
+The stress entrypoint uses grafana/k6 for HTTP load. Bun (`@openl2/stress-testing`) prepares
+signed request bodies and finalizes profiler sessions; see `backend/stress-testing/README.md`
+and `make stress-test`.
 
 Apihandler structured logs include `replica_id` (Docker Compose `HOSTNAME`, e.g. `…-layer2ledgerapihandler-3`). In SigNoz, group or filter performance logs by `replica_id` to compare throughput/latency across replicas. Override with `OPENL2_REPLICA_ID` if needed.
 

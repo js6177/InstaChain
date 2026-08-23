@@ -81,22 +81,24 @@ backend-test:
 	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
 		up -d --force-recreate --no-deps layer2ledgerapihandler-nginx
 
-# Throughput stress (not part of `make test` / test:docker).
-# Builds images only when docker-relevant source changes (FORCE_COMPOSE_BUILD=1 to force).
+# Throughput stress via k6 (not part of `make test` / test:docker).
+# Starts layer2ledger deps only, then runs backend/stress-testing/scripts/run-layer2ledger-push.sh
+# (prepare → k6 → finalize for cold + warm).
 # Examples:
 #   make stress-test
-#   STRESS_TX_COUNT=50000 STRESS_CONCURRENCY=2000 make stress-test
-#   STRESS_PUSH_MAX_IN_FLIGHT=1024 STRESS_BUN_MAX_HTTP_REQUESTS=1024 make stress-test
+#   STRESS_TX_COUNT=50000 STRESS_VUS=1024 make stress-test
 stress-test:
 	mkdir -p .test-output/stress
+	chmod -R a+rwX .test-output/stress || true
 	ENVIRONMENT=test bun run --filter @openl2/setup-scripts ensure-compose-build -- \
 		layer2ledgerapihandler \
 		layer2ledgerdbwriter \
 		layer2ledger-testhelper \
-		test-layer2ledger-stress
+		test-stress-layer2ledger \
+		test-stress-k6
 	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
 		up -d --quiet-pull \
-		--scale layer2ledgerapihandler=$${LAYER2LEDGER_APIHANDLER_REPLICAS:-2} \
+		--scale layer2ledgerapihandler=$${LAYER2LEDGER_APIHANDLER_REPLICAS:-8} \
 		layer2ledger-postgres \
 		layer2ledger-pgbouncer \
 		redis-transactions redis-addressbalance \
@@ -106,19 +108,14 @@ stress-test:
 	# Recreate nginx after apihandler so it never keeps stale replica IPs from a prior run.
 	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
 		up -d --quiet-pull --force-recreate --no-deps layer2ledgerapihandler-nginx
-	ENVIRONMENT=test $(COMPOSE) -f docker-compose.yml -f docker-compose.test.yml --profile test \
-		run --rm --quiet-pull \
-		-v "$(CURDIR)/.test-output/stress:/test-output" \
-		-e "STRESS_TX_COUNT=$${STRESS_TX_COUNT:-50000}" \
-		-e "STRESS_CONCURRENCY=$${STRESS_CONCURRENCY:-2000}" \
-		-e "STRESS_PUSH_MAX_IN_FLIGHT=$${STRESS_PUSH_MAX_IN_FLIGHT:-1024}" \
-		-e "STRESS_BUN_MAX_HTTP_REQUESTS=$${STRESS_BUN_MAX_HTTP_REQUESTS:-1024}" \
-		-e "STRESS_SETTLE_TIMEOUT_MS=$${STRESS_SETTLE_TIMEOUT_MS:-600000}" \
-		-e "STRESS_SETTLE_CONCURRENCY=$${STRESS_SETTLE_CONCURRENCY:-}" \
-		-e "STRESS_NGINX_SAMPLE_MS=$${STRESS_NGINX_SAMPLE_MS:-250}" \
-		-e "STRESS_RESULT_FILE=/test-output/test-layer2ledger-stress.throughput.json" \
-		-e RUN_LEDGER_HTTP_STRESS=1 \
-		test-layer2ledger-stress
+	CONTAINER_CLI=$(CONTAINER_CLI) \
+		STRESS_TX_COUNT=$${STRESS_TX_COUNT:-50000} \
+		STRESS_CONCURRENCY=$${STRESS_CONCURRENCY:-2000} \
+		STRESS_VUS=$${STRESS_VUS:-1024} \
+		STRESS_SETTLE_TIMEOUT_MS=$${STRESS_SETTLE_TIMEOUT_MS:-600000} \
+		STRESS_SETTLE_CONCURRENCY=$${STRESS_SETTLE_CONCURRENCY:-} \
+		STRESS_K6_MAX_DURATION=$${STRESS_K6_MAX_DURATION:-15m} \
+		./backend/stress-testing/scripts/run-layer2ledger-push.sh
 
 # Lightweight GET /health stress through nginx (no seed/sign/settle/db path).
 # Builds images only when docker-relevant source changes (FORCE_COMPOSE_BUILD=1 to force).

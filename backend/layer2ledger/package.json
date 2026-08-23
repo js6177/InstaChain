@@ -9,7 +9,8 @@
 		"./http-server-models": "./src/http-server-models.ts",
 		"./http-server-app": "./src/http-server-app.ts",
 		"./dbwriter": "./src/layer2ledgerdbwriter/index.ts",
-		"./testhelper": "./src/testhelper/index.ts"
+		"./testhelper": "./src/testhelper/index.ts",
+		"./stress-support": "./src/stress-support.ts"
 	},
 	"scripts": {
 		"apihandler": "bun run src/layer2ledgerapihandler/index.ts",

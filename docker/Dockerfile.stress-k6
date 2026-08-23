@@ -1,0 +1,14 @@
+# k6 load-generator image for OpenL2 stress tests.
+# Scripts are baked in (same pattern as other docker/* services) so compose does
+# not bind-mount source at run time.
+FROM grafana/k6:latest
+
+USER root
+COPY backend/stress-testing/k6 /scripts
+# Shared volume .test-output/stress is often root-owned by sibling containers.
+USER root
+
+WORKDIR /scripts
+ENTRYPOINT ["k6", "run"]
+# Default: layer2ledger push. Override command in compose for other services later.
+CMD ["/scripts/layer2ledger/push_transaction.js"]

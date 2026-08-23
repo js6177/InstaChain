@@ -41,6 +41,8 @@ export const DockerService = {
 	WALLET_WEB: "wallet-web",
 	TEST_LAYER2LEDGER: "test-layer2ledger",
 	TEST_LAYER2LEDGER_STRESS: "test-layer2ledger-stress",
+	TEST_STRESS_LAYER2LEDGER: "test-stress-layer2ledger",
+	TEST_STRESS_K6: "test-stress-k6",
 	TEST_LAYER2BRIDGE: "test-layer2bridge",
 	TEST_BITCOIN_CORE_RPC: "test-bitcoin-core-rpc",
 	TEST_LAYER2LEDGER_OAUTH_MANAGER: "test-layer2ledgeroauthmanager",
@@ -84,6 +86,8 @@ export const DOCKER_TEST_SERVICES = [
  * Run separately via `make stress-test` / `make stress-test-health`.
  */
 export const DOCKER_STRESS_TEST_SERVICES = [
+	DockerService.TEST_STRESS_LAYER2LEDGER,
+	DockerService.TEST_STRESS_K6,
 	DockerService.TEST_LAYER2LEDGER_STRESS,
 ] as const satisfies readonly DockerServiceName[];
 

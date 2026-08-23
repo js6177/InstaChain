@@ -141,8 +141,68 @@ services:
         condition: service_healthy
     restart: "no"
 
-  # HTTP E2E stress against live apihandler + dbwriter (skipped in unit bun test).
-  # testhelper is started by backend/setup_scripts/run-tests.ts before integration.
+  # Bun prepare/finalize for k6-driven layer2ledger push stress (@openl2/stress-testing).
+  test-stress-layer2ledger:
+    profiles: [test]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.stress
+    environment:
+      ENVIRONMENT: test
+      OPENL2_CONFIG_PATH: /app/.config
+      STRESS_DATA_DIR: /stress-data
+      STRESS_TX_COUNT: ${STRESS_TX_COUNT:-50000}
+      STRESS_CONCURRENCY: ${STRESS_CONCURRENCY:-2000}
+      STRESS_VUS: ${STRESS_VUS:-1024}
+      STRESS_SETTLE_TIMEOUT_MS: ${STRESS_SETTLE_TIMEOUT_MS:-600000}
+      STRESS_SETTLE_CONCURRENCY: ${STRESS_SETTLE_CONCURRENCY:-}
+      PROFILER_SESSION_OUTPUT_DIR: /stress-data
+      LAYER2LEDGER_API_URL: http://layer2ledgerapihandler-nginx:8000
+      TESTHELPER_BASE_URL: http://layer2ledger-testhelper:8001
+      STRESS_RESULT_FILE: /stress-data/test-layer2ledger-stress.throughput.json
+      WALLET_WEB_ORIGIN: ${WALLET_WEB_ORIGIN:-http://localhost:5173}
+    volumes:
+      - ./.config:/app/.config:ro
+      - ./.test-output/stress:/stress-data
+    depends_on:
+      layer2ledger-postgres:
+        condition: service_healthy
+      redis-transactions:
+        condition: service_healthy
+      redis-addressbalance:
+        condition: service_healthy
+      layer2ledgerapihandler:
+        condition: service_healthy
+      layer2ledgerapihandler-nginx:
+        condition: service_healthy
+      layer2ledgerdbwriter:
+        condition: service_healthy
+      layer2ledger-testhelper:
+        condition: service_started
+    restart: "no"
+
+  # k6 load generator (built from docker/Dockerfile.stress-k6; scripts baked in).
+  # Run as root so handleSummary can write k6-summary.json into the shared volume
+  # (host bind mounts are often root-owned when created by other containers).
+  test-stress-k6:
+    profiles: [test]
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.stress-k6
+    user: "0:0"
+    environment:
+      LAYER2LEDGER_API_URL: http://layer2ledgerapihandler-nginx:8000
+      STRESS_VUS: ${STRESS_VUS:-1024}
+      STRESS_DATASET: /stress-data/push-requests.json
+      STRESS_K6_MAX_DURATION: ${STRESS_K6_MAX_DURATION:-15m}
+    volumes:
+      - ./.test-output/stress:/stress-data
+    depends_on:
+      layer2ledgerapihandler-nginx:
+        condition: service_healthy
+    restart: "no"
+
+  # Legacy Bun HTTP stress (health / getBalance). Push stress moved to k6 above.
   test-layer2ledger-stress:
     profiles: [test]
     build:
@@ -151,19 +211,17 @@ services:
     environment:
       ENVIRONMENT: test
       OPENL2_CONFIG_PATH: /app/.config
-      RUN_LEDGER_HTTP_STRESS: "1"
+      RUN_LEDGER_HTTP_STRESS: "0"
       STRESS_TX_COUNT: ${STRESS_TX_COUNT:-50000}
       STRESS_CONCURRENCY: ${STRESS_CONCURRENCY:-2000}
-      STRESS_PUSH_MAX_IN_FLIGHT: ${STRESS_PUSH_MAX_IN_FLIGHT:-1024}
-      STRESS_BUN_MAX_HTTP_REQUESTS: ${STRESS_BUN_MAX_HTTP_REQUESTS:-1024}
       STRESS_SETTLE_TIMEOUT_MS: ${STRESS_SETTLE_TIMEOUT_MS:-600000}
       STRESS_NGINX_SAMPLE_MS: ${STRESS_NGINX_SAMPLE_MS:-250}
       PROFILER_SESSION_OUTPUT_DIR: /test-output
       LAYER2LEDGER_API_URL: http://layer2ledgerapihandler-nginx:8000
       TESTHELPER_BASE_URL: http://layer2ledger-testhelper:8001
       STRESS_RESULT_FILE: /test-output/test-layer2ledger-stress.throughput.json
-    # Plain `bun` (not `bun test`): stress.test.ts re-execs with
-    # BUN_CONFIG_MAX_HTTP_REQUESTS=1024 so client concurrency can exceed 256.
+    # Plain `bun` (not `bun test`): stress.test.ts re-execs with a raised
+    # BUN_CONFIG_MAX_HTTP_REQUESTS for health/getBalance stress.
     command: ["bun", "test/stress.test.ts"]
     volumes:
       - ./.config:/app/.config:ro

@@ -20,6 +20,8 @@ export const COMPOSE_BUILDABLE_SERVICES = new Set<string>([
 	DockerService.WALLET_WEB,
 	DockerService.TEST_LAYER2LEDGER,
 	DockerService.TEST_LAYER2LEDGER_STRESS,
+	DockerService.TEST_STRESS_LAYER2LEDGER,
+	DockerService.TEST_STRESS_K6,
 	DockerService.TEST_LAYER2BRIDGE,
 	DockerService.TEST_BITCOIN_CORE_RPC,
 	DockerService.TEST_LAYER2LEDGER_SEED,
@@ -45,6 +47,12 @@ const LAYER2LEDGER_PACKAGE_GLOBS = [
 	"shared/pubkey-utils/**",
 	"shared/stress-results/**",
 	"shared/api-layer2ledger/**",
+] as const;
+
+/** Workspace trees included by `@openl2/stress-testing` turbo prune. */
+const STRESS_PACKAGE_GLOBS = [
+	...LAYER2LEDGER_PACKAGE_GLOBS,
+	"backend/stress-testing/**",
 ] as const;
 
 const OAUTH_PACKAGE_GLOBS = [
@@ -109,6 +117,15 @@ const SERVICE_BUILD_INPUTS: Record<string, ServiceBuildInputs> = {
 	[DockerService.TEST_LAYER2LEDGER_STRESS]: {
 		dockerfile: "docker/Dockerfile.test.layer2ledger",
 		globs: LAYER2LEDGER_PACKAGE_GLOBS,
+	},
+	[DockerService.TEST_STRESS_LAYER2LEDGER]: {
+		dockerfile: "docker/Dockerfile.stress",
+		globs: STRESS_PACKAGE_GLOBS,
+	},
+	[DockerService.TEST_STRESS_K6]: {
+		dockerfile: "docker/Dockerfile.stress-k6",
+		files: ["docker/Dockerfile.stress-k6"],
+		globs: ["backend/stress-testing/k6/**"],
 	},
 	[DockerService.TEST_LAYER2LEDGER_SEED]: {
 		dockerfile: "docker/Dockerfile.test.layer2ledger-seed",

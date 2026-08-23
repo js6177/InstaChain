@@ -36,7 +36,7 @@ import {
 } from "../redis/transaction-id-bloom";
 
 /** Max items read from each Redis pending list per Postgres batch insert. */
-export const MAXIMUM_BATCH_INSERT_COUNT = 3999;
+export const MAXIMUM_BATCH_INSERT_COUNT = 4999;
 
 /** Max idle sleep between dbwriter loops when the pending queue is empty. */
 export const PENDING_BATCH_IDLE_SLEEP_MS = 10;
@@ -46,7 +46,7 @@ export const PENDING_BATCH_IDLE_SLEEP_MS = 10;
  * BF.MADD stays on the commit path (before unlock) so apihandler duplicate
  * checks cannot false-negative; only the expensive BF.SCANDUMP is deferred.
  */
-export const BLOOM_FILTER_SNAPSHOT_EVERY_N_BATCHES = 3;
+export const BLOOM_FILTER_SNAPSHOT_EVERY_N_BATCHES = 5;
 
 /** Caller-owned deferred bloom snapshot counters (must outlive a single batch). */
 export interface DeferredBloomSnapshotState {
