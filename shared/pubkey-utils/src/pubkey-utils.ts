@@ -1,13 +1,28 @@
-import { hmac } from "@noble/hashes/hmac";
-import { sha256 } from "@noble/hashes/sha2";
-import * as secp from "@noble/secp256k1";
 import bs58 from "bs58";
-
-secp.etc.hmacSha256Sync = (key, ...msgs): Uint8Array =>
-	hmac(sha256, key, secp.etc.concatBytes(...msgs));
+import * as secp256k1 from "secp256k1";
 
 function stringToUint8Array(str: string): Uint8Array {
 	return new TextEncoder().encode(str);
+}
+
+function sha256(data: string | Uint8Array): Uint8Array {
+	return new Bun.CryptoHasher("sha256").update(data).digest();
+}
+
+function randomPrivateKey(): Uint8Array {
+	let privateKey: Uint8Array;
+	do {
+		privateKey = crypto.getRandomValues(new Uint8Array(32));
+	} while (!secp256k1.privateKeyVerify(privateKey));
+	return privateKey;
+}
+
+/** Uncompressed SEC1 pubkey (65 bytes, 0x04 || X || Y) from stored 64-byte XY. */
+function toUncompressedPublicKey(pubKeyXy: Uint8Array): Uint8Array {
+	const uncompressed = new Uint8Array(65);
+	uncompressed[0] = 0x04;
+	uncompressed.set(pubKeyXy, 1);
+	return uncompressed;
 }
 
 async function signMessage(
@@ -16,9 +31,9 @@ async function signMessage(
 ): Promise<string> {
 	const messageHash = sha256(stringToUint8Array(message));
 	const privKey = bs58.decode(privKeyB58);
-	const signature = await secp.sign(messageHash, privKey);
-	const signatureBytes = signature.toCompactRawBytes();
-	return bs58.encode(signatureBytes);
+	const { signature } = secp256k1.ecdsaSign(messageHash, privKey);
+	const normalized = secp256k1.signatureNormalize(signature);
+	return bs58.encode(normalized);
 }
 
 async function verifyMessage(
@@ -30,20 +45,20 @@ async function verifyMessage(
 		const messageHash = sha256(stringToUint8Array(message));
 		const signatureBytes = bs58.decode(signatureB58);
 		const publicKeyBytes = bs58.decode(publicKeyB58);
-
-		const uncompressedPubKey = new Uint8Array(65);
-		uncompressedPubKey[0] = 0x04;
-		uncompressedPubKey.set(publicKeyBytes, 1);
-
-		return secp.verify(signatureBytes, messageHash, uncompressedPubKey);
-	} catch (error) {
+		const uncompressedPubKey = toUncompressedPublicKey(publicKeyBytes);
+		return secp256k1.ecdsaVerify(
+			signatureBytes,
+			messageHash,
+			uncompressedPubKey,
+		);
+	} catch {
 		return false;
 	}
 }
 
 type GeneratedKeypair = [
-	privKeyBytes: secp.Bytes,
-	pubKeyWithTypePrefixBytes: secp.Bytes,
+	privKeyBytes: Uint8Array,
+	pubKeyWithTypePrefixBytes: Uint8Array,
 ];
 export type Layer2AddressGenerationType =
 	| "EMPTY"
@@ -110,7 +125,10 @@ class Layer2Address {
 		label: string = "",
 		mnemonicIndex: number = -1,
 	): void {
-		const pubKeyWithTypePrefixBytes = secp.getPublicKey(privateKeyBytes, false); // false for uncompressed
+		const pubKeyWithTypePrefixBytes = secp256k1.publicKeyCreate(
+			privateKeyBytes,
+			false,
+		); // false for uncompressed
 
 		// The first byte is the type of the public key, which is 0x04 for uncompressed, so we slice it off
 		const pubKeyBytes = pubKeyWithTypePrefixBytes.slice(1);
@@ -142,10 +160,23 @@ class Layer2Address {
 
 	//Generate an address from a public key. This is for verifying signed messages from an address that isnt ours
 	fromPublicKey(publicKey: string, label: string = ""): void {
-		const pubKeyWithTypePrefixBytes = secp.getPublicKey(publicKey, false); // false for uncompressed
+		const decoded = bs58.decode(publicKey);
+		let pubKeyBytes: Uint8Array;
+		if (decoded.length === 64) {
+			pubKeyBytes = decoded;
+		} else if (decoded.length === 65 && decoded[0] === 0x04) {
+			pubKeyBytes = decoded.slice(1);
+		} else if (decoded.length === 33) {
+			const uncompressed = secp256k1.publicKeyConvert(decoded, false);
+			pubKeyBytes = uncompressed.slice(1);
+		} else {
+			throw new Error("Invalid public key encoding");
+		}
 
-		// The first byte is the type of the public key, which is 0x04 for uncompressed, so we slice it off
-		const pubKeyBytes = pubKeyWithTypePrefixBytes.slice(1);
+		const uncompressed = toUncompressedPublicKey(pubKeyBytes);
+		if (!secp256k1.publicKeyVerify(uncompressed)) {
+			throw new Error("Invalid public key");
+		}
 
 		const pubKeyB58 = bs58.encode(pubKeyBytes);
 
@@ -157,8 +188,8 @@ class Layer2Address {
 
 	// Generate a randomly generated pubkey/privkey pair
 	generateKeypair(): GeneratedKeypair {
-		const privKeyBytes: secp.Bytes = secp.utils.randomPrivateKey();
-		const pubKeyWithTypePrefixBytes: secp.Bytes = secp.getPublicKey(
+		const privKeyBytes = randomPrivateKey();
+		const pubKeyWithTypePrefixBytes = secp256k1.publicKeyCreate(
 			privKeyBytes,
 			false,
 		); // false for uncompressed

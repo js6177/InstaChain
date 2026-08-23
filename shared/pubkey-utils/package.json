@@ -16,18 +16,18 @@
 		}
 	},
 	"devDependencies": {
-		"@types/bun": "latest"
+		"@types/bun": "latest",
+		"@types/secp256k1": "^4.0.7"
 	},
 	"peerDependencies": {
 		"typescript": "^5"
 	},
 	"dependencies": {
-		"@noble/hashes": "^1.8.0",
-		"@noble/secp256k1": "^2.3.0",
 		"bip32": "^4.0.0",
 		"bip39": "^3.1.0",
 		"bitcoinjs-lib": "^6.1.7",
 		"bs58": "^6.0.0",
+		"secp256k1": "^5.0.2",
 		"tiny-secp256k1": "^2.2.4"
 	}
 }
