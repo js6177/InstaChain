@@ -20,6 +20,7 @@ import {
 	drainPendingQueues,
 	newLayer2Address,
 	redisAddressBalance,
+	insertAddressBalance,
 	setupLedgerTests,
 	teardownLedgerTests,
 } from "./helpers";
@@ -41,10 +42,7 @@ describe("address balance redis cache", () => {
 		const fee = 10;
 		const transactionId = crypto.randomUUID();
 
-		await db.insert(layer2AddressBalance).values({
-			address: source.public_key_str_base58,
-			balance: initialBalance,
-		});
+		await insertAddressBalance(source.public_key_str_base58, initialBalance);
 		await setCachedAddressBalance(
 			redisAddressBalance,
 			source.public_key_str_base58,
@@ -87,10 +85,7 @@ describe("address balance redis cache", () => {
 		const fee = 10;
 		const transactionId = crypto.randomUUID();
 
-		await db.insert(layer2AddressBalance).values({
-			address: source.public_key_str_base58,
-			balance: initialBalance,
-		});
+		await insertAddressBalance(source.public_key_str_base58, initialBalance);
 
 		const message = buildTransferMessage(
 			backendCommon.node_id,

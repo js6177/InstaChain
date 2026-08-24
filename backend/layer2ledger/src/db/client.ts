@@ -60,6 +60,7 @@ export async function migrateDatabase(
 		await sql`DROP TABLE IF EXISTS transaction_durations CASCADE`;
 		await sql`DROP TABLE IF EXISTS key_value_store CASCADE`;
 		await sql`DROP TABLE IF EXISTS transaction_id_bloom_filters CASCADE`;
+		await sql`DROP TABLE IF EXISTS address_balance_bloom_filters CASCADE`;
 		await sql`DROP TABLE IF EXISTS master_public_key_indices CASCADE`;
 
 		// Legacy enum types created by SQLAlchemy.
@@ -167,6 +168,12 @@ export async function migrateDatabase(
   `;
 	await sql`
     CREATE TABLE IF NOT EXISTS transaction_id_bloom_filters (
+      batch_height INTEGER PRIMARY KEY NOT NULL,
+      bloom_filter BYTEA NOT NULL
+    )
+  `;
+	await sql`
+    CREATE TABLE IF NOT EXISTS address_balance_bloom_filters (
       batch_height INTEGER PRIMARY KEY NOT NULL,
       bloom_filter BYTEA NOT NULL
     )

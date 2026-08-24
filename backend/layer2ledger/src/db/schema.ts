@@ -183,6 +183,15 @@ export const transactionIdBloomFilters = pgTable(
 	},
 );
 
+/** Per-batch address-balance RedisBloom snapshots for restart restore. */
+export const addressBalanceBloomFilters = pgTable(
+	"address_balance_bloom_filters",
+	{
+		batchHeight: integer("batch_height").primaryKey().notNull(),
+		bloomFilter: bytea("bloom_filter").notNull(),
+	},
+);
+
 export const masterPublicKeyIndices = pgTable("master_public_key_indices", {
 	id: serial("id").primaryKey(),
 	mpkIndex: bigint("mpk_index", { mode: "number" }).notNull(),
@@ -199,6 +208,7 @@ export const schema = {
 	transactionDurations,
 	keyValueStore,
 	transactionIdBloomFilters,
+	addressBalanceBloomFilters,
 	masterPublicKeyIndices,
 };
 
@@ -210,3 +220,7 @@ export type WithdrawalRequestRow = typeof withdrawalRequests.$inferSelect;
 export type WithdrawalRequestInsert = typeof withdrawalRequests.$inferInsert;
 export type TransactionIdBloomFilterRow = typeof transactionIdBloomFilters.$inferSelect;
 export type TransactionIdBloomFilterInsert = typeof transactionIdBloomFilters.$inferInsert;
+export type AddressBalanceBloomFilterRow =
+	typeof addressBalanceBloomFilters.$inferSelect;
+export type AddressBalanceBloomFilterInsert =
+	typeof addressBalanceBloomFilters.$inferInsert;

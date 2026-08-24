@@ -29,6 +29,10 @@ export {
 	saveProfilerSessionReport,
 } from "./redis/profiler-session";
 export {
+	ensureAddressBalanceBloomFilter,
+	ADDRESS_BALANCE_BLOOM_KEY,
+} from "./redis/address-balance-bloom";
+export {
 	ensureTransactionIdBloomFilter,
 	TRANSACTION_ID_BLOOM_KEY,
 } from "./redis/transaction-id-bloom";

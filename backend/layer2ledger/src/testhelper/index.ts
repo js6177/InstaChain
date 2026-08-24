@@ -15,6 +15,7 @@ import {
 	resolveAddressBalanceCacheOptions,
 	setCachedAddressBalance,
 } from "../redis/address-balance-cache";
+import { addAddressesToAddressBalanceBloomFilter } from "../redis/address-balance-bloom";
 import { createTestHelperApp } from "./app";
 import type { TestHelperRouteHandlers } from "./handlers";
 import { log } from "./logger";
@@ -54,6 +55,9 @@ async function upsertBalance(address: string, balance: number): Promise<void> {
 			target: layer2AddressBalance.address,
 			set: { balance },
 		});
+	await addAddressesToAddressBalanceBloomFilter(redisAddressBalance, [
+		address,
+	]);
 	await setCachedAddressBalance(
 		redisAddressBalance,
 		address,

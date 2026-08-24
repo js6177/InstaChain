@@ -1,7 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { ErrorCodes } from "../src/api/models/common";
 import {
-	layer2AddressBalance,
 	TransactionType,
 	transactions,
 } from "../src/db/schema";
@@ -9,6 +8,8 @@ import {
 	apiHandlerConfig,
 	createHandlers,
 	db,
+	insertAddressBalance,
+	insertAddressBalances,
 	setupLedgerTests,
 	teardownLedgerTests,
 } from "./helpers";
@@ -27,7 +28,7 @@ describe("explorer route handlers", () => {
 		const publicKey2 = `pk2-${crypto.randomUUID()}`;
 		const balance1 = 100;
 		const balance2 = 200;
-		await db.insert(layer2AddressBalance).values([
+		await insertAddressBalances([
 			{ address: publicKey1, balance: balance1 },
 			{ address: publicKey2, balance: balance2 },
 		]);
@@ -54,10 +55,7 @@ describe("explorer route handlers", () => {
 		const publicKey1 = `pk1-${crypto.randomUUID()}`;
 		const unknownKey = `new-${crypto.randomUUID()}`;
 		const balance1 = 100;
-		await db.insert(layer2AddressBalance).values({
-			address: publicKey1,
-			balance: balance1,
-		});
+		await insertAddressBalance(publicKey1, balance1);
 
 		const response = await createHandlers().getBalance({
 			public_keys: [publicKey1, unknownKey],

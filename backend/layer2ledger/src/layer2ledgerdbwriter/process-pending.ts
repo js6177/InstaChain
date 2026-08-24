@@ -13,6 +13,10 @@ import {
 	setCachedAddressBalances,
 } from "../redis/address-balance-cache";
 import {
+	addAddressesToAddressBalanceBloomFilter,
+	persistAddressBalanceBloomFilterSnapshot,
+} from "../redis/address-balance-bloom";
+import {
 	type DistributedLock,
 	getPendingTransactions,
 	getPendingWithdrawals,
@@ -79,10 +83,11 @@ export function clearDeferredBloomFilterUpdates(
 	state.batchesSince = 0;
 }
 
-/** Persist the current RedisBloom to Postgres at the latest deferred batch height. */
+/** Persist RedisBloom snapshots to Postgres at the latest deferred batch height. */
 export async function flushDeferredBloomFilterUpdates(
 	db: Layer2LedgerDbClient,
 	redisTransaction: Redis,
+	redisAddressBalance: Redis,
 	state: DeferredBloomSnapshotState,
 ): Promise<void> {
 	if (state.batchesSince === 0 || state.batchHeight <= 0) {
@@ -90,6 +95,11 @@ export async function flushDeferredBloomFilterUpdates(
 	}
 	const batchHeight = state.batchHeight;
 	await persistBloomFilterSnapshot(db, redisTransaction, batchHeight);
+	await persistAddressBalanceBloomFilterSnapshot(
+		db,
+		redisAddressBalance,
+		batchHeight,
+	);
 	clearDeferredBloomFilterUpdates(state);
 }
 
@@ -239,11 +249,15 @@ export async function processPendingBatch(
 			);
 		}
 
-		// Keep RedisBloom in sync with Postgres before unlocks.
+		// Keep RedisBloom filters in sync with Postgres before unlocks.
 		const committedTransactionIds = newTransactions.map(
 			(tx) => tx.layer2TransactionId,
 		);
 		await addTransactionIdsToBloomFilter(redisTransaction, committedTransactionIds);
+		await addAddressesToAddressBalanceBloomFilter(
+			redisAddressBalance,
+			addressBalances.map((row) => row.address),
+		);
 
 		// Unlock ASAP; defer only the expensive BF.SCANDUMP snapshot.
 		const locksToRelease: Array<{ userIds: string[]; lockToken: string }> = [];
@@ -270,7 +284,12 @@ export async function processPendingBatch(
 		if (
 			deferredBloomSnapshot.batchesSince >= BLOOM_FILTER_SNAPSHOT_EVERY_N_BATCHES
 		) {
-			await flushDeferredBloomFilterUpdates(db, redisTransaction, deferredBloomSnapshot);
+			await flushDeferredBloomFilterUpdates(
+				db,
+				redisTransaction,
+				redisAddressBalance,
+				deferredBloomSnapshot,
+			);
 		}
 
 		if (absoluteBalances.length > 0) {

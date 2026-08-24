@@ -26,6 +26,7 @@ services:
       ENVIRONMENT: test
 
   redis-addressbalance:
+    image: redis/redis-stack:7.4.0-v3
     environment:
       ENVIRONMENT: test
 

@@ -11,6 +11,9 @@ services:
   redis-transactions:
     image: redis/redis-stack:7.4.0-v3
 
+  redis-addressbalance:
+    image: redis/redis-stack:7.4.0-v3
+
   # Profiler / diagnostic app data only (isolates profiler traffic from hot-path Redis).
   redis-diagnostics:
     image: redis:7.4-alpine

@@ -9,7 +9,7 @@ import { getTableName } from "drizzle-orm";
 import Redis from "ioredis";
 import type { Layer2LedgerRouteHandlers } from "../src/api/handlers";
 import { createDatabase, migrateDatabase } from "../src/db/client";
-import { schema } from "../src/db/schema";
+import { layer2AddressBalance, schema } from "../src/db/schema";
 import {
 	clearDeferredBloomFilterUpdates,
 	createDeferredBloomSnapshotState,
@@ -20,6 +20,11 @@ import {
 	clearAddressBalanceCache,
 	resolveAddressBalanceCacheOptions,
 } from "../src/redis/address-balance-cache";
+import {
+	ADDRESS_BALANCE_BLOOM_KEY,
+	addAddressesToAddressBalanceBloomFilter,
+	ensureAddressBalanceBloomFilter,
+} from "../src/redis/address-balance-bloom";
 import { createRedisDiagnosticsClient } from "../src/redis/diagnostics-client";
 import {
 	DistributedLock,
@@ -115,11 +120,13 @@ export async function setupLedgerTests(): Promise<void> {
 		PENDING_WITHDRAWALS_LIST_KEY,
 		TRANSACTION_ID_BLOOM_KEY,
 	);
+	await redisAddressBalance.del(ADDRESS_BALANCE_BLOOM_KEY);
 	await clearAddressBalanceCache(redisAddressBalance);
 	clearDeferredBloomFilterUpdates(deferredBloomSnapshot);
 	// Fresh empty bloom for this process; skip replaying historical Postgres rows.
 	process.env.SKIP_BLOOM_PG_REBUILD = "1";
 	await ensureTransactionIdBloomFilter(db, redisTransaction);
+	await ensureAddressBalanceBloomFilter(db, redisAddressBalance);
 }
 
 export async function teardownLedgerTests(): Promise<void> {
@@ -129,6 +136,27 @@ export async function teardownLedgerTests(): Promise<void> {
 
 export async function clearPendingQueues(): Promise<void> {
 	await redisTransaction.del(PENDING_TRANSACTIONS_LIST_KEY, PENDING_WITHDRAWALS_LIST_KEY);
+}
+
+/** Insert balance row(s) and register addresses in the address-balance bloom. */
+export async function insertAddressBalances(
+	rows: ReadonlyArray<{ address: string; balance: number }>,
+): Promise<void> {
+	if (rows.length === 0) {
+		return;
+	}
+	await db.insert(layer2AddressBalance).values([...rows]);
+	await addAddressesToAddressBalanceBloomFilter(
+		redisAddressBalance,
+		rows.map((row) => row.address),
+	);
+}
+
+export async function insertAddressBalance(
+	address: string,
+	balance: number,
+): Promise<void> {
+	await insertAddressBalances([{ address, balance }]);
 }
 
 export async function drainPendingQueues(): Promise<void> {

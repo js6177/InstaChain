@@ -34,6 +34,10 @@ import {
 	StartProfilerSession,
 } from "../src/redis/profiler-session";
 import {
+	ensureAddressBalanceBloomFilter,
+	ADDRESS_BALANCE_BLOOM_KEY,
+} from "../src/redis/address-balance-bloom";
+import {
 	ensureTransactionIdBloomFilter,
 	TRANSACTION_ID_BLOOM_KEY,
 } from "../src/redis/transaction-id-bloom";
@@ -45,9 +49,12 @@ import {
 	DEFAULT_GET_BALANCE_ADDRESS_COUNTS,
 	DEFAULT_GET_BALANCE_CACHE_PCTS,
 	DEFAULT_GET_BALANCE_CALL_COUNTS,
+	DEFAULT_GET_BALANCE_MISSING_POPULATED_ADDRESS_COUNTS,
 	DEFAULT_GET_BALANCE_NONZERO_PCTS,
 	emptyApiErrorCounts,
 	GET_BALANCE_MISSING_ADDRESS_WORST_CASE_CALL_COUNT,
+	GET_BALANCE_MISSING_POPULATED_CALL_COUNT,
+	GET_BALANCE_MISSING_POPULATED_SEED_COUNT,
 	getBalanceStressHistoryPath,
 	GetBalanceAddressMode,
 	GetBalanceStressBatchResult,
@@ -446,6 +453,7 @@ async function resetStressLedgerState(
 			PENDING_WITHDRAWALS_LIST_KEY,
 			TRANSACTION_ID_BLOOM_KEY,
 		);
+		await redisAddressBalance.del(ADDRESS_BALANCE_BLOOM_KEY);
 		await redisDiagnostics.del(
 			profilerInFlightKey("pushTransaction"),
 			profilerInFlightKey(ProfilerApiName.GetBalance),
@@ -454,6 +462,7 @@ async function resetStressLedgerState(
 		await resetAddressBalanceCacheStats(redisAddressBalance);
 		process.env.SKIP_BLOOM_PG_REBUILD = "1";
 		await ensureTransactionIdBloomFilter(db, redisTransaction);
+		await ensureAddressBalanceBloomFilter(db, redisAddressBalance);
 	} finally {
 		await sql.end({ timeout: 5 });
 	}
@@ -470,16 +479,25 @@ function printGetBalanceBatchTable(
 		"mode",
 		"success%",
 		"reqs/s",
+		"total addr/sec",
 	] as const;
-	const rows = batch.runs.map((run) => [
-		String(run.variables.callCount),
-		String(run.variables.addressCount),
-		String(run.variables.cachePct),
-		String(run.variables.nonzeroPct),
-		run.variables.addressMode,
-		String(run.successRatePct),
-		String(run.requestsPerSecond),
-	]);
+	const rows = batch.runs.map((run) => {
+		const totalAddrsPerSec = Number(
+			(
+				run.requestsPerSecond * run.variables.addressCount
+			).toFixed(2),
+		);
+		return [
+			String(run.variables.callCount),
+			String(run.variables.addressCount),
+			String(run.variables.cachePct),
+			String(run.variables.nonzeroPct),
+			run.variables.addressMode,
+			String(run.successRatePct),
+			String(run.requestsPerSecond),
+			String(totalAddrsPerSec),
+		];
+	});
 	const widths = headers.map((header, column) =>
 		Math.max(header.length, ...rows.map((row) => row[column]!.length)),
 	);
@@ -575,7 +593,7 @@ async function persistGetBalanceStressHistory(options: {
 
 /**
  * Run the getBalance stress matrix (default 2×3×3×2 = 36 seeded cells +
- * missing-address worst case).
+ * empty missing-address worst case + populated missing-address cells).
  * Each cell gets its own profiler session; Explorer loads siblings via
  * `get_balance_batch_sessions` in the session description.
  */
@@ -606,11 +624,37 @@ async function runGetBalanceHttpStress(): Promise<void> {
 		missingAddressCallCountRaw.length > 0
 			? Number(missingAddressCallCountRaw)
 			: GET_BALANCE_MISSING_ADDRESS_WORST_CASE_CALL_COUNT;
+	const includeMissingAddressPopulated =
+		process.env.STRESS_GET_BALANCE_INCLUDE_MISSING_POPULATED !== "0";
+	const missingPopulatedCallCountRaw =
+		process.env.STRESS_GET_BALANCE_MISSING_POPULATED_CALL_COUNT?.trim() ?? "";
+	const missingAddressPopulatedCallCount =
+		missingPopulatedCallCountRaw.length > 0
+			? Number(missingPopulatedCallCountRaw)
+			: GET_BALANCE_MISSING_POPULATED_CALL_COUNT;
+	const missingAddressPopulatedAddressCounts = parsePositiveNumberList(
+		process.env.STRESS_GET_BALANCE_MISSING_POPULATED_ADDRESS_COUNT ?? null,
+		DEFAULT_GET_BALANCE_MISSING_POPULATED_ADDRESS_COUNTS,
+	);
+	const missingPopulatedSeedCountRaw =
+		process.env.STRESS_GET_BALANCE_MISSING_POPULATED_SEED_COUNT?.trim() ?? "";
+	const missingAddressPopulatedSeedCount =
+		missingPopulatedSeedCountRaw.length > 0
+			? Number(missingPopulatedSeedCountRaw)
+			: GET_BALANCE_MISSING_POPULATED_SEED_COUNT;
 	const concurrency = Number(process.env.STRESS_CONCURRENCY ?? "2000");
 	expect(Number.isFinite(concurrency) && concurrency > 0).toBe(true);
 	expect(
 		Number.isFinite(missingAddressWorstCaseCallCount) &&
 			missingAddressWorstCaseCallCount > 0,
+	).toBe(true);
+	expect(
+		Number.isFinite(missingAddressPopulatedCallCount) &&
+			missingAddressPopulatedCallCount > 0,
+	).toBe(true);
+	expect(
+		Number.isFinite(missingAddressPopulatedSeedCount) &&
+			missingAddressPopulatedSeedCount > 0,
 	).toBe(true);
 
 	const matrix = buildGetBalanceStressMatrix({
@@ -620,6 +664,10 @@ async function runGetBalanceHttpStress(): Promise<void> {
 		nonzeroPcts,
 		includeMissingAddressWorstCase,
 		missingAddressWorstCaseCallCount,
+		includeMissingAddressPopulated,
+		missingAddressPopulatedCallCount,
+		missingAddressPopulatedAddressCounts,
+		missingAddressPopulatedSeedCount,
 	});
 	expect(matrix.length).toBeGreaterThan(0);
 
@@ -657,11 +705,22 @@ async function runGetBalanceHttpStress(): Promise<void> {
 			nonzero_pcts: nonzeroPcts,
 			include_missing_address_worst_case: includeMissingAddressWorstCase,
 			missing_address_worst_case_call_count: missingAddressWorstCaseCallCount,
+			include_missing_address_populated: includeMissingAddressPopulated,
+			missing_address_populated_call_count: missingAddressPopulatedCallCount,
+			missing_address_populated_address_counts:
+				missingAddressPopulatedAddressCounts,
+			missing_address_populated_seed_count: missingAddressPopulatedSeedCount,
 		});
+
+		/** Reuse one populated ledger across consecutive MissingRandomPopulated cells. */
+		let populatedLedgerReady = false;
 
 		for (let index = 0; index < matrix.length; index += 1) {
 			const variables = matrix[index]!;
 			const sessionId = batchSessionIds[index]!;
+			const isPopulated =
+				variables.addressMode ===
+				GetBalanceAddressMode.MissingRandomPopulated;
 			const result = await runOneGetBalanceStressVariantWithSessionId({
 				variables,
 				batchId,
@@ -672,7 +731,14 @@ async function runGetBalanceHttpStress(): Promise<void> {
 				redisAddressBalance,
 				redisDiagnostics,
 				balanceCache,
+				skipLedgerReset: isPopulated && populatedLedgerReady,
+				seedBackgroundLedger: isPopulated && !populatedLedgerReady,
 			});
+			if (isPopulated) {
+				populatedLedgerReady = true;
+			} else {
+				populatedLedgerReady = false;
+			}
 			runs.push(result);
 			console.log(
 				`getBalance matrix cell ${index + 1}/${matrix.length} ` +
@@ -732,6 +798,10 @@ async function runOneGetBalanceStressVariantWithSessionId(options: {
 	redisAddressBalance: Redis;
 	redisDiagnostics: Redis;
 	balanceCache: AddressBalanceCacheOptions;
+	/** Skip wipe when reusing a populated ledger across consecutive cells. */
+	skipLedgerReset?: boolean;
+	/** Seed background known addresses/transactions for populated missing mode. */
+	seedBackgroundLedger?: boolean;
 }): Promise<GetBalanceStressResult> {
 	const {
 		variables,
@@ -743,28 +813,73 @@ async function runOneGetBalanceStressVariantWithSessionId(options: {
 		redisAddressBalance,
 		redisDiagnostics,
 		balanceCache,
+		skipLedgerReset = false,
+		seedBackgroundLedger = false,
 	} = options;
-	const { callCount, addressCount, cachePct, nonzeroPct, addressMode } =
-		variables;
+	const {
+		callCount,
+		addressCount,
+		cachePct,
+		nonzeroPct,
+		addressMode,
+		backgroundSeedCount,
+	} = variables;
 	const ledger = createLayer2LedgerClient(ledgerApiUrl);
 	const testhelper = createLayer2TestHelperClient(testhelperUrl);
 	const apiErrors = emptyApiErrorCounts();
 	const latenciesMs: number[] = [];
 	let accepted = 0;
 
-	await resetStressLedgerState(
-		redisTransaction,
-		redisAddressBalance,
-		redisDiagnostics,
-	);
+	if (!skipLedgerReset) {
+		await resetStressLedgerState(
+			redisTransaction,
+			redisAddressBalance,
+			redisDiagnostics,
+		);
+	}
 
 	try {
 		const isMissingRandom =
-			addressMode === GetBalanceAddressMode.MissingRandom;
+			addressMode === GetBalanceAddressMode.MissingRandom ||
+			addressMode === GetBalanceAddressMode.MissingRandomPopulated;
+		const isMissingPopulated =
+			addressMode === GetBalanceAddressMode.MissingRandomPopulated;
 
-		/** Per-call address lists; missing-random uses unique never-seeded keys. */
+		/** Per-call address lists; missing modes use unique never-seeded keys. */
 		let resolvePublicKeys: (callIndex: number) => string[];
 		let poolSize = 0;
+
+		if (isMissingPopulated && seedBackgroundLedger) {
+			log.info("getBalance populated missing-address seed starting", {
+				background_seed_count: backgroundSeedCount,
+			});
+			const backgroundAddresses = Array.from(
+				{ length: backgroundSeedCount },
+				() => newLayer2Address().public_key_str_base58,
+			);
+			await mapPool(
+				backgroundAddresses,
+				concurrency,
+				async (address, index) => {
+					try {
+						unwrapLayer2TestHelperResponse(
+							await testhelper.testhelper.seed.balance.post({
+								address,
+								balance: 1_000_000 + index,
+								include_deposit_transaction: true,
+							}),
+						);
+					} catch (error) {
+						recordApiError(apiErrors, apiErrorReason(error));
+					}
+				},
+			);
+			// Keep seeded cache + bloom; only reset hit/miss counters for the wave.
+			await resetAddressBalanceCacheStats(redisAddressBalance);
+			log.info("getBalance populated missing-address seed finished", {
+				background_seed_count: backgroundSeedCount,
+			});
+		}
 
 		if (isMissingRandom) {
 			const totalKeys = callCount * addressCount;
@@ -772,8 +887,10 @@ async function runOneGetBalanceStressVariantWithSessionId(options: {
 				newLayer2Address().public_key_str_base58,
 			);
 			poolSize = addresses.length;
-			await clearAddressBalanceCache(redisAddressBalance);
-			await resetAddressBalanceCacheStats(redisAddressBalance);
+			if (!isMissingPopulated) {
+				await clearAddressBalanceCache(redisAddressBalance);
+				await resetAddressBalanceCacheStats(redisAddressBalance);
+			}
 			resolvePublicKeys = (callIndex: number): string[] =>
 				addresses.slice(
 					callIndex * addressCount,
@@ -824,9 +941,11 @@ async function runOneGetBalanceStressVariantWithSessionId(options: {
 				});
 		}
 
-		const title = isMissingRandom
-			? `getBalance stress missing-address worst-case calls=${callCount} addrs_per_call=${addressCount}`
-			: `getBalance stress calls=${callCount} addrs=${addressCount} cache=${cachePct}% nonzero=${nonzeroPct}%`;
+		const title = isMissingPopulated
+			? `getBalance stress missing-address populated seed=${backgroundSeedCount} calls=${callCount} addrs_per_call=${addressCount}`
+			: addressMode === GetBalanceAddressMode.MissingRandom
+				? `getBalance stress missing-address worst-case calls=${callCount} addrs_per_call=${addressCount}`
+				: `getBalance stress calls=${callCount} addrs=${addressCount} cache=${cachePct}% nonzero=${nonzeroPct}%`;
 		const description = [
 			...variables.toDescriptionLines(),
 			`get_balance_batch_id=${batchId}`,
@@ -912,11 +1031,17 @@ async function runOneGetBalanceStressVariantWithSessionId(options: {
 			profilerOutputFile: outputFile,
 		});
 	} finally {
-		await resetStressLedgerState(
-			redisTransaction,
-			redisAddressBalance,
-			redisDiagnostics,
-		);
+		// Keep the populated background ledger for the next MissingRandomPopulated
+		// cell; the outer matrix runner resets when the batch finishes.
+		if (
+			addressMode !== GetBalanceAddressMode.MissingRandomPopulated
+		) {
+			await resetStressLedgerState(
+				redisTransaction,
+				redisAddressBalance,
+				redisDiagnostics,
+			);
+		}
 	}
 }
 

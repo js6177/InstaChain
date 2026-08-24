@@ -16,6 +16,7 @@ import {
 	lockManager,
 	newLayer2Address,
 	redisTransaction,
+	insertAddressBalance,
 	setupLedgerTests,
 	teardownLedgerTests,
 } from "./helpers";
@@ -36,10 +37,7 @@ describe("transfer route handler", () => {
 		const amount = 100;
 		const fee = 10;
 		const transactionId = crypto.randomUUID();
-		await db.insert(layer2AddressBalance).values({
-			address: source.public_key_str_base58,
-			balance: initialBalance,
-		});
+		await insertAddressBalance(source.public_key_str_base58, initialBalance);
 
 		const message = buildTransferMessage(
 			backendCommon.node_id,
@@ -87,10 +85,7 @@ describe("transfer route handler", () => {
 		for (let i = 0; i < transferCount; i++) {
 			const source = newLayer2Address();
 			const dest = newLayer2Address();
-			await db.insert(layer2AddressBalance).values({
-				address: source.public_key_str_base58,
-				balance: initialBalance,
-			});
+			await insertAddressBalance(source.public_key_str_base58, initialBalance);
 			const transactionId = crypto.randomUUID();
 			const message = buildTransferMessage(
 				backendCommon.node_id,
@@ -125,10 +120,7 @@ describe("transfer route handler", () => {
 		const amount = 100;
 		const fee = 10;
 		const transactionId = crypto.randomUUID();
-		await db.insert(layer2AddressBalance).values({
-			address: source.public_key_str_base58,
-			balance: initialBalance,
-		});
+		await insertAddressBalance(source.public_key_str_base58, initialBalance);
 
 		const message = buildTransferMessage(
 			backendCommon.node_id,
@@ -211,10 +203,7 @@ describe("transfer route handler", () => {
 		const expectedSourceBalance = initialBalance - transferAmount;
 		const transactionId = crypto.randomUUID();
 
-		await db.insert(layer2AddressBalance).values({
-			address: source.public_key_str_base58,
-			balance: initialBalance,
-		});
+		await insertAddressBalance(source.public_key_str_base58, initialBalance);
 
 		const message = buildTransferMessage(
 			backendCommon.node_id,

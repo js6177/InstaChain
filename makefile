@@ -155,13 +155,16 @@ stress-test-health:
 
 # getBalance HTTP stress matrix (seeds via testhelper; Explorer table + charts).
 # Default matrix: calls 1000,2000 × addresses 1,10,100 × cache% 10,50,100 × nonzero% 50,25
-# (36 seeded cells) + missing-address worst case (1000 calls × 1 unique never-seeded addr).
+# (36 seeded cells) + empty missing-address worst case (1000×1) + populated missing
+# (seed 5000 known addrs/txs, then 1000 calls × 1,10,100 never-seeded addrs).
 # Override any dimension with a comma list, e.g. STRESS_GET_BALANCE_CALL_COUNT=1000
 # Examples:
 #   make stress-test-get-balance
 #   STRESS_GET_BALANCE_CALL_COUNT=1000 STRESS_GET_BALANCE_ADDRESS_COUNT=10 \
 #     STRESS_GET_BALANCE_CACHE_PCT=100 STRESS_GET_BALANCE_NONZERO_PCT=50 make stress-test-get-balance
 #   STRESS_GET_BALANCE_INCLUDE_MISSING_ADDRESS_WORST_CASE=0 make stress-test-get-balance
+#   STRESS_GET_BALANCE_INCLUDE_MISSING_POPULATED=0 make stress-test-get-balance
+#   STRESS_GET_BALANCE_MISSING_POPULATED_SEED_COUNT=10000 make stress-test-get-balance
 stress-test-get-balance:
 	mkdir -p .test-output/stress
 	ENVIRONMENT=test bun run --filter @openl2/setup-scripts ensure-compose-build -- \
@@ -190,6 +193,10 @@ stress-test-get-balance:
 		-e "STRESS_GET_BALANCE_NONZERO_PCT=$${STRESS_GET_BALANCE_NONZERO_PCT:-}" \
 		-e "STRESS_GET_BALANCE_INCLUDE_MISSING_ADDRESS_WORST_CASE=$${STRESS_GET_BALANCE_INCLUDE_MISSING_ADDRESS_WORST_CASE:-}" \
 		-e "STRESS_GET_BALANCE_MISSING_ADDRESS_CALL_COUNT=$${STRESS_GET_BALANCE_MISSING_ADDRESS_CALL_COUNT:-}" \
+		-e "STRESS_GET_BALANCE_INCLUDE_MISSING_POPULATED=$${STRESS_GET_BALANCE_INCLUDE_MISSING_POPULATED:-}" \
+		-e "STRESS_GET_BALANCE_MISSING_POPULATED_CALL_COUNT=$${STRESS_GET_BALANCE_MISSING_POPULATED_CALL_COUNT:-}" \
+		-e "STRESS_GET_BALANCE_MISSING_POPULATED_ADDRESS_COUNT=$${STRESS_GET_BALANCE_MISSING_POPULATED_ADDRESS_COUNT:-}" \
+		-e "STRESS_GET_BALANCE_MISSING_POPULATED_SEED_COUNT=$${STRESS_GET_BALANCE_MISSING_POPULATED_SEED_COUNT:-}" \
 		-e "STRESS_CONCURRENCY=$${STRESS_CONCURRENCY:-2000}" \
 		-e STRESS_GET_BALANCE_RESULT_FILE=/test-output/test-layer2ledger-get-balance-stress.json \
 		-e PROFILER_SESSION_OUTPUT_DIR=/test-output \

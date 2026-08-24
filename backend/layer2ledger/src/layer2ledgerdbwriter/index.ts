@@ -19,6 +19,7 @@ import {
 	recordPushTransactionProfilerDbwriterQueueDepth,
 	recordPushTransactionProfilerDbwriterSleepActive,
 } from "../redis/profiler-session";
+import { ensureAddressBalanceBloomFilter } from "../redis/address-balance-bloom";
 import { ensureTransactionIdBloomFilter } from "../redis/transaction-id-bloom";
 import {
 	createDeferredBloomSnapshotState,
@@ -63,6 +64,7 @@ const { redisDiagnostics, ownsConnection: ownsRedisDiagnostics } =
 const lockManager = new DistributedLock(redisTransaction);
 await lockManager.setup();
 await ensureTransactionIdBloomFilter(db, redisTransaction);
+await ensureAddressBalanceBloomFilter(db, redisAddressBalance);
 const balanceCache = resolveAddressBalanceCacheOptions(
 	commonConfig.redis_addressbalance,
 );
@@ -84,7 +86,12 @@ const stopProcessDiagnostics =
 registerProcessShutdown(async () => {
 	stopProcessDiagnostics?.();
 	try {
-		await flushDeferredBloomFilterUpdates(db, redisTransaction, deferredBloomSnapshot);
+		await flushDeferredBloomFilterUpdates(
+			db,
+			redisTransaction,
+			redisAddressBalance,
+			deferredBloomSnapshot,
+		);
 	} catch (error) {
 		log.exception("Failed to flush deferred bloom filter updates", error);
 	}

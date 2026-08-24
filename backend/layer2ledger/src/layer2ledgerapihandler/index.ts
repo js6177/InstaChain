@@ -15,6 +15,7 @@ import { createRedisDiagnosticsClient } from "../redis/diagnostics-client";
 import { DistributedLock } from "../redis/distributed-lock";
 import { startProcessDiagnosticsSampler } from "../redis/process-diagnostics-sampler";
 import { ensureTransactionIdBloomFilter } from "../redis/transaction-id-bloom";
+import { ensureAddressBalanceBloomFilter } from "../redis/address-balance-bloom";
 import { createRouteHandlers } from "../services/route-handlers";
 
 const commonConfig = loadLayer2LedgerCommonConfig();
@@ -78,6 +79,7 @@ const { redisDiagnostics, ownsConnection: ownsRedisDiagnostics } =
 const lockManager = new DistributedLock(redisTransaction);
 await lockManager.setup();
 await ensureTransactionIdBloomFilter(db, redisTransaction);
+await ensureAddressBalanceBloomFilter(db, redisAddressBalance);
 
 const handlers = createRouteHandlers({
 	db,

@@ -93,6 +93,7 @@ export function parseGetBalanceStressVariables(
 	cachePct: string | null;
 	nonzeroPct: string | null;
 	addressMode: string | null;
+	backgroundSeedCount: string | null;
 	successRatePct: string | null;
 	batchId: string | null;
 	batchSessionIds: string[];
@@ -116,6 +117,8 @@ export function parseGetBalanceStressVariables(
 		cachePct: values.get("get_balance_cache_pct") ?? null,
 		nonzeroPct: values.get("get_balance_nonzero_pct") ?? null,
 		addressMode: values.get("get_balance_address_mode") ?? null,
+		backgroundSeedCount:
+			values.get("get_balance_background_seed_count") ?? null,
 		successRatePct: values.get("success_rate_pct") ?? null,
 		batchId: values.get("get_balance_batch_id") ?? null,
 		batchSessionIds,

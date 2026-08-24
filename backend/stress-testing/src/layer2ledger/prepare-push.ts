@@ -12,10 +12,12 @@ import {
 	NODE_ASSET_ID_HEX,
 } from "@openl2/openl2-messaging";
 import {
+	ADDRESS_BALANCE_BLOOM_KEY,
 	clearAddressBalanceCache,
 	createDatabase,
 	createRedisDiagnosticsClient,
 	clearProcessDiagnosticsSamples,
+	ensureAddressBalanceBloomFilter,
 	ensureTransactionIdBloomFilter,
 	PENDING_TRANSACTIONS_LIST_KEY,
 	PENDING_WITHDRAWALS_LIST_KEY,
@@ -213,6 +215,7 @@ export async function resetStressLedgerState(
 			PENDING_WITHDRAWALS_LIST_KEY,
 			TRANSACTION_ID_BLOOM_KEY,
 		);
+		await redisAddressBalance.del(ADDRESS_BALANCE_BLOOM_KEY);
 		await redisDiagnostics.del(
 			profilerInFlightKey("pushTransaction"),
 			profilerInFlightKey(ProfilerApiName.GetBalance),
@@ -223,6 +226,7 @@ export async function resetStressLedgerState(
 		await deleteRedisKeysByPattern(redisTransaction, "lock:*");
 		process.env.SKIP_BLOOM_PG_REBUILD = "1";
 		await ensureTransactionIdBloomFilter(db, redisTransaction);
+		await ensureAddressBalanceBloomFilter(db, redisAddressBalance);
 		log.info("reset stress ledger state (postgres + redis)");
 	} finally {
 		await sql.end({ timeout: 5 });

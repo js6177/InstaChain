@@ -75,6 +75,7 @@ import {
 	recordAddressBalanceCacheMiss,
 	setCachedAddressBalance,
 } from "../redis/address-balance-cache";
+import { bloomMaybeContainsAddress } from "../redis/address-balance-bloom";
 import type { DistributedLock } from "../redis/distributed-lock";
 import {
 	PENDING_TRANSACTIONS_LIST_KEY,
@@ -150,8 +151,8 @@ async function isDuplicateLayer2TransactionId(
 }
 
 /**
- * Read absolute balance from Redis cache, falling back to Postgres and warming
- * the cache on miss.
+ * Read absolute balance from Redis cache, then address-balance bloom, falling
+ * back to Postgres only when the bloom says the address may exist.
  */
 async function getAddressBalance(
 	db: Layer2LedgerDbClient,
@@ -165,6 +166,15 @@ async function getAddressBalance(
 		return cached;
 	}
 	await recordAddressBalanceCacheMiss(redisAddressBalance);
+
+	const maybePresent = await bloomMaybeContainsAddress(
+		redisAddressBalance,
+		address,
+	);
+	if (!maybePresent) {
+		return undefined;
+	}
+
 	const balanceRows = await db
 		.select({ balance: layer2AddressBalance.balance })
 		.from(layer2AddressBalance)

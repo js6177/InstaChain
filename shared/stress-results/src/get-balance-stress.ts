@@ -11,15 +11,41 @@ export const DEFAULT_GET_BALANCE_NONZERO_PCTS = [50, 25] as const;
 /**
  * How addresses are prepared for a getBalance stress cell.
  * - SeededPool: seed/cache a reusable address pool (default matrix).
- * - MissingRandom: each call uses unique never-seeded addresses (DB miss path).
+ * - MissingRandom: each call uses unique never-seeded addresses (empty ledger).
+ * - MissingRandomPopulated: seed thousands of known addresses first, then query
+ *   unique never-seeded addresses (realistic bloom/cache miss path).
  */
 export enum GetBalanceAddressMode {
 	SeededPool = "seeded_pool",
 	MissingRandom = "missing_random",
+	MissingRandomPopulated = "missing_random_populated",
 }
 
 /** Default call count for the missing-address worst-case cell. */
 export const GET_BALANCE_MISSING_ADDRESS_WORST_CASE_CALL_COUNT = 1000;
+
+/** Background addresses/transactions seeded before populated missing-address cells. */
+export const GET_BALANCE_MISSING_POPULATED_SEED_COUNT = 5000;
+
+/** Call count for each populated missing-address cell. */
+export const GET_BALANCE_MISSING_POPULATED_CALL_COUNT = 1000;
+
+/** Address-per-call counts for populated missing-address cells. */
+export const DEFAULT_GET_BALANCE_MISSING_POPULATED_ADDRESS_COUNTS = [
+	1, 10, 100,
+] as const;
+
+function parseAddressMode(
+	value: unknown,
+): GetBalanceAddressMode {
+	if (value === GetBalanceAddressMode.MissingRandomPopulated) {
+		return GetBalanceAddressMode.MissingRandomPopulated;
+	}
+	if (value === GetBalanceAddressMode.MissingRandom) {
+		return GetBalanceAddressMode.MissingRandom;
+	}
+	return GetBalanceAddressMode.SeededPool;
+}
 
 /** Tunable inputs for a getBalance HTTP stress run. */
 export class GetBalanceStressVariables {
@@ -28,6 +54,8 @@ export class GetBalanceStressVariables {
 	readonly cachePct: number;
 	readonly nonzeroPct: number;
 	readonly addressMode: GetBalanceAddressMode;
+	/** Known addresses seeded before missing lookups (populated mode only). */
+	readonly backgroundSeedCount: number;
 
 	constructor(init: GetBalanceStressVariables) {
 		this.callCount = init.callCount;
@@ -35,6 +63,7 @@ export class GetBalanceStressVariables {
 		this.cachePct = init.cachePct;
 		this.nonzeroPct = init.nonzeroPct;
 		this.addressMode = init.addressMode;
+		this.backgroundSeedCount = init.backgroundSeedCount;
 	}
 
 	static parse(
@@ -44,16 +73,16 @@ export class GetBalanceStressVariables {
 			return null;
 		}
 		const typed = data as GetBalanceStressVariables;
-		const addressMode =
-			typed.addressMode === GetBalanceAddressMode.MissingRandom
-				? GetBalanceAddressMode.MissingRandom
-				: GetBalanceAddressMode.SeededPool;
 		return new GetBalanceStressVariables({
 			callCount: typed.callCount,
 			addressCount: typed.addressCount,
 			cachePct: typed.cachePct,
 			nonzeroPct: typed.nonzeroPct,
-			addressMode,
+			addressMode: parseAddressMode(typed.addressMode),
+			backgroundSeedCount:
+				typeof typed.backgroundSeedCount === "number"
+					? typed.backgroundSeedCount
+					: 0,
 		});
 	}
 
@@ -65,13 +94,14 @@ export class GetBalanceStressVariables {
 			`get_balance_cache_pct=${this.cachePct}`,
 			`get_balance_nonzero_pct=${this.nonzeroPct}`,
 			`get_balance_address_mode=${this.addressMode}`,
+			`get_balance_background_seed_count=${this.backgroundSeedCount}`,
 		];
 	}
 }
 
 /**
  * Worst-case cell: ~1000 calls, one unique random address per call that was
- * never seeded (cache miss + DB miss → address_found=false).
+ * never seeded (cache miss + DB miss → address_found=false) on an empty ledger.
  */
 export function getBalanceMissingAddressWorstCaseVariables(
 	callCount: number = GET_BALANCE_MISSING_ADDRESS_WORST_CASE_CALL_COUNT,
@@ -82,7 +112,36 @@ export function getBalanceMissingAddressWorstCaseVariables(
 		cachePct: 0,
 		nonzeroPct: 0,
 		addressMode: GetBalanceAddressMode.MissingRandom,
+		backgroundSeedCount: 0,
 	});
+}
+
+/**
+ * Realistic missing-address cells: seed thousands of known balances/transactions
+ * (PG + bloom + cache), then run getBalance against never-seeded addresses.
+ */
+export function getBalanceMissingAddressPopulatedVariables(options?: {
+	callCount?: number;
+	addressCounts?: readonly number[];
+	backgroundSeedCount?: number;
+}): GetBalanceStressVariables[] {
+	const callCount =
+		options?.callCount ?? GET_BALANCE_MISSING_POPULATED_CALL_COUNT;
+	const addressCounts =
+		options?.addressCounts ?? DEFAULT_GET_BALANCE_MISSING_POPULATED_ADDRESS_COUNTS;
+	const backgroundSeedCount =
+		options?.backgroundSeedCount ?? GET_BALANCE_MISSING_POPULATED_SEED_COUNT;
+	return addressCounts.map(
+		(addressCount) =>
+			new GetBalanceStressVariables({
+				callCount,
+				addressCount,
+				cachePct: 100,
+				nonzeroPct: 100,
+				addressMode: GetBalanceAddressMode.MissingRandomPopulated,
+				backgroundSeedCount,
+			}),
+	);
 }
 
 /** Optional on-disk getBalance HTTP stress result for one matrix cell. */
@@ -210,6 +269,14 @@ export function buildGetBalanceStressMatrix(options: {
 	includeMissingAddressWorstCase?: boolean;
 	/** Call count for the missing-address worst-case cell. */
 	missingAddressWorstCaseCallCount?: number;
+	/**
+	 * When true (default), append populated missing-address cells
+	 * (seed thousands, then 1000×{1,10,100} never-seeded lookups).
+	 */
+	includeMissingAddressPopulated?: boolean;
+	missingAddressPopulatedCallCount?: number;
+	missingAddressPopulatedAddressCounts?: readonly number[];
+	missingAddressPopulatedSeedCount?: number;
 }): GetBalanceStressVariables[] {
 	const matrix: GetBalanceStressVariables[] = [];
 	for (const callCount of options.callCounts) {
@@ -223,6 +290,7 @@ export function buildGetBalanceStressMatrix(options: {
 							cachePct,
 							nonzeroPct,
 							addressMode: GetBalanceAddressMode.SeededPool,
+							backgroundSeedCount: 0,
 						}),
 					);
 				}
@@ -235,6 +303,15 @@ export function buildGetBalanceStressMatrix(options: {
 				options.missingAddressWorstCaseCallCount ??
 					GET_BALANCE_MISSING_ADDRESS_WORST_CASE_CALL_COUNT,
 			),
+		);
+	}
+	if (options.includeMissingAddressPopulated !== false) {
+		matrix.push(
+			...getBalanceMissingAddressPopulatedVariables({
+				callCount: options.missingAddressPopulatedCallCount,
+				addressCounts: options.missingAddressPopulatedAddressCounts,
+				backgroundSeedCount: options.missingAddressPopulatedSeedCount,
+			}),
 		);
 	}
 	return matrix;

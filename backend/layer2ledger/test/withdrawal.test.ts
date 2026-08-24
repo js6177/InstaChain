@@ -9,7 +9,6 @@ import { eq, inArray } from "drizzle-orm";
 import { ErrorCodes } from "../src/api/models/common";
 import {
 	confirmedWithdrawals,
-	layer2AddressBalance,
 	WithdrawalStatus,
 	withdrawalRequests,
 } from "../src/db/schema";
@@ -22,6 +21,7 @@ import {
 	drainPendingQueues,
 	newLayer2Address,
 	redisTransaction,
+	insertAddressBalance,
 	setupLedgerTests,
 	teardownLedgerTests,
 } from "./helpers";
@@ -44,10 +44,7 @@ describe("withdrawal route handlers", () => {
 		const amount = 100;
 		const initialBalance = 1000;
 
-		await db.insert(layer2AddressBalance).values({
-			address: source.public_key_str_base58,
-			balance: initialBalance,
-		});
+		await insertAddressBalance(source.public_key_str_base58, initialBalance);
 
 		const transactionId = crypto.randomUUID();
 		const message = buildWithdrawalRequestMessage(
@@ -180,10 +177,7 @@ describe("withdrawal route handlers", () => {
 		const totalAmount = withdrawalAmounts.reduce((a, b) => a + b, 0);
 		const initialBalance = totalAmount + 1000;
 
-		await db.insert(layer2AddressBalance).values({
-			address: source.public_key_str_base58,
-			balance: initialBalance,
-		});
+		await insertAddressBalance(source.public_key_str_base58, initialBalance);
 
 		const layer2WithdrawalIds: string[] = [];
 		for (const amount of withdrawalAmounts) {
@@ -314,10 +308,7 @@ describe("withdrawal route handlers", () => {
 		const initialBalance = 1000;
 
 		for (const source of sources) {
-			await db.insert(layer2AddressBalance).values({
-				address: source.public_key_str_base58,
-				balance: initialBalance,
-			});
+			await insertAddressBalance(source.public_key_str_base58, initialBalance);
 		}
 
 		const layer2WithdrawalIds: string[] = [];

@@ -6,6 +6,8 @@ import {
 	DEFAULT_GET_BALANCE_CACHE_PCTS,
 	DEFAULT_GET_BALANCE_CALL_COUNTS,
 	DEFAULT_GET_BALANCE_NONZERO_PCTS,
+	GET_BALANCE_MISSING_POPULATED_SEED_COUNT,
+	getBalanceMissingAddressPopulatedVariables,
 	getBalanceMissingAddressWorstCaseVariables,
 	getBalanceStressHistoryPath,
 	GetBalanceAddressMode,
@@ -25,6 +27,7 @@ describe("GetBalanceStressVariables", () => {
 			cachePct: 80,
 			nonzeroPct: 50,
 			addressMode: GetBalanceAddressMode.SeededPool,
+			backgroundSeedCount: 0,
 		});
 		expect(variables.toDescriptionLines()).toEqual([
 			"get_balance_call_count=1000",
@@ -32,19 +35,21 @@ describe("GetBalanceStressVariables", () => {
 			"get_balance_cache_pct=80",
 			"get_balance_nonzero_pct=50",
 			"get_balance_address_mode=seeded_pool",
+			"get_balance_background_seed_count=0",
 		]);
 	});
 });
 
 describe("buildGetBalanceStressMatrix", () => {
-	it("builds the default 2x3x3x2 matrix plus missing-address worst case", () => {
+	it("builds the default matrix plus empty and populated missing-address cells", () => {
 		const matrix = buildGetBalanceStressMatrix({
 			callCounts: DEFAULT_GET_BALANCE_CALL_COUNTS,
 			addressCounts: DEFAULT_GET_BALANCE_ADDRESS_COUNTS,
 			cachePcts: DEFAULT_GET_BALANCE_CACHE_PCTS,
 			nonzeroPcts: DEFAULT_GET_BALANCE_NONZERO_PCTS,
 		});
-		expect(matrix).toHaveLength(2 * 3 * 3 * 2 + 1);
+		// 36 seeded + 1 empty missing + 3 populated missing
+		expect(matrix).toHaveLength(2 * 3 * 3 * 2 + 1 + 3);
 		expect(matrix[0]).toEqual(
 			new GetBalanceStressVariables({
 				callCount: 1000,
@@ -52,32 +57,31 @@ describe("buildGetBalanceStressMatrix", () => {
 				cachePct: 10,
 				nonzeroPct: 50,
 				addressMode: GetBalanceAddressMode.SeededPool,
+				backgroundSeedCount: 0,
 			}),
 		);
-		expect(matrix[matrix.length - 2]).toEqual(
-			new GetBalanceStressVariables({
-				callCount: 2000,
-				addressCount: 100,
-				cachePct: 100,
-				nonzeroPct: 25,
-				addressMode: GetBalanceAddressMode.SeededPool,
-			}),
-		);
-		expect(matrix[matrix.length - 1]).toEqual(
+		expect(matrix[matrix.length - 4]).toEqual(
 			getBalanceMissingAddressWorstCaseVariables(),
 		);
-		expect(matrix[matrix.length - 1]?.addressMode).toBe(
-			GetBalanceAddressMode.MissingRandom,
+		const populated = matrix.slice(-3);
+		expect(populated).toEqual(getBalanceMissingAddressPopulatedVariables());
+		expect(populated[0]?.addressMode).toBe(
+			GetBalanceAddressMode.MissingRandomPopulated,
 		);
+		expect(populated[0]?.backgroundSeedCount).toBe(
+			GET_BALANCE_MISSING_POPULATED_SEED_COUNT,
+		);
+		expect(populated.map((cell) => cell.addressCount)).toEqual([1, 10, 100]);
 	});
 
-	it("can omit the missing-address worst case", () => {
+	it("can omit missing-address cells", () => {
 		const matrix = buildGetBalanceStressMatrix({
 			callCounts: [100],
 			addressCounts: [1],
 			cachePcts: [100],
 			nonzeroPcts: [50],
 			includeMissingAddressWorstCase: false,
+			includeMissingAddressPopulated: false,
 		});
 		expect(matrix).toHaveLength(1);
 		expect(matrix[0]?.addressMode).toBe(GetBalanceAddressMode.SeededPool);
@@ -93,6 +97,7 @@ describe("GetBalanceStressBatchResult", () => {
 				cachePct: 25,
 				nonzeroPct: 75,
 				addressMode: GetBalanceAddressMode.SeededPool,
+				backgroundSeedCount: 0,
 			}),
 			concurrency: 50,
 			accepted: 100,
@@ -136,6 +141,7 @@ describe("GetBalanceStressHistory", () => {
 				cachePct: 25,
 				nonzeroPct: 75,
 				addressMode: GetBalanceAddressMode.SeededPool,
+				backgroundSeedCount: 0,
 			}),
 			concurrency: 50,
 			accepted: 100,
