@@ -39,7 +39,9 @@ import {
 import {
 	getActiveProfilerSession,
 	ProfilerApiName,
+	ProfilerDbwriterBatchWriteDurationPoint,
 	recordPushTransactionProfilerDbwriterBatch,
+	recordPushTransactionProfilerDbwriterBatchWriteDuration,
 	recordPushTransactionProfilerDbwriterQueueEmpty,
 	recordPushTransactionProfilerDbwriterRedisActive,
 	recordPushTransactionProfilerDbwriterWriteActive,
@@ -148,19 +150,93 @@ enum BatchWriteUnitKind {
 	Withdrawal = "withdrawal",
 }
 
+interface AddressBalanceDelta {
+	address: string;
+	delta: number;
+}
+
+interface AbsoluteAddressBalance {
+	address: string;
+	balance: number;
+}
+
+interface LockReleaseRequest {
+	userIds: string[];
+	lockToken: string;
+}
+
 interface BatchWriteUnit {
 	kind: BatchWriteUnitKind;
 	pending: PendingTransaction | PendingWithdrawal;
 	transactionInsert: TransactionInsert;
 	withdrawalInsert: WithdrawalRequestInsert | null;
-	balanceDeltas: ReadonlyArray<{ address: string; delta: number }>;
+	balanceDeltas: ReadonlyArray<AddressBalanceDelta>;
 }
 
+interface BatchWriteInsertDurations {
+	transactionsInsertMs: number;
+	withdrawalsInsertMs: number;
+	addressBalancesUpsertMs: number;
+}
+
+interface BatchWriteInsertRowCounts {
+	transactionsInsertRows: number;
+	withdrawalsInsertRows: number;
+	addressBalancesUpsertRows: number;
+}
+
+interface BatchWriteInsertStats
+	extends BatchWriteInsertDurations,
+		BatchWriteInsertRowCounts {}
+
 interface BatchWriteSliceResult {
-	absoluteBalances: Array<{ address: string; balance: number }>;
+	absoluteBalances: AbsoluteAddressBalance[];
 	committedTransactionIds: string[];
 	committedAddresses: string[];
 	failedUnits: BatchWriteUnit[];
+	/** Wall time and committed row counts per Postgres statement. */
+	insertStats: BatchWriteInsertStats;
+}
+
+function emptyInsertStats(): BatchWriteInsertStats {
+	return {
+		transactionsInsertMs: 0,
+		withdrawalsInsertMs: 0,
+		addressBalancesUpsertMs: 0,
+		transactionsInsertRows: 0,
+		withdrawalsInsertRows: 0,
+		addressBalancesUpsertRows: 0,
+	};
+}
+
+function addInsertStats(
+	left: BatchWriteInsertStats,
+	right: BatchWriteInsertStats,
+): BatchWriteInsertStats {
+	return {
+		transactionsInsertMs:
+			left.transactionsInsertMs + right.transactionsInsertMs,
+		withdrawalsInsertMs: left.withdrawalsInsertMs + right.withdrawalsInsertMs,
+		addressBalancesUpsertMs:
+			left.addressBalancesUpsertMs + right.addressBalancesUpsertMs,
+		transactionsInsertRows:
+			left.transactionsInsertRows + right.transactionsInsertRows,
+		withdrawalsInsertRows:
+			left.withdrawalsInsertRows + right.withdrawalsInsertRows,
+		addressBalancesUpsertRows:
+			left.addressBalancesUpsertRows + right.addressBalancesUpsertRows,
+	};
+}
+
+function roundInsertStats(stats: BatchWriteInsertStats): BatchWriteInsertStats {
+	return {
+		transactionsInsertMs: Number(stats.transactionsInsertMs.toFixed(3)),
+		withdrawalsInsertMs: Number(stats.withdrawalsInsertMs.toFixed(3)),
+		addressBalancesUpsertMs: Number(stats.addressBalancesUpsertMs.toFixed(3)),
+		transactionsInsertRows: stats.transactionsInsertRows,
+		withdrawalsInsertRows: stats.withdrawalsInsertRows,
+		addressBalancesUpsertRows: stats.addressBalancesUpsertRows,
+	};
 }
 
 function errorMessage(error: unknown): string {
@@ -172,7 +248,7 @@ function errorMessage(error: unknown): string {
 
 function buildAddressBalances(
 	units: readonly BatchWriteUnit[],
-): Array<{ address: string; balance: number }> {
+): AbsoluteAddressBalance[] {
 	const balanceUpdates = new Map<string, number>();
 	for (const unit of units) {
 		for (const { address, delta } of unit.balanceDeltas) {
@@ -185,41 +261,84 @@ function buildAddressBalances(
 	}));
 }
 
+class TimedBatchWriteFailure {
+	readonly cause: unknown;
+	/** Durations only — failed attempts do not contribute committed row counts. */
+	readonly insertDurations: BatchWriteInsertDurations;
+
+	constructor(cause: unknown, insertDurations: BatchWriteInsertDurations) {
+		this.cause = cause;
+		this.insertDurations = insertDurations;
+	}
+}
+
+interface AttemptBatchWriteResult {
+	absoluteBalances: AbsoluteAddressBalance[];
+	insertStats: BatchWriteInsertStats;
+}
+
 async function attemptBatchWrite(
 	db: Layer2LedgerDbClient,
 	units: readonly BatchWriteUnit[],
-): Promise<Array<{ address: string; balance: number }>> {
+): Promise<AttemptBatchWriteResult> {
 	const newTransactions = units.map((unit) => unit.transactionInsert);
 	const newWithdrawals = units
 		.map((unit) => unit.withdrawalInsert)
 		.filter((row): row is WithdrawalRequestInsert => row !== null);
 	const addressBalances = buildAddressBalances(units);
 
-	let absoluteBalances: Array<{ address: string; balance: number }> = [];
-	await db.transaction(async (tx) => {
-		if (newTransactions.length > 0) {
-			await tx.insert(transactions).values(newTransactions);
-		}
-		if (newWithdrawals.length > 0) {
-			await tx.insert(withdrawalRequests).values(newWithdrawals);
-		}
-		if (addressBalances.length > 0) {
-			absoluteBalances = await tx
-				.insert(layer2AddressBalance)
-				.values(addressBalances)
-				.onConflictDoUpdate({
-					target: layer2AddressBalance.address,
-					set: {
-						balance: sql`${layer2AddressBalance.balance} + excluded.balance`,
-					},
-				})
-				.returning({
-					address: layer2AddressBalance.address,
-					balance: layer2AddressBalance.balance,
-				});
-		}
-	});
-	return absoluteBalances;
+	let absoluteBalances: AbsoluteAddressBalance[] = [];
+	const insertStats = emptyInsertStats();
+	try {
+		await db.transaction(async (tx) => {
+			if (newTransactions.length > 0) {
+				const startedAt = performance.now();
+				try {
+					await tx.insert(transactions).values(newTransactions);
+				} finally {
+					insertStats.transactionsInsertMs = performance.now() - startedAt;
+				}
+			}
+			if (newWithdrawals.length > 0) {
+				const startedAt = performance.now();
+				try {
+					await tx.insert(withdrawalRequests).values(newWithdrawals);
+				} finally {
+					insertStats.withdrawalsInsertMs = performance.now() - startedAt;
+				}
+			}
+			if (addressBalances.length > 0) {
+				const startedAt = performance.now();
+				try {
+					absoluteBalances = await tx
+						.insert(layer2AddressBalance)
+						.values(addressBalances)
+						.onConflictDoUpdate({
+							target: layer2AddressBalance.address,
+							set: {
+								balance: sql`${layer2AddressBalance.balance} + excluded.balance`,
+							},
+						})
+						.returning({
+							address: layer2AddressBalance.address,
+							balance: layer2AddressBalance.balance,
+						});
+				} finally {
+					insertStats.addressBalancesUpsertMs = performance.now() - startedAt;
+				}
+			}
+		});
+	} catch (cause) {
+		throw new TimedBatchWriteFailure(cause, {
+			transactionsInsertMs: insertStats.transactionsInsertMs,
+			withdrawalsInsertMs: insertStats.withdrawalsInsertMs,
+			addressBalancesUpsertMs: insertStats.addressBalancesUpsertMs,
+		});
+	}
+	insertStats.transactionsInsertRows = newTransactions.length;
+	insertStats.withdrawalsInsertRows = newWithdrawals.length;
+	insertStats.addressBalancesUpsertRows = addressBalances.length;
+	return { absoluteBalances, insertStats };
 }
 
 async function recordFailedWriteUnit(
@@ -278,11 +397,15 @@ async function writeBatchWithBinaryRetry(
 			committedTransactionIds: [],
 			committedAddresses: [],
 			failedUnits: [],
+			insertStats: emptyInsertStats(),
 		};
 	}
 
 	try {
-		const absoluteBalances = await attemptBatchWrite(db, units);
+		const { absoluteBalances, insertStats } = await attemptBatchWrite(
+			db,
+			units,
+		);
 		onSuccessfulBatchWrite?.();
 		return {
 			absoluteBalances,
@@ -291,18 +414,32 @@ async function writeBatchWithBinaryRetry(
 			),
 			committedAddresses: buildAddressBalances(units).map((row) => row.address),
 			failedUnits: [],
+			insertStats,
 		};
 	} catch (error) {
+		const failedAttemptDurations =
+			error instanceof TimedBatchWriteFailure
+				? error.insertDurations
+				: emptyInsertStats();
+		const cause =
+			error instanceof TimedBatchWriteFailure ? error.cause : error;
 		if (units.length === 1) {
 			const unit = units[0];
 			if (unit !== undefined) {
-				await recordFailedWriteUnit(redisDiagnostics, unit, error);
+				await recordFailedWriteUnit(redisDiagnostics, unit, cause);
 			}
 			return {
 				absoluteBalances: [],
 				committedTransactionIds: [],
 				committedAddresses: [],
 				failedUnits: unit !== undefined ? [unit] : [],
+				insertStats: {
+					...emptyInsertStats(),
+					transactionsInsertMs: failedAttemptDurations.transactionsInsertMs,
+					withdrawalsInsertMs: failedAttemptDurations.withdrawalsInsertMs,
+					addressBalancesUpsertMs:
+						failedAttemptDurations.addressBalancesUpsertMs,
+				},
 			};
 		}
 
@@ -323,6 +460,7 @@ async function writeBatchWithBinaryRetry(
 		for (const row of [...left.absoluteBalances, ...right.absoluteBalances]) {
 			absoluteByAddress.set(row.address, row.balance);
 		}
+		const childStats = addInsertStats(left.insertStats, right.insertStats);
 		return {
 			absoluteBalances: Array.from(absoluteByAddress.entries()).map(
 				([address, balance]) => ({ address, balance }),
@@ -338,6 +476,18 @@ async function writeBatchWithBinaryRetry(
 				]),
 			],
 			failedUnits: [...left.failedUnits, ...right.failedUnits],
+			insertStats: {
+				...childStats,
+				transactionsInsertMs:
+					failedAttemptDurations.transactionsInsertMs +
+					childStats.transactionsInsertMs,
+				withdrawalsInsertMs:
+					failedAttemptDurations.withdrawalsInsertMs +
+					childStats.withdrawalsInsertMs,
+				addressBalancesUpsertMs:
+					failedAttemptDurations.addressBalancesUpsertMs +
+					childStats.addressBalancesUpsertMs,
+			},
 		};
 	}
 }
@@ -431,6 +581,7 @@ export async function processPendingBatch(
 		committedTransactionIds: [],
 		committedAddresses: [],
 		failedUnits: [],
+		insertStats: emptyInsertStats(),
 	};
 	await recordWriteActive(redisDiagnostics, true);
 	try {
@@ -476,7 +627,7 @@ export async function processPendingBatch(
 		);
 
 		// Unlock ASAP; defer only the expensive BF.SCANDUMP snapshot.
-		const locksToRelease: Array<{ userIds: string[]; lockToken: string }> = [];
+		const locksToRelease: LockReleaseRequest[] = [];
 		for (const pendingTx of transactionsToProcess) {
 			if (pendingTx.lock_token) {
 				locksToRelease.push({
@@ -543,6 +694,11 @@ export async function processPendingBatch(
 		if (committedCount > 0) {
 			await recordDbWrites(redisDiagnostics, committedCount);
 		}
+		await recordBatchWriteDuration(
+			redisDiagnostics,
+			nextBatchHeight,
+			writeResult.insertStats,
+		);
 	}
 
 	const pendingRemaining = await redisTransaction.llen(PENDING_TRANSACTIONS_LIST_KEY);
@@ -631,6 +787,47 @@ async function recordDbWrites(
 			session_id: session.session_id,
 			writes,
 			event: "dbwriter_batch",
+		});
+	} catch {
+		// Best-effort; never fail the writer loop.
+	}
+}
+
+async function recordBatchWriteDuration(
+	redisDiagnostics: Redis,
+	batchHeight: number,
+	insertStats: BatchWriteInsertStats,
+): Promise<void> {
+	try {
+		const session = await getActiveProfilerSession(redisDiagnostics);
+		if (!session?.apis.includes(ProfilerApiName.Dbwriter)) {
+			return;
+		}
+		setProfilerSessionId(session.session_id);
+		const rounded = roundInsertStats(insertStats);
+		await recordPushTransactionProfilerDbwriterBatchWriteDuration(
+			redisDiagnostics,
+			session.session_id,
+			new ProfilerDbwriterBatchWriteDurationPoint({
+				batch_height: batchHeight,
+				transactions_insert_ms: rounded.transactionsInsertMs,
+				withdrawals_insert_ms: rounded.withdrawalsInsertMs,
+				address_balances_upsert_ms: rounded.addressBalancesUpsertMs,
+				transactions_insert_rows: rounded.transactionsInsertRows,
+				withdrawals_insert_rows: rounded.withdrawalsInsertRows,
+				address_balances_upsert_rows: rounded.addressBalancesUpsertRows,
+			}),
+		);
+		log.performance("profiler dbwriter batch write duration", {
+			session_id: session.session_id,
+			batch_height: batchHeight,
+			transactions_insert_ms: rounded.transactionsInsertMs,
+			withdrawals_insert_ms: rounded.withdrawalsInsertMs,
+			address_balances_upsert_ms: rounded.addressBalancesUpsertMs,
+			transactions_insert_rows: rounded.transactionsInsertRows,
+			withdrawals_insert_rows: rounded.withdrawalsInsertRows,
+			address_balances_upsert_rows: rounded.addressBalancesUpsertRows,
+			event: "dbwriter_batch_write_duration",
 		});
 	} catch {
 		// Best-effort; never fail the writer loop.

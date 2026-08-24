@@ -13,6 +13,8 @@ import {
 	collectProfilerXValues,
 	getPushTransactionSectionAvg,
 	nearestX,
+	type BatchWriteMetricField,
+	type ProfilerDbwriterBatchWriteDurationPoint,
 	type ProfilerSessionTimeseriesView,
 	type ProfilerTimeseriesPoint,
 } from "./profiler-session-chart-utils";
@@ -43,6 +45,39 @@ function toSeriesData(
 	points: ReadonlyArray<ProfilerTimeseriesPoint>,
 ): Array<[number, number]> {
 	return points.map((point) => [point.t_ms, point.value]);
+}
+
+function toBatchWriteDurationFieldSeries(
+	points: ReadonlyArray<ProfilerDbwriterBatchWriteDurationPoint>,
+	field: BatchWriteMetricField,
+): Array<[number, number]> {
+	return points.map((point) => [point.batch_height, point[field]]);
+}
+
+enum BatchWriteSeriesColor {
+	Transactions = "blue",
+	Withdrawals = "green",
+	Balances = "yellow",
+}
+
+function batchWriteXAxisRange(
+	points: ReadonlyArray<Pick<ProfilerDbwriterBatchWriteDurationPoint, "batch_height">>,
+): { min: number; max: number } {
+	if (points.length === 0) {
+		return { min: 0, max: 1 };
+	}
+	let minHeight = points[0]?.batch_height ?? 0;
+	let maxHeight = minHeight;
+	for (const point of points) {
+		minHeight = Math.min(minHeight, point.batch_height);
+		maxHeight = Math.max(maxHeight, point.batch_height);
+	}
+	// Start one batch height before the first insert so early points are visible.
+	const min = Math.max(0, minHeight - 1);
+	return {
+		min,
+		max: Math.max(maxHeight, min + 1),
+	};
 }
 
 function baseChartOption(
@@ -387,6 +422,7 @@ export function ProfilerSessionChart({
 		queueOption,
 		writeActiveOption,
 		sectionAvgOption,
+		batchWriteDurationOption,
 	} = useMemo(() => {
 		const { timeseries } = session;
 		const sectionAvg = getPushTransactionSectionAvg(timeseries);
@@ -659,12 +695,176 @@ export function ProfilerSessionChart({
 			],
 		};
 
+		const batchWriteDurationPoints =
+			timeseries.dbwriter_batch_write_duration_ms ?? [];
+		const batchWriteXRange = batchWriteXAxisRange(batchWriteDurationPoints);
+		const batchWriteLegend = [
+			LABELS.TEXT_PROFILER_CHART_BATCH_WRITE_TRANSACTIONS,
+			LABELS.TEXT_PROFILER_CHART_BATCH_WRITE_WITHDRAWALS,
+			LABELS.TEXT_PROFILER_CHART_BATCH_WRITE_BALANCES,
+			LABELS.TEXT_PROFILER_CHART_BATCH_WRITE_TRANSACTIONS_ROWS,
+			LABELS.TEXT_PROFILER_CHART_BATCH_WRITE_WITHDRAWALS_ROWS,
+			LABELS.TEXT_PROFILER_CHART_BATCH_WRITE_BALANCES_ROWS,
+		];
+		const batchWriteDurationOption: EChartsOption = {
+			tooltip: {
+				trigger: "axis",
+				axisPointer: {
+					type: "cross",
+					snap: true,
+					label: { precision: 0 },
+				},
+				valueFormatter: (value) =>
+					typeof value === "number" ? String(value) : String(value ?? ""),
+			},
+			legend: {
+				type: "scroll",
+				orient: "horizontal",
+				top: 2,
+				left: "center",
+				width: "92%",
+				itemGap: 12,
+				itemWidth: 14,
+				itemHeight: 10,
+				textStyle: { fontSize: 11, color: "#e4e4e7" },
+				data: batchWriteLegend,
+			},
+			grid: {
+				left: 88,
+				right: 88,
+				top: 48,
+				bottom: 52,
+				containLabel: true,
+			},
+			xAxis: {
+				type: "value",
+				name: LABELS.TEXT_PROFILER_CHART_BATCH_WRITE_DURATION_X_AXIS,
+				nameLocation: "middle",
+				nameGap: 36,
+				nameTextStyle: { fontSize: 11, color: "#a1a1aa" },
+				min: batchWriteXRange.min,
+				max: batchWriteXRange.max,
+				minInterval: 1,
+				scale: false,
+			},
+			yAxis: [
+				{
+					type: "value",
+					name: LABELS.TEXT_PROFILER_CHART_BATCH_WRITE_DURATION_AXIS,
+					nameLocation: "middle",
+					min: 0,
+					nameGap: 70,
+					nameTextStyle: { fontSize: 11, color: "#a1a1aa" },
+				},
+				{
+					type: "value",
+					name: LABELS.TEXT_PROFILER_CHART_BATCH_WRITE_ROWS_AXIS,
+					nameLocation: "middle",
+					min: 0,
+					minInterval: 1,
+					nameGap: 70,
+					nameTextStyle: { fontSize: 11, color: "#a1a1aa" },
+					splitLine: { show: false },
+				},
+			],
+			series: [
+				{
+					name: LABELS.TEXT_PROFILER_CHART_BATCH_WRITE_TRANSACTIONS,
+					type: "line",
+					yAxisIndex: 0,
+					z: 3,
+					showSymbol: true,
+					symbolSize: 8,
+					itemStyle: { color: BatchWriteSeriesColor.Transactions },
+					lineStyle: { color: BatchWriteSeriesColor.Transactions, width: 2 },
+					data: toBatchWriteDurationFieldSeries(
+						batchWriteDurationPoints,
+						"transactions_insert_ms",
+					),
+				},
+				{
+					name: LABELS.TEXT_PROFILER_CHART_BATCH_WRITE_WITHDRAWALS,
+					type: "line",
+					yAxisIndex: 0,
+					z: 3,
+					showSymbol: true,
+					symbolSize: 8,
+					itemStyle: { color: BatchWriteSeriesColor.Withdrawals },
+					lineStyle: { color: BatchWriteSeriesColor.Withdrawals, width: 2 },
+					data: toBatchWriteDurationFieldSeries(
+						batchWriteDurationPoints,
+						"withdrawals_insert_ms",
+					),
+				},
+				{
+					name: LABELS.TEXT_PROFILER_CHART_BATCH_WRITE_BALANCES,
+					type: "line",
+					yAxisIndex: 0,
+					z: 3,
+					showSymbol: true,
+					symbolSize: 8,
+					itemStyle: { color: BatchWriteSeriesColor.Balances },
+					lineStyle: { color: BatchWriteSeriesColor.Balances, width: 2 },
+					data: toBatchWriteDurationFieldSeries(
+						batchWriteDurationPoints,
+						"address_balances_upsert_ms",
+					),
+				},
+				{
+					name: LABELS.TEXT_PROFILER_CHART_BATCH_WRITE_TRANSACTIONS_ROWS,
+					type: "bar",
+					yAxisIndex: 1,
+					z: 1,
+					barMaxWidth: 18,
+					itemStyle: {
+						color: BatchWriteSeriesColor.Transactions,
+						opacity: 0.35,
+					},
+					data: toBatchWriteDurationFieldSeries(
+						batchWriteDurationPoints,
+						"transactions_insert_rows",
+					),
+				},
+				{
+					name: LABELS.TEXT_PROFILER_CHART_BATCH_WRITE_WITHDRAWALS_ROWS,
+					type: "bar",
+					yAxisIndex: 1,
+					z: 1,
+					barMaxWidth: 18,
+					itemStyle: {
+						color: BatchWriteSeriesColor.Withdrawals,
+						opacity: 0.35,
+					},
+					data: toBatchWriteDurationFieldSeries(
+						batchWriteDurationPoints,
+						"withdrawals_insert_rows",
+					),
+				},
+				{
+					name: LABELS.TEXT_PROFILER_CHART_BATCH_WRITE_BALANCES_ROWS,
+					type: "bar",
+					yAxisIndex: 1,
+					z: 1,
+					barMaxWidth: 18,
+					itemStyle: {
+						color: BatchWriteSeriesColor.Balances,
+						opacity: 0.35,
+					},
+					data: toBatchWriteDurationFieldSeries(
+						batchWriteDurationPoints,
+						"address_balances_upsert_rows",
+					),
+				},
+			],
+		};
+
 		return {
 			concurrencyOption,
 			cumulativeOption,
 			queueOption,
 			writeActiveOption,
 			sectionAvgOption,
+			batchWriteDurationOption,
 		};
 	}, [session, viewStartMs, viewEndMs, snapXs]);
 
@@ -909,6 +1109,17 @@ export function ProfilerSessionChart({
 					notMerge
 					lazyUpdate
 					onChartReady={onChartReady}
+				/>
+			</section>
+			<section className="space-y-2">
+				<h3 className="text-sm font-medium text-foreground">
+					{LABELS.TEXT_PROFILER_CHART_BATCH_WRITE_DURATION_TITLE}
+				</h3>
+				<ReactECharts
+					option={batchWriteDurationOption}
+					style={{ height: 300, width: "100%" }}
+					notMerge
+					lazyUpdate
 				/>
 			</section>
 		</div>

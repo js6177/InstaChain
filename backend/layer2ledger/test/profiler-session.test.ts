@@ -5,6 +5,7 @@ import {
 	firstApiStartUnixMs,
 	lastQueueEmptyAtUnixMs,
 	ProfilerDbwriterBatchEvent,
+	ProfilerDbwriterBatchWriteDurationPoint,
 	ProfilerDbwriterQueueDepthEvent,
 	ProfilerDbwriterRedisHash,
 	ProfilerDbwriterRedisActiveEvent,
@@ -173,6 +174,26 @@ describe("buildProfilerSessionTimeseries", () => {
 			sleepActive,
 			redisActive,
 			sectionSamples,
+			[
+				new ProfilerDbwriterBatchWriteDurationPoint({
+					batch_height: 1,
+					transactions_insert_ms: 12.5,
+					withdrawals_insert_ms: 1.5,
+					address_balances_upsert_ms: 4.25,
+					transactions_insert_rows: 100,
+					withdrawals_insert_rows: 2,
+					address_balances_upsert_rows: 40,
+				}),
+				new ProfilerDbwriterBatchWriteDurationPoint({
+					batch_height: 2,
+					transactions_insert_ms: 9.25,
+					withdrawals_insert_ms: 0,
+					address_balances_upsert_ms: 3.1,
+					transactions_insert_rows: 80,
+					withdrawals_insert_rows: 0,
+					address_balances_upsert_rows: 30,
+				}),
+			],
 		);
 
 		expect(series.avg_replica_concurrent[0]).toEqual({ t_ms: 0, value: 0 });
@@ -238,6 +259,26 @@ describe("buildProfilerSessionTimeseries", () => {
 			{ t_ms: 0, value: 0 },
 			{ t_ms: 200, value: 0.5 },
 			{ t_ms: 400, value: 1 },
+		]);
+		expect(series.dbwriter_batch_write_duration_ms).toEqual([
+			{
+				batch_height: 1,
+				transactions_insert_ms: 12.5,
+				withdrawals_insert_ms: 1.5,
+				address_balances_upsert_ms: 4.25,
+				transactions_insert_rows: 100,
+				withdrawals_insert_rows: 2,
+				address_balances_upsert_rows: 40,
+			},
+			{
+				batch_height: 2,
+				transactions_insert_ms: 9.25,
+				withdrawals_insert_ms: 0,
+				address_balances_upsert_ms: 3.1,
+				transactions_insert_rows: 80,
+				withdrawals_insert_rows: 0,
+				address_balances_upsert_rows: 30,
+			},
 		]);
 	});
 });

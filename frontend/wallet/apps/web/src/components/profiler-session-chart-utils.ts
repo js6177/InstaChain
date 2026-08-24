@@ -17,6 +17,22 @@ export interface GetBalanceProfilerTimeseriesView {
 	throughput_per_sec: ProfilerTimeseriesPoint[];
 }
 
+/** Per-statement metrics on a batch-write profiler point (excludes batch_height). */
+export interface BatchWriteMetrics {
+	transactions_insert_ms: number;
+	withdrawals_insert_ms: number;
+	address_balances_upsert_ms: number;
+	transactions_insert_rows: number;
+	withdrawals_insert_rows: number;
+	address_balances_upsert_rows: number;
+}
+
+export type BatchWriteMetricField = keyof BatchWriteMetrics;
+
+export interface ProfilerDbwriterBatchWriteDurationPoint extends BatchWriteMetrics {
+	batch_height: number;
+}
+
 export interface ProfilerSessionTimeseriesView {
 	avg_replica_concurrent: ProfilerTimeseriesPoint[];
 	push_transaction_entries_cumulative: ProfilerTimeseriesPoint[];
@@ -28,6 +44,7 @@ export interface ProfilerSessionTimeseriesView {
 	dbwriter_redis_active: ProfilerTimeseriesPoint[];
 	push_transaction_section_avg_ms?: ProfilerPushTransactionSectionAvgView;
 	get_balance?: GetBalanceProfilerTimeseriesView;
+	dbwriter_batch_write_duration_ms?: ProfilerDbwriterBatchWriteDurationPoint[];
 }
 
 const EMPTY_SECTION_AVG: ProfilerPushTransactionSectionAvgView = {

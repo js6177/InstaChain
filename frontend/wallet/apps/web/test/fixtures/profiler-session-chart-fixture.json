@@ -1039,47 +1039,166 @@
     ],
     "push_transaction_section_avg_ms": {
       "validate": [
-        { "t_ms": 0, "value": 0 },
-        { "t_ms": 500, "value": 0.02 },
-        { "t_ms": 5000, "value": 0.03 },
-        { "t_ms": 15000, "value": 0.03 },
-        { "t_ms": 30000, "value": 0.04 }
+        {
+          "t_ms": 0,
+          "value": 0
+        },
+        {
+          "t_ms": 500,
+          "value": 0.02
+        },
+        {
+          "t_ms": 5000,
+          "value": 0.03
+        },
+        {
+          "t_ms": 15000,
+          "value": 0.03
+        },
+        {
+          "t_ms": 30000,
+          "value": 0.04
+        }
       ],
       "verify_signature": [
-        { "t_ms": 0, "value": 0 },
-        { "t_ms": 500, "value": 1.8 },
-        { "t_ms": 5000, "value": 2.1 },
-        { "t_ms": 15000, "value": 2.4 },
-        { "t_ms": 30000, "value": 2.2 }
+        {
+          "t_ms": 0,
+          "value": 0
+        },
+        {
+          "t_ms": 500,
+          "value": 1.8
+        },
+        {
+          "t_ms": 5000,
+          "value": 2.1
+        },
+        {
+          "t_ms": 15000,
+          "value": 2.4
+        },
+        {
+          "t_ms": 30000,
+          "value": 2.2
+        }
       ],
       "acquire_lock": [
-        { "t_ms": 0, "value": 0 },
-        { "t_ms": 500, "value": 0.4 },
-        { "t_ms": 5000, "value": 0.9 },
-        { "t_ms": 15000, "value": 1.5 },
-        { "t_ms": 30000, "value": 1.2 }
+        {
+          "t_ms": 0,
+          "value": 0
+        },
+        {
+          "t_ms": 500,
+          "value": 0.4
+        },
+        {
+          "t_ms": 5000,
+          "value": 0.9
+        },
+        {
+          "t_ms": 15000,
+          "value": 1.5
+        },
+        {
+          "t_ms": 30000,
+          "value": 1.2
+        }
       ],
       "duplicate_check": [
-        { "t_ms": 0, "value": 0 },
-        { "t_ms": 500, "value": 0.15 },
-        { "t_ms": 5000, "value": 0.2 },
-        { "t_ms": 15000, "value": 0.25 },
-        { "t_ms": 30000, "value": 0.22 }
+        {
+          "t_ms": 0,
+          "value": 0
+        },
+        {
+          "t_ms": 500,
+          "value": 0.15
+        },
+        {
+          "t_ms": 5000,
+          "value": 0.2
+        },
+        {
+          "t_ms": 15000,
+          "value": 0.25
+        },
+        {
+          "t_ms": 30000,
+          "value": 0.22
+        }
       ],
       "get_balance": [
-        { "t_ms": 0, "value": 0 },
-        { "t_ms": 500, "value": 0.3 },
-        { "t_ms": 5000, "value": 0.35 },
-        { "t_ms": 15000, "value": 0.4 },
-        { "t_ms": 30000, "value": 0.38 }
+        {
+          "t_ms": 0,
+          "value": 0
+        },
+        {
+          "t_ms": 500,
+          "value": 0.3
+        },
+        {
+          "t_ms": 5000,
+          "value": 0.35
+        },
+        {
+          "t_ms": 15000,
+          "value": 0.4
+        },
+        {
+          "t_ms": 30000,
+          "value": 0.38
+        }
       ],
       "enqueue": [
-        { "t_ms": 0, "value": 0 },
-        { "t_ms": 500, "value": 0.25 },
-        { "t_ms": 5000, "value": 0.45 },
-        { "t_ms": 15000, "value": 0.6 },
-        { "t_ms": 30000, "value": 0.55 }
+        {
+          "t_ms": 0,
+          "value": 0
+        },
+        {
+          "t_ms": 500,
+          "value": 0.25
+        },
+        {
+          "t_ms": 5000,
+          "value": 0.45
+        },
+        {
+          "t_ms": 15000,
+          "value": 0.6
+        },
+        {
+          "t_ms": 30000,
+          "value": 0.55
+        }
       ]
-    }
+    },
+    "dbwriter_batch_write_duration_ms": [
+      {
+        "batch_height": 10,
+        "transactions_insert_ms": 12.5,
+        "withdrawals_insert_ms": 0.0,
+        "address_balances_upsert_ms": 4.0,
+        "transactions_insert_rows": 100,
+        "withdrawals_insert_rows": 0,
+        "address_balances_upsert_rows": 40
+      },
+      {
+        "batch_height": 11,
+        "transactions_insert_ms": 18.0,
+        "withdrawals_insert_ms": 1.2,
+        "address_balances_upsert_ms": 5.5,
+        "transactions_insert_rows": 200,
+        "withdrawals_insert_rows": 3,
+        "address_balances_upsert_rows": 80
+      },
+      {
+        "batch_height": 12,
+        "transactions_insert_ms": 15.25,
+        "withdrawals_insert_ms": 0.0,
+        "address_balances_upsert_ms": 3.8,
+        "transactions_insert_rows": 150,
+        "withdrawals_insert_rows": 0,
+        "address_balances_upsert_rows": 60
+      }
+    ]
   }
 }

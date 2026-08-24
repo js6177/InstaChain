@@ -6,6 +6,7 @@ import {
 	ProfilerApiName,
 	ProfilerApiStats,
 	ProfilerDbwriterBatchEvent,
+	ProfilerDbwriterBatchWriteDurationPoint,
 	ProfilerDbwriterQueueDepthEvent,
 	ProfilerDbwriterRedisHash,
 	ProfilerDbwriterStats,
@@ -31,6 +32,7 @@ export {
 	ProfilerApiName,
 	ProfilerApiStats,
 	ProfilerDbwriterBatchEvent,
+	ProfilerDbwriterBatchWriteDurationPoint,
 	ProfilerDbwriterQueueDepthEvent,
 	ProfilerDbwriterRedisHash,
 	ProfilerDbwriterStats,
@@ -72,6 +74,13 @@ export function profilerSessionDbwriterKey(sessionId: string): string {
 
 export function profilerSessionDbwriterEventsKey(sessionId: string): string {
 	return `Layer2ProfilerSession:${sessionId}:dbwriter_events`;
+}
+
+/** Redis hash: field = batch_height, value = JSON of per-statement durations. */
+export function profilerSessionDbwriterBatchWriteDurationKey(
+	sessionId: string,
+): string {
+	return `Layer2ProfilerSession:${sessionId}:dbwriter_batch_write_duration`;
 }
 
 export function profilerSessionDbwriterQueueDepthKey(sessionId: string): string {
@@ -140,6 +149,7 @@ export async function startProfilerSessionInRedis(
 	pipeline.del(profilerSessionSpansKey(session.session_id));
 	pipeline.del(profilerSessionDbwriterKey(session.session_id));
 	pipeline.del(profilerSessionDbwriterEventsKey(session.session_id));
+	pipeline.del(profilerSessionDbwriterBatchWriteDurationKey(session.session_id));
 	pipeline.del(profilerSessionDbwriterQueueDepthKey(session.session_id));
 	pipeline.del(profilerSessionDbwriterWriteActiveKey(session.session_id));
 	pipeline.del(profilerSessionDbwriterSleepActiveKey(session.session_id));
@@ -187,6 +197,29 @@ export async function recordPushTransactionProfilerDbwriterBatch(
 		JSON.stringify(event),
 	);
 	await pipeline.exec();
+}
+
+/**
+ * Record per-statement Postgres write durations for a batch height
+ * (Redis hash field = batch_height, value = JSON durations).
+ */
+export async function recordPushTransactionProfilerDbwriterBatchWriteDuration(
+	redis: Redis,
+	sessionId: string,
+	point: ProfilerDbwriterBatchWriteDurationPoint,
+): Promise<void> {
+	await redis.hset(
+		profilerSessionDbwriterBatchWriteDurationKey(sessionId),
+		String(point.batch_height),
+		JSON.stringify({
+			transactions_insert_ms: point.transactions_insert_ms,
+			withdrawals_insert_ms: point.withdrawals_insert_ms,
+			address_balances_upsert_ms: point.address_balances_upsert_ms,
+			transactions_insert_rows: point.transactions_insert_rows,
+			withdrawals_insert_rows: point.withdrawals_insert_rows,
+			address_balances_upsert_rows: point.address_balances_upsert_rows,
+		}),
+	);
 }
 
 export async function recordPushTransactionProfilerDbwriterQueueEmpty(
@@ -419,6 +452,51 @@ async function loadDbwriterBatchEvents(
 	return events;
 }
 
+async function loadDbwriterBatchWriteDurationPoints(
+	redis: Redis,
+	sessionId: string,
+): Promise<ProfilerDbwriterBatchWriteDurationPoint[]> {
+	const fields = await redis.hgetall(
+		profilerSessionDbwriterBatchWriteDurationKey(sessionId),
+	);
+	const points: ProfilerDbwriterBatchWriteDurationPoint[] = [];
+	for (const [batchHeightRaw, durationRaw] of Object.entries(fields)) {
+		const batchHeight = Number(batchHeightRaw);
+		if (!Number.isFinite(batchHeight)) {
+			continue;
+		}
+		const asNumber = Number(durationRaw);
+		if (Number.isFinite(asNumber)) {
+			// Legacy: single duration_ms string.
+			points.push(
+				new ProfilerDbwriterBatchWriteDurationPoint({
+					batch_height: batchHeight,
+					transactions_insert_ms: asNumber,
+					withdrawals_insert_ms: 0,
+					address_balances_upsert_ms: 0,
+					transactions_insert_rows: 0,
+					withdrawals_insert_rows: 0,
+					address_balances_upsert_rows: 0,
+				}),
+			);
+			continue;
+		}
+		try {
+			const parsed = ProfilerDbwriterBatchWriteDurationPoint.parse({
+				batch_height: batchHeight,
+				...(JSON.parse(durationRaw) as object),
+			});
+			if (parsed) {
+				points.push(parsed);
+			}
+		} catch {
+			// skip malformed entries
+		}
+	}
+	points.sort((a, b) => a.batch_height - b.batch_height);
+	return points;
+}
+
 async function loadDbwriterQueueDepthEvents(
 	redis: Redis,
 	sessionId: string,
@@ -612,6 +690,7 @@ export function buildProfilerSessionTimeseries(
 	sleepActiveEvents: readonly ProfilerDbwriterSleepActiveEvent[] = [],
 	redisActiveEvents: readonly ProfilerDbwriterRedisActiveEvent[] = [],
 	sectionAvgSamples: readonly ProfilerPushTransactionSectionSample[] = [],
+	batchWriteDurations: readonly ProfilerDbwriterBatchWriteDurationPoint[] = [],
 	apiName: string = ProfilerApiName.PushTransaction,
 ): ProfilerSessionTimeseries {
 	const apiSpans = spans.filter((span) => span.api === apiName);
@@ -756,6 +835,9 @@ export function buildProfilerSessionTimeseries(
 			startedAtUnixMs,
 			spans,
 		),
+		dbwriter_batch_write_duration_ms: [...batchWriteDurations].sort(
+			(a, b) => a.batch_height - b.batch_height,
+		),
 	});
 }
 
@@ -809,6 +891,10 @@ export async function buildProfilerSessionReport(
 		redis,
 		sessionId,
 	);
+	const batchWriteDurations = await loadDbwriterBatchWriteDurationPoints(
+		redis,
+		sessionId,
+	);
 	const monitoredApis = session.apis.filter(
 		(api) => api !== ProfilerApiName.Dbwriter,
 	);
@@ -848,6 +934,7 @@ export async function buildProfilerSessionReport(
 			sleepActiveEvents,
 			redisActiveEvents,
 			sectionAvgSamples,
+			batchWriteDurations,
 		),
 		output_file: null,
 		redis: null,
@@ -919,6 +1006,7 @@ export async function clearProfilerSession(
 	pipeline.del(profilerSessionSpansKey(sessionId));
 	pipeline.del(profilerSessionDbwriterKey(sessionId));
 	pipeline.del(profilerSessionDbwriterEventsKey(sessionId));
+	pipeline.del(profilerSessionDbwriterBatchWriteDurationKey(sessionId));
 	pipeline.del(profilerSessionDbwriterQueueDepthKey(sessionId));
 	pipeline.del(profilerSessionDbwriterWriteActiveKey(sessionId));
 	pipeline.del(profilerSessionDbwriterSleepActiveKey(sessionId));

@@ -156,6 +156,84 @@ export class ProfilerDbwriterBatchEvent {
 	}
 }
 
+/**
+ * Per-statement Postgres write durations and row counts for one batch height.
+ * Stored in Redis as hash field `batch_height` → JSON payload.
+ */
+export class ProfilerDbwriterBatchWriteDurationPoint {
+	readonly batch_height: number;
+	readonly transactions_insert_ms: number;
+	readonly withdrawals_insert_ms: number;
+	readonly address_balances_upsert_ms: number;
+	readonly transactions_insert_rows: number;
+	readonly withdrawals_insert_rows: number;
+	readonly address_balances_upsert_rows: number;
+
+	constructor(init: ProfilerDbwriterBatchWriteDurationPoint) {
+		this.batch_height = init.batch_height;
+		this.transactions_insert_ms = init.transactions_insert_ms;
+		this.withdrawals_insert_ms = init.withdrawals_insert_ms;
+		this.address_balances_upsert_ms = init.address_balances_upsert_ms;
+		this.transactions_insert_rows = init.transactions_insert_rows;
+		this.withdrawals_insert_rows = init.withdrawals_insert_rows;
+		this.address_balances_upsert_rows = init.address_balances_upsert_rows;
+	}
+
+	static parse(
+		data: ProfilerDbwriterBatchWriteDurationPoint | null,
+	): ProfilerDbwriterBatchWriteDurationPoint | null {
+		if (!isStructuredObject(data)) {
+			return null;
+		}
+		const typed = data as ProfilerDbwriterBatchWriteDurationPoint & {
+			duration_ms?: number;
+		};
+		if (typeof typed.batch_height !== "number") {
+			return null;
+		}
+		// Legacy single-duration points: attribute to transactions insert.
+		if (
+			typeof typed.transactions_insert_ms !== "number" &&
+			typeof typed.duration_ms === "number"
+		) {
+			return new ProfilerDbwriterBatchWriteDurationPoint({
+				batch_height: typed.batch_height,
+				transactions_insert_ms: typed.duration_ms,
+				withdrawals_insert_ms: 0,
+				address_balances_upsert_ms: 0,
+				transactions_insert_rows: 0,
+				withdrawals_insert_rows: 0,
+				address_balances_upsert_rows: 0,
+			});
+		}
+		if (
+			typeof typed.transactions_insert_ms !== "number" ||
+			typeof typed.withdrawals_insert_ms !== "number" ||
+			typeof typed.address_balances_upsert_ms !== "number"
+		) {
+			return null;
+		}
+		return new ProfilerDbwriterBatchWriteDurationPoint({
+			batch_height: typed.batch_height,
+			transactions_insert_ms: typed.transactions_insert_ms,
+			withdrawals_insert_ms: typed.withdrawals_insert_ms,
+			address_balances_upsert_ms: typed.address_balances_upsert_ms,
+			transactions_insert_rows:
+				typeof typed.transactions_insert_rows === "number"
+					? typed.transactions_insert_rows
+					: 0,
+			withdrawals_insert_rows:
+				typeof typed.withdrawals_insert_rows === "number"
+					? typed.withdrawals_insert_rows
+					: 0,
+			address_balances_upsert_rows:
+				typeof typed.address_balances_upsert_rows === "number"
+					? typed.address_balances_upsert_rows
+					: 0,
+		});
+	}
+}
+
 /** Pending Redis transaction queue depth sampled once per dbwriter loop. */
 export class ProfilerDbwriterQueueDepthEvent {
 	readonly t_unix_ms: number;
@@ -635,6 +713,7 @@ export class GetBalanceProfilerTimeseries {
  * - dbwriter Redis housekeeping (0/1 square wave)
  * - pushTransaction section rolling-average latency (ms)
  * - getBalance average latency + throughput (from entry/exit spans)
+ * - dbwriter Postgres insert/upsert duration by batch height
  */
 export class ProfilerSessionTimeseries {
 	readonly avg_replica_concurrent: ProfilerTimeseriesPoint[];
@@ -647,6 +726,8 @@ export class ProfilerSessionTimeseries {
 	readonly dbwriter_redis_active: ProfilerTimeseriesPoint[];
 	readonly push_transaction_section_avg_ms: ProfilerPushTransactionSectionAvgTimeseries;
 	readonly get_balance: GetBalanceProfilerTimeseries;
+	/** x = batch_height; per-statement Postgres write durations (ms) */
+	readonly dbwriter_batch_write_duration_ms: ProfilerDbwriterBatchWriteDurationPoint[];
 
 	constructor(init: ProfilerSessionTimeseries) {
 		this.avg_replica_concurrent = init.avg_replica_concurrent;
@@ -662,6 +743,8 @@ export class ProfilerSessionTimeseries {
 		this.push_transaction_section_avg_ms =
 			init.push_transaction_section_avg_ms;
 		this.get_balance = init.get_balance;
+		this.dbwriter_batch_write_duration_ms =
+			init.dbwriter_batch_write_duration_ms;
 	}
 
 	static parse(
@@ -725,6 +808,9 @@ export class ProfilerSessionTimeseries {
 		const parsedGetBalance = GetBalanceProfilerTimeseries.parse(
 			data.get_balance ?? null,
 		);
+		const parsedBatchWriteDuration = parseBatchWriteDurationPoints(
+			data.dbwriter_batch_write_duration_ms ?? null,
+		);
 		if (
 			!parsedEntries ||
 			!parsedExits ||
@@ -733,7 +819,8 @@ export class ProfilerSessionTimeseries {
 			parsedSleepActive === null ||
 			parsedRedisActive === null ||
 			!parsedSectionAvg ||
-			!parsedGetBalance
+			!parsedGetBalance ||
+			parsedBatchWriteDuration === null
 		) {
 			return null;
 		}
@@ -749,8 +836,30 @@ export class ProfilerSessionTimeseries {
 			dbwriter_redis_active: parsedRedisActive,
 			push_transaction_section_avg_ms: parsedSectionAvg,
 			get_balance: parsedGetBalance,
+			dbwriter_batch_write_duration_ms: parsedBatchWriteDuration,
 		});
 	}
+}
+
+function parseBatchWriteDurationPoints(
+	value: ProfilerDbwriterBatchWriteDurationPoint[] | null,
+): ProfilerDbwriterBatchWriteDurationPoint[] | null {
+	if (value === null) {
+		// Older reports omit this series.
+		return [];
+	}
+	if (!Array.isArray(value)) {
+		return null;
+	}
+	const points: ProfilerDbwriterBatchWriteDurationPoint[] = [];
+	for (const point of value) {
+		const parsed = ProfilerDbwriterBatchWriteDurationPoint.parse(point ?? null);
+		if (!parsed) {
+			return null;
+		}
+		points.push(parsed);
+	}
+	return points;
 }
 
 /** Average concurrent step series across replicas at every change point. */

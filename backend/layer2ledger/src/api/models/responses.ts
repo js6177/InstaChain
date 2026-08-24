@@ -198,6 +198,16 @@ export const GetBalanceProfilerTimeseriesResponse = t.Object({
 	throughput_per_sec: t.Array(ProfilerTimeseriesPointResponse),
 });
 
+export const ProfilerDbwriterBatchWriteDurationPointResponse = t.Object({
+	batch_height: t.Number(),
+	transactions_insert_ms: t.Number(),
+	withdrawals_insert_ms: t.Number(),
+	address_balances_upsert_ms: t.Number(),
+	transactions_insert_rows: t.Number(),
+	withdrawals_insert_rows: t.Number(),
+	address_balances_upsert_rows: t.Number(),
+});
+
 export const ProfilerSessionTimeseriesResponse = t.Object({
 	avg_replica_concurrent: t.Array(ProfilerTimeseriesPointResponse),
 	push_transaction_entries_cumulative: t.Array(
@@ -211,6 +221,9 @@ export const ProfilerSessionTimeseriesResponse = t.Object({
 	dbwriter_redis_active: t.Array(ProfilerTimeseriesPointResponse),
 	push_transaction_section_avg_ms: ProfilerPushTransactionSectionAvgResponse,
 	get_balance: GetBalanceProfilerTimeseriesResponse,
+	dbwriter_batch_write_duration_ms: t.Array(
+		ProfilerDbwriterBatchWriteDurationPointResponse,
+	),
 });
 
 const RedisPingLatencyMsResponse = t.Object({
