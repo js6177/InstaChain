@@ -25,7 +25,17 @@ import {
 } from "../redis/distributed-lock";
 import { setProfilerSessionId } from "@openl2/openl2-logger";
 import { log } from "../logger";
-import { redisTransactionToInsert, redisWithdrawalRequestToInsert } from "../redis/models";
+import {
+	type PendingTransaction,
+	type PendingWithdrawal,
+	redisTransactionToInsert,
+	redisWithdrawalRequestToInsert,
+} from "../redis/models";
+import {
+	DbwriterFailedRowKind,
+	DbwriterFailedRowRecord,
+	recordDbwriterFailedRow,
+} from "../redis/dbwriter-failed-rows";
 import {
 	getActiveProfilerSession,
 	ProfilerApiName,
@@ -73,6 +83,11 @@ export interface ProcessPendingBatchContext {
 	lockManager: DistributedLock;
 	balanceCache: AddressBalanceCacheOptions;
 	deferredBloomSnapshot: DeferredBloomSnapshotState;
+	/**
+	 * Optional hook fired after each successful Postgres batch write attempt
+	 * (including binary-retry slices). Used by tests to count write depth.
+	 */
+	onSuccessfulBatchWrite?: (() => void) | null;
 }
 
 /** Drop queued bloom snapshot work (test / stress DB resets). */
@@ -128,6 +143,205 @@ export function pendingQueueSleepMs(
 	return 0;
 }
 
+enum BatchWriteUnitKind {
+	Transfer = "transfer",
+	Withdrawal = "withdrawal",
+}
+
+interface BatchWriteUnit {
+	kind: BatchWriteUnitKind;
+	pending: PendingTransaction | PendingWithdrawal;
+	transactionInsert: TransactionInsert;
+	withdrawalInsert: WithdrawalRequestInsert | null;
+	balanceDeltas: ReadonlyArray<{ address: string; delta: number }>;
+}
+
+interface BatchWriteSliceResult {
+	absoluteBalances: Array<{ address: string; balance: number }>;
+	committedTransactionIds: string[];
+	committedAddresses: string[];
+	failedUnits: BatchWriteUnit[];
+}
+
+function errorMessage(error: unknown): string {
+	if (error instanceof Error) {
+		return error.message;
+	}
+	return String(error);
+}
+
+function buildAddressBalances(
+	units: readonly BatchWriteUnit[],
+): Array<{ address: string; balance: number }> {
+	const balanceUpdates = new Map<string, number>();
+	for (const unit of units) {
+		for (const { address, delta } of unit.balanceDeltas) {
+			balanceUpdates.set(address, (balanceUpdates.get(address) ?? 0) + delta);
+		}
+	}
+	return Array.from(balanceUpdates.entries()).map(([address, balance]) => ({
+		address,
+		balance,
+	}));
+}
+
+async function attemptBatchWrite(
+	db: Layer2LedgerDbClient,
+	units: readonly BatchWriteUnit[],
+): Promise<Array<{ address: string; balance: number }>> {
+	const newTransactions = units.map((unit) => unit.transactionInsert);
+	const newWithdrawals = units
+		.map((unit) => unit.withdrawalInsert)
+		.filter((row): row is WithdrawalRequestInsert => row !== null);
+	const addressBalances = buildAddressBalances(units);
+
+	let absoluteBalances: Array<{ address: string; balance: number }> = [];
+	await db.transaction(async (tx) => {
+		if (newTransactions.length > 0) {
+			await tx.insert(transactions).values(newTransactions);
+		}
+		if (newWithdrawals.length > 0) {
+			await tx.insert(withdrawalRequests).values(newWithdrawals);
+		}
+		if (addressBalances.length > 0) {
+			absoluteBalances = await tx
+				.insert(layer2AddressBalance)
+				.values(addressBalances)
+				.onConflictDoUpdate({
+					target: layer2AddressBalance.address,
+					set: {
+						balance: sql`${layer2AddressBalance.balance} + excluded.balance`,
+					},
+				})
+				.returning({
+					address: layer2AddressBalance.address,
+					balance: layer2AddressBalance.balance,
+				});
+		}
+	});
+	return absoluteBalances;
+}
+
+async function recordFailedWriteUnit(
+	redisDiagnostics: Redis,
+	unit: BatchWriteUnit,
+	error: unknown,
+): Promise<void> {
+	const layer2TransactionId = unit.transactionInsert.layer2TransactionId;
+	const message = errorMessage(error);
+	log.error(
+		`dbwriter rejected failing row layer2_transaction_id=${layer2TransactionId} ` +
+			`kind=${unit.kind}: ${message}`,
+		{
+			layer2_transaction_id: layer2TransactionId,
+			kind: unit.kind,
+			error: message,
+			payload: unit.pending,
+		},
+	);
+	try {
+		await recordDbwriterFailedRow(
+			redisDiagnostics,
+			new DbwriterFailedRowRecord({
+				failedAtUnixMs: Date.now(),
+				kind:
+					unit.kind === BatchWriteUnitKind.Withdrawal
+						? DbwriterFailedRowKind.Withdrawal
+						: DbwriterFailedRowKind.Transfer,
+				layer2TransactionId,
+				errorMessage: message,
+				payload: unit.pending,
+			}),
+		);
+	} catch (diagnosticsError) {
+		log.warning("failed to persist dbwriter failed-row diagnostic", {
+			layer2_transaction_id: layer2TransactionId,
+			error: errorMessage(diagnosticsError),
+		});
+	}
+}
+
+/**
+ * Write a batch slice; on failure bisect until the failing row(s) are isolated.
+ * Successful slices are committed; failing singletons are logged + stored on
+ * redis-diagnostics (24h TTL) and skipped.
+ */
+async function writeBatchWithBinaryRetry(
+	db: Layer2LedgerDbClient,
+	redisDiagnostics: Redis,
+	units: readonly BatchWriteUnit[],
+	onSuccessfulBatchWrite?: (() => void) | null,
+): Promise<BatchWriteSliceResult> {
+	if (units.length === 0) {
+		return {
+			absoluteBalances: [],
+			committedTransactionIds: [],
+			committedAddresses: [],
+			failedUnits: [],
+		};
+	}
+
+	try {
+		const absoluteBalances = await attemptBatchWrite(db, units);
+		onSuccessfulBatchWrite?.();
+		return {
+			absoluteBalances,
+			committedTransactionIds: units.map(
+				(unit) => unit.transactionInsert.layer2TransactionId,
+			),
+			committedAddresses: buildAddressBalances(units).map((row) => row.address),
+			failedUnits: [],
+		};
+	} catch (error) {
+		if (units.length === 1) {
+			const unit = units[0];
+			if (unit !== undefined) {
+				await recordFailedWriteUnit(redisDiagnostics, unit, error);
+			}
+			return {
+				absoluteBalances: [],
+				committedTransactionIds: [],
+				committedAddresses: [],
+				failedUnits: unit !== undefined ? [unit] : [],
+			};
+		}
+
+		const mid = Math.floor(units.length / 2);
+		const left = await writeBatchWithBinaryRetry(
+			db,
+			redisDiagnostics,
+			units.slice(0, mid),
+			onSuccessfulBatchWrite,
+		);
+		const right = await writeBatchWithBinaryRetry(
+			db,
+			redisDiagnostics,
+			units.slice(mid),
+			onSuccessfulBatchWrite,
+		);
+		const absoluteByAddress = new Map<string, number>();
+		for (const row of [...left.absoluteBalances, ...right.absoluteBalances]) {
+			absoluteByAddress.set(row.address, row.balance);
+		}
+		return {
+			absoluteBalances: Array.from(absoluteByAddress.entries()).map(
+				([address, balance]) => ({ address, balance }),
+			),
+			committedTransactionIds: [
+				...left.committedTransactionIds,
+				...right.committedTransactionIds,
+			],
+			committedAddresses: [
+				...new Set([
+					...left.committedAddresses,
+					...right.committedAddresses,
+				]),
+			],
+			failedUnits: [...left.failedUnits, ...right.failedUnits],
+		};
+	}
+}
+
 /**
  * Drain pending Redis transfer/withdrawal queues into Postgres and release locks.
  * Used by the dbwriter loop and by functional tests.
@@ -145,6 +359,7 @@ export async function processPendingBatch(
 		lockManager,
 		balanceCache,
 		deferredBloomSnapshot,
+		onSuccessfulBatchWrite,
 	} = context;
 	const transactionsToProcess = await getPendingTransactions(
 		redisTransaction,
@@ -166,71 +381,72 @@ export async function processPendingBatch(
 	}
 
 	const nextBatchHeight = currentBatchHeight + 1;
-	const newTransactions: TransactionInsert[] = [];
-	const newWithdrawals: WithdrawalRequestInsert[] = [];
-	const balanceUpdates = new Map<string, number>();
+	const writeUnits: BatchWriteUnit[] = [];
 
 	for (const pendingTx of transactionsToProcess) {
 		pendingTx.transaction.batch_height = nextBatchHeight;
-		newTransactions.push(redisTransactionToInsert(pendingTx.transaction));
-
-		const source = pendingTx.transaction.source_address_pubkey;
-		const dest = pendingTx.transaction.destination_address_pubkey;
 		const amount = pendingTx.transaction.amount;
-		balanceUpdates.set(source, (balanceUpdates.get(source) ?? 0) - amount);
-		balanceUpdates.set(dest, (balanceUpdates.get(dest) ?? 0) + amount);
+		writeUnits.push({
+			kind: BatchWriteUnitKind.Transfer,
+			pending: pendingTx,
+			transactionInsert: redisTransactionToInsert(pendingTx.transaction),
+			withdrawalInsert: null,
+			balanceDeltas: [
+				{
+					address: pendingTx.transaction.source_address_pubkey,
+					delta: -amount,
+				},
+				{
+					address: pendingTx.transaction.destination_address_pubkey,
+					delta: amount,
+				},
+			],
+		});
 	}
 
 	for (const pendingWithdrawal of withdrawalsToProcess) {
 		pendingWithdrawal.transaction.batch_height = nextBatchHeight;
 		pendingWithdrawal.withdrawal_request.batch_height = nextBatchHeight;
-
-		newTransactions.push(
-			redisTransactionToInsert(pendingWithdrawal.transaction),
-		);
-		newWithdrawals.push(
-			redisWithdrawalRequestToInsert(pendingWithdrawal.withdrawal_request),
-		);
-
-		const source = pendingWithdrawal.transaction.source_address_pubkey;
 		const amount = pendingWithdrawal.transaction.amount;
-		balanceUpdates.set(source, (balanceUpdates.get(source) ?? 0) - amount);
+		writeUnits.push({
+			kind: BatchWriteUnitKind.Withdrawal,
+			pending: pendingWithdrawal,
+			transactionInsert: redisTransactionToInsert(
+				pendingWithdrawal.transaction,
+			),
+			withdrawalInsert: redisWithdrawalRequestToInsert(
+				pendingWithdrawal.withdrawal_request,
+			),
+			balanceDeltas: [
+				{
+					address: pendingWithdrawal.transaction.source_address_pubkey,
+					delta: -amount,
+				},
+			],
+		});
 	}
 
-	const addressBalances = Array.from(balanceUpdates.entries()).map(
-		([address, balance]) => ({ address, balance }),
-	);
-
-	let absoluteBalances: Array<{ address: string; balance: number }> = [];
+	let writeResult: BatchWriteSliceResult = {
+		absoluteBalances: [],
+		committedTransactionIds: [],
+		committedAddresses: [],
+		failedUnits: [],
+	};
 	await recordWriteActive(redisDiagnostics, true);
 	try {
-		await db.transaction(async (tx) => {
-			if (newTransactions.length > 0) {
-				await tx.insert(transactions).values(newTransactions);
-			}
-			if (newWithdrawals.length > 0) {
-				await tx.insert(withdrawalRequests).values(newWithdrawals);
-			}
-			if (addressBalances.length > 0) {
-				// RETURNING yields post-upsert absolute balances (no extra SELECT).
-				absoluteBalances = await tx
-					.insert(layer2AddressBalance)
-					.values(addressBalances)
-					.onConflictDoUpdate({
-						target: layer2AddressBalance.address,
-						set: {
-							balance: sql`${layer2AddressBalance.balance} + excluded.balance`,
-						},
-					})
-					.returning({
-						address: layer2AddressBalance.address,
-						balance: layer2AddressBalance.balance,
-					});
-			}
-		});
+		writeResult = await writeBatchWithBinaryRetry(
+			db,
+			redisDiagnostics,
+			writeUnits,
+			onSuccessfulBatchWrite,
+		);
 	} finally {
 		await recordWriteActive(redisDiagnostics, false);
 	}
+
+	const absoluteBalances = writeResult.absoluteBalances;
+	const committedTransactionIds = writeResult.committedTransactionIds;
+	const committedAddresses = writeResult.committedAddresses;
 
 	await recordRedisActive(redisDiagnostics, true);
 	try {
@@ -250,13 +466,13 @@ export async function processPendingBatch(
 		}
 
 		// Keep RedisBloom filters in sync with Postgres before unlocks.
-		const committedTransactionIds = newTransactions.map(
-			(tx) => tx.layer2TransactionId,
+		await addTransactionIdsToBloomFilter(
+			redisTransaction,
+			committedTransactionIds,
 		);
-		await addTransactionIdsToBloomFilter(redisTransaction, committedTransactionIds);
 		await addAddressesToAddressBalanceBloomFilter(
 			redisAddressBalance,
-			addressBalances.map((row) => row.address),
+			committedAddresses,
 		);
 
 		// Unlock ASAP; defer only the expensive BF.SCANDUMP snapshot.
@@ -305,21 +521,28 @@ export async function processPendingBatch(
 
 	const totalProcessed =
 		transactionsToProcess.length + withdrawalsToProcess.length;
+	const committedCount = committedTransactionIds.length;
+	const failedCount = writeResult.failedUnits.length;
 	if (totalProcessed > 0) {
 		const elapsedMs = Math.round(performance.now() - startedAt);
 		log.info(
 			`Processed transactions: total=${totalProcessed} ` +
+				`committed=${committedCount} failed=${failedCount} ` +
 				`(tx=${transactionsToProcess.length}, withdrawals=${withdrawalsToProcess.length}, ` +
 				`batch_height=${nextBatchHeight}, elapsed_ms=${elapsedMs})`,
 			{
 				transactions_processed: transactionsToProcess.length,
 				withdrawals_processed: withdrawalsToProcess.length,
 				total_processed: totalProcessed,
+				committed_count: committedCount,
+				failed_count: failedCount,
 				batch_height: nextBatchHeight,
 				elapsed_ms: elapsedMs,
 			},
 		);
-		await recordDbWrites(redisDiagnostics, totalProcessed);
+		if (committedCount > 0) {
+			await recordDbWrites(redisDiagnostics, committedCount);
+		}
 	}
 
 	const pendingRemaining = await redisTransaction.llen(PENDING_TRANSACTIONS_LIST_KEY);

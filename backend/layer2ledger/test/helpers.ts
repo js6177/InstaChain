@@ -159,7 +159,9 @@ export async function insertAddressBalance(
 	await insertAddressBalances([{ address, balance }]);
 }
 
-export async function drainPendingQueues(): Promise<void> {
+export async function drainPendingQueues(options?: {
+	onSuccessfulBatchWrite?: (() => void) | null;
+}): Promise<void> {
 	const batchHeight = await getCurrentBatchHeight(db);
 	await processPendingBatch(
 		{
@@ -170,6 +172,7 @@ export async function drainPendingQueues(): Promise<void> {
 			lockManager,
 			balanceCache,
 			deferredBloomSnapshot,
+			onSuccessfulBatchWrite: options?.onSuccessfulBatchWrite ?? null,
 		},
 		batchHeight,
 	);
