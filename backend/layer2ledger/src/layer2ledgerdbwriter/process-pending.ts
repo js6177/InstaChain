@@ -1,6 +1,12 @@
 import { max, sql } from "drizzle-orm";
 import type Redis from "ioredis";
+import type postgres from "postgres";
 import type { Layer2LedgerDbClient } from "../db/client";
+import {
+	copyInsertTransactions,
+	copyInsertWithdrawalRequests,
+	copyUpsertAddressBalances,
+} from "../db/copy-insert";
 import {
 	type TransactionInsert,
 	type WithdrawalRequestInsert,
@@ -52,7 +58,7 @@ import {
 } from "../redis/transaction-id-bloom";
 
 /** Max items read from each Redis pending list per Postgres batch insert. */
-export const MAXIMUM_BATCH_INSERT_COUNT = 4999;
+export const MAXIMUM_BATCH_INSERT_COUNT = 9999;
 
 /** Max idle sleep between dbwriter loops when the pending queue is empty. */
 export const PENDING_BATCH_IDLE_SLEEP_MS = 10;
@@ -277,6 +283,17 @@ interface AttemptBatchWriteResult {
 	insertStats: BatchWriteInsertStats;
 }
 
+/** postgres.js handle reserved by drizzle's `db.transaction` / `sql.begin`. */
+interface DrizzlePostgresTransaction {
+	session: { client: postgres.Sql };
+}
+
+function transactionCopySql(
+	tx: DrizzlePostgresTransaction,
+): postgres.Sql {
+	return tx.session.client;
+}
+
 async function attemptBatchWrite(
 	db: Layer2LedgerDbClient,
 	units: readonly BatchWriteUnit[],
@@ -341,6 +358,71 @@ async function attemptBatchWrite(
 	return { absoluteBalances, insertStats };
 }
 
+/**
+ * Same as {@link attemptBatchWrite}, but bulk-loads via PostgreSQL COPY:
+ * transactions/withdrawals COPY directly; address balances use a session temp
+ * staging table then INSERT…SELECT upsert (same delta semantics as drizzle).
+ */
+async function attemptBatchWriteCopy(
+	db: Layer2LedgerDbClient,
+	units: readonly BatchWriteUnit[],
+): Promise<AttemptBatchWriteResult> {
+	const newTransactions = units.map((unit) => unit.transactionInsert);
+	const newWithdrawals = units
+		.map((unit) => unit.withdrawalInsert)
+		.filter((row): row is WithdrawalRequestInsert => row !== null);
+	const addressBalances = buildAddressBalances(units);
+
+	let absoluteBalances: AbsoluteAddressBalance[] = [];
+	const insertStats = emptyInsertStats();
+	try {
+		// drizzle.transaction uses postgres.js begin under the hood; COPY reuses
+		// that same reserved client so inserts + balance upsert stay atomic.
+		await db.transaction(async (tx) => {
+			const txSql = transactionCopySql(
+				tx as unknown as DrizzlePostgresTransaction,
+			);
+			if (newTransactions.length > 0) {
+				const startedAt = performance.now();
+				try {
+					await copyInsertTransactions(txSql, newTransactions);
+				} finally {
+					insertStats.transactionsInsertMs = performance.now() - startedAt;
+				}
+			}
+			if (newWithdrawals.length > 0) {
+				const startedAt = performance.now();
+				try {
+					await copyInsertWithdrawalRequests(txSql, newWithdrawals);
+				} finally {
+					insertStats.withdrawalsInsertMs = performance.now() - startedAt;
+				}
+			}
+			if (addressBalances.length > 0) {
+				const startedAt = performance.now();
+				try {
+					absoluteBalances = await copyUpsertAddressBalances(
+						txSql,
+						addressBalances,
+					);
+				} finally {
+					insertStats.addressBalancesUpsertMs = performance.now() - startedAt;
+				}
+			}
+		});
+	} catch (cause) {
+		throw new TimedBatchWriteFailure(cause, {
+			transactionsInsertMs: insertStats.transactionsInsertMs,
+			withdrawalsInsertMs: insertStats.withdrawalsInsertMs,
+			addressBalancesUpsertMs: insertStats.addressBalancesUpsertMs,
+		});
+	}
+	insertStats.transactionsInsertRows = newTransactions.length;
+	insertStats.withdrawalsInsertRows = newWithdrawals.length;
+	insertStats.addressBalancesUpsertRows = addressBalances.length;
+	return { absoluteBalances, insertStats };
+}
+
 async function recordFailedWriteUnit(
 	redisDiagnostics: Redis,
 	unit: BatchWriteUnit,
@@ -384,7 +466,12 @@ async function recordFailedWriteUnit(
  * Write a batch slice; on failure bisect until the failing row(s) are isolated.
  * Successful slices are committed; failing singletons are logged + stored on
  * redis-diagnostics (24h TTL) and skipped.
+ *
+ * Swap {@link attemptBatchWriteImpl} between {@link attemptBatchWrite} (INSERT)
+ * and {@link attemptBatchWriteCopy} (COPY) when comparing throughput.
  */
+const attemptBatchWriteImpl: typeof attemptBatchWrite = attemptBatchWriteCopy;
+
 async function writeBatchWithBinaryRetry(
 	db: Layer2LedgerDbClient,
 	redisDiagnostics: Redis,
@@ -402,7 +489,7 @@ async function writeBatchWithBinaryRetry(
 	}
 
 	try {
-		const { absoluteBalances, insertStats } = await attemptBatchWrite(
+		const { absoluteBalances, insertStats } = await attemptBatchWriteImpl(
 			db,
 			units,
 		);
