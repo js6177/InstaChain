@@ -256,9 +256,10 @@ services:
       LAYER2LEDGER_API_URL: http://layer2ledgerapihandler-nginx:8000
       TESTHELPER_BASE_URL: http://layer2ledger-testhelper:8001
       STRESS_RESULT_FILE: /test-output/test-layer2ledger-stress.throughput.json
-    # Plain `bun` (not `bun test`): stress.test.ts re-execs with a raised
+    # Plain `bun` (not `bun test`): stress.ts re-execs with a raised
     # BUN_CONFIG_MAX_HTTP_REQUESTS for health/getBalance stress.
-    command: ["bun", "test/stress.test.ts"]
+    # Named stress.ts (not *.test.ts) so unit `bun test` does not load it.
+    command: ["bun", "test/stress.ts"]
     volumes:
       - ./.config:/app/.config:ro
       - ./.test-output/stress:/test-output

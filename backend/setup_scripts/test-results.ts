@@ -10,7 +10,7 @@ import { log } from "./src/logger";
 /** Container path where dated host output is mounted. */
 export const TEST_OUTPUT_MOUNT = "/test-output";
 
-/** Written by layer2ledger stress.test.ts; summarized at end of run-tests. */
+/** Written by layer2ledger stress.ts; summarized at end of run-tests. */
 export const STRESS_THROUGHPUT_FILENAME = "test-layer2ledger-stress.throughput.json";
 
 /** Written by layer2ledger verify-timing.test.ts; summarized at end of run-tests. */
@@ -101,11 +101,11 @@ export function getServiceTestCommand(
 				],
 			};
 		case DockerService.TEST_LAYER2LEDGER_STRESS:
-			// Plain `bun` (not `bun test`): stress.test.ts raises
+			// Plain `bun` (not `bun test`): stress.ts raises
 			// BUN_CONFIG_MAX_HTTP_REQUESTS via re-exec. Exit code → synthetic JUnit.
 			return {
 				kind: TestRunnerKind.SYNTHETIC,
-				command: ["bun", "test/stress.test.ts"],
+				command: ["bun", "test/stress.ts"],
 			};
 		case DockerService.TEST_BITCOIN_CORE_RPC:
 			// Entrypoint writes JUnit when TEST_RESULT_FILE is set.

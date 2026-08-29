@@ -5,7 +5,7 @@ import {
 	ErrorCodes,
 	unwrapLayer2LedgerResponse,
 	unwrapLayer2TestHelperResponse,
-} from "@openl2/api-layer2ledger";
+} from "../../../shared/api-layer2ledger/index.ts";
 import { loadLayer2LedgerCommonConfig } from "@openl2/config-loader";
 import { createOpenL2Logger } from "@openl2/openl2-logger";
 import { getTableName } from "drizzle-orm";
@@ -115,8 +115,7 @@ function ensureBunFetchConcurrencyLimit(): void {
 }
 
 
-// Only re-exec / raise Bun's fetch cap for intentional stress runs. Unit
-// `bun test` may discover this file; without stress flags we must not take over.
+// Only re-exec / raise Bun's fetch cap for intentional stress runs.
 if (isStressRun) {
 	ensureBunFetchConcurrencyLimit();
 }
@@ -1068,7 +1067,7 @@ if (import.meta.main) {
 	if (!isStressRun) {
 		// Discovered by `bun test` without stress flags — do not fail the suite.
 		console.log(
-			"stress.test.ts: skipping (set RUN_LEDGER_HEALTH_STRESS=1 and/or RUN_LEDGER_GET_BALANCE_STRESS=1)",
+			"stress.ts: skipping (set RUN_LEDGER_HEALTH_STRESS=1 and/or RUN_LEDGER_GET_BALANCE_STRESS=1)",
 		);
 	} else {
 		await main();
