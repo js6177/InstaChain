@@ -46,6 +46,7 @@ import {
 	loadBaselineSnapshots,
 	printRedisDiagnostics,
 	redisDiagnosticsPath,
+	resolveApihandlerReplicaHint,
 } from "./redis-diagnostics";
 
 const log = createOpenL2Logger({ serviceName: "openl2-stress-finalize" });
@@ -276,6 +277,7 @@ function printThroughputSummary(
 	console.log(
 		`title=${title} ` +
 			`profiler_session=${result.profilerSessionId} ` +
+			`apihandler_replicas=${result.apihandlerReplicas ?? "—"} ` +
 			`push_ms=${result.phaseTimingsMs.pushMs} ` +
 			`settle_ms=${result.phaseTimingsMs.settleMs} ` +
 			`push_to_settle_ms=${result.phaseTimingsMs.pushToSettleMs} ` +
@@ -294,6 +296,7 @@ function printThroughputSummary(
 		title,
 		profiler_session_id: result.profilerSessionId,
 		visualization_url: visualizationUrl,
+		apihandler_replicas: result.apihandlerReplicas,
 		push_txs_per_second: result.pushTxsPerSecond,
 		settled_txs_per_second: result.settledTxsPerSecond,
 		push_success_rate_pct: successRatePct,
@@ -469,6 +472,7 @@ export async function finalizePushStress(
 			apiErrors,
 			cache: new StressCacheStats(cache),
 			redis: redisReport,
+			apihandlerReplicas: resolveApihandlerReplicaHint(),
 		});
 
 		const pushSuccessRatePct = computeSuccessRatePct(

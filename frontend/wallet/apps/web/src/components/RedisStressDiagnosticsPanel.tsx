@@ -29,6 +29,7 @@ interface RedisConnectionPoolView {
 	connectedClients: number;
 	expectedMinClients: number;
 	expectedMaxClients: number;
+	apihandlerReplicas: number;
 }
 
 interface RedisInstanceSnapshotView {
@@ -935,6 +936,11 @@ export function RedisStressDiagnosticsPanel({
 								{snap.role}
 							</div>
 							<div className="text-muted-foreground text-xs">
+								{LABELS.TEXT_PROFILER_REDIS_APIHANDLER_REPLICAS}:{" "}
+								<span className="text-foreground font-mono">
+									{snap.pool.apihandlerReplicas}
+								</span>
+								{" · "}
 								{LABELS.TEXT_PROFILER_REDIS_CONNECTED_CLIENTS}:{" "}
 								<span className="text-foreground font-mono">
 									{snap.connectedClients}

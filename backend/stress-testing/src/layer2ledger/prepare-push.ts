@@ -47,6 +47,7 @@ import {
 import {
 	captureBothRedisSnapshots,
 	resetRedisSlowlog,
+	resolveApihandlerReplicaHint,
 	writeBaselineSnapshots,
 } from "./redis-diagnostics";
 
@@ -260,6 +261,7 @@ function buildDescription(options: {
 	concurrency: number;
 	settleConcurrency: number;
 	settleTimeoutMs: number;
+	apihandlerReplicas: number;
 }): string {
 	return [
 		`balance_cache_mode=${options.mode}`,
@@ -271,6 +273,7 @@ function buildDescription(options: {
 		`STRESS_SETTLE_TIMEOUT_MS=${options.settleTimeoutMs}`,
 		`ENVIRONMENT=${process.env.ENVIRONMENT ?? ""}`,
 		`LAYER2LEDGER_API_URL=${ledgerApiUrl()}`,
+		`LAYER2LEDGER_APIHANDLER_REPLICAS=${options.apihandlerReplicas}`,
 	].join("\n");
 }
 
@@ -338,6 +341,7 @@ export async function preparePushDataset(
 			concurrency,
 			settleConcurrency,
 			settleTimeoutMs,
+			apihandlerReplicas: resolveApihandlerReplicaHint(),
 		});
 
 		log.info("preparing push dataset", {

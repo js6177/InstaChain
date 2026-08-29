@@ -19,16 +19,23 @@ services:
       - ./backend/layer2ledger/.env.test
     environment:
       ENVIRONMENT: test
+    # Host publish for local tooling / seeding (not on prod base compose).
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
 
   redis-transactions:
     image: redis/redis-stack:7.4.0-v3
     environment:
       ENVIRONMENT: test
+    ports:
+      - "${REDIS_TRANSACTIONS_PUBLISH_PORT:-6379}:6379"
 
   redis-addressbalance:
     image: redis/redis-stack:7.4.0-v3
     environment:
       ENVIRONMENT: test
+    ports:
+      - "${REDIS_ADDRESSBALANCE_PUBLISH_PORT:-6380}:6379"
 
   # Profiler / diagnostic app data only (isolates profiler traffic from hot-path Redis).
   redis-diagnostics:
@@ -48,6 +55,8 @@ services:
   layer2ledger-mongodb:
     environment:
       ENVIRONMENT: test
+    ports:
+      - "${MONGODB_PORT:-27017}:27017"
 
   layer2ledgerapihandler:
     env_file:
@@ -185,7 +194,7 @@ services:
       TESTHELPER_BASE_URL: http://layer2ledger-testhelper:8001
       STRESS_RESULT_FILE: /stress-data/test-layer2ledger-stress.throughput.json
       WALLET_WEB_ORIGIN: ${WALLET_WEB_ORIGIN:-http://localhost:5173}
-      LAYER2LEDGER_APIHANDLER_REPLICAS: ${LAYER2LEDGER_APIHANDLER_REPLICAS:-8}
+      LAYER2LEDGER_APIHANDLER_REPLICAS: ${LAYER2LEDGER_APIHANDLER_REPLICAS:-1}
     volumes:
       - ./.config:/app/.config:ro
       - ./.test-output/stress:/stress-data

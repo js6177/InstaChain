@@ -8,11 +8,24 @@ services:
       - bitcoin_core_data:/home/bitcoin/.bitcoin
       - ./.config/dev/bitcoin.conf:/config/bitcoin.conf:ro
 
+  # Host publishes for local tooling / seeding (not present on prod base compose).
+  layer2ledger-postgres:
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
   redis-transactions:
     image: redis/redis-stack:7.4.0-v3
+    ports:
+      - "${REDIS_TRANSACTIONS_PUBLISH_PORT:-6379}:6379"
 
   redis-addressbalance:
     image: redis/redis-stack:7.4.0-v3
+    ports:
+      - "${REDIS_ADDRESSBALANCE_PUBLISH_PORT:-6380}:6379"
+
+  layer2ledger-mongodb:
+    ports:
+      - "${MONGODB_PORT:-27017}:27017"
 
   # Profiler / diagnostic app data only (isolates profiler traffic from hot-path Redis).
   redis-diagnostics:

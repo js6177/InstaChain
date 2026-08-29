@@ -72,6 +72,11 @@ export class StressThroughputResult {
 	 * Null when diagnostics were skipped or unavailable.
 	 */
 	readonly redis: RedisStressDiagnostics | null;
+	/**
+	 * `LAYER2LEDGER_APIHANDLER_REPLICAS` for this run (compose scale).
+	 * Null on older on-disk results.
+	 */
+	readonly apihandlerReplicas: number | null;
 
 	constructor(init: StressThroughputResult) {
 		this.transactionCount = init.transactionCount;
@@ -87,6 +92,7 @@ export class StressThroughputResult {
 		this.apiErrors = init.apiErrors;
 		this.cache = init.cache;
 		this.redis = init.redis;
+		this.apihandlerReplicas = init.apihandlerReplicas;
 	}
 
 	static parse(
@@ -109,6 +115,13 @@ export class StressThroughputResult {
 			typed.redis === null || typed.redis === undefined
 				? null
 				: RedisStressDiagnostics.parse(typed.redis);
+		const replicasRaw = typed.apihandlerReplicas;
+		const apihandlerReplicas =
+			typeof replicasRaw === "number" &&
+			Number.isFinite(replicasRaw) &&
+			replicasRaw > 0
+				? Math.floor(replicasRaw)
+				: null;
 		return new StressThroughputResult({
 			transactionCount: typed.transactionCount,
 			processedToPostgres: typed.processedToPostgres,
@@ -123,6 +136,7 @@ export class StressThroughputResult {
 			apiErrors: parsedErrors,
 			cache: parsedCache,
 			redis,
+			apihandlerReplicas,
 		});
 	}
 

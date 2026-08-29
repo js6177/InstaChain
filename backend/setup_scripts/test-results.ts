@@ -438,6 +438,7 @@ export function printStressThroughputSummary(outputDir: string): void {
 	const phases = result.phaseTimingsMs;
 	log.info(
 		`pushTransaction stress ` +
+			`apihandler_replicas=${result.apihandlerReplicas ?? "—"} ` +
 			`push_txs_per_sec=${result.pushTxsPerSecond} ` +
 			`settled_txs_per_sec=${result.settledTxsPerSecond} ` +
 			`(accepted ${result.acceptedPushes}/${result.transactionCount}, ` +
@@ -445,6 +446,7 @@ export function printStressThroughputSummary(outputDir: string): void {
 			`push_ms=${phases.pushMs}, ` +
 			`push_to_settle_ms=${phases.pushToSettleMs})`,
 		{
+			apihandler_replicas: result.apihandlerReplicas,
 			push_txs_per_second: result.pushTxsPerSecond,
 			settled_txs_per_second: result.settledTxsPerSecond,
 			accepted_pushes: result.acceptedPushes,

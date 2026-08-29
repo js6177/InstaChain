@@ -30,6 +30,7 @@ describe("StressThroughputResult", () => {
 			apiErrors: StressApiErrors.empty(),
 			cache: new StressCacheStats({ hits: 1, misses: 0 }),
 			redis: null,
+			apihandlerReplicas: 8,
 		});
 
 		const parsed = StressThroughputResult.fromJsonText(JSON.stringify(written));
@@ -38,5 +39,6 @@ describe("StressThroughputResult", () => {
 		expect(parsed?.profilerSessionId).toBe("session-1");
 		expect(parsed?.phaseTimingsMs.pushMs).toBe(4);
 		expect(parsed?.cache.hits).toBe(1);
+		expect(parsed?.apihandlerReplicas).toBe(8);
 	});
 });
