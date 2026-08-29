@@ -13,7 +13,6 @@
 		"preview": "vite preview"
 	},
 	"dependencies": {
-		"@elysiajs/eden": "^1.4.9",
 		"@icons-pack/react-simple-icons": "^13.13.0",
 		"@openl2/api-layer2ledger": "workspace:*",
 		"@openl2/api-layer2oauthmanager": "workspace:*",
@@ -48,7 +47,6 @@
 		"@vitejs/plugin-react": "^5.1.1",
 		"@vitest/browser-webdriverio": "^4.1.4",
 		"@wdio/visual-service": "^9.2.2",
-		"elysia": "^1.4.28",
 		"eslint": "^9.39.1",
 		"eslint-plugin-react-hooks": "^7.0.1",
 		"eslint-plugin-react-refresh": "^0.4.24",

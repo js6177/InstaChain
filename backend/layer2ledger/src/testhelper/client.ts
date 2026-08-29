@@ -18,16 +18,16 @@ export type Layer2TestHelperClient = ReturnType<
 	typeof createLayer2TestHelperClient
 >;
 
-type TreatyResult<T> = {
-	data: T | null;
+type TreatyResult = {
+	data: unknown;
 	error: unknown;
 	status: number;
 };
 
 /** Unwrap a successful Eden treaty response body, or throw on transport/parse failure. */
-export function unwrapLayer2TestHelperResponse<T>(result: TreatyResult<T>): T {
-	if (result.data !== null) {
-		return result.data;
+export function unwrapLayer2TestHelperResponse<T>(result: TreatyResult): T {
+	if (result.data !== null && result.data !== undefined) {
+		return result.data as T;
 	}
 
 	const detail =
