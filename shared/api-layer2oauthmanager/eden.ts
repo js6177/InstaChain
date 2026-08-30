@@ -1,10 +1,10 @@
 import { treaty } from "@elysiajs/eden";
-import { REQUEST_ID_HEADER } from "@openl2/openl2-logger/constants";
 import {
 	ErrorCodes,
 	type ErrorResponse,
 	type Layer2OAuthApp,
 } from "@openl2/layer2oauthmanager/http-server-models";
+import { REQUEST_ID_HEADER } from "@openl2/openl2-logger/constants";
 
 export type { Layer2OAuthApp };
 export { ErrorCodes };
@@ -19,23 +19,31 @@ function requestIdHeaders(): Record<string, string> {
 	};
 }
 
-export function createLayer2OAuthClient(baseUrl: string) {
+// Treaty's return type is too large/fragile to write explicitly; Layer2OAuthClient
+// is derived from this helper via ReturnType.
+// biome-ignore lint/nursery/useExplicitReturnType: inferred from treaty<Layer2OAuthApp>
+function buildLayer2OAuthClient(baseUrl: string) {
 	return treaty<Layer2OAuthApp>(normalizeBaseUrl(baseUrl), {
 		headers: requestIdHeaders,
 	});
 }
 
-export type Layer2OAuthClient = ReturnType<typeof createLayer2OAuthClient>;
+export type Layer2OAuthClient = ReturnType<typeof buildLayer2OAuthClient>;
 
-type TreatyResult<T> = {
-	data: T | null;
-	error: { value?: T } | unknown | null;
+export function createLayer2OAuthClient(baseUrl: string): Layer2OAuthClient {
+	return buildLayer2OAuthClient(baseUrl);
+}
+
+/** Eden treaty result shape (data is often `unknown` when elysia copies diverge). */
+export type TreatyResult = {
+	data: unknown;
+	error: unknown;
 	status?: number;
 };
 
-function readErrorValue<T>(error: TreatyResult<T>["error"]): T | null {
+function readErrorValue(error: unknown): unknown {
 	if (error && typeof error === "object" && "value" in error) {
-		return (error as { value?: T }).value ?? null;
+		return (error as { value?: unknown }).value ?? null;
 	}
 	return null;
 }
@@ -45,7 +53,7 @@ function readErrorValue<T>(error: TreatyResult<T>["error"]): T | null {
  * OAuth routes return typed bodies on both success and error statuses, and encode
  * business outcomes in `error_response`.
  */
-export function unwrapLayer2OAuthResponse<T>(result: TreatyResult<T>): T {
+export function unwrapLayer2OAuthResponse<T>(result: TreatyResult): T {
 	const response = (result.data ?? readErrorValue(result.error)) as
 		| (T & { error_response?: ErrorResponse })
 		| null

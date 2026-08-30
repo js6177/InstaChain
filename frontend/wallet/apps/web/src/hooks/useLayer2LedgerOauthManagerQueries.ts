@@ -1,77 +1,103 @@
-import {
-	type AuthorizeWithLayer2AuthTokenRequest,
-	createLayer2OAuthClient,
-	type FindOAuthUserResponse,
-	type FindOauth2UserByIdRequest,
-	type FindOauth2UserByIdResponse,
-	type FindOauthUserRequest,
-	type OAuthRequest,
-	type OAuthResponse,
-	type SearchUserRequest,
-	type SearchUserResponse,
-	unwrapLayer2OAuthResponse,
+import type {
+	AuthorizeWithLayer2AuthTokenRequest,
+	FindOAuthUserResponse,
+	FindOauth2UserByIdRequest,
+	FindOauth2UserByIdResponse,
+	FindOauthUserRequest,
+	OAuthRequest,
+	OAuthResponse,
+	SearchUserRequest,
+	SearchUserResponse,
 } from "@openl2/api-layer2oauthmanager";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+	authorizeWithLayer2Token,
+	createLayer2OAuthClient,
+	findOAuthUser,
+	findOAuthUserById,
+	oauthExchange,
+	searchOAuthUser,
+} from "@openl2/api-layer2oauthmanager";
+import {
+	type UseMutationResult,
+	type UseQueryResult,
+	useMutation,
+	useQuery,
+} from "@tanstack/react-query";
 import { LAYER2_OAUTH_API_URL } from "../config";
 
 const oauthApi = createLayer2OAuthClient(LAYER2_OAUTH_API_URL);
 
-export const useFindOAuthUserById = (
+export function useFindOAuthUserById(
 	params: FindOauth2UserByIdRequest | undefined,
-) => {
+): UseQueryResult<FindOauth2UserByIdResponse, Error> {
 	return useQuery({
 		queryKey: ["OAuthFindUserById", params],
-		queryFn: async () =>
-			unwrapLayer2OAuthResponse<FindOauth2UserByIdResponse>(
-				await oauthApi.oauth.findUserById.post(params!),
-			),
+		queryFn: async (): Promise<FindOauth2UserByIdResponse> => {
+			if (!params) {
+				throw new Error("FindOauth2UserByIdRequest is required");
+			}
+			return findOAuthUserById(oauthApi, params);
+		},
 		enabled: !!params?.service_name && !!params?.service_specific_id,
 		staleTime: Infinity,
 		refetchOnWindowFocus: false,
 		refetchOnReconnect: false,
 	});
-};
+}
 
-export const useSearchOAuthUser = (params: SearchUserRequest | undefined) => {
+export function useSearchOAuthUser(
+	params: SearchUserRequest | undefined,
+): UseQueryResult<SearchUserResponse, Error> {
 	return useQuery({
 		queryKey: ["OAuthSearchUser", params],
-		queryFn: async () =>
-			unwrapLayer2OAuthResponse<SearchUserResponse>(
-				await oauthApi.user.search.post(params!),
-			),
+		queryFn: async (): Promise<SearchUserResponse> => {
+			if (!params) {
+				throw new Error("SearchUserRequest is required");
+			}
+			return searchOAuthUser(oauthApi, params);
+		},
 		enabled: !!params?.keyword,
 	});
-};
+}
 
-export const useFindOAuthUser = (params: FindOauthUserRequest | undefined) => {
+export function useFindOAuthUser(
+	params: FindOauthUserRequest | undefined,
+): UseQueryResult<FindOAuthUserResponse, Error> {
 	return useQuery({
 		queryKey: ["OAuthFindUser", params],
-		queryFn: async () =>
-			unwrapLayer2OAuthResponse<FindOAuthUserResponse>(
-				await oauthApi.user.find.post(params!),
-			),
+		queryFn: async (): Promise<FindOAuthUserResponse> => {
+			if (!params) {
+				throw new Error("FindOauthUserRequest is required");
+			}
+			return findOAuthUser(oauthApi, params);
+		},
 		enabled: !!params?.profile_url,
 	});
-};
+}
 
-export const useAuthorizeWithLayer2Token = (
+export function useAuthorizeWithLayer2Token(
 	params: AuthorizeWithLayer2AuthTokenRequest | undefined,
-) => {
+): UseQueryResult<OAuthResponse, Error> {
 	return useQuery({
 		queryKey: ["OAuthL2TokenAuthorize", params],
-		queryFn: async () =>
-			unwrapLayer2OAuthResponse<OAuthResponse>(
-				await oauthApi.oauth.l2_token_authorize.post(params!),
-			),
+		queryFn: async (): Promise<OAuthResponse> => {
+			if (!params) {
+				throw new Error("AuthorizeWithLayer2AuthTokenRequest is required");
+			}
+			return authorizeWithLayer2Token(oauthApi, params);
+		},
 		enabled: !!params?.layer2_oauth_token.layer2_authorization_token,
 	});
-};
+}
 
-export const useOAuthExchangeMutation = () => {
+export function useOAuthExchangeMutation(): UseMutationResult<
+	OAuthResponse,
+	Error,
+	OAuthRequest
+> {
 	return useMutation({
-		mutationFn: async (params: OAuthRequest) =>
-			unwrapLayer2OAuthResponse<OAuthResponse>(
-				await oauthApi.oauth.exchange.post(params),
-			),
+		mutationFn: async (params: OAuthRequest): Promise<OAuthResponse> => {
+			return oauthExchange(oauthApi, params);
+		},
 	});
-};
+}

@@ -27,5 +27,14 @@ export {
 	ErrorCodes,
 	type Layer2OAuthApp,
 	type Layer2OAuthClient,
+	type TreatyResult,
 	unwrapLayer2OAuthResponse,
 } from "./eden";
+export {
+	authorizeWithLayer2Token,
+	findOAuthUser,
+	findOAuthUserById,
+	getOAuthHealth,
+	oauthExchange,
+	searchOAuthUser,
+} from "./oauth-api";
