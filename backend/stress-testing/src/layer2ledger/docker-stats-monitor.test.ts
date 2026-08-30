@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { DockerStatsServiceRole } from "@openl2/stress-results";
 import {
+	cgroupDirForHostPid,
+	computeInstantCpuPercent,
+	parseCpuStatUsageUsec,
 	parseDockerSizeToBytes,
 	parseMemUsage,
 	parsePercent,
@@ -75,5 +78,53 @@ describe("roleForContainerName", () => {
 			DockerStatsServiceRole.Postgres,
 		);
 		expect(roleForContainerName("instachain-wallet-web-1")).toBeNull();
+	});
+});
+
+describe("computeInstantCpuPercent", () => {
+	it("returns percent of one CPU from usage/wall deltas", () => {
+		expect(
+			computeInstantCpuPercent({
+				prevUsageUsec: 1_000_000,
+				prevWallUsec: 10_000_000,
+				usageUsec: 1_500_000,
+				wallUsec: 11_000_000,
+			}),
+		).toBeCloseTo(50);
+	});
+
+	it("returns null for non-positive wall delta or negative usage", () => {
+		expect(
+			computeInstantCpuPercent({
+				prevUsageUsec: 100,
+				prevWallUsec: 1000,
+				usageUsec: 200,
+				wallUsec: 1000,
+			}),
+		).toBeNull();
+		expect(
+			computeInstantCpuPercent({
+				prevUsageUsec: 200,
+				prevWallUsec: 1000,
+				usageUsec: 100,
+				wallUsec: 2000,
+			}),
+		).toBeNull();
+	});
+});
+
+describe("parseCpuStatUsageUsec", () => {
+	it("reads usage_usec from cpu.stat text", () => {
+		expect(
+			parseCpuStatUsageUsec("usage_usec 12345\nuser_usec 1\nsystem_usec 2\n"),
+		).toBe(12345);
+		expect(parseCpuStatUsageUsec("nope")).toBeNull();
+	});
+});
+
+describe("cgroupDirForHostPid", () => {
+	it("returns null for invalid pids", () => {
+		expect(cgroupDirForHostPid(0)).toBeNull();
+		expect(cgroupDirForHostPid(-1)).toBeNull();
 	});
 });

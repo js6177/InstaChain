@@ -5,6 +5,7 @@ import {
 	clampBound,
 	clampViewRange,
 	collectProfilerXValues,
+	computeDockerStatsTotals,
 	nearestX,
 	type ProfilerSessionTimeseriesView,
 	recalculateTotalTxsPerSec,
@@ -228,5 +229,42 @@ describe("clampViewRange", () => {
 		});
 		expect(result.endMs - result.startMs).toBeGreaterThanOrEqual(minWindowMs);
 		expect(result.startMs).toBe(5000);
+	});
+});
+
+describe("computeDockerStatsTotals", () => {
+	test("returns null for empty samples", () => {
+		expect(computeDockerStatsTotals([])).toBe(null);
+	});
+
+	test("sums containers per tick then reports peak and average", () => {
+		const totals = computeDockerStatsTotals([
+			{
+				capturedAtUnixMs: 1000,
+				cpuPercent: 10,
+				memoryUsageBytes: 100,
+			},
+			{
+				capturedAtUnixMs: 1000,
+				cpuPercent: 20,
+				memoryUsageBytes: 50,
+			},
+			{
+				capturedAtUnixMs: 2000,
+				cpuPercent: 40,
+				memoryUsageBytes: 200,
+			},
+			{
+				capturedAtUnixMs: 2000,
+				cpuPercent: 5,
+				memoryUsageBytes: 25,
+			},
+		]);
+		expect(totals).not.toBe(null);
+		expect(totals?.tickCount).toBe(2);
+		expect(totals?.peakTotalCpuPercent).toBe(45);
+		expect(totals?.avgTotalCpuPercent).toBe(37.5);
+		expect(totals?.peakTotalMemoryBytes).toBe(225);
+		expect(totals?.avgTotalMemoryBytes).toBe(187.5);
 	});
 });

@@ -1,9 +1,16 @@
 /**
- * Host-side 1Hz `docker stats` / `podman stats` poller for push-stress
- * compose services during k6. Writes JSONL under STRESS_DATA_DIR for finalize.
+ * Host-side 1Hz container resource poller for push-stress compose services
+ * during k6. Writes JSONL under STRESS_DATA_DIR for finalize.
+ *
+ * CPU is an **instantaneous** rate from cgroup `cpu.stat` usage deltas between
+ * ticks (100% ≈ one fully busy host CPU). Podman `stats` `CPU`/`AvgCPU` is a
+ * lifetime average since container start and must not be used for stress charts.
+ * Memory is current cgroup `memory.current` (RSS-equivalent for the container).
  */
 
+import { readFileSync } from "node:fs";
 import { appendFile } from "node:fs/promises";
+import { join } from "node:path";
 import { DockerService } from "@openl2/config-loader";
 import {
 	DockerStatsServiceRole,
@@ -16,21 +23,15 @@ import {
 } from "../../scripts/compose";
 import { redisDockerStatsPath } from "./redis-diagnostics";
 
-/**
- * Docker `stats --format '{{json .}}'` uses string fields (`CPUPerc`, `MemUsage`
- * like `"28.8MiB / 30.4GiB"`). Podman uses numeric bytes / percent fields
- * (`CPU`, `MemUsage`, `MemLimit`, `MemPerc`).
- */
-interface DockerStatsJsonRow {
+interface ContainerInspectRow {
+	Id?: string;
 	Name?: string;
-	CPUPerc?: string | number;
-	/** Docker: `"used / limit"` string. Podman: usage bytes (number). */
-	MemUsage?: string | number;
-	/** Podman-only companion to numeric MemUsage. */
-	MemLimit?: number;
-	MemPerc?: string | number;
-	/** Podman CPU percent (Docker uses CPUPerc). */
-	CPU?: number;
+	State?: { Pid?: number; Running?: boolean };
+}
+
+interface CpuBaseline {
+	usageUsec: number;
+	wallUsec: number;
 }
 
 export function parsePercent(raw: string | number | undefined | null): number {
@@ -109,6 +110,94 @@ export function parseMemUsage(
 }
 
 /**
+ * Instantaneous CPU % from cgroup usage deltas.
+ * 100 ≈ one fully busy host CPU (can exceed 100 for multi-threaded containers).
+ */
+export function computeInstantCpuPercent(args: {
+	prevUsageUsec: number;
+	prevWallUsec: number;
+	usageUsec: number;
+	wallUsec: number;
+}): number | null {
+	const deltaUsage = args.usageUsec - args.prevUsageUsec;
+	const deltaWall = args.wallUsec - args.prevWallUsec;
+	if (deltaWall <= 0 || deltaUsage < 0) {
+		return null;
+	}
+	return (deltaUsage / deltaWall) * 100;
+}
+
+/** Parse `usage_usec` from a cgroup v2 `cpu.stat` file body. */
+export function parseCpuStatUsageUsec(cpuStatText: string): number | null {
+	const match = /^usage_usec\s+(\d+)\s*$/m.exec(cpuStatText);
+	if (match === null) {
+		return null;
+	}
+	const value = Number(match[1]);
+	return Number.isFinite(value) ? value : null;
+}
+
+/** Resolve the cgroup v2 directory for a host PID (`/proc/<pid>/cgroup`). */
+export function cgroupDirForHostPid(pid: number): string | null {
+	if (!Number.isFinite(pid) || pid <= 0) {
+		return null;
+	}
+	try {
+		const text = readFileSync(`/proc/${pid}/cgroup`, "utf8");
+		const lines = text.trim().split("\n");
+		for (let i = lines.length - 1; i >= 0; i -= 1) {
+			const line = lines[i] ?? "";
+			const sep = line.indexOf("::");
+			if (sep < 0) {
+				continue;
+			}
+			const rel = line.slice(sep + 2).trim();
+			if (rel.length === 0) {
+				continue;
+			}
+			return join("/sys/fs/cgroup", rel);
+		}
+	} catch {
+		return null;
+	}
+	return null;
+}
+
+function readCgroupUsageUsec(cgroupDir: string): number | null {
+	try {
+		return parseCpuStatUsageUsec(
+			readFileSync(join(cgroupDir, "cpu.stat"), "utf8"),
+		);
+	} catch {
+		return null;
+	}
+}
+
+function readCgroupMemoryBytes(cgroupDir: string): {
+	usageBytes: number;
+	limitBytes: number;
+} {
+	let usageBytes = 0;
+	let limitBytes = 0;
+	try {
+		const raw = Number(readFileSync(join(cgroupDir, "memory.current"), "utf8"));
+		usageBytes = Number.isFinite(raw) ? raw : 0;
+	} catch {
+		usageBytes = 0;
+	}
+	try {
+		const raw = readFileSync(join(cgroupDir, "memory.max"), "utf8").trim();
+		if (raw !== "max") {
+			const parsed = Number(raw);
+			limitBytes = Number.isFinite(parsed) ? parsed : 0;
+		}
+	} catch {
+		limitBytes = 0;
+	}
+	return { usageBytes, limitBytes };
+}
+
+/**
  * Push-stress data-path services to include in host docker/podman stats.
  * Order matters for name matching (nginx before apihandler).
  */
@@ -183,22 +272,19 @@ async function resolveStatsContainerIds(
 	return ids;
 }
 
-async function captureDockerStatsTick(
+async function inspectContainers(
 	config: StressOrchestratorConfig,
 	containerIds: string[],
-): Promise<RedisDockerStatsSample[]> {
+): Promise<ContainerInspectRow[]> {
 	if (containerIds.length === 0) {
 		return [];
 	}
 	const cli = resolveContainerCliForConfig();
-	const proc = Bun.spawn(
-		[cli, "stats", "--no-stream", "--format", "{{json .}}", ...containerIds],
-		{
-			cwd: config.root,
-			stdout: "pipe",
-			stderr: "pipe",
-		},
-	);
+	const proc = Bun.spawn([cli, "inspect", ...containerIds], {
+		cwd: config.root,
+		stdout: "pipe",
+		stderr: "pipe",
+	});
 	const [exitCode, stdout, stderr] = await Promise.all([
 		proc.exited,
 		new Response(proc.stdout).text(),
@@ -206,37 +292,72 @@ async function captureDockerStatsTick(
 	]);
 	if (exitCode !== 0) {
 		throw new Error(
-			`stats failed exit=${exitCode}: ${stderr.trim() || stdout.trim()}`,
+			`inspect failed exit=${exitCode}: ${stderr.trim() || stdout.trim()}`,
 		);
 	}
+	const parsed = JSON.parse(stdout) as ContainerInspectRow[];
+	return Array.isArray(parsed) ? parsed : [];
+}
+
+/**
+ * Sample instantaneous CPU (cgroup delta) + current memory for each container.
+ * Returns no rows until each container has a prior baseline (first call seeds only).
+ */
+export async function captureDockerStatsTick(
+	config: StressOrchestratorConfig,
+	containerIds: string[],
+	cpuBaselines: Map<string, CpuBaseline>,
+): Promise<RedisDockerStatsSample[]> {
+	if (containerIds.length === 0) {
+		return [];
+	}
+	const inspected = await inspectContainers(config, containerIds);
 	const capturedAtUnixMs = Date.now();
+	const wallUsec = capturedAtUnixMs * 1000;
 	const samples: RedisDockerStatsSample[] = [];
-	for (const line of stdout.split("\n")) {
-		const trimmed = line.trim();
-		if (trimmed.length === 0) {
-			continue;
-		}
-		let row: DockerStatsJsonRow;
-		try {
-			row = JSON.parse(trimmed) as DockerStatsJsonRow;
-		} catch {
-			continue;
-		}
-		const name = String(row.Name ?? "");
+
+	for (const row of inspected) {
+		const id = String(row.Id ?? "").trim();
+		const name = String(row.Name ?? "").replace(/^\//, "");
 		const role = roleForContainerName(name);
-		if (role === null) {
+		const pid = row.State?.Pid ?? 0;
+		if (id.length === 0 || role === null || !row.State?.Running || pid <= 0) {
 			continue;
 		}
-		const mem = parseMemUsage(row.MemUsage, row.MemLimit);
+		const cgroupDir = cgroupDirForHostPid(pid);
+		if (cgroupDir === null) {
+			continue;
+		}
+		const usageUsec = readCgroupUsageUsec(cgroupDir);
+		if (usageUsec === null) {
+			continue;
+		}
+		const mem = readCgroupMemoryBytes(cgroupDir);
+		const prev = cpuBaselines.get(id);
+		cpuBaselines.set(id, { usageUsec, wallUsec });
+		if (prev === undefined) {
+			continue;
+		}
+		const cpuPercent = computeInstantCpuPercent({
+			prevUsageUsec: prev.usageUsec,
+			prevWallUsec: prev.wallUsec,
+			usageUsec,
+			wallUsec,
+		});
+		if (cpuPercent === null) {
+			continue;
+		}
+		const memoryPercent =
+			mem.limitBytes > 0 ? (mem.usageBytes / mem.limitBytes) * 100 : 0;
 		samples.push(
 			new RedisDockerStatsSample({
 				role,
 				capturedAtUnixMs,
 				containerName: name,
-				cpuPercent: parsePercent(row.CPUPerc ?? row.CPU),
+				cpuPercent,
 				memoryUsageBytes: mem.usageBytes,
 				memoryLimitBytes: mem.limitBytes,
-				memoryPercent: parsePercent(row.MemPerc),
+				memoryPercent,
 			}),
 		);
 	}
@@ -254,21 +375,37 @@ export async function runDockerStatsMonitor(options: {
 	await Bun.write(jsonlPath, "");
 
 	let containerIds = await resolveStatsContainerIds(options.config);
+	const cpuBaselines = new Map<string, CpuBaseline>();
 	console.log(
 		`docker-stats monitor started mode=${options.mode} interval_ms=${intervalMs} ` +
-			`containers=${containerIds.length} jsonl=${jsonlPath}`,
+			`containers=${containerIds.length} jsonl=${jsonlPath} ` +
+			`(cgroup instantaneous CPU; 100%=1 host CPU)`,
 	);
 
 	try {
+		// Seed baselines so the first written tick is a real interval rate.
+		if (containerIds.length > 0) {
+			await captureDockerStatsTick(options.config, containerIds, cpuBaselines);
+		}
+
 		while (!options.signal.aborted) {
 			const tickStarted = Date.now();
 			try {
 				if (containerIds.length === 0) {
 					containerIds = await resolveStatsContainerIds(options.config);
+					cpuBaselines.clear();
+					if (containerIds.length > 0) {
+						await captureDockerStatsTick(
+							options.config,
+							containerIds,
+							cpuBaselines,
+						);
+					}
 				}
 				const samples = await captureDockerStatsTick(
 					options.config,
 					containerIds,
+					cpuBaselines,
 				);
 				if (samples.length > 0) {
 					await appendFile(

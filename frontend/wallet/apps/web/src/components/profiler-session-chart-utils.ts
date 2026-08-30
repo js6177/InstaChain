@@ -209,3 +209,62 @@ export function clampViewRange(args: {
 		endMs: Math.round(nextEnd),
 	};
 }
+
+/** Minimal docker-stats fields needed to aggregate host totals over a stress wave. */
+export interface DockerStatsTotalSample {
+	capturedAtUnixMs: number;
+	cpuPercent: number;
+	memoryUsageBytes: number;
+}
+
+export interface DockerStatsTotals {
+	/** Max over ticks of (sum of all container CPU % at that tick). */
+	peakTotalCpuPercent: number;
+	/** Mean over ticks of (sum of all container CPU % at that tick). */
+	avgTotalCpuPercent: number;
+	/** Max over ticks of (sum of all container memory bytes at that tick). */
+	peakTotalMemoryBytes: number;
+	/** Mean over ticks of (sum of all container memory bytes at that tick). */
+	avgTotalMemoryBytes: number;
+	tickCount: number;
+}
+
+/**
+ * Sum CPU % and memory across every sampled container at each capture time,
+ * then report peak and average of those per-tick totals.
+ */
+export function computeDockerStatsTotals(
+	samples: readonly DockerStatsTotalSample[],
+): DockerStatsTotals | null {
+	if (samples.length === 0) {
+		return null;
+	}
+	const byTime = new Map<number, { cpuPercent: number; memoryBytes: number }>();
+	for (const sample of samples) {
+		const prev = byTime.get(sample.capturedAtUnixMs) ?? {
+			cpuPercent: 0,
+			memoryBytes: 0,
+		};
+		prev.cpuPercent += sample.cpuPercent;
+		prev.memoryBytes += sample.memoryUsageBytes;
+		byTime.set(sample.capturedAtUnixMs, prev);
+	}
+	let peakTotalCpuPercent = 0;
+	let peakTotalMemoryBytes = 0;
+	let sumCpu = 0;
+	let sumMem = 0;
+	for (const tick of byTime.values()) {
+		peakTotalCpuPercent = Math.max(peakTotalCpuPercent, tick.cpuPercent);
+		peakTotalMemoryBytes = Math.max(peakTotalMemoryBytes, tick.memoryBytes);
+		sumCpu += tick.cpuPercent;
+		sumMem += tick.memoryBytes;
+	}
+	const tickCount = byTime.size;
+	return {
+		peakTotalCpuPercent,
+		avgTotalCpuPercent: sumCpu / tickCount,
+		peakTotalMemoryBytes,
+		avgTotalMemoryBytes: sumMem / tickCount,
+		tickCount,
+	};
+}

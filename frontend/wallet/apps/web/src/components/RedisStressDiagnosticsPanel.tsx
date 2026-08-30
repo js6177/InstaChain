@@ -3,6 +3,7 @@ import type { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import type { JSX } from "react";
 import { useMemo, useState } from "react";
+import { computeDockerStatsTotals } from "./profiler-session-chart-utils";
 
 interface RedisPingLatencyMsView {
 	sampleCount: number;
@@ -844,6 +845,11 @@ export function RedisStressDiagnosticsPanel({
 		return memoryChartOption(series);
 	}, [dockerStatsSamples, originUnixMs]);
 
+	const dockerStatsTotals = useMemo(
+		() => computeDockerStatsTotals(dockerStatsSamples),
+		[dockerStatsSamples],
+	);
+
 	const commandQueueOption = useMemo(
 		() =>
 			chartOption(
@@ -1036,6 +1042,17 @@ export function RedisStressDiagnosticsPanel({
 							style={{ height: 260, width: "100%" }}
 							notMerge
 						/>
+						{dockerStatsTotals !== null && (
+							<p className="text-xs text-muted-foreground">
+								{LABELS.TEXT_PROFILER_REDIS_CHART_CPU_TOTAL_PEAK}
+								{": "}
+								{dockerStatsTotals.peakTotalCpuPercent.toFixed(1)}%
+								{" · "}
+								{LABELS.TEXT_PROFILER_REDIS_CHART_CPU_TOTAL_AVG}
+								{": "}
+								{dockerStatsTotals.avgTotalCpuPercent.toFixed(1)}%
+							</p>
+						)}
 					</section>
 					<section className="space-y-2">
 						<h4 className="text-sm font-medium text-foreground">
@@ -1046,6 +1063,17 @@ export function RedisStressDiagnosticsPanel({
 							style={{ height: 260, width: "100%" }}
 							notMerge
 						/>
+						{dockerStatsTotals !== null && (
+							<p className="text-xs text-muted-foreground">
+								{LABELS.TEXT_PROFILER_REDIS_CHART_MEMORY_TOTAL_PEAK}
+								{": "}
+								{formatBytesHuman(dockerStatsTotals.peakTotalMemoryBytes)}
+								{" · "}
+								{LABELS.TEXT_PROFILER_REDIS_CHART_MEMORY_TOTAL_AVG}
+								{": "}
+								{formatBytesHuman(dockerStatsTotals.avgTotalMemoryBytes)}
+							</p>
+						)}
 					</section>
 				</div>
 			)}
