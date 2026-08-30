@@ -15,15 +15,31 @@ import {
 } from "../../scripts/compose";
 import { redisDockerStatsPath } from "./redis-diagnostics";
 
+/**
+ * Docker `stats --format '{{json .}}'` uses string fields (`CPUPerc`, `MemUsage`
+ * like `"28.8MiB / 30.4GiB"`). Podman uses numeric bytes / percent fields
+ * (`CPU`, `MemUsage`, `MemLimit`, `MemPerc`).
+ */
 interface DockerStatsJsonRow {
 	Name?: string;
-	CPUPerc?: string;
-	MemUsage?: string;
-	MemPerc?: string;
+	CPUPerc?: string | number;
+	/** Docker: `"used / limit"` string. Podman: usage bytes (number). */
+	MemUsage?: string | number;
+	/** Podman-only companion to numeric MemUsage. */
+	MemLimit?: number;
+	MemPerc?: string | number;
+	/** Podman CPU percent (Docker uses CPUPerc). */
+	CPU?: number;
 }
 
-function parsePercent(raw: string | undefined): number {
-	if (raw === undefined || raw.length === 0) {
+export function parsePercent(raw: string | number | undefined | null): number {
+	if (raw === undefined || raw === null) {
+		return 0;
+	}
+	if (typeof raw === "number") {
+		return Number.isFinite(raw) ? raw : 0;
+	}
+	if (raw.length === 0) {
 		return 0;
 	}
 	const trimmed = raw.trim().replace(/%/g, "");
@@ -63,11 +79,23 @@ export function parseDockerSizeToBytes(raw: string): number {
 	return value * mult;
 }
 
-export function parseMemUsage(memUsage: string | undefined): {
+export function parseMemUsage(
+	memUsage: string | number | undefined | null,
+	memLimit?: number | undefined | null,
+): {
 	usageBytes: number;
 	limitBytes: number;
 } {
-	if (memUsage === undefined || memUsage.length === 0) {
+	if (typeof memUsage === "number") {
+		return {
+			usageBytes: Number.isFinite(memUsage) ? memUsage : 0,
+			limitBytes:
+				typeof memLimit === "number" && Number.isFinite(memLimit)
+					? memLimit
+					: 0,
+		};
+	}
+	if (memUsage === undefined || memUsage === null || memUsage.length === 0) {
 		return { usageBytes: 0, limitBytes: 0 };
 	}
 	const parts = memUsage.split("/");
@@ -176,13 +204,13 @@ async function captureDockerStatsTick(
 		if (role === null) {
 			continue;
 		}
-		const mem = parseMemUsage(row.MemUsage);
+		const mem = parseMemUsage(row.MemUsage, row.MemLimit);
 		samples.push(
 			new RedisDockerStatsSample({
 				role,
 				capturedAtUnixMs,
 				containerName: name,
-				cpuPercent: parsePercent(row.CPUPerc),
+				cpuPercent: parsePercent(row.CPUPerc ?? row.CPU),
 				memoryUsageBytes: mem.usageBytes,
 				memoryLimitBytes: mem.limitBytes,
 				memoryPercent: parsePercent(row.MemPerc),
