@@ -92,8 +92,7 @@ const YAxisValueKind = {
 	Integer: "integer",
 } as const;
 
-type YAxisValueKindValue =
-	(typeof YAxisValueKind)[keyof typeof YAxisValueKind];
+type YAxisValueKindValue = (typeof YAxisValueKind)[keyof typeof YAxisValueKind];
 
 function seriesForRole(
 	samples: readonly RedisDuringSampleView[],
@@ -177,18 +176,18 @@ function slowlogInstruction(command: readonly string[]): string {
 }
 
 const SLOWLOG_INSTRUCTION_COLORS = [
-	"#38bdf8",
-	"#a78bfa",
-	"#34d399",
-	"#fbbf24",
-	"#f87171",
-	"#22d3ee",
-	"#fb7185",
-	"#84cc16",
-	"#e879f9",
-	"#60a5fa",
-	"#f59e0b",
-	"#2dd4bf",
+	"blue",
+	"green",
+	"red",
+	"orange",
+	"purple",
+	"teal",
+	"brown",
+	"pink",
+	"olive",
+	"navy",
+	"maroon",
+	"gold",
 ] as const;
 
 function colorForSlowlogInstruction(instruction: string): string {
@@ -320,10 +319,7 @@ function formatBytesHuman(bytes: number): string {
 	return `${Math.round(bytes)} B`;
 }
 
-function formatAxisTooltipValue(
-	value: unknown,
-	integerAxis: boolean,
-): string {
+function formatAxisTooltipValue(value: unknown, integerAxis: boolean): string {
 	if (typeof value !== "number") {
 		return String(value ?? "");
 	}
@@ -336,12 +332,57 @@ function seriesForDockerStats(
 	pick: (sample: RedisDockerStatsSampleView) => number,
 	originUnixMs: number,
 ): Array<[number, number]> {
-	return samples
-		.filter((sample) => sample.role === role)
-		.map((sample) => [
-			Math.max(sample.capturedAtUnixMs - originUnixMs, 0),
-			pick(sample),
-		]);
+	/** Sum multi-replica samples that share a role + capture timestamp. */
+	const byTime = new Map<number, number>();
+	for (const sample of samples) {
+		if (sample.role !== role) {
+			continue;
+		}
+		const t = Math.max(sample.capturedAtUnixMs - originUnixMs, 0);
+		byTime.set(t, (byTime.get(t) ?? 0) + pick(sample));
+	}
+	return [...byTime.entries()].sort((a, b) => a[0] - b[0]);
+}
+
+const DOCKER_STATS_SERIES: ReadonlyArray<{
+	role: string;
+	label: string;
+}> = [
+	{
+		role: "transactions",
+		label: LABELS.TEXT_PROFILER_REDIS_ROLE_TRANSACTIONS,
+	},
+	{
+		role: "addressbalance",
+		label: LABELS.TEXT_PROFILER_REDIS_ROLE_ADDRESSBALANCE,
+	},
+	{
+		role: "apihandler",
+		label: LABELS.TEXT_PROFILER_DOCKER_STATS_ROLE_APIHANDLER,
+	},
+	{
+		role: "dbwriter",
+		label: LABELS.TEXT_PROFILER_DOCKER_STATS_ROLE_DBWRITER,
+	},
+	{
+		role: "nginx",
+		label: LABELS.TEXT_PROFILER_DOCKER_STATS_ROLE_NGINX,
+	},
+	{
+		role: "pgbouncer",
+		label: LABELS.TEXT_PROFILER_DOCKER_STATS_ROLE_PGBOUNCER,
+	},
+	{
+		role: "postgres",
+		label: LABELS.TEXT_PROFILER_DOCKER_STATS_ROLE_POSTGRES,
+	},
+];
+
+function dockerStatsSeriesPresent(
+	samples: readonly RedisDockerStatsSampleView[],
+): typeof DOCKER_STATS_SERIES {
+	const present = new Set(samples.map((sample) => sample.role));
+	return DOCKER_STATS_SERIES.filter((series) => present.has(series.role));
 }
 
 function memoryChartOption(
@@ -351,7 +392,9 @@ function memoryChartOption(
 		tooltip: {
 			trigger: "axis",
 			valueFormatter: (value) =>
-				typeof value === "number" ? formatBytesHuman(value) : String(value ?? ""),
+				typeof value === "number"
+					? formatBytesHuman(value)
+					: String(value ?? ""),
 		},
 		legend: {
 			type: "scroll",
@@ -507,14 +550,8 @@ function SlowlogSection({
 	slowlog: RedisSlowLogEntryView[];
 	slowlogSlowerThanUs: number;
 }): JSX.Element {
-	const slowlogBars = useMemo(
-		() => buildTopSlowlogBars(slowlog),
-		[slowlog],
-	);
-	const chartOption = useMemo(
-		() => topSlowlogBarOption(slowlog),
-		[slowlog],
-	);
+	const slowlogBars = useMemo(() => buildTopSlowlogBars(slowlog), [slowlog]);
+	const chartOption = useMemo(() => topSlowlogBarOption(slowlog), [slowlog]);
 	const sortedEntries = useMemo(
 		() => [...slowlog].sort((a, b) => b.durationUs - a.durationUs),
 		[slowlog],
@@ -773,59 +810,39 @@ export function RedisStressDiagnosticsPanel({
 		[duringSamples, originUnixMs],
 	);
 
-	const cpuOption = useMemo(
-		() =>
-			chartOption(
-				LABELS.TEXT_PROFILER_REDIS_CHART_CPU_AXIS,
-				[
-					{
-						name: LABELS.TEXT_PROFILER_REDIS_ROLE_TRANSACTIONS,
-						data: seriesForDockerStats(
-							dockerStatsSamples,
-							"transactions",
-							(s) => Number(s.cpuPercent.toFixed(3)),
-							originUnixMs,
-						),
-					},
-					{
-						name: LABELS.TEXT_PROFILER_REDIS_ROLE_ADDRESSBALANCE,
-						data: seriesForDockerStats(
-							dockerStatsSamples,
-							"addressbalance",
-							(s) => Number(s.cpuPercent.toFixed(3)),
-							originUnixMs,
-						),
-					},
-				],
-				YAxisValueKind.Decimal,
-			),
-		[dockerStatsSamples, originUnixMs],
-	);
+	const cpuOption = useMemo(() => {
+		const series = dockerStatsSeriesPresent(dockerStatsSamples).map(
+			(entry) => ({
+				name: entry.label,
+				data: seriesForDockerStats(
+					dockerStatsSamples,
+					entry.role,
+					(s) => Number(s.cpuPercent.toFixed(3)),
+					originUnixMs,
+				),
+			}),
+		);
+		return chartOption(
+			LABELS.TEXT_PROFILER_REDIS_CHART_CPU_AXIS,
+			series,
+			YAxisValueKind.Decimal,
+		);
+	}, [dockerStatsSamples, originUnixMs]);
 
-	const memoryOption = useMemo(
-		() =>
-			memoryChartOption([
-				{
-					name: LABELS.TEXT_PROFILER_REDIS_ROLE_TRANSACTIONS,
-					data: seriesForDockerStats(
-						dockerStatsSamples,
-						"transactions",
-						(s) => s.memoryUsageBytes,
-						originUnixMs,
-					),
-				},
-				{
-					name: LABELS.TEXT_PROFILER_REDIS_ROLE_ADDRESSBALANCE,
-					data: seriesForDockerStats(
-						dockerStatsSamples,
-						"addressbalance",
-						(s) => s.memoryUsageBytes,
-						originUnixMs,
-					),
-				},
-			]),
-		[dockerStatsSamples, originUnixMs],
-	);
+	const memoryOption = useMemo(() => {
+		const series = dockerStatsSeriesPresent(dockerStatsSamples).map(
+			(entry) => ({
+				name: entry.label,
+				data: seriesForDockerStats(
+					dockerStatsSamples,
+					entry.role,
+					(s) => s.memoryUsageBytes,
+					originUnixMs,
+				),
+			}),
+		);
+		return memoryChartOption(series);
+	}, [dockerStatsSamples, originUnixMs]);
 
 	const commandQueueOption = useMemo(
 		() =>
@@ -948,8 +965,7 @@ export function RedisStressDiagnosticsPanel({
 								{" · "}
 								{LABELS.TEXT_PROFILER_REDIS_EXPECTED_CLIENTS}:{" "}
 								<span className="text-foreground font-mono">
-									{snap.pool.expectedMinClients}–
-									{snap.pool.expectedMaxClients}
+									{snap.pool.expectedMinClients}–{snap.pool.expectedMaxClients}
 								</span>
 							</div>
 							<div className="text-muted-foreground text-xs">

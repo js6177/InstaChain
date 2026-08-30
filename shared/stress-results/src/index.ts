@@ -18,9 +18,6 @@ export {
 	GET_BALANCE_MISSING_POPULATED_CALL_COUNT,
 	GET_BALANCE_MISSING_POPULATED_SEED_COUNT,
 	GET_BALANCE_STRESS_HISTORY_LIMIT,
-	getBalanceMissingAddressPopulatedVariables,
-	getBalanceMissingAddressWorstCaseVariables,
-	getBalanceStressHistoryPath,
 	GetBalanceAddressMode,
 	GetBalanceStressBatchResult,
 	GetBalanceStressHistory,
@@ -28,6 +25,9 @@ export {
 	GetBalanceStressHistorySummary,
 	GetBalanceStressResult,
 	GetBalanceStressVariables,
+	getBalanceMissingAddressPopulatedVariables,
+	getBalanceMissingAddressWorstCaseVariables,
+	getBalanceStressHistoryPath,
 	STRESS_SUCCESS_RATE_WARNING_PCT,
 } from "./get-balance-stress";
 export { HealthStressResult } from "./health-stress";
@@ -36,13 +36,15 @@ export { computeLatencyStats, LatencyStatsMs } from "./latency-stats";
 export { StressPhaseTimingsMs } from "./phase-timings";
 export { StressProfilerSessionSummary } from "./profiler-session-summary";
 export {
+	DockerStatsServiceRole,
 	ProcessDiagnosticsSample,
 	ProcessDiagnosticsService,
+	parseDockerStatsServiceRole,
 	RedisClientSummary,
 	RedisCommandStat,
 	RedisConnectionPoolAnalysis,
-	RedisDiagPhase,
 	RedisDiagnosticsMode,
+	RedisDiagPhase,
 	RedisDockerStatsSample,
 	RedisDuringSample,
 	RedisInstanceRole,

@@ -35,7 +35,8 @@ Automatic during `make stress-test`:
 - **before k6:** `redis-cli --latency` via `scripts/redis-latency-probe.ts`
 - **during k6:** `monitor-redis` every `REDIS_DURING_INTERVAL_MS` (default 1000ms)
   - captures PING latency-history + CLIENT LIST on the compose network
-  - host also polls `docker stats` / `podman stats` at 1Hz for Redis CPU% + memory
+  - host also polls `docker stats` / `podman stats` at 1Hz for CPU% + memory on
+    Redis, apihandler (all replicas), dbwriter, nginx, pgbouncer, and postgres
 - **finalize:** post-load INFO/commandstats/SLOWLOG/CLIENT LIST; findings embedded in
   the throughput report (`redis` field), attached to the profiler session report
   (shown on `/explorer/stats/:sessionId`), and printed with the stress summary

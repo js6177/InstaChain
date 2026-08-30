@@ -1,15 +1,16 @@
 /**
- * Host-side 1Hz `docker stats` / `podman stats` poller for Redis containers
- * during k6. Writes JSONL under STRESS_DATA_DIR for finalize to embed.
+ * Host-side 1Hz `docker stats` / `podman stats` poller for push-stress
+ * compose services during k6. Writes JSONL under STRESS_DATA_DIR for finalize.
  */
-import {
-	RedisDockerStatsSample,
-	RedisInstanceRole,
-} from "@openl2/stress-results";
+
 import { appendFile } from "node:fs/promises";
+import { DockerService } from "@openl2/config-loader";
+import {
+	DockerStatsServiceRole,
+	RedisDockerStatsSample,
+} from "@openl2/stress-results";
 import {
 	composeArgv,
-	RedisComposeHost,
 	resolveContainerCliForConfig,
 	type StressOrchestratorConfig,
 } from "../../scripts/compose";
@@ -107,25 +108,54 @@ export function parseMemUsage(
 	};
 }
 
-function roleForContainerName(name: string): RedisInstanceRole | null {
+/**
+ * Push-stress data-path services to include in host docker/podman stats.
+ * Order matters for name matching (nginx before apihandler).
+ */
+export const DOCKER_STATS_COMPOSE_SERVICES = [
+	DockerService.REDIS_TRANSACTIONS,
+	DockerService.REDIS_ADDRESSBALANCE,
+	DockerService.LAYER2LEDGER_APIHANDLER_NGINX,
+	DockerService.LAYER2LEDGER_APIHANDLER,
+	DockerService.LAYER2LEDGER_DBWRITER,
+	DockerService.LAYER2LEDGER_PGBOUNCER,
+	DockerService.LAYER2LEDGER_POSTGRES,
+] as const;
+
+export function roleForContainerName(
+	name: string,
+): DockerStatsServiceRole | null {
 	const lower = name.toLowerCase();
-	if (lower.includes(RedisComposeHost.Transactions)) {
-		return RedisInstanceRole.Transactions;
+	// Most-specific substrings first (nginx contains "apihandler").
+	if (lower.includes(DockerService.LAYER2LEDGER_APIHANDLER_NGINX)) {
+		return DockerStatsServiceRole.Nginx;
 	}
-	if (lower.includes(RedisComposeHost.AddressBalance)) {
-		return RedisInstanceRole.AddressBalance;
+	if (lower.includes(DockerService.LAYER2LEDGER_APIHANDLER)) {
+		return DockerStatsServiceRole.Apihandler;
+	}
+	if (lower.includes(DockerService.LAYER2LEDGER_DBWRITER)) {
+		return DockerStatsServiceRole.Dbwriter;
+	}
+	if (lower.includes(DockerService.LAYER2LEDGER_PGBOUNCER)) {
+		return DockerStatsServiceRole.PgBouncer;
+	}
+	if (lower.includes(DockerService.LAYER2LEDGER_POSTGRES)) {
+		return DockerStatsServiceRole.Postgres;
+	}
+	if (lower.includes(DockerService.REDIS_TRANSACTIONS)) {
+		return DockerStatsServiceRole.Transactions;
+	}
+	if (lower.includes(DockerService.REDIS_ADDRESSBALANCE)) {
+		return DockerStatsServiceRole.AddressBalance;
 	}
 	return null;
 }
 
-async function resolveRedisContainerIds(
+async function resolveStatsContainerIds(
 	config: StressOrchestratorConfig,
 ): Promise<string[]> {
 	const ids: string[] = [];
-	for (const service of [
-		RedisComposeHost.Transactions,
-		RedisComposeHost.AddressBalance,
-	]) {
+	for (const service of DOCKER_STATS_COMPOSE_SERVICES) {
 		const argv = [...composeArgv(config), "ps", "-q", service];
 		const proc = Bun.spawn(argv, {
 			cwd: config.root,
@@ -162,14 +192,7 @@ async function captureDockerStatsTick(
 	}
 	const cli = resolveContainerCliForConfig();
 	const proc = Bun.spawn(
-		[
-			cli,
-			"stats",
-			"--no-stream",
-			"--format",
-			"{{json .}}",
-			...containerIds,
-		],
+		[cli, "stats", "--no-stream", "--format", "{{json .}}", ...containerIds],
 		{
 			cwd: config.root,
 			stdout: "pipe",
@@ -230,7 +253,7 @@ export async function runDockerStatsMonitor(options: {
 	const jsonlPath = redisDockerStatsPath(options.mode);
 	await Bun.write(jsonlPath, "");
 
-	let containerIds = await resolveRedisContainerIds(options.config);
+	let containerIds = await resolveStatsContainerIds(options.config);
 	console.log(
 		`docker-stats monitor started mode=${options.mode} interval_ms=${intervalMs} ` +
 			`containers=${containerIds.length} jsonl=${jsonlPath}`,
@@ -241,7 +264,7 @@ export async function runDockerStatsMonitor(options: {
 			const tickStarted = Date.now();
 			try {
 				if (containerIds.length === 0) {
-					containerIds = await resolveRedisContainerIds(options.config);
+					containerIds = await resolveStatsContainerIds(options.config);
 				}
 				const samples = await captureDockerStatsTick(
 					options.config,

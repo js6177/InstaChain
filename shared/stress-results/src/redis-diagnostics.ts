@@ -6,6 +6,36 @@ export enum RedisInstanceRole {
 	AddressBalance = "addressbalance",
 }
 
+/**
+ * Compose services included in host `docker stats` / `podman stats` sampling
+ * during stress (push data path). Redis roles reuse {@link RedisInstanceRole}
+ * string values for backward-compatible JSON.
+ */
+export enum DockerStatsServiceRole {
+	Transactions = "transactions",
+	AddressBalance = "addressbalance",
+	Apihandler = "apihandler",
+	Dbwriter = "dbwriter",
+	Nginx = "nginx",
+	Postgres = "postgres",
+	PgBouncer = "pgbouncer",
+}
+
+const DOCKER_STATS_SERVICE_ROLES = new Set<string>(
+	Object.values(DockerStatsServiceRole),
+);
+
+export function parseDockerStatsServiceRole(
+	raw: unknown,
+): DockerStatsServiceRole | null {
+	if (typeof raw !== "string") {
+		return null;
+	}
+	return DOCKER_STATS_SERVICE_ROLES.has(raw)
+		? (raw as DockerStatsServiceRole)
+		: null;
+}
+
 /** When a Redis diagnostic snapshot was taken relative to the stress wave. */
 export enum RedisDiagPhase {
 	Baseline = "baseline",
@@ -328,8 +358,7 @@ export class ProcessDiagnosticsSample {
 			replicaId: String(typed.replicaId ?? ""),
 			capturedAtUnixMs: typed.capturedAtUnixMs,
 			transactionsCommandQueueLength: typed.transactionsCommandQueueLength,
-			addressBalanceCommandQueueLength:
-				typed.addressBalanceCommandQueueLength,
+			addressBalanceCommandQueueLength: typed.addressBalanceCommandQueueLength,
 			eventLoopDelayMeanMs: typed.eventLoopDelayMeanMs,
 			eventLoopDelayMaxMs: typed.eventLoopDelayMaxMs,
 			eventLoopDelayP99Ms: typed.eventLoopDelayP99Ms,
@@ -338,11 +367,11 @@ export class ProcessDiagnosticsSample {
 }
 
 /**
- * One 1Hz host `docker stats` / `podman stats` sample for a Redis container
- * during the stress wave.
+ * One 1Hz host `docker stats` / `podman stats` sample for a compose service
+ * container during the stress wave (Redis, apihandler replicas, dbwriter, etc.).
  */
 export class RedisDockerStatsSample {
-	readonly role: RedisInstanceRole;
+	readonly role: DockerStatsServiceRole;
 	readonly capturedAtUnixMs: number;
 	readonly containerName: string;
 	/** CPU usage percent (0–100+ under multi-core). */
@@ -377,10 +406,10 @@ export class RedisDockerStatsSample {
 		) {
 			return null;
 		}
-		const role =
-			typed.role === RedisInstanceRole.AddressBalance
-				? RedisInstanceRole.AddressBalance
-				: RedisInstanceRole.Transactions;
+		const role = parseDockerStatsServiceRole(typed.role);
+		if (role === null) {
+			return null;
+		}
 		return new RedisDockerStatsSample({
 			role,
 			capturedAtUnixMs: typed.capturedAtUnixMs,
@@ -521,9 +550,7 @@ export class RedisStressDiagnostics {
 			return null;
 		}
 		const typed = data as RedisStressDiagnostics;
-		const pipelining = RedisPipeliningAnalysis.parse(
-			typed.pipelining ?? null,
-		);
+		const pipelining = RedisPipeliningAnalysis.parse(typed.pipelining ?? null);
 		if (pipelining === null) {
 			return null;
 		}
@@ -545,16 +572,12 @@ export class RedisStressDiagnostics {
 		const dockerStatsSamples = Array.isArray(typed.dockerStatsSamples)
 			? typed.dockerStatsSamples
 					.map((row) => RedisDockerStatsSample.parse(row ?? null))
-					.filter(
-						(row): row is RedisDockerStatsSample => row !== null,
-					)
+					.filter((row): row is RedisDockerStatsSample => row !== null)
 			: [];
 		const processSamples = Array.isArray(typed.processSamples)
 			? typed.processSamples
 					.map((row) => ProcessDiagnosticsSample.parse(row ?? null))
-					.filter(
-						(row): row is ProcessDiagnosticsSample => row !== null,
-					)
+					.filter((row): row is ProcessDiagnosticsSample => row !== null)
 			: [];
 		const commandstatDeltas = Array.isArray(typed.commandstatDeltas)
 			? typed.commandstatDeltas

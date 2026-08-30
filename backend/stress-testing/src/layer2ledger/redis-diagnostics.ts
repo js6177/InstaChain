@@ -707,7 +707,7 @@ export async function buildRedisStressDiagnostics(options: {
 	if (dockerStatsSamples.length > 0) {
 		interpretation.push(
 			`Host docker/podman stats: ${dockerStatsSamples.length} samples ` +
-				`(1Hz CPU% + memory for redis-transactions / redis-addressbalance).`,
+				`(1Hz CPU% + memory for Redis, apihandler, dbwriter, nginx, pgbouncer, postgres).`,
 		);
 	} else {
 		interpretation.push(
